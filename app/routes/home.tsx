@@ -1,6 +1,7 @@
-import type { Route } from './+types/home';
 import { HomeLayout } from 'fumadocs-ui/layouts/home';
 import { Link } from 'react-router';
+
+import type { Route } from './+types/home';
 import { baseOptions } from '@/lib/layout.shared';
 
 export function meta({}: Route.MetaArgs) {
