@@ -1,0 +1,2 @@
+# documentation
+Eventum Generator documentation
