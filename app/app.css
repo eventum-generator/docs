@@ -1,3 +1,21 @@
 @import 'tailwindcss';
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
+
+:root {
+  --fd-font-sans:
+    'Poppins', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    sans-serif;
+}
+
+body {
+  font-family: var(--fd-font-sans);
+}
+
+[data-fd-search],
+[data-fd-theme-toggle],
+[data-fd-button],
+[data-fd-clickable],
+button {
+  cursor: pointer;
+}

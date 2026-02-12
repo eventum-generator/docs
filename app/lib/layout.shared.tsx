@@ -4,14 +4,14 @@ export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
       title: (
-        <div className="flex flex-row gap-3 items-center">
+        <div className="flex flex-row gap-2 items-center">
           <img
             src="/logo.svg"
             alt="Eventum Logo"
             width="auto"
-            className="h-[25px] w-auto object-contain"
+            className="h-7.5 w-auto object-contain"
           />
-          <p>Eventum</p>
+          <p className="text-xl">Eventum</p>
         </div>
       ),
     },
