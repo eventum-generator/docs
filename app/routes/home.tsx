@@ -3,10 +3,8 @@ import {
   IconBrandGithub,
   IconChevronRight,
 } from '@tabler/icons-react';
-import cn from 'classnames';
 import Autoplay from 'embla-carousel-autoplay';
 import { Card } from 'fumadocs-ui/components/card';
-import { GithubInfo } from 'fumadocs-ui/components/github-info';
 import { HomeLayout } from 'fumadocs-ui/layouts/home';
 import { motion } from 'motion/react';
 import { LayoutGroup } from 'motion/react';
@@ -33,6 +31,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { baseOptions } from '@/lib/layout.shared';
+import { cn } from '@/lib/utils';
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -44,20 +43,41 @@ export function meta({}: Route.MetaArgs) {
 export default function Home() {
   const plugin = useRef(Autoplay({ delay: 5000, stopOnInteraction: true }));
 
-  const theme = 'dark';
-
   const features = [
     {
-      title: 'Precise event timing adjustment',
-      image: `/landing/time_distribution_${theme}.png`,
+      title: 'Precise scheduling of events',
+      image: {
+        dark: '/landing/time_distribution_dark.png',
+        light: '/landing/time_distribution_light.png',
+      },
     },
     {
-      title: 'Define event timing precisely',
-      image: `/landing/template_${theme}.png`,
+      title: 'Template engine with extended API',
+      image: {
+        dark: '/landing/template_dark.png',
+        light: '/landing/template_light.png',
+      },
     },
     {
-      title: 'Define event timing precisely',
-      image: `/landing/debug_${theme}.png`,
+      title: 'Ability to generate data using Python scripts',
+      image: {
+        dark: '/landing/script_dark.png',
+        light: '/landing/script_light.png',
+      },
+    },
+    {
+      title: 'Generation debugging',
+      image: {
+        dark: '/landing/debug_dark.png',
+        light: '/landing/debug_light.png',
+      },
+    },
+    {
+      title: 'Various endpoints for sending events',
+      image: {
+        dark: '/landing/outputs_dark.png',
+        light: '/landing/outputs_light.png',
+      },
     },
   ];
 
@@ -202,23 +222,34 @@ export default function Home() {
                       <Dialog>
                         <DialogTrigger>
                           <img
-                            src={item.image}
+                            src={item.image.light}
                             alt={item.title}
-                            className="h-auto w-full object-contain rounded-md"
+                            className="h-auto w-full object-contain rounded-md dark:hidden"
+                          />
+                          <img
+                            src={item.image.dark}
+                            alt={item.title}
+                            className="h-auto w-full object-contain rounded-md not-dark:hidden"
                           />
                         </DialogTrigger>
                         <DialogContent
                           showCloseButton={false}
                           className="p-0
                           max-w-[80%]!
+                          border-none!
                           rounded-none"
                         >
                           <DialogHeader>
                             <DialogDescription>
                               <img
-                                src={item.image}
+                                src={item.image.light}
                                 alt={item.title}
-                                className="h-auto w-full object-contain"
+                                className="h-auto w-full object-contain dark:hidden"
+                              />
+                              <img
+                                src={item.image.dark}
+                                alt={item.title}
+                                className="h-auto w-full object-contain not-dark:hidden"
                               />
                             </DialogDescription>
                           </DialogHeader>
