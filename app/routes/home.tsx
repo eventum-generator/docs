@@ -1,13 +1,37 @@
+import {
+  IconBook,
+  IconBrandGithub,
+  IconChevronRight,
+} from '@tabler/icons-react';
 import cn from 'classnames';
+import Autoplay from 'embla-carousel-autoplay';
+import { Card } from 'fumadocs-ui/components/card';
+import { GithubInfo } from 'fumadocs-ui/components/github-info';
 import { HomeLayout } from 'fumadocs-ui/layouts/home';
 import { motion } from 'motion/react';
 import { LayoutGroup } from 'motion/react';
+import { useRef } from 'react';
 import { Link } from 'react-router';
 
 import type { Route } from './+types/home';
 import LightRays from '@/components/LightRays';
 import RotatingText from '@/components/RotatingText';
-import { GridPattern } from '@/components/background/grid';
+import { GridPattern } from '@/components/grid';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from '@/components/ui/carousel';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { baseOptions } from '@/lib/layout.shared';
 
 export function meta({}: Route.MetaArgs) {
@@ -18,9 +42,35 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Home() {
+  const plugin = useRef(Autoplay({ delay: 5000, stopOnInteraction: true }));
+
+  const theme = 'dark';
+
+  const features = [
+    {
+      title: 'Precise event timing adjustment',
+      image: `/landing/time_distribution_${theme}.png`,
+    },
+    {
+      title: 'Define event timing precisely',
+      image: `/landing/template_${theme}.png`,
+    },
+    {
+      title: 'Define event timing precisely',
+      image: `/landing/debug_${theme}.png`,
+    },
+  ];
+
   return (
     <HomeLayout {...baseOptions()}>
-      <main className="flex flex-1 flex-col items-center justify-center text-center gap-12">
+      <main className="flex flex-1 flex-col items-center justify-center">
+        <GridPattern
+          width={50}
+          height={50}
+          className={cn(
+            'mask-[linear-gradient(-45deg,white,transparent,transparent)] -z-20'
+          )}
+        />
         <div className="pointer-events-none absolute -z-10 inset-0 invisible dark:visible">
           <LightRays
             raysOrigin="top-left"
@@ -38,80 +88,151 @@ export default function Home() {
             saturation={1}
           />
         </div>
-        <div className="flex flex-row justify-center items-center gap-5">
-          <img
-            src="/logo.svg"
-            alt="Eventum Logo"
-            width="auto"
-            className="h-12.5 lg:h-19 w-auto object-contain"
-          />
-          <h1
-            className={
-              'text-3xl lg:text-5xl uppercase font-medium bg-linear-to-br dark:from-white from-black dark:to-neutral-400 to-black bg-clip-text text-transparent'
-            }
-          >
-            Eventum
-          </h1>
-        </div>
-        <LayoutGroup>
-          <motion.p className="flex items-center gap-2" layout>
-            <motion.span
-              className="
-                text-md lg:text-2xl font-light
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
+          <div className="flex flex-1 flex-col items-center justify-center text-center gap-5">
+            <div className="flex flex-row justify-center items-center gap-5">
+              <img
+                src="/logo.svg"
+                alt="Eventum Logo"
+                width="auto"
+                className="h-12.5 lg:h-19 w-auto object-contain"
+              />
+              <h1
+                className={
+                  'text-3xl lg:text-5xl uppercase font-medium bg-linear-to-br dark:from-white from-black dark:to-neutral-400 to-black bg-clip-text text-transparent'
+                }
+              >
+                Eventum
+              </h1>
+              <div className="h-15 w-0.5 bg-gray-400/30 rounded-sm" />
+              <span
+                className={
+                  'text-md lg:text-2xl font-medium bg-linear-to-br dark:from-white from-black dark:to-neutral-400 to-black bg-clip-text text-transparent'
+                }
+              >
+                Data generation platform
+              </span>
+            </div>
+
+            <LayoutGroup>
+              <motion.p className="flex items-center gap-2" layout>
+                <motion.span
+                  className="
+                text-md lg:text-xl font-light
                 text-black dark:text-white
               "
-              layout
-              transition={{ type: 'spring', damping: 30, stiffness: 400 }}
-            >
-              Generate sophisticated{' '}
-            </motion.span>
-            <RotatingText
-              texts={[
-                'events',
-                'logs',
-                'datasets',
-                'data streams',
-                'workloads',
-              ]}
-              mainClassName="
-      inline-flex items-center
-      px-2 sm:px-2 md:px-3
-      bg-[#8282ef]/90
-      text-md lg:text-2xl font-normal text-black dark:text-white
-      overflow-hidden
-      py-0.5 sm:py-1 md:py-1
-      rounded-lg
-      backdrop-blur-sm
-    "
-              staggerFrom="last"
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '-120%' }}
-              staggerDuration={0.025}
-              splitLevelClassName="overflow-hidden"
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              rotationInterval={3500}
-            />
-          </motion.p>
-        </LayoutGroup>
+                  layout
+                  transition={{ type: 'spring', damping: 30, stiffness: 400 }}
+                >
+                  Fuel your systems with{' '}
+                </motion.span>
+                <RotatingText
+                  texts={[
+                    'scheduled events',
+                    'application logs',
+                    'feature-rich datasets',
+                    'live data streams',
+                    'testing workloads',
+                  ]}
+                  mainClassName="
+                    inline-flex items-center
+                    px-2 sm:px-2 md:px-3
+                    bg-[#8282ef]/90
+                    text-md lg:text-xl font-normal text-white
+                    overflow-hidden
+                    py-0.5 sm:py-1 md:py-1
+                    rounded-lg
+                    backdrop-blur-sm
+                  "
+                  staggerFrom="last"
+                  initial={{ y: '100%' }}
+                  animate={{ y: 0 }}
+                  exit={{ y: '-120%' }}
+                  staggerDuration={0.025}
+                  splitLevelClassName="overflow-hidden"
+                  transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                  rotationInterval={3500}
+                />
+              </motion.p>
+            </LayoutGroup>
 
-        <div className="flex flex-col gap-2 z-10">
-          <div className="flex flex-col w-full lg:flex-row gap-2 lg:gap-2 items-center justify-center motion-preset-expand motion-delay-[400ms]">
-            <Link
-              to={'/docs'}
-              className="flex w-full items-center group border rounded-2xl px-5 py-2 gap-2"
+            <div className="flex flex-row justify-center align-center gap-3">
+              <Link
+                to={'https://github.com/eventum-generator/eventum'}
+                target="_blank"
+                className="
+                flex items-center justify-center border rounded-2xl px-4 py-1 gap-1.5
+              "
+              >
+                <IconBrandGithub size={16} />
+                <span>GitHub</span>
+              </Link>
+              <Link
+                to={'/docs'}
+                className="
+                flex items-center justify-center border rounded-2xl px-4 py-1 gap-1.5
+              "
+              >
+                <span>Get started</span>
+                <IconChevronRight size={16} />
+              </Link>
+            </div>
+          </div>
+
+          <div className="invisible lg:visible flex flex-col gap-2 items-center justify-center">
+            <span
+              className={
+                'text-md lg:text-2xl font-medium bg-linear-to-br dark:from-white from-black dark:to-neutral-400 to-black bg-clip-text text-transparent'
+              }
             >
-              <span>Get started</span>
-            </Link>
+              Features
+            </span>
+
+            <Carousel
+              className="w-[85%] text-center"
+              plugins={[plugin.current]}
+              onMouseEnter={plugin.current.stop}
+              onMouseLeave={plugin.current.reset}
+            >
+              <CarouselContent>
+                {features.map((item) => (
+                  <CarouselItem key={item.title}>
+                    <Card title={item.title}>
+                      <Dialog>
+                        <DialogTrigger>
+                          <img
+                            src={item.image}
+                            alt={item.title}
+                            className="h-auto w-full object-contain rounded-md"
+                          />
+                        </DialogTrigger>
+                        <DialogContent
+                          showCloseButton={false}
+                          className="p-0
+                          max-w-[80%]!
+                          rounded-none"
+                        >
+                          <DialogHeader>
+                            <DialogDescription>
+                              <img
+                                src={item.image}
+                                alt={item.title}
+                                className="h-auto w-full object-contain"
+                              />
+                            </DialogDescription>
+                          </DialogHeader>
+                        </DialogContent>
+                      </Dialog>
+                    </Card>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious />
+              <CarouselNext />
+            </Carousel>
           </div>
         </div>
-        <GridPattern
-          width={50}
-          height={50}
-          className={cn(
-            'mask-[linear-gradient(-45deg,white,transparent,transparent)] '
-          )}
-        />
       </main>
     </HomeLayout>
   );
