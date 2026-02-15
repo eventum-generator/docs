@@ -67,7 +67,7 @@ export default function Page({ loaderData }: Route.ComponentProps) {
           {
             title: 'Core',
             description: 'Basics and key concepts of platform',
-            url: '/docs',
+            url: '/docs/core',
             icon: <IconCube size={16} />,
           },
           {

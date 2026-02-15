@@ -1,0 +1,14 @@
+{
+  "pages": [
+    "index",
+    "---Sections---",
+    "core",
+    "plugins",
+    "studio",
+    "---Knowledge---",
+    "faq",
+    "glossary",
+    "---Changelog---",
+    "...changelog"
+  ]
+}
