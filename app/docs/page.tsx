@@ -65,20 +65,26 @@ export default function Page({ loaderData }: Route.ComponentProps) {
         enabled: true,
         tabs: [
           {
+            title: 'Overview',
+            description: 'Navigation guide',
+            url: '/docs',
+            icon: <IconBook size={16} />,
+          },
+          {
             title: 'Core',
-            description: 'Basics and key concepts of platform',
+            description: 'Basics and key concepts',
             url: '/docs/core',
             icon: <IconCube size={16} />,
           },
           {
             title: 'Plugins',
-            description: 'Building blocks of any generator',
+            description: 'Building blocks',
             url: '/docs/plugins',
             icon: <IconPuzzle size={16} />,
           },
           {
             title: 'Eventum Studio',
-            description: 'Web interface for platform management',
+            description: 'Web interface',
             url: '/docs/studio',
             icon: <IconAppWindow size={16} />,
           },

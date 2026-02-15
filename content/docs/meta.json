@@ -1,10 +1,10 @@
 {
   "pages": [
     "index",
-    "---Sections---",
-    "core",
-    "plugins",
-    "studio",
+    "---Parts of Eventum---",
+    "[IconCube][Core](core)",
+    "[IconPuzzle][Plugin](plugins)",
+    "[IconAppWindow][Eventum Studio](studio)",
     "---Knowledge---",
     "faq",
     "glossary",
