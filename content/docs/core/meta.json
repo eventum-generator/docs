@@ -1,0 +1,11 @@
+{
+  "root": true,
+  "icon": "IconCube",
+  "pages": [
+    "---Introduction---",
+    "index",
+    "...introduction",
+    "---Concepts---",
+    "...concepts"
+  ]
+}

@@ -1,3 +1,10 @@
+import {
+  IconAppWindow,
+  IconBook,
+  IconCube,
+  IconHome,
+  IconPuzzle,
+} from '@tabler/icons-react';
 import { useFumadocsLoader } from 'fumadocs-core/source/client';
 import browserCollections from 'fumadocs-mdx:collections/browser';
 import { DocsLayout } from 'fumadocs-ui/layouts/docs';
@@ -51,7 +58,39 @@ export default function Page({ loaderData }: Route.ComponentProps) {
   const { pageTree } = useFumadocsLoader(loaderData);
 
   return (
-    <DocsLayout {...baseOptions()} tree={pageTree}>
+    <DocsLayout
+      {...baseOptions()}
+      tree={pageTree}
+      sidebar={{
+        enabled: true,
+        tabs: [
+          {
+            title: 'Overview',
+            description: 'Navigation guide',
+            url: '/docs',
+            icon: <IconBook size={16} />,
+          },
+          {
+            title: 'Core',
+            description: 'Basics and key concepts',
+            url: '/docs/core',
+            icon: <IconCube size={16} />,
+          },
+          {
+            title: 'Plugins',
+            description: 'Building blocks',
+            url: '/docs/plugins',
+            icon: <IconPuzzle size={16} />,
+          },
+          {
+            title: 'Eventum Studio',
+            description: 'Web interface',
+            url: '/docs/studio',
+            icon: <IconAppWindow size={16} />,
+          },
+        ],
+      }}
+    >
       <Content />
     </DocsLayout>
   );

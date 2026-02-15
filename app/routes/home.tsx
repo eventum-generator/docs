@@ -1,7 +1,7 @@
 import { IconBrandGithub, IconChevronRight } from '@tabler/icons-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { Card } from 'fumadocs-ui/components/card';
-import { HomeLayout } from 'fumadocs-ui/layouts/home';
+import { HomeLayout, type HomeLayoutProps } from 'fumadocs-ui/layouts/home';
 import { motion } from 'motion/react';
 import { LayoutGroup } from 'motion/react';
 import { useRef } from 'react';
@@ -23,7 +23,6 @@ import {
   DialogContent,
   DialogDescription,
   DialogHeader,
-  DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { baseOptions } from '@/lib/layout.shared';
