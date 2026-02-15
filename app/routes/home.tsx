@@ -1,8 +1,4 @@
-import {
-  IconBook,
-  IconBrandGithub,
-  IconChevronRight,
-} from '@tabler/icons-react';
+import { IconBrandGithub, IconChevronRight } from '@tabler/icons-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { Card } from 'fumadocs-ui/components/card';
 import { HomeLayout } from 'fumadocs-ui/layouts/home';
