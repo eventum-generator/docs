@@ -5,19 +5,12 @@ import { glob } from 'node:fs/promises';
 const getUrl = createGetUrl('/docs');
 
 export default {
-  ssr: true,
+  ssr: false,
   async prerender({ getStaticPaths }) {
-    const paths: string[] = [];
-    const excluded: string[] = [];
-
-    for (const path of getStaticPaths()) {
-      if (!excluded.includes(path)) paths.push(path);
-    }
-
+    const paths: string[] = [...getStaticPaths()];
     for await (const entry of glob('**/*.mdx', { cwd: 'content/docs' })) {
       paths.push(getUrl(getSlugs(entry)));
     }
-
     return paths;
   },
 } satisfies Config;
