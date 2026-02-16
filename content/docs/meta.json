@@ -2,9 +2,9 @@
   "pages": [
     "index",
     "---Parts of Eventum---",
-    "[Box][Core](/docs/core)",
-    "[Blocks][Plugins](/docs/plugins)",
-    "[AppWindow][Eventum Studio](/docs/studio)",
+    "[Box][Core](/docs/core#)",
+    "[Blocks][Plugins](/docs/plugins#)",
+    "[AppWindow][Eventum Studio](/docs/studio#)",
     "---Knowledge---",
     "faq",
     "glossary",
