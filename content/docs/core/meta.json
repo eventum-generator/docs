@@ -6,6 +6,10 @@
     "index",
     "...introduction",
     "---Concepts---",
-    "...concepts"
+    "...concepts",
+    "---Configuration---",
+    "...config",
+    "---CLI---",
+    "...cli"
   ]
 }
