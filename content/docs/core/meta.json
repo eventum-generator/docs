@@ -1,6 +1,6 @@
 {
   "root": true,
-  "icon": "IconCube",
+  "icon": "Box",
   "pages": [
     "---Introduction---",
     "index",
