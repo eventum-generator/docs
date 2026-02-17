@@ -55,9 +55,6 @@ export const Features: FC = () => {
                       darkSrc={item.image.dark}
                       lightSrc={item.image.light}
                       alt={item.title}
-                      width={0}
-                      height={0}
-                      sizes="100vw"
                       className="h-auto w-full object-contain rounded-md"
                     />
                   </DialogTrigger>
@@ -78,9 +75,6 @@ export const Features: FC = () => {
                           darkSrc={item.image.dark}
                           lightSrc={item.image.light}
                           alt={item.title}
-                          width={0}
-                          height={0}
-                          sizes="100vw"
                           className="h-auto w-full object-contain"
                         />
                       </DialogDescription>

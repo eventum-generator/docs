@@ -1,6 +1,5 @@
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
 import { BookOpen, House } from 'lucide-react';
-import Image from 'next/image';
 
 export const gitConfig = {
   user: 'eventum-generator',
@@ -19,11 +18,9 @@ export function baseOptions(): BaseLayoutProps {
     nav: {
       title: (
         <div className="flex flex-row gap-2 items-center">
-          <Image
+          <img
             src="/logo.svg"
             alt="Eventum Logo"
-            width={50}
-            height={50}
             className="h-7.5 w-auto object-contain"
           />
           <p className="text-xl">Eventum</p>

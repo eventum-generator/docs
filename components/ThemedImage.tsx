@@ -1,10 +1,13 @@
 'use client';
 
-import Image, { ImageProps } from 'next/image';
+import { ComponentPropsWithoutRef } from 'react';
 
 import { cn } from '@/lib/cn';
 
-interface ThemedImageProps extends Omit<ImageProps, 'src'> {
+interface ThemedImageProps extends Omit<
+  ComponentPropsWithoutRef<'img'>,
+  'src'
+> {
   lightSrc: string;
   darkSrc: string;
 }
@@ -18,13 +21,13 @@ export default function ThemedImage({
 }: ThemedImageProps) {
   return (
     <>
-      <Image
+      <img
         src={lightSrc}
         alt={alt}
         className={cn('dark:hidden', className)}
         {...props}
       />
-      <Image
+      <img
         src={darkSrc}
         alt={alt}
         className={cn('not-dark:hidden', className)}

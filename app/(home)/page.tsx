@@ -1,6 +1,5 @@
 import { SiGithub } from '@icons-pack/react-simple-icons';
 import { ChevronRight } from 'lucide-react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Metadata } from 'next/types';
 
@@ -46,11 +45,9 @@ export default function HomePage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
         <div className="flex flex-1 flex-col items-center justify-center text-center gap-5 mx-5">
           <div className="flex flex-row justify-center items-center gap-5">
-            <Image
+            <img
               src="/logo.svg"
               alt="Eventum Logo"
-              height={200}
-              width={200}
               className="h-12.5 lg:h-19 w-auto object-contain"
             />
             <h1

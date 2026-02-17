@@ -24,6 +24,7 @@ const eslintConfig = defineConfig([
       'unicorn/prevent-abbreviations': 'off',
       'unicorn/no-null': 'off',
       'sonarjs/void-use': 'off',
+      '@next/next/no-img-element': 'off',
     },
   },
 ]);

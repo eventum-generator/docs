@@ -19,6 +19,7 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   if (!page) notFound();
 
   const MDX = page.data.body;
+  const markdownUrl = `/llms.mdx/docs/${[...page.slugs, 'index.mdx'].join('/')}`;
 
   return (
     <DocsPage toc={page.data.toc} full={page.data.full}>
@@ -27,9 +28,9 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
         {page.data.description}
       </DocsDescription>
       <div className="flex flex-row gap-2 items-center border-b pb-6">
-        <LLMCopyButton markdownUrl={`${page.url}.mdx`} />
+        <LLMCopyButton markdownUrl={markdownUrl} />
         <ViewOptions
-          markdownUrl={`${page.url}.mdx`}
+          markdownUrl={markdownUrl}
           githubUrl={`https://github.com/${docsGitConfig.user}/${docsGitConfig.repo}/blob/${docsGitConfig.branch}/content/docs/${page.path}`}
         />
       </div>
