@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center">
+    <main className="relative min-h-dvh w-full overflow-hidden flex flex-col items-center justify-center">
       <GridPattern
         width={50}
         height={50}
