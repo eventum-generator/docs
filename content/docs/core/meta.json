@@ -1,11 +1,15 @@
 {
   "root": true,
-  "icon": "IconCube",
+  "icon": "Box",
   "pages": [
     "---Introduction---",
     "index",
     "...introduction",
     "---Concepts---",
-    "...concepts"
+    "...concepts",
+    "---Configuration---",
+    "...config",
+    "---CLI---",
+    "...cli"
   ]
 }

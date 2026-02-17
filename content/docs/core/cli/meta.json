@@ -1,0 +1,3 @@
+{
+  "pages": ["eventum-generate", "eventum-run", "eventum-keyring"]
+}
