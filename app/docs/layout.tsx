@@ -1,5 +1,5 @@
 import { DocsLayout } from 'fumadocs-ui/layouts/docs';
-import { AppWindow, Blocks, BookOpen, Box, Code } from 'lucide-react';
+import { AppWindow, Blocks, BookOpen, Box, CodeXml } from 'lucide-react';
 
 import { baseOptions } from '@/lib/layout.shared';
 import { source } from '@/lib/source';
@@ -40,7 +40,7 @@ export default function Layout({ children }: LayoutProps<'/docs'>) {
             title: 'API',
             description: 'API reference',
             url: '/docs/api',
-            icon: <Code size={16} />,
+            icon: <CodeXml size={16} />,
           },
         ],
       }}
