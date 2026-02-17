@@ -5,7 +5,13 @@ import Image from 'next/image';
 export const gitConfig = {
   user: 'eventum-generator',
   repo: 'eventum',
-  branch: 'main',
+  branch: 'master',
+};
+
+export const docsGitConfig = {
+  user: 'eventum-generator',
+  repo: 'docs',
+  branch: 'master',
 };
 
 export function baseOptions(): BaseLayoutProps {
