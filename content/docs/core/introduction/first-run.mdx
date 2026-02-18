@@ -1,4 +1,274 @@
 ---
 title: First run
-description: description
+description: Run your first generator from the command line, then launch the full application with API and web UI.
 ---
+
+This guide walks you through two ways to run Eventum. Start with a **single generator** to see results immediately, then move to the **full application** when you need multiple generators, a REST API, or the Studio web UI.
+
+<Callout type="warn">
+Make sure Eventum is installed before continuing. See [Installation](/docs/core/introduction/installation) for options.
+</Callout>
+
+## Run a single generator
+
+The `eventum generate` command runs one generator directly from the command line — no server, no config files beyond the generator itself. This is the fastest way to see Eventum in action.
+
+<Steps>
+<Step>
+### Create a project directory
+
+```bash
+mkdir my-generator && cd my-generator
+mkdir templates
+```
+
+</Step>
+<Step>
+### Write a template
+
+Create a Jinja2 template that defines what each event looks like. The `timestamp` variable is provided automatically by the input plugin, and `module.faker` gives you access to [Faker](https://faker.readthedocs.io/) for realistic data.
+
+```jinja title="templates/event.jinja"
+{
+  "timestamp": "{{ timestamp.isoformat() }}",
+  "level": "{{ module.rand.weighted_choice(['INFO', 'WARN', 'ERROR'], [80, 15, 5]) }}",
+  "service": "api-gateway",
+  "user": "{{ module.faker.locale.en.user_name() }}",
+  "action": "{{ module.rand.choice(['login', 'logout', 'request', 'timeout']) }}",
+  "ip": "{{ module.faker.locale.en.ipv4() }}"
+}
+```
+
+</Step>
+<Step>
+### Write a generator config
+
+Create a YAML file that wires the three pipeline stages together: **input** (when), **event** (what), and **output** (where).
+
+```yaml title="generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: all
+    templates:
+      - event:
+          template: templates/event.jinja
+
+output:
+  - stdout: {}
+```
+
+This config generates one event per second using a cron expression, renders it with the template, and prints it to stdout.
+
+</Step>
+<Step>
+### Run it
+
+```bash
+eventum generate --id my-gen --path generator.yml --batch.size 1
+```
+
+Events start printing to your terminal:
+
+```json
+{"timestamp": "2026-02-18T12:00:01+00:00", "level": "INFO", "service": "api-gateway", "user": "jsmith", "action": "login", "ip": "192.168.44.12"}
+{"timestamp": "2026-02-18T12:00:02+00:00", "level": "INFO", "service": "api-gateway", "user": "amiller", "action": "request", "ip": "10.0.128.55"}
+{"timestamp": "2026-02-18T12:00:03+00:00", "level": "WARN", "service": "api-gateway", "user": "kwilson", "action": "timeout", "ip": "172.16.0.91"}
+```
+
+Press `Ctrl+C` to stop.
+
+</Step>
+</Steps>
+
+### Useful flags
+
+| Flag | Description |
+|------|-------------|
+| `--live-mode` / `--no-live-mode` | Stream events in real time (default) or generate everything as fast as possible |
+| `--skip-past` / `--no-skip-past` | Skip timestamps in the past when starting in live mode (default: skip) |
+| `--timezone` | Time zone for timestamps, e.g. `Europe/Moscow` (default: `UTC`) |
+| `--batch.size` | Number of events per processing batch (default: `10000`) |
+| `-v` ... `-vvvvv` | Verbosity level from `CRITICAL` to `DEBUG` |
+| `--params` | Pass custom parameters accessible in templates via `params` variable |
+| `--cryptfile` | Path to encrypted keyring file for [secrets](/docs/core/config/vars/secrets) |
+
+For the full CLI reference see [`$ eventum generate`](/docs/core/cli/eventum-generate) command page.
+
+---
+
+## Run as application
+
+The `eventum run` command starts the full Eventum application: multiple generators managed by a central process, an optional REST API, and the Studio web UI. This is the way to run Eventum in production or when you need more than a single generator.
+
+<Steps>
+<Step>
+### Set up the project structure
+
+Eventum expects a directory layout where each generator lives in its own folder:
+
+<Files>
+  <File name="eventum.yml" />
+  <File name="startup.yml" />
+  <Folder name="generators" defaultOpen>
+    <Folder name="access-logs" defaultOpen>
+      <File name="generator.yml" />
+      <Folder name="templates">
+        <File name="access.jinja" />
+      </Folder>
+    </Folder>
+    <Folder name="error-logs" defaultOpen>
+      <File name="generator.yml" />
+      <Folder name="templates">
+        <File name="error.jinja" />
+      </Folder>
+    </Folder>
+  </Folder>
+  <Folder name="logs" />
+</Files>
+
+</Step>
+<Step>
+### Create the generators
+
+Each generator has its own config and templates — the same format as the single-generator example above. For instance:
+
+```yaml title="generators/access-logs/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 3
+
+event:
+  template:
+    mode: all
+    templates:
+      - access:
+          template: templates/access.jinja
+
+output:
+  - stdout: {}
+  - file:
+      path: ./output/access.log
+      flush_interval: 1
+```
+
+See [Generator](/docs/core/concepts/generator) and [Configuration files](/docs/core/config/files) for the full reference.
+
+</Step>
+<Step>
+### Create the startup config
+
+The startup file lists which generators to run and lets you override parameters per generator:
+
+```yaml title="startup.yml"
+- id: access-logs
+  path: generators/access-logs/generator.yml
+  autostart: true
+  live_mode: true
+
+- id: error-logs
+  path: generators/error-logs/generator.yml
+  autostart: true
+  live_mode: true
+```
+
+- **`id`** — unique name for the generator
+- **`path`** — relative path to the generator config (resolved from the startup file's directory)
+- **`autostart`** — start automatically when the app launches (default: `true`). Generators with `autostart: false` can be started later through the API or Studio
+- **`live_mode`** — override the execution mode per generator
+
+See [startup.yml](/docs/core/config/files/startup-yml) for the full reference.
+
+</Step>
+<Step>
+### Create the main application config
+
+The `eventum.yml` file configures the server, logging, default generation parameters, and paths:
+
+```yaml title="eventum.yml"
+server.host: "0.0.0.0"
+server.port: 9474
+server.api_enabled: true
+server.ui_enabled: true
+server.auth.user: eventum
+server.auth.password: eventum
+
+generation.timezone: UTC
+generation.batch.size: 10000
+generation.batch.delay: 1.0
+
+log.level: info
+log.format: plain
+
+path.logs: logs/
+path.startup: startup.yml
+path.generators_dir: generators/
+path.keyring_cryptfile: cryptfile.cfg
+```
+
+Key sections:
+
+| Section | What it controls |
+|---------|-----------------|
+| **`server.*`** | Host, port, SSL, basic auth, and which services to enable (API, Studio UI) |
+| **`generation.*`** | Default parameters for all generators — timezone, batch size, queue limits, concurrency |
+| **`log.*`** | Log level, format (`plain` or `json`), rotation settings |
+| **`path.*`** | Directories for generators, logs, startup file, and keyring |
+
+See [eventum.yml](/docs/core/config/files/eventum-yml) for the full reference.
+
+</Step>
+<Step>
+### Start the application
+
+```bash
+eventum run -c eventum.yml
+```
+
+Eventum starts all generators marked with `autostart: true` and launches the server. You'll see log output confirming each component:
+
+```
+2026-02-18T19:51:13.290066Z [info     ] Starting generators            [eventum.app.main]
+2026-02-18T19:51:13.290250Z [warning  ] Generators are running         [eventum.app.main] count=2 non_running_generators=[] running_generators=['access-logs', 'error-logs']
+2026-02-18T19:51:13.290940Z [info     ] Starting Server                [eventum.app.main] host=0.0.0.0 port=9474
+2026-02-18T19:51:13.467938Z [info     ] Starting REST API service      [eventum.server.main]
+2026-02-18T19:51:14.076947Z [info     ] Starting web UI service        [eventum.server.main]
+```
+
+- **Studio UI** — open `http://localhost:9474` in your browser to manage generators visually
+- **REST API** — available at the same address under `/api` route (and specs under `/api/swagger`, `/api/asyncapi` and `/api/redoc` routes); see the [API reference](/docs/api) for endpoints
+- **Graceful shutdown** — press `Ctrl+C` or send `SIGTERM`
+- **Hot reload** — send `SIGHUP` to restart with updated configuration
+
+</Step>
+</Steps>
+
+## What's next
+
+<Cards>
+  <Card
+    title="Generator"
+    description="Understand how the three-stage pipeline works and how generators are configured."
+    href="/docs/core/concepts/generator"
+  />
+  <Card
+    title="Configuration files"
+    description="Full reference for generator.yml, startup.yml, and eventum.yml."
+    href="/docs/core/config/files"
+  />
+  <Card
+    title="Scheduling"
+    description="All input plugins — cron, timer, linspace, time patterns, and more."
+    href="/docs/core/concepts/scheduling"
+  />
+  <Card
+    title="Studio"
+    description="Visual generator management with the built-in web UI."
+    href="/docs/studio"
+  />
+</Cards>
