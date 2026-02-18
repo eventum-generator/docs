@@ -1,4 +1,218 @@
 ---
 title: Plugins
-description: description
+description: The plugin system that powers every stage of the generator pipeline — types, configuration, lifecycle, and how to choose the right plugin for each job.
 ---
+
+Everything a generator does — scheduling timestamps, producing events, writing output — is handled by **plugins**. A plugin is a self-contained component that implements one stage of the pipeline. You pick a plugin by name, configure it in YAML, and Eventum takes care of the rest.
+
+## Plugin types
+
+Plugins are grouped into three types, one per pipeline stage:
+
+| Type | Role | Cardinality |
+|------|------|-------------|
+| **Input** | Produces timestamps — *when* events happen | One or more per generator |
+| **Event** | Turns timestamps into event strings — *what* events look like | Exactly one per generator |
+| **Output** | Writes events to a destination — *where* events go | One or more per generator |
+
+Each type has its own set of available plugins. You can mix and match within a type (e.g. two input plugins feeding the same generator), but you cannot use a plugin outside its type.
+
+### Input plugins
+
+| Plugin | Description |
+|--------|-------------|
+| `cron` | Cron expressions (down to the second) |
+| `timer` | Fixed-interval ticks |
+| `linspace` | Evenly spaced timestamps across a date range |
+| `time_patterns` | Statistical distributions that mimic real traffic |
+| `timestamps` | An explicit list of datetimes |
+| `static` | All at once, using the current time |
+| `http` | On demand, triggered by an HTTP request |
+
+A generator can combine **multiple input plugins**. Their timestamps are merged into a single chronological stream before reaching the event stage.
+
+### Event plugins
+
+| Plugin | Description |
+|--------|-------------|
+| `template` | Renders Jinja2 templates with Faker, Mimesis, random helpers, and more |
+| `script` | Runs a Python function for full programmatic control |
+| `replay` | Reads events from an existing log file |
+
+A generator has exactly **one event plugin**.
+
+### Output plugins
+
+| Plugin | Description |
+|--------|-------------|
+| `stdout` | Prints to the console (or stderr) |
+| `file` | Writes to a local file |
+| `http` | Sends to any HTTP endpoint |
+| `opensearch` | Indexes into an OpenSearch cluster |
+| `clickhouse` | Inserts into a ClickHouse database |
+
+A generator can have **multiple output plugins**. Every event is delivered to all of them.
+
+For full parameter references, see the [Plugins](/docs/plugins) documentation section.
+
+## Configuration
+
+Each plugin is configured as a named key inside the corresponding pipeline section. The key is the plugin name; the value is an object with plugin-specific settings:
+
+```yaml title="generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: all
+    templates:
+      - my_event:
+          template: templates/event.jinja
+
+output:
+  - stdout: {}
+```
+
+A few rules:
+
+- **`input`** and **`output`** are lists — each item is a single-key object naming the plugin.
+- **`event`** is a single object — one plugin name with its config.
+- Plugin-specific fields are validated at startup. An unknown field or a wrong type causes a clear error before any events are generated.
+- Relative file paths (e.g. `templates/event.jinja`) are resolved from the directory containing the generator config file.
+
+### Empty configs
+
+Some plugins require no settings. Use an empty object:
+
+```yaml
+output:
+  - stdout: {}
+```
+
+## Common properties
+
+While each plugin has its own settings, some properties are shared across all plugins of a type.
+
+### Tags (input plugins)
+
+Any input plugin can attach **tags** — arbitrary string labels — to its timestamps. Tags are carried through the pipeline and are available inside the event plugin (as the `tags` variable in templates or the `tags` field in script params). This lets a single event plugin produce different output depending on which input triggered it:
+
+```yaml
+input:
+  - cron:
+      expression: "*/5 * * * * *"
+      count: 1
+      tags: [heartbeat]
+  - cron:
+      expression: "0 * * * * *"
+      count: 1
+      tags: [minutely]
+```
+
+### Formatter (output plugins)
+
+Every output plugin has a **formatter** that controls how event strings are shaped before writing. The formatter is configured with the `formatter` field:
+
+```yaml
+output:
+  - file:
+      path: output/events.log
+      formatter:
+        format: json
+```
+
+Available formats:
+
+| Format | What it does |
+|--------|-------------|
+| `plain` | Writes the event string as-is (default) |
+| `json` | Wraps each event in a JSON object |
+| `ndjson` | Writes newline-delimited JSON (one object per line) |
+
+## Lifecycle
+
+Plugins go through a predictable lifecycle managed by the generator:
+
+1. **Configuration** — The YAML is parsed and validated against the plugin's schema. Invalid config produces an error before anything runs.
+
+2. **Instantiation** — A plugin instance is created with the validated config. Each plugin receives a sequential ID (useful for logging) and a unique GUID.
+
+3. **Execution** — The generator calls the plugin's core method repeatedly:
+   - Input: `generate` — yields batches of timestamps
+   - Event: `produce` — turns a timestamp (and tags) into event strings
+   - Output: `open` → `write` (repeated) → `close`
+
+4. **Shutdown** — Output plugins are closed gracefully (flushing buffers, closing connections). Input and event plugins require no explicit cleanup.
+
+Output plugins follow an **async lifecycle** — `open`, `write`, and `close` are asynchronous, which allows concurrent writes to multiple destinations without blocking. Input and event plugins run synchronously.
+
+## Error handling
+
+Eventum tracks errors at the plugin level without crashing the pipeline:
+
+- If an **event plugin** fails to produce for a given timestamp, the failure is counted, logged and the pipeline moves on to the next timestamp.
+- If an **output plugin** fails to write a batch, the failure is counted and logged. Other output plugins in the same generator are not affected.
+- If a **formatter** cannot format an event, the event is skipped for that output. The failure count is tracked separately from write failures.
+
+Error counts are exposed through the [REST API](/docs/api) and [Studio](/docs/studio), so you can monitor plugin health at runtime.
+
+## Choosing a plugin
+
+### When to use each input plugin
+
+| If you need... | Use |
+|----------------|-----|
+| A steady, repeating schedule | `cron` or `timer` |
+| A fixed number of events spread over a range | `linspace` |
+| Traffic that looks like real-world patterns | `time_patterns` |
+| Events at known, specific times | `timestamps` |
+| All events right now with the current timestamp | `static` |
+| Events triggered by an external system | `http` |
+
+### When to use each event plugin
+
+| If you need... | Use |
+|----------------|-----|
+| Realistic synthetic data with randomization | `template` |
+| Complex logic that templates can't express | `script` |
+| To reprocess or replay historical logs | `replay` |
+
+`template` is the right choice for the vast majority of use cases. Reach for `script` only when you need control flow, external API calls, or logic that doesn't fit Jinja2.
+
+### When to use each output plugin
+
+| If you need... | Use |
+|----------------|-----|
+| Quick debugging or piping to another tool | `stdout` |
+| A persistent local log file | `file` |
+| Sending to a webhook, REST API, or log collector | `http` |
+| Indexing into OpenSearch / Elasticsearch | `opensearch` |
+| Inserting into ClickHouse | `clickhouse` |
+
+## What's next
+
+<Cards>
+  <Card
+    title="Scheduling"
+    description="How input plugins control when events happen."
+    href="/docs/core/concepts/scheduling"
+  />
+  <Card
+    title="Producing events"
+    description="Template engine, Python scripts, and log replay."
+    href="/docs/core/concepts/producing"
+  />
+  <Card
+    title="Outputting events"
+    description="Output plugins, formatters, and delivery."
+    href="/docs/core/concepts/output"
+  />
+  <Card
+    title="Plugin reference"
+    description="Full parameter reference for every plugin."
+    href="/docs/plugins"
+  />
+</Cards>
