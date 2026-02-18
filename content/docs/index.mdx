@@ -1,4 +1,129 @@
 ---
 title: Getting started
-description: description
+description: Learn how Eventum works and generate your first events in minutes.
 ---
+
+Eventum is a data generation platform that produces synthetic events and delivers them anywhere — in real time or in batch. Whether you need a continuous stream of application logs hitting your SIEM, a one-off dataset to seed a staging database, or a high-throughput workload to stress-test a pipeline, Eventum lets you describe *what* your data looks like and *when* it should appear, then takes care of the rest.
+
+## Why Eventum
+
+Building and testing data-driven systems usually means waiting for real data to accumulate or writing throwaway scripts that are hard to maintain and impossible to reuse. Eventum solves this by giving you a declarative way to generate realistic data on demand.
+
+- **Realistic content** — templates powered by [Faker](https://faker.readthedocs.io/) and [Mimesis](https://mimesis.name/) produce believable names, IPs, timestamps, and domain-specific values out of the box.
+- **Precise timing** — generate events on a cron schedule, at fixed intervals, spread uniformly across a time range, or following complex statistical patterns that mimic real-world traffic.
+- **Multiple destinations** — send events to stdout for quick debugging, write to files, or push directly to ClickHouse, OpenSearch, or any HTTP endpoint — all at the same time.
+- **Live and batch modes** — stream events in real time at their actual timestamps, or generate an entire dataset as fast as possible.
+- **Scalable by design** — run multiple generators in parallel, each with its own schedule, templates, and outputs. Manage them through a REST API or a built-in web UI.
+
+## How it works
+
+Every generator in Eventum runs a three-stage pipeline. You describe each stage in a simple YAML config — no code required for most use cases.
+
+<Cards>
+  <Card
+    title="Input"
+    description="Defines when events occur. Generates timestamps using schedules, timers, cron expressions, or custom time patterns."
+    href="/docs/core/concepts/scheduling"
+  />
+  <Card
+    title="Event"
+    description="Defines what events look like. Renders Jinja2 templates with Faker/Mimesis, executes Python scripts, or replays recorded logs."
+    href="/docs/core/concepts/producing"
+  />
+  <Card
+    title="Output"
+    description="Defines where events go. Writes to stdout, files, ClickHouse, OpenSearch, or any HTTP endpoint."
+    href="/docs/core/concepts/output"
+  />
+</Cards>
+
+An **input plugin** produces timestamps — the moments when events should happen. A **event plugin** takes each timestamp and renders it into an actual event string using a template or a script. Finally, one or more **output plugins** deliver the resulting events to their destinations. This separation means you can swap any part independently: change the schedule without touching the template, or add a new output without modifying anything else.
+
+## Quick example
+
+<Steps>
+<Step>
+### Create a template
+
+Create a file `events.jinja` with the content you want to generate.
+Templates use Jinja2 syntax and have access to built-in modules like
+`faker` for realistic data. Each render receives a `timestamp` variable
+with the exact moment the event should represent.
+
+```jinja title="events.jinja"
+{{ timestamp }} INFO  user={{ module.faker.user_name() }} action=login ip={{ module.faker.ipv4() }}
+```
+
+</Step>
+<Step>
+### Create a generator config
+
+Create a file `generator.yml` that wires the three pipeline stages together.
+This config uses a `cron` input that fires every second, the `template` event
+plugin to render the template above, and `stdout` output to print results.
+
+```yaml title="generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: all
+    templates:
+      - my_event:
+          template: events.jinja
+
+output:
+  - stdout: {}
+```
+
+</Step>
+<Step>
+### Run the generator
+
+```bash
+eventum generate --path generator.yml --live-mode
+```
+
+Events start printing to your terminal at one per second:
+
+```
+2025-06-15 12:00:01+00:00 INFO  user=jsmith action=login ip=192.168.44.12
+2025-06-15 12:00:02+00:00 INFO  user=amiller action=login ip=10.0.128.55
+2025-06-15 12:00:03+00:00 INFO  user=kwilson action=login ip=172.16.0.91
+```
+
+</Step>
+</Steps>
+
+<Callout type="info">
+This example runs a single generator from the command line. To run multiple generators
+with a server, API, and web UI, see the [`eventum run`](/docs/core/cli/eventum-run) command.
+</Callout>
+
+## What's next
+
+<Cards>
+  <Card
+    title="Installation"
+    description="Install Eventum as a Python package, from source, or with Docker."
+    href="/docs/core/introduction/installation"
+  />
+  <Card
+    title="Features"
+    description="Explore the full set of capabilities Eventum provides."
+    href="/docs/core/introduction/features"
+  />
+  <Card
+    title="Core concepts"
+    description="Learn about generators, plugins, scheduling, and the event pipeline."
+    href="/docs/core/concepts/generator"
+  />
+  <Card
+    title="First run"
+    description="Step-by-step guide to setting up your first project from scratch."
+    href="/docs/core/introduction/first-run"
+  />
+</Cards>

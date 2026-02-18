@@ -1,0 +1,339 @@
+---
+title: Producing events
+description: How event plugins turn timestamps into event strings — the template context, picking modes, state management, and practical examples.
+---
+
+An event plugin sits in the middle of the [generator pipeline](/docs/core/concepts/generator#the-three-stage-pipeline). It receives a **timestamp** and **tags** from the input stage and returns one or more **event strings** that the output stage delivers. This page explains how that process works for each of the three event plugins.
+
+## What an event plugin receives
+
+Every time the event plugin is called, it gets two values:
+
+- **`timestamp`** — a timezone-aware datetime representing *when* this event happens.
+- **`tags`** — a tuple of strings attached by the [input plugin](/docs/core/concepts/plugins#tags-input-plugins) that produced the timestamp.
+
+The plugin returns a list of strings. Each string is a complete event — a log line, a JSON object, a CSV row, or whatever format your use case requires. The output stage treats each string as an opaque payload.
+
+## Template plugin
+
+The `template` plugin is the primary way to produce events. It renders [Jinja2](https://jinja.palletsprojects.com/) templates with a rich context of data generation tools.
+
+### Template context
+
+Inside a `.jinja` template, you have access to the following variables:
+
+| Variable | What it provides |
+|----------|-----------------|
+| `timestamp` | The current event's datetime |
+| `tags` | Tags from the input plugin |
+| `module` | Data generation libraries (Faker, Mimesis, random utilities) |
+| `params` | User-defined parameters passed at runtime |
+| `samples` | Data loaded from external files (CSV, JSON, or inline lists) |
+| `locals` | State scoped to the current template |
+| `shared` | State shared across all templates in the same generator |
+| `globals` | State shared across all generators (thread-safe) |
+| `subprocess` | Run shell commands and capture output |
+
+### Generating data with `module`
+
+The `module` object gives you three built-in libraries for producing realistic synthetic data. It also acts as a gateway to any Python package — if the name isn't one of the built-in three, `module` imports it from the Python stdlib or the installed environment:
+
+**`module.faker`** — the [Faker](https://faker.readthedocs.io/) library, accessed by locale:
+
+```jinja
+{{ module.faker.locale.en.name() }}
+{{ module.faker.locale.en.ipv4() }}
+{{ module.faker.locale.de.city() }}
+```
+
+**`module.mimesis`** — the [Mimesis](https://mimesis.name/) library, accessed by locale or specialty:
+
+```jinja
+{{ module.mimesis.locale.en.person.full_name() }}
+{{ module.mimesis.locale.en.internet.ip_v4() }}
+```
+
+**`module.rand`** — built-in random utilities for common data types:
+
+```jinja
+{# Numbers #}
+{{ module.rand.number.integer(1, 1000) }}
+{{ module.rand.number.floating(0.0, 1.0) }}
+
+{# Strings and crypto #}
+{{ module.rand.string.hex(16) }}
+{{ module.rand.crypto.uuid4() }}
+{{ module.rand.crypto.md5() }}
+
+{# Network #}
+{{ module.rand.network.ip_v4() }}
+{{ module.rand.network.ip_v4_private_a() }}
+{{ module.rand.network.mac() }}
+
+{# Random selection #}
+{{ module.rand.choice(['GET', 'POST', 'PUT', 'DELETE']) }}
+{{ module.rand.weighted_choice({200: 0.7, 404: 0.2, 500: 0.1}) }}
+
+{# Chance (returns true/false with given probability) #}
+{{ module.rand.chance(0.05) }}
+
+{# Random timestamp in range #}
+{{ module.rand.datetime.timestamp('2025-01-01', '2025-12-31') }}
+```
+
+**Any other name** — imported as a Python module. You can use stdlib packages or anything installed in the environment:
+
+```jinja
+{# Standard library #}
+{{ module.json.dumps({"key": "value"}) }}
+{{ module.math.ceil(3.2) }}
+
+{# Third-party packages #}
+{{ module.hashlib.sha256(b"data").hexdigest() }}
+```
+
+### A complete template example
+
+Here's a template that produces an Apache-style access log line:
+
+```jinja title="templates/access_log.jinja"
+{{ module.rand.network.ip_v4_public() }} - {{ module.faker.locale.en.user_name() }} [{{ timestamp.strftime('%d/%b/%Y:%H:%M:%S %z') }}] "{{ module.rand.choice(['GET', 'POST', 'PUT']) }} {{ module.rand.choice(['/api/users', '/api/orders', '/health', '/login']) }} HTTP/1.1" {{ module.rand.weighted_choice({200: 0.7, 301: 0.05, 404: 0.15, 500: 0.1}) }} {{ module.rand.number.integer(200, 15000) }}
+```
+
+The generator config to use it:
+
+```yaml title="generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 5
+
+event:
+  template:
+    mode: all
+    templates:
+      - access_log:
+          template: templates/access_log.jinja
+
+output:
+  - stdout: {}
+```
+
+Each second, 5 timestamps arrive, and each one renders the template with fresh random values — producing 5 unique log lines per second.
+
+### Picking modes
+
+When a generator has **multiple templates**, the picking mode controls which templates render on each call:
+
+| Mode | Behavior |
+|------|----------|
+| `all` | Renders every template, produces multiple events per timestamp |
+| `any` | Randomly picks one template |
+| `chance` | Picks one template based on weighted probabilities |
+| `spin` | Cycles through templates in round-robin order |
+| `chain` | Follows a user-defined sequence |
+| `fsm` | Picks based on a finite state machine with conditional transitions |
+
+**`all` mode** is the default and the simplest — every template produces an event for every timestamp. It's the right choice when you want to generate multiple correlated event types from the same schedule.
+
+**`chance` mode** is useful when different event types have different frequencies:
+
+```yaml
+event:
+  template:
+    mode: chance
+    templates:
+      - success:
+          template: templates/success.jinja
+          chance: 0.85
+      - error:
+          template: templates/error.jinja
+          chance: 0.15
+```
+
+85% of timestamps produce a success event, 15% produce an error.
+
+**`fsm` mode** lets you model stateful event sequences where the next event type depends on past events. Transitions between templates are driven by conditions on state variables:
+
+```yaml
+event:
+  template:
+    mode: fsm
+    templates:
+      - login:
+          template: templates/login.jinja
+          initial: true
+          transitions:
+            - to: browse
+              when: { always: }
+      - browse:
+          template: templates/browse.jinja
+          transitions:
+            - to: checkout
+              when: { ge: { "locals.page_views": 3 } }
+      - checkout:
+          template: templates/checkout.jinja
+          transitions:
+            - to: login
+              when: { always: }
+```
+
+This models a user session: login → browse (until 3+ page views) → checkout → back to login. The `locals` state persists between calls, so the template can increment a counter and the FSM can check it.
+
+### State management
+
+Templates can store and read state across multiple `produce` calls. There are three levels:
+
+**`locals`** — scoped to one template alias. Each template has its own `locals` that other templates cannot see:
+
+```jinja title="templates/counter.jinja"
+{% do locals.set('n', locals.get('n', 0) + 1) %}
+Event #{{ locals.get('n') }}
+```
+
+**`shared`** — visible to all templates in the same generator. Useful when templates need to coordinate:
+
+```jinja title="templates/login.jinja"
+{% set user_id = module.rand.crypto.uuid4() %}
+{% do shared.set('current_user', user_id) %}
+User {{ user_id }} logged in
+```
+
+```jinja title="templates/action.jinja"
+User {{ shared.get('current_user') }} performed an action
+```
+
+**`globals`** — shared across all generators in the application. Thread-safe. Useful for global counters or inter-generator coordination:
+
+```jinja
+{% do globals.set('total', globals.get('total', 0) + 1) %}
+```
+
+### Loading external data with samples
+
+You can load data from files and use it in templates. Supported sources:
+
+```yaml
+event:
+  template:
+    mode: all
+    samples:
+      users:
+        type: csv
+        source: data/users.csv
+        header: true
+      endpoints:
+        type: json
+        source: data/endpoints.json
+      status_codes:
+        type: items
+        source: [200, 201, 301, 404, 500]
+    templates:
+      - request:
+          template: templates/request.jinja
+```
+
+Access in templates:
+
+```jinja
+{# CSV row by index #}
+{{ samples.users[0][0] }}
+
+{# JSON data #}
+{{ samples.endpoints[0] }}
+
+{# Inline items #}
+{{ module.rand.choice(samples.status_codes) }}
+```
+
+### Running shell commands
+
+The `subprocess` variable lets you call external commands from a template:
+
+```jinja
+{{ subprocess.run('hostname').stdout | trim }}
+```
+
+The `run` method accepts `command`, `cwd`, `env`, and `timeout` parameters and returns an object with `stdout`, `stderr`, and `exit_code`.
+
+<Callout type="warn">
+Subprocess calls run synchronously and block event production. Use them sparingly and with short timeouts to avoid stalling the pipeline.
+</Callout>
+
+## Script plugin
+
+When Jinja2 templates aren't flexible enough, the `script` plugin lets you write event production logic in Python:
+
+```yaml title="generator.yml"
+event:
+  script:
+    path: scripts/produce.py
+```
+
+The script must define a `produce` function:
+
+```python title="scripts/produce.py"
+from datetime import datetime
+
+def produce(params: dict) -> str | list[str]:
+    ts: datetime = params['timestamp']
+    tags: tuple[str, ...] = params['tags']
+
+    return f'{ts.isoformat()} - event from tags: {tags}'
+```
+
+The function receives a dict with `timestamp` and `tags`, and returns either a single string or a list of strings. Returning an empty list skips the event for that timestamp.
+
+Use `script` when you need:
+- Complex control flow that Jinja2 can't express
+- External API calls or database lookups
+- Heavy computation or data transformation
+- Third-party Python libraries
+
+## Replay plugin
+
+The `replay` plugin reads events line-by-line from an existing log file instead of generating new ones:
+
+```yaml title="generator.yml"
+event:
+  replay:
+    path: logs/access.log
+```
+
+Each `produce` call returns the next line from the file. When the file is exhausted, the generator stops — unless `repeat: true` is set, in which case it loops back to the beginning.
+
+### Timestamp replacement
+
+By default, replayed events keep their original content. To inject the current timestamp into each line, provide a regex pattern with a named `timestamp` group:
+
+```yaml
+event:
+  replay:
+    path: logs/access.log
+    timestamp_pattern: '(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})'
+    timestamp_format: '%Y-%m-%dT%H:%M:%S'
+```
+
+The plugin finds the match in each line and replaces it with the current timestamp formatted according to `timestamp_format`. Lines that don't match the pattern are returned unchanged.
+
+This is useful for replaying historical logs against a live system while making the events look current.
+
+## What's next
+
+<Cards>
+  <Card
+    title="Outputting events"
+    description="How output plugins deliver events to their destinations."
+    href="/docs/core/concepts/output"
+  />
+  <Card
+    title="Scheduling"
+    description="How input plugins control when events happen."
+    href="/docs/core/concepts/scheduling"
+  />
+  <Card
+    title="Plugin reference"
+    description="Full parameter reference for every plugin."
+    href="/docs/plugins"
+  />
+</Cards>

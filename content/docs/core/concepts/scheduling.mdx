@@ -1,0 +1,224 @@
+---
+title: Scheduling
+description: How timestamps flow from input plugins through the pipeline — merging, batching, wall-clock alignment, and practical scheduling patterns.
+---
+
+The [Generator](/docs/core/concepts/generator) page introduced the idea that input plugins produce timestamps and the generator delivers events at those moments. This page goes deeper into how that process actually works and how to take advantage of it.
+
+## From timestamps to events
+
+An input plugin doesn't emit events directly — it emits **timestamps**. A timestamp is a point in time that answers one question: "when should an event happen?" The event plugin later decides *what* happens at that moment.
+
+This separation is the key to flexible scheduling. The same template can produce an event every second (via `cron`), at irregular real-world patterns (via `time_patterns`), or at 10,000 evenly spaced moments across a date range (via `linspace`) — without any changes to the template itself.
+
+### The `count` parameter
+
+Most input plugins support a `count` field: the number of timestamps to produce per tick. A cron expression that fires once per second with `count: 5` produces **5 timestamps at the same moment** — which means 5 separate calls to the event plugin, each potentially generating a different event (thanks to randomization in templates).
+
+This is the simplest way to control event throughput without changing the schedule itself:
+
+```yaml
+input:
+  - cron:
+      expression: "* * * * * *"   # every second
+      count: 10                    # 10 events per tick
+```
+
+## Combining multiple inputs
+
+A generator can have any number of input plugins. Their timestamps are **merged chronologically** into a single stream before reaching the event stage. This lets you build complex, layered schedules from simple building blocks.
+
+### Example: baseline + spikes
+
+A monitoring simulation might need steady background traffic with occasional bursts:
+
+```yaml
+input:
+  # Steady stream: 1 event/sec
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+      tags: [baseline]
+
+  # Burst: 50 events every 5 minutes
+  - cron:
+      expression: "0 */5 * * * *"
+      count: 50
+      tags: [spike]
+```
+
+Both plugins run independently. The merger interleaves their timestamps in time order, so the event plugin sees a smooth stream of moments — most one second apart, with clusters of 50 at five-minute marks.
+
+### How merging works
+
+When multiple inputs run simultaneously, the merger collects timestamps from each plugin and combines them in chronological order. If two plugins produce timestamps at the same instant, their relative order within that instant is stable but not guaranteed between plugins.
+
+Each timestamp carries the **ID** of the input plugin that produced it. This ID is used internally to look up the plugin's [tags](/docs/core/concepts/plugins#tags-input-plugins), which are then passed to the event plugin as the `tags` variable.
+
+### Finite and infinite inputs
+
+Some inputs are **finite** — they produce a bounded number of timestamps and then stop. `linspace`, `timestamps`, and `static` are always finite. `cron` and `timer` are finite when configured with bounds (`end` or `repeat`) and infinite otherwise.
+
+When all input plugins in a generator have exhausted their timestamps, the generator finishes. If *some* plugins are finite and others are infinite, the finite ones simply stop contributing — the infinite ones keep the generator running.
+
+## Wall-clock alignment
+
+In [live mode](/docs/core/concepts/generator#live-mode-default), the generator doesn't just produce timestamps — it **waits** for the real clock to reach each timestamp before releasing it downstream.
+
+The scheduler looks at the **latest timestamp in each batch** and sleeps until the wall clock catches up. This means the event plugin receives timestamps only after they've "happened" in real time, creating a faithful simulation of a live system.
+
+In [sample mode](/docs/core/concepts/generator#sample-mode), the scheduler is bypassed entirely — timestamps flow as fast as the pipeline can process them.
+
+### Skipping past timestamps
+
+When a generator starts in live mode, there may be a gap between the schedule's start time and "now." By default (`skip_past: true`), input plugins skip all timestamps that fall before the current time and begin producing from the first future moment.
+
+This prevents a startup burst of historical events. If you *want* to replay past timestamps in live mode (e.g. to catch up after a restart), set `skip_past: false` — but be aware that all past timestamps will be released immediately since the scheduler only waits for future ones.
+
+## Timezone
+
+All timestamps in a generator are interpreted in the generator's **timezone**, which defaults to `UTC`. The timezone affects:
+
+- How input plugins calculate "now" (for `skip_past` and relative time expressions)
+- How the scheduler compares timestamps to the wall clock
+- The `timestamp` value passed to the event plugin
+
+Set the timezone via CLI flag or in the startup config:
+
+```bash
+eventum generate ... --timezone America/New_York
+```
+
+```yaml title="startup.yml"
+- id: my-gen
+  path: generator.yml
+  timezone: Europe/Berlin
+```
+
+<Callout>
+Timestamps are stored internally as timezone-naive values that represent moments in the generator's timezone. Changing the timezone shifts when events appear on the wall clock without modifying the schedule.
+</Callout>
+
+## On-demand scheduling
+
+The `http` input plugin doesn't follow a schedule at all. Instead, it starts an HTTP server and waits for external requests to trigger event generation:
+
+```yaml
+input:
+  - http:
+      host: 0.0.0.0
+      port: 8081
+```
+
+A `POST /generate` request with a body like `{"count": 10}` produces 10 timestamps at the current time. This is useful when events should be triggered by an external system — a webhook, a CI pipeline, or a manual curl command.
+
+The HTTP input can be combined with scheduled inputs in the same generator. Scheduled timestamps flow as usual; HTTP-triggered timestamps are injected into the stream on demand.
+
+## Practical patterns
+
+### Generate a fixed dataset
+
+Use `linspace` to spread timestamps evenly across a range, then run in sample mode to produce them instantly:
+
+```yaml
+input:
+  - linspace:
+      start: "2025-01-01"
+      end: "2025-01-31"
+      count: 100000
+```
+
+```bash
+eventum generate ... --no-live-mode
+```
+
+### Simulate business-hours traffic
+
+Combine two `cron` inputs — one for work hours, one for off-hours — with different throughput:
+
+```yaml
+input:
+  # Business hours: high rate
+  - cron:
+      expression: "* * 9-17 * * MON-FRI"
+      count: 20
+      tags: [business]
+
+  # Off-hours: low rate
+  - cron:
+      expression: "*/10 * 0-8,18-23 * * *"
+      count: 1
+      tags: [quiet]
+```
+
+### Simulate realistic traffic with time patterns
+
+Cron and timer produce perfectly regular timestamps. Real systems aren't like that — traffic clusters, fluctuates, and follows distributions. The `time_patterns` plugin lets you model this by combining four controls:
+
+- **Oscillator** — divides time into repeating periods (e.g. one hour each)
+- **Multiplier** — sets a baseline event count per period
+- **Randomizer** — adds natural variance (±deviation) to that count
+- **Spreader** — distributes events *within* each period using a probability distribution (uniform, triangular, or beta)
+
+For example, to simulate API traffic that peaks in the middle of each hour with ±20% variation:
+
+```yaml title="patterns/api-traffic.yml"
+label: API traffic
+oscillator:
+  start: "now"
+  end: +24h
+  period: 1
+  unit: hours
+multiplier:
+  ratio: 3000           # ~3,000 requests/hour baseline
+randomizer:
+  deviation: 0.2        # ±20% hour-to-hour variation
+  direction: mixed
+spreader:
+  distribution: beta
+  parameters:
+    a: 5                 # bell-shaped, clustered toward mid-hour
+    b: 5
+```
+
+```yaml title="generator.yml"
+input:
+  - time_patterns:
+      patterns:
+        - patterns/api-traffic.yml
+```
+
+You can load **multiple pattern files** in the same plugin to layer different traffic shapes — for instance a steady baseline pattern plus a periodic spike pattern. Their timestamps are merged just like multiple input plugins would be.
+
+### Replay with adjusted timing
+
+Use `timestamps` to replay events at their original times, optionally in live mode to re-create the original pace:
+
+```yaml
+input:
+  - timestamps:
+      path: original_timestamps.csv
+```
+
+```bash
+# Replay at original pace
+eventum generate ... --live-mode --no-skip-past
+
+# Replay as fast as possible
+eventum generate ... --no-live-mode
+```
+
+## What's next
+
+<Cards>
+  <Card
+    title="Producing events"
+    description="How the event plugin turns timestamps into event strings."
+    href="/docs/core/concepts/producing"
+  />
+  <Card
+    title="Input plugins reference"
+    description="Full parameter reference for every input plugin."
+    href="/docs/plugins"
+  />
+</Cards>
