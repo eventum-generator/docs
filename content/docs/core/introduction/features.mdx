@@ -10,7 +10,7 @@ Eventum packs a wide range of capabilities into a single tool. This page gives y
 The primary way to define events in Eventum is through [Jinja2](https://jinja.palletsprojects.com/) templates. Every template has access to a rich set of context variables including the event `timestamp`, data generation libraries, parameters, sample datasets, and persistent state.
 
 ```jinja title="access_log.jinja"
-{{ timestamp.strftime('%d/%b/%Y:%H:%M:%S %z') }} {{ module.faker.ipv4() }} - {{ module.faker.user_name() }} "GET /{{ module.faker.uri_path() }} HTTP/1.1" {{ module.rand.weighted_choice([200, 301, 404, 500], [85, 5, 8, 2]) }} {{ module.rand.number.integer(200, 15000) }}
+{{ timestamp.strftime('%d/%b/%Y:%H:%M:%S %z') }} {{ module.faker.locale.en.ipv4() }} - {{ module.faker.locale.en.user_name() }} "GET /{{ module.faker.locale.en.uri_path() }} HTTP/1.1" {{ module.rand.weighted_choice([200, 301, 404, 500], [85, 5, 8, 2]) }} {{ module.rand.number.integer(200, 15000) }}
 ```
 
 Built-in data libraries make templates realistic out of the box:
@@ -119,10 +119,10 @@ Both modes use the same generator config — switch between them with a single f
 
 ```bash
 # Real-time streaming
-eventum generate --path generator.yml --live-mode
+eventum generate --path generator.yml ... --live-mode
 
 # As fast as possible
-eventum generate --path generator.yml --no-live-mode
+eventum generate --path generator.yml ... --no-live-mode
 ```
 
 ## Log replay
@@ -208,7 +208,7 @@ Credentials for output plugins (database passwords, API tokens, TLS certificates
 
 ```bash
 # Store a secret
-eventum keyring set my_db_password
+eventum-keyring set my_db_password
 
 # Reference it in config
 # password: ${secrets.my_db_password}
