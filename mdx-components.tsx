@@ -4,6 +4,7 @@ import defaultMdxComponents from 'fumadocs-ui/mdx';
 import type { MDXComponents } from 'mdx/types';
 
 import { APIPage } from './components/api-page';
+import { Mermaid } from './components/mdx/mermaid';
 import ThemedImage from './components/ThemedImage';
 
 export function getMDXComponents(components?: MDXComponents): MDXComponents {
@@ -16,6 +17,7 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     Folder,
     File,
     ThemedImage,
+    Mermaid,
     ...components,
   };
 }
