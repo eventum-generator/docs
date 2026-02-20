@@ -1,6 +1,79 @@
 ---
 title: Overview
-description: description
+description: Plugin reference for Eventum — the full list of input, event, and output plugins with links to their parameter documentation.
 ---
 
-Plugins
+Plugins are the building blocks of an Eventum [generator](/docs/core/concepts/generator). Every generator is a three-stage pipeline where each stage is handled by one or more plugins. This section is the **reference** for every available plugin — parameters, defaults, constraints, and configuration examples.
+
+For the conceptual overview of how plugins fit together, see [Concepts — Plugins](/docs/core/concepts/plugins).
+
+## Input plugins
+
+Input plugins define **when** events happen. A generator can have multiple input plugins — their timestamp streams are merged chronologically.
+
+Every input plugin supports an optional `tags` parameter that attaches string labels to timestamps, making them available in event templates via the `tags` variable.
+
+| Plugin | Description |
+|--------|-------------|
+| [cron](/docs/plugins/input/cron) | Cron expressions with second-level precision |
+| [timer](/docs/plugins/input/timer) | Fixed-interval ticks |
+| [linspace](/docs/plugins/input/linspace) | Evenly spaced timestamps across a date range |
+| [static](/docs/plugins/input/static) | All at once, using the current time |
+| [timestamps](/docs/plugins/input/timestamps) | An explicit list of datetimes |
+| [time_patterns](/docs/plugins/input/time-patterns) | Statistical distributions that mimic real traffic |
+| [http](/docs/plugins/input/http) | On demand, triggered by HTTP requests |
+
+## Event plugins
+
+Event plugins define **what** events look like. A generator has exactly one event plugin.
+
+| Plugin | Description |
+|--------|-------------|
+| [template](/docs/plugins/event/template) | Renders Jinja2 templates with Faker, Mimesis, random helpers, and more |
+| [script](/docs/plugins/event/script) | Runs a Python function for full programmatic control |
+| [replay](/docs/plugins/event/replay) | Reads events from an existing log file |
+
+## Output plugins
+
+Output plugins define **where** events go. A generator can have multiple output plugins — every event is delivered to all of them (fan-out).
+
+Every output plugin supports a [formatter](/docs/plugins/formatters) that controls how events are serialized before delivery.
+
+| Plugin | Default formatter | Description |
+|--------|-------------------|-------------|
+| [stdout](/docs/plugins/output/stdout) | `plain` | Prints to the console or stderr |
+| [file](/docs/plugins/output/file) | `plain` | Writes to a local file |
+| [http](/docs/plugins/output/http) | `json-batch` | Sends to any HTTP endpoint |
+| [opensearch](/docs/plugins/output/opensearch) | `json` | Indexes into an OpenSearch cluster |
+| [clickhouse](/docs/plugins/output/clickhouse) | `json` | Inserts into a ClickHouse database |
+
+## Configuration syntax
+
+Each plugin is configured as a named key inside the corresponding section of [generator.yml](/docs/core/config/generator-yml). The key is the plugin name; the value holds plugin-specific parameters:
+
+```yaml title="generator.yml"
+input:
+  - cron:              # plugin name
+      expression: "* * * * * *"  # plugin parameter
+      count: 1
+
+event:
+  template:
+    mode: all
+    templates:
+      - my_event:
+          template: templates/event.jinja
+
+output:
+  - stdout: {}         # empty config is valid
+  - file:
+      path: output/events.jsonl
+      formatter:
+        format: json
+```
+
+Rules:
+- `input` and `output` are **lists** — each item is a single-key mapping naming one plugin.
+- `event` is a **single mapping** — one plugin name with its config.
+- Unknown fields cause a validation error before any events are generated.
+- Relative paths are resolved from the directory containing the generator config file.

@@ -1,0 +1,376 @@
+---
+title: Formatters
+description: Formatter reference — how output plugins serialize events before delivery, with all available formats, parameters, and examples.
+---
+
+Every [output plugin](/docs/plugins#output-plugins) has a **formatter** that transforms event strings before writing them to the destination. Formatters are configured with the `formatter` field inside the output plugin config.
+
+```yaml
+output:
+  - file:
+      path: output/events.log
+      formatter:
+        format: json
+        indent: 2
+```
+
+If you omit the `formatter` field, the plugin uses its default format.
+
+## Default formatters
+
+| Plugin | Default format | Reason |
+|--------|---------------|--------|
+| [stdout](/docs/plugins/output/stdout) | `plain` | Human-readable console output |
+| [file](/docs/plugins/output/file) | `plain` | Raw log lines, one per row |
+| [http](/docs/plugins/output/http) | `json-batch` | Send an entire batch in one HTTP request |
+| [opensearch](/docs/plugins/output/opensearch) | `json` | One JSON document per line for the bulk API |
+| [clickhouse](/docs/plugins/output/clickhouse) | `json` | One JSON row per line for `JSONEachRow` input format |
+
+You only need to set `formatter` when you want something different from the default.
+
+## Available formats
+
+### plain
+
+Passes event strings through without any transformation. Each event is delivered exactly as produced by the event plugin.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `format` | string | — | Must be `"plain"`. |
+
+```yaml
+formatter:
+  format: plain
+```
+
+Suppose the event plugin produces these three events:
+
+```text title="Events from event plugin"
+2026-02-20T10:00:00 GET /api/users 200 12ms
+2026-02-20T10:00:01 POST /api/orders 201 45ms
+2026-02-20T10:00:02 GET /api/products 200 8ms
+```
+
+The formatter outputs them unchanged — three strings, one per event:
+
+```text title="Output (3 strings)"
+2026-02-20T10:00:00 GET /api/users 200 12ms
+2026-02-20T10:00:01 POST /api/orders 201 45ms
+2026-02-20T10:00:02 GET /api/products 200 8ms
+```
+
+### json
+
+Validates each event as JSON and optionally pretty-prints it. If an event is not valid JSON, it is skipped and counted as a format error — other events in the batch are not affected.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `format` | string | — | Must be `"json"`. | Format discriminator. |
+| `indent` | integer | `0` | >= 0 | Indentation level. `0` produces compact single-line JSON. |
+
+#### Compact JSON (indent: 0)
+
+```yaml
+formatter:
+  format: json
+```
+
+Events are validated and compacted to a single line:
+
+```json title="Events from event plugin"
+{"user": "alice",  "action": "login",  "ip": "10.0.0.1"}
+{"user": "bob",    "action": "logout", "ip": "10.0.0.2"}
+```
+
+```json title="Output (2 strings, whitespace removed)"
+{"user":"alice","action":"login","ip":"10.0.0.1"}
+{"user":"bob","action":"logout","ip":"10.0.0.2"}
+```
+
+#### Pretty-printed JSON (indent: 2)
+
+```yaml
+formatter:
+  format: json
+  indent: 2
+```
+
+```json title="Events from event plugin"
+{"user":"alice","action":"login","ip":"10.0.0.1"}
+```
+
+```json title="Output (1 string, pretty-printed)"
+{
+  "user": "alice",
+  "action": "login",
+  "ip": "10.0.0.1"
+}
+```
+
+#### Invalid JSON handling
+
+Events that are not valid JSON are silently skipped. The remaining events are still formatted normally:
+
+```text title="Events from event plugin (3 events, one invalid)"
+{"user": "alice"}
+not valid json
+{"user": "bob"}
+```
+
+```json title="Output (2 strings — invalid event skipped)"
+{"user":"alice"}
+{"user":"bob"}
+```
+
+### json-batch
+
+Collects all events in a batch into a single JSON array. Useful for HTTP endpoints that accept a batch payload. Each event must be valid JSON — invalid events are excluded from the array.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `format` | string | — | Must be `"json-batch"`. | Format discriminator. |
+| `indent` | integer | `0` | >= 0 | Indentation level. `0` produces compact single-line JSON. |
+
+#### Compact batch
+
+```yaml
+formatter:
+  format: json-batch
+```
+
+Three events are collected into a single JSON array:
+
+```json title="Events from event plugin (3 separate events)"
+{"user": "alice", "action": "login"}
+{"user": "bob", "action": "view"}
+{"user": "charlie", "action": "purchase"}
+```
+
+```json title="Output (1 string — a JSON array)"
+[{"user":"alice","action":"login"},{"user":"bob","action":"view"},{"user":"charlie","action":"purchase"}]
+```
+
+#### Pretty-printed batch
+
+```yaml
+formatter:
+  format: json-batch
+  indent: 2
+```
+
+```json title="Output (1 string — a pretty-printed JSON array)"
+[
+  {
+    "user": "alice",
+    "action": "login"
+  },
+  {
+    "user": "bob",
+    "action": "view"
+  },
+  {
+    "user": "charlie",
+    "action": "purchase"
+  }
+]
+```
+
+This is the default formatter for the [http](/docs/plugins/output/http) output plugin — it lets you send an entire batch as a single HTTP request body.
+
+### template
+
+Renders a Jinja2 template for **each event** individually. Use this when you need to reshape events — adding fields, wrapping in a custom envelope, or converting formats.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `format` | string | — | Must be `"template"`. | Format discriminator. |
+| `template` | string or null | `null` | Non-empty if set. | Inline Jinja2 template string. |
+| `template_path` | path or null | `null` | — | Path to a Jinja2 template file. |
+
+Exactly one of `template` or `template_path` must be provided.
+
+Inside the template, the variable `event` holds the raw event string.
+
+#### Wrapping events in an envelope
+
+Add metadata to each event before sending it to the output:
+
+```yaml
+output:
+  - http:
+      url: https://ingest.example.com/events
+      formatter:
+        format: template
+        template: '{"source": "eventum", "environment": "staging", "payload": {{ event }}}'
+```
+
+```json title="Events from event plugin"
+{"user": "alice", "action": "login"}
+{"user": "bob", "action": "logout"}
+```
+
+```json title="Output (2 strings, each wrapped)"
+{"source": "eventum", "environment": "staging", "payload": {"user": "alice", "action": "login"}}
+{"source": "eventum", "environment": "staging", "payload": {"user": "bob", "action": "logout"}}
+```
+
+#### Converting JSON to CSV
+
+Transform JSON events into CSV rows:
+
+```yaml
+formatter:
+  format: template
+  template: '{{ (event | fromjson).timestamp }},{{ (event | fromjson).user }},{{ (event | fromjson).action }}'
+```
+
+```json title="Events from event plugin"
+{"timestamp": "2026-02-20T10:00:00", "user": "alice", "action": "login"}
+{"timestamp": "2026-02-20T10:00:05", "user": "bob", "action": "purchase"}
+```
+
+```text title="Output (2 CSV rows)"
+2026-02-20T10:00:00,alice,login
+2026-02-20T10:00:05,bob,purchase
+```
+
+#### Using an external template file
+
+For complex formatting, use a separate template file:
+
+```yaml
+formatter:
+  format: template
+  template_path: formatters/syslog.jinja
+```
+
+```jinja title="formatters/syslog.jinja"
+<14>1 {{ (event | fromjson).timestamp }} eventum app - - - {{ event }}
+```
+
+```json title="Events from event plugin"
+{"timestamp": "2026-02-20T10:00:00", "level": "INFO", "msg": "Request processed"}
+```
+
+```text title="Output"
+<14>1 2026-02-20T10:00:00 eventum app - - - {"timestamp": "2026-02-20T10:00:00", "level": "INFO", "msg": "Request processed"}
+```
+
+### template-batch
+
+Renders a single Jinja2 template with **all events in a batch**. The variable `events` holds the list of event strings. This produces one output string per batch, giving you full control over how events are aggregated.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `format` | string | — | Must be `"template-batch"`. | Format discriminator. |
+| `template` | string or null | `null` | Non-empty if set. | Inline Jinja2 template string. |
+| `template_path` | path or null | `null` | — | Path to a Jinja2 template file. |
+
+Exactly one of `template` or `template_path` must be provided.
+
+#### Newline-delimited batch
+
+Join events with newlines for line-based protocols:
+
+```yaml
+formatter:
+  format: template-batch
+  template: '{{ events | join("\n") }}'
+```
+
+```json title="Events from event plugin (3 separate events)"
+{"id": 1, "msg": "start"}
+{"id": 2, "msg": "process"}
+{"id": 3, "msg": "done"}
+```
+
+```text title="Output (1 string — all events joined)"
+{"id": 1, "msg": "start"}
+{"id": 2, "msg": "process"}
+{"id": 3, "msg": "done"}
+```
+
+#### Custom XML envelope
+
+Wrap a batch of events in an XML document for SOAP or legacy endpoints:
+
+```yaml
+formatter:
+  format: template-batch
+  template_path: formatters/xml-batch.jinja
+```
+
+```jinja title="formatters/xml-batch.jinja"
+<?xml version="1.0" encoding="UTF-8"?>
+<events count="{{ events | length }}">
+{%- for event in events %}
+  <event>{{ event }}</event>
+{%- endfor %}
+</events>
+```
+
+```text title="Events from event plugin"
+user=alice action=login ip=10.0.0.1
+user=bob action=logout ip=10.0.0.2
+```
+
+```xml title="Output (1 string — XML document)"
+<?xml version="1.0" encoding="UTF-8"?>
+<events count="2">
+  <event>user=alice action=login ip=10.0.0.1</event>
+  <event>user=bob action=logout ip=10.0.0.2</event>
+</events>
+```
+
+#### Summary report
+
+Aggregate a batch into a summary instead of forwarding individual events:
+
+```yaml
+formatter:
+  format: template-batch
+  template_path: formatters/summary.jinja
+```
+
+```jinja title="formatters/summary.jinja"
+{%- set parsed = [] -%}
+{%- for e in events -%}
+  {%- do parsed.append(e | fromjson) -%}
+{%- endfor -%}
+{%- set errors = parsed | selectattr("status", "ge", 400) | list -%}
+{"total": {{ events | length }}, "errors": {{ errors | length }}, "error_rate": {{ "%.2f" | format(errors | length / events | length) }}}
+```
+
+```json title="Events from event plugin (5 events)"
+{"path": "/api/users", "status": 200}
+{"path": "/api/orders", "status": 201}
+{"path": "/api/users", "status": 500}
+{"path": "/api/products", "status": 404}
+{"path": "/api/health", "status": 200}
+```
+
+```json title="Output (1 string — a summary)"
+{"total": 5, "errors": 2, "error_rate": 0.40}
+```
+
+## Per-event vs per-batch
+
+| Format | Granularity | Result per write |
+|--------|-------------|-----------------|
+| `plain` | Per event | N strings (one per event) |
+| `json` | Per event | N JSON strings |
+| `template` | Per event | N rendered strings |
+| `json-batch` | Per batch | 1 JSON array |
+| `template-batch` | Per batch | 1 rendered string |
+
+Per-event formats produce one output string for each input event. Per-batch formats aggregate all events into a single output string, which reduces the number of I/O calls at the cost of sending larger payloads.
+
+**When to use per-batch formats:**
+- The destination expects a single payload (e.g., HTTP API accepting a JSON array)
+- You want to reduce I/O overhead by writing once per batch
+- You need to aggregate or summarize events before delivery
+
+**When to use per-event formats:**
+- The destination processes events one at a time (e.g., line-based log files)
+- You want each event independently validated (invalid events are skipped, not the whole batch)
+- Downstream systems need individual records (e.g., OpenSearch bulk API, ClickHouse JSONEachRow)

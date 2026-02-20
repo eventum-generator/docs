@@ -1,0 +1,43 @@
+---
+title: timestamps
+description: Input plugin that emits timestamps from a predefined list or a file.
+---
+
+Emits timestamps from a predefined list or a file. Use this when you need events at specific, known times — for example, to reproduce a scenario or fill gaps in a dataset.
+
+## Parameters
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `source` | list of datetimes or path | — | Required | Inline list of ISO 8601 timestamps, or path to a file with one timestamp per line. |
+| `tags` | list of strings | `[]` | — | Tags attached to every timestamp. Accessible in templates via `tags`. |
+
+Timestamps must be in ascending order.
+
+## Examples
+
+Inline list:
+
+```yaml
+input:
+  - timestamps:
+      source:
+        - "2024-06-01T09:00:00"
+        - "2024-06-01T09:15:00"
+        - "2024-06-01T09:30:00"
+        - "2024-06-01T10:00:00"
+```
+
+From a file (one ISO 8601 timestamp per line):
+
+```yaml
+input:
+  - timestamps:
+      source: data/timestamps.txt
+```
+
+```txt title="data/timestamps.txt"
+2024-06-01T09:00:00
+2024-06-01T09:15:00
+2024-06-01T09:30:00
+```

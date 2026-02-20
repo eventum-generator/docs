@@ -1,0 +1,32 @@
+---
+title: static
+description: Input plugin that emits a fixed number of timestamps all at once.
+---
+
+Emits a fixed number of timestamps all at once — no scheduling, no time range. All timestamps use the current time. This is the simplest input plugin, useful for generating datasets in [sample mode](/docs/core/concepts/generator#execution-modes).
+
+## Parameters
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `count` | integer | — | Required. > 0 | Number of timestamps to emit. |
+| `tags` | list of strings | `[]` | — | Tags attached to every timestamp. Accessible in templates via `tags`. |
+
+## Examples
+
+Generate a dataset of 50,000 events:
+
+```yaml
+input:
+  - static:
+      count: 50000
+```
+
+Tagged for use with multiple event templates:
+
+```yaml
+input:
+  - static:
+      count: 1000
+      tags: [batch]
+```

@@ -1,0 +1,104 @@
+---
+title: time_patterns
+description: Input plugin that generates timestamps using statistical distributions and oscillators to mimic real traffic patterns.
+---
+
+Generates timestamps using time-pattern definitions — oscillators, multipliers, randomizers, and statistical distributions. Each pattern is defined in a separate YAML file, making it easy to compose complex traffic shapes by combining multiple patterns.
+
+## Parameters
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `patterns` | list of paths | — | Required. At least one path. | Paths to time-pattern YAML files. |
+| `tags` | list of strings | `[]` | — | Tags attached to every timestamp. Accessible in templates via `tags`. |
+
+```yaml
+input:
+  - time_patterns:
+      patterns:
+        - patterns/traffic.yml
+        - patterns/errors.yml
+```
+
+## Pattern file schema
+
+Each pattern file defines a pipeline of four stages that shape the timestamp distribution:
+
+```yaml title="patterns/traffic.yml"
+label: api-traffic
+oscillator:
+  period: 1
+  unit: days
+  start: "2024-01-01"
+  end: "2024-12-31"
+multiplier:
+  ratio: 500
+randomizer:
+  deviation: 0.3
+  direction: mixed
+spreader:
+  distribution: beta
+  parameters:
+    a: 2
+    b: 5
+```
+
+### oscillator
+
+Defines the base periodic signal — the repeating time window.
+
+| Parameter | Type | Constraints | Description |
+|-----------|------|-------------|-------------|
+| `period` | float | > 0 | Length of one cycle. |
+| `unit` | string | `weeks`, `days`, `hours`, `minutes`, `seconds`, `milliseconds`, or `microseconds` | Unit for the period. |
+| `start` | [VersatileDatetime](/docs/core/concepts/scheduling#date-ranges-and-versatile-datetime) | Required. Cannot be null. | Start of the active range. |
+| `end` | [VersatileDatetime](/docs/core/concepts/scheduling#date-ranges-and-versatile-datetime) | Required. Cannot be null. | End of the active range. |
+
+### multiplier
+
+Scales the number of timestamps per period.
+
+| Parameter | Type | Constraints | Description |
+|-----------|------|-------------|-------------|
+| `ratio` | integer | >= 1 | Base number of timestamps per oscillator period. |
+
+### randomizer
+
+Adds noise to the multiplied count, so each period generates a slightly different number of timestamps.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `deviation` | float | — | 0.0–1.0 | Maximum percentage deviation from the base count. |
+| `direction` | string | — | `decrease`, `increase`, or `mixed` | Direction of the deviation. |
+| `sampling` | integer | `1024` | >= 16 | Number of samples for the noise distribution. |
+
+### spreader
+
+Controls **where within each period** the timestamps land, using a statistical distribution.
+
+**uniform** — timestamps spread evenly:
+
+| Parameter | Type | Constraints | Description |
+|-----------|------|-------------|-------------|
+| `distribution` | string | Must be `"uniform"`. | Distribution type. |
+| `parameters.low` | float | 0 ≤ low, low &lt; 1 | Lower bound of the uniform range. |
+| `parameters.high` | float | 0 &lt; high ≤ 1, high &gt; low | Upper bound of the uniform range. |
+
+**triangular** — timestamps cluster around a peak:
+
+| Parameter | Type | Constraints | Description |
+|-----------|------|-------------|-------------|
+| `distribution` | string | Must be `"triangular"`. | Distribution type. |
+| `parameters.left` | float | 0 ≤ left, left &lt; 1 | Left bound. |
+| `parameters.mode` | float | left ≤ mode ≤ right | Peak position. |
+| `parameters.right` | float | 0 &lt; right ≤ 1 | Right bound. |
+
+**beta** — flexible shape for skewed or bimodal patterns:
+
+| Parameter | Type | Constraints | Description |
+|-----------|------|-------------|-------------|
+| `distribution` | string | Must be `"beta"`. | Distribution type. |
+| `parameters.a` | float | >= 0 | Alpha shape parameter. |
+| `parameters.b` | float | >= 0 | Beta shape parameter. |
+
+See [Scheduling — Simulate realistic traffic with time patterns](/docs/core/concepts/scheduling#simulate-realistic-traffic-with-time-patterns) for a practical walkthrough.

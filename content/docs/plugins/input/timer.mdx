@@ -1,0 +1,47 @@
+---
+title: timer
+description: Input plugin that generates timestamps at a fixed interval.
+---
+
+Generates timestamps at a fixed interval. Simpler than [cron](/docs/plugins/input/cron) when you just need a steady tick rate.
+
+## Parameters
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `seconds` | float | — | Required. >= 0.1 | Interval between ticks in seconds. |
+| `count` | integer | — | Required. >= 1 | Number of timestamps per tick. |
+| `start` | [VersatileDatetime](/docs/core/concepts/scheduling#date-ranges-and-versatile-datetime) | `null` | — | When to start. Defaults to current time if omitted. |
+| `repeat` | integer or null | `null` | >= 1 or null | Number of cycles. `null` means repeat indefinitely. |
+| `tags` | list of strings | `[]` | — | Tags attached to every timestamp. Accessible in templates via `tags`. |
+
+## Examples
+
+10 events every half second, forever:
+
+```yaml
+input:
+  - timer:
+      seconds: 0.5
+      count: 10
+```
+
+One event per second, 60 times total:
+
+```yaml
+input:
+  - timer:
+      seconds: 1
+      count: 1
+      repeat: 60
+```
+
+Delayed start — begin 5 minutes from now:
+
+```yaml
+input:
+  - timer:
+      seconds: 2
+      count: 1
+      start: +5m
+```

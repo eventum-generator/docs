@@ -1,0 +1,59 @@
+---
+title: opensearch
+description: Output plugin that indexes events into an OpenSearch cluster using the bulk API.
+---
+
+Indexes events into an OpenSearch (or Elasticsearch-compatible) cluster. Uses the **bulk API** for efficient batch indexing and supports load balancing across multiple nodes.
+
+## Parameters
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `hosts` | list of URLs | — | Required. At least one. Format: `https://<host>:<port>`. | Cluster node addresses. |
+| `username` | string | — | Required. Non-empty. | Authentication username. |
+| `password` | string | — | Required. Non-empty. | Authentication password. |
+| `index` | string | — | Required. Non-empty. | Target index name. |
+| `connect_timeout` | integer | `10` | >= 1 | Connection timeout in seconds. |
+| `request_timeout` | integer | `300` | >= 1 | Full request timeout in seconds. |
+| `verify` | boolean | `false` | — | Whether to verify the server's TLS certificate. |
+| `ca_cert` | path or null | `null` | Non-empty if set. | Path to CA certificate file. |
+| `client_cert` | path or null | `null` | Non-empty if set. | Path to client certificate. Must be provided together with `client_cert_key`. |
+| `client_cert_key` | path or null | `null` | Non-empty if set. | Path to client certificate key. Must be provided together with `client_cert`. |
+| `proxy_url` | URL or null | `null` | Valid HTTP/HTTPS URL. | Proxy address. |
+| `formatter` | [formatter](/docs/plugins/formatters) | `json` | — | How events are serialized before indexing. |
+
+## Behavior
+
+- Events are indexed using the OpenSearch bulk API for efficient batch writes.
+- When multiple `hosts` are listed, the plugin **round-robins** requests across them for load balancing.
+- Each event must be valid JSON — the default `json` formatter ensures this.
+
+## Examples
+
+Single-node cluster:
+
+```yaml
+output:
+  - opensearch:
+      hosts:
+        - https://opensearch:9200
+      username: admin
+      password: ${secrets.opensearch_password}
+      index: application-logs
+```
+
+Multi-node cluster with TLS:
+
+```yaml
+output:
+  - opensearch:
+      hosts:
+        - https://node1:9200
+        - https://node2:9200
+        - https://node3:9200
+      username: ${params.opensearch_user}
+      password: ${secrets.opensearch_password}
+      index: events
+      verify: true
+      ca_cert: /etc/ssl/opensearch-ca.pem
+```

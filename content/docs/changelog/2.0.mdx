@@ -1,4 +1,79 @@
 ---
 title: Version 2.0
-description: description
+description: Eventum 2.0 release notes — a complete rewrite with new plugins, a web UI, batch processing, and structured logging.
 ---
+
+Released **February 23, 2026** 🎉
+
+Eventum 2.0 is a complete rewrite from the ground up! New plugin-based architecture, batch processing, a built-in web UI, and much more. This is a major release — configurations from 1.x will need to be updated.
+
+## 🚀 New features
+
+### Input plugins
+
+- **[`http`](/docs/plugins/input/http) input plugin** — trigger event generation from external systems via HTTP requests.
+- **Live & sample modes** for all input plugins — run in real-time or generate as fast as possible.
+- **Human-readable dates** — write `"January 1, 2025"`, `"+1h"`, or `"now"` instead of strict ISO formats.
+- **Multiple input merging** — combine several input plugins in one generator, timestamps are merged automatically in chronological order.
+
+### Event plugins
+
+- **[`script`](/docs/plugins/event/script) plugin** — write event logic as a Python function when templates aren't enough.
+- **[`replay`](/docs/plugins/event/replay) plugin** — replay events from existing log files with optional timestamp replacement.
+
+### Template plugin enhancements
+
+- **Faker & Mimesis** — two powerful data generation libraries available directly in templates (70+ locales, hundreds of data providers).
+- **`module` gateway** — access any installed Python package in templates via `module.<package>`.
+- **Global state** — new `globals` scope for sharing state across all generators (thread-safe).
+- **New state methods** — `update`, `clear`, and `as_dict` for all state scopes.
+- **New picking modes** — [`fsm`](/docs/core/concepts/producing#fsm) (finite state machine) and [`chain`](/docs/core/concepts/producing#chain) (fixed sequence).
+- **New sample types** — `json` and `items` (inline lists in YAML).
+- **Timezone-aware timestamps** — `timestamp` is now a proper `datetime` object, not a string.
+- **Better subprocesses** — new `cwd`, `env`, and `timeout` options.
+
+### Output plugins
+
+- **[`clickhouse`](/docs/plugins/output/clickhouse) plugin** — write events directly to ClickHouse.
+- **[`http`](/docs/plugins/output/http) plugin** — send events to any HTTP endpoint.
+- **Formatters** — transform events before delivery with `plain`, `json`, `json-batch`, `template`, or `template-batch`.
+
+### Existing output plugin improvements
+
+- **File** — new `flush_interval`, `cleanup_interval`, `file_mode`, `write_mode`, `encoding`, and `separator` options.
+- **Stdout** — new `flush_interval`, `stream`, `encoding`, and `separator` options.
+- **OpenSearch** — new `connect_timeout`, `request_timeout`, `client_cert`, `client_cert_key`, and `proxy_url` options.
+
+---
+
+## ⚡ Performance
+
+Batch processing across the entire pipeline — events are grouped into configurable batches between stages, dramatically reducing overhead and improving throughput compared to 1.x.
+
+---
+
+## 🧪 Testing
+
+Expanded test coverage for all plugins, the core executor, configuration loading, and the CLI.
+
+---
+
+## 🏗️ Architecture
+
+The entire project has been rebuilt from scratch:
+
+- **Plugin system** — self-registering plugins with a consistent structure.
+- **Async pipeline** — `uvloop` event loop with `janus` queues for efficient stage-to-stage communication.
+- **Configuration** — Pydantic-based validation with `${params.*}` and `${secrets.*}` variable substitution.
+- **CLI** — rebuilt with Click, options auto-generated from config models.
+- **REST API** — new FastAPI-based API for programmatic control.
+- **Eventum Studio** — brand-new React web UI for visual editing, debugging, and monitoring.
+
+---
+
+## 📝 Other changes
+
+- 🔄 `sample` input plugin renamed to [`static`](/docs/plugins/input/static).
+- 🔄 `jinja` event plugin renamed to [`template`](/docs/plugins/event/template).
+- 📋 Structured logging via [structlog](https://www.structlog.org/) — supports plain-text and JSON output.
+- 🛡️ Better error diagnostics — exceptions now carry structured context for easier troubleshooting.

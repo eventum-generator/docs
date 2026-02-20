@@ -1,4 +1,11 @@
 {
   "root": true,
-  "icon": "Blocks"
+  "icon": "Blocks",
+  "pages": [
+    "index",
+    "input",
+    "event",
+    "output",
+    "formatters"
+  ]
 }

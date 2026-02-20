@@ -1,0 +1,91 @@
+---
+title: clickhouse
+description: Output plugin that inserts events into a ClickHouse table via the HTTP interface.
+---
+
+Inserts events into a ClickHouse table using the HTTP interface. Supports configurable input formats, DSN connection strings, and TLS.
+
+## Parameters
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `host` | string | — | Required. Non-empty. | ClickHouse server hostname or IP. |
+| `port` | integer | `8123` | 1–65535 | HTTP/HTTPS port. |
+| `protocol` | string | `"http"` | `"http"` or `"https"` | Connection protocol. |
+| `database` | string | `"default"` | Non-empty. | Target database. |
+| `table` | string | — | Required. Non-empty. | Target table. |
+| `username` | string | `"default"` | Non-empty. | Authentication username. |
+| `password` | string | `""` | — | Authentication password. |
+| `dsn` | ClickHouse DSN or null | `null` | — | DSN string (e.g., `clickhouse+native://user:pass@host:9000/db`). Overrides individual connection fields. |
+| `connect_timeout` | integer | `10` | >= 1 | Connection timeout in seconds. |
+| `request_timeout` | integer | `300` | >= 1 | Full request timeout in seconds. |
+| `client_name` | string or null | `null` | Non-empty if set. | Client name for the ClickHouse query log. |
+| `verify` | boolean | `true` | — | Whether to verify the server's TLS certificate. |
+| `ca_cert` | path or null | `null` | Non-empty if set. | Path to CA certificate file. |
+| `client_cert` | path or null | `null` | Non-empty if set. | Path to client certificate. Must be provided together with `client_cert_key`. |
+| `client_cert_key` | path or null | `null` | Non-empty if set. | Path to client certificate key. Must be provided together with `client_cert`. |
+| `server_host_name` | string or null | `null` | Non-empty if set. | Expected server hostname in the TLS certificate. |
+| `tls_mode` | string or null | `null` | `"proxy"`, `"strict"`, or `"mutual"` | TLS verification mode. |
+| `proxy_url` | URL or null | `null` | Valid HTTP/HTTPS URL. | Proxy address. |
+| `input_format` | string | `"JSONEachRow"` | Valid ClickHouse input format. | ClickHouse [input format](https://clickhouse.com/docs/en/interfaces/formats) for the INSERT query. |
+| `header` | string | `""` | — | String prepended before all events in each batch. |
+| `footer` | string | `""` | — | String appended after all events in each batch. |
+| `separator` | string | `"\n"` | — | String inserted between events. |
+| `formatter` | [formatter](/docs/plugins/formatters) | `json` | — | How events are serialized before insertion. |
+
+## Behavior
+
+- Events are sent via ClickHouse's raw insert API using the specified `input_format`.
+- The default combination of `json` formatter + `JSONEachRow` input format sends one JSON object per line.
+- For non-JSON formats (CSV, TabSeparated, etc.), use `header`, `footer`, and `separator` to control event wrapping and the `plain` formatter.
+- Connection via DSN overrides individual `host`, `port`, `protocol`, `database`, `username`, and `password` fields.
+
+## Examples
+
+Basic JSONEachRow insertion:
+
+```yaml
+output:
+  - clickhouse:
+      host: clickhouse.example.com
+      database: analytics
+      table: events
+      username: ${params.ch_user}
+      password: ${secrets.ch_password}
+```
+
+HTTPS with custom port:
+
+```yaml
+output:
+  - clickhouse:
+      host: clickhouse.prod
+      port: 8443
+      protocol: https
+      database: analytics
+      table: events
+      verify: true
+      input_format: JSONEachRow
+```
+
+Via DSN string:
+
+```yaml
+output:
+  - clickhouse:
+      dsn: clickhouse+native://admin:secret@clickhouse.prod:9000/analytics
+      table: events
+```
+
+CSV input format with plain formatter:
+
+```yaml
+output:
+  - clickhouse:
+      host: localhost
+      table: events
+      input_format: CSV
+      separator: "\n"
+      formatter:
+        format: plain
+```

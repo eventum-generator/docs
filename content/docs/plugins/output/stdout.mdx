@@ -1,0 +1,49 @@
+---
+title: stdout
+description: Output plugin that writes events to the console or stderr.
+---
+
+Writes events to the standard output or error stream. The simplest output plugin — useful for debugging, piping to another tool, or quick inspection.
+
+## Parameters
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `stream` | string | `"stdout"` | `"stdout"` or `"stderr"` | Target stream. |
+| `flush_interval` | float | `1` | >= 0 | Seconds between buffer flushes. |
+| `encoding` | string | `"utf_8"` | Valid Python codec name. | Stream encoding. |
+| `separator` | string | `"\n"` (OS line separator) | — | String inserted between events. |
+| `formatter` | [formatter](/docs/plugins/formatters) | `plain` | — | How events are serialized before writing. |
+
+## Behavior
+
+- Buffered output is flushed every `flush_interval` seconds. Set to `0` for immediate output — useful during debugging, but reduces throughput.
+- Writing to `stderr` is useful when `stdout` is piped to another tool.
+
+## Examples
+
+Minimal — write events to stdout with defaults:
+
+```yaml
+output:
+  - stdout: {}
+```
+
+Immediate flush to stderr:
+
+```yaml
+output:
+  - stdout:
+      stream: stderr
+      flush_interval: 0
+```
+
+JSON output to console:
+
+```yaml
+output:
+  - stdout:
+      formatter:
+        format: json
+        indent: 2
+```

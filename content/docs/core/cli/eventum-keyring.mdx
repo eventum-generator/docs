@@ -1,4 +1,183 @@
 ---
 title: "$ eventum-keyring"
-description: description
+description: Manage encrypted secrets — set, get, and remove credentials stored in the keyring cryptfile.
 ---
+
+A standalone tool for managing secrets stored in an encrypted keyring file. Secrets added here are available in generator configs via `${secrets.name}` tokens. See [Secrets](/docs/core/config/secrets) for the full picture of how secrets work in Eventum.
+
+`eventum-keyring` is a separate executable from `eventum` — it is installed alongside it but invoked independently.
+
+```bash
+eventum-keyring <command> [OPTIONS]
+```
+
+## Commands
+
+### set
+
+Stores or updates a secret in the keyring.
+
+```bash
+eventum-keyring set <name> [<value>] [--cryptfile <path>]
+```
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `name` | Yes | Name of the secret. This is the key used in `${secrets.name}` tokens. |
+| `value` | No | Secret value. If omitted, you are prompted to enter it interactively (input is hidden). |
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--cryptfile` | path | Path to the cryptfile. If it doesn't exist, a new file is created. If omitted, uses the system default location. |
+
+```bash
+# Inline value
+eventum-keyring set db_password "s3cret"
+
+# Interactive prompt (hidden input)
+eventum-keyring set db_password
+# Enter password of `db_password`: ********
+# Done
+
+# Custom cryptfile location
+eventum-keyring set api_key "tok_abc123" --cryptfile ./project/cryptfile.cfg
+```
+
+Prints `Done` to stderr on success.
+
+---
+
+### get
+
+Retrieves a secret from the keyring and prints it to stdout.
+
+```bash
+eventum-keyring get <name> [--cryptfile <path>]
+```
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `name` | Yes | Name of the secret to retrieve. |
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--cryptfile` | path | Path to the cryptfile. Must exist. If omitted, uses the system default location. |
+
+```bash
+eventum-keyring get db_password
+# s3cret
+
+eventum-keyring get api_key --cryptfile ./project/cryptfile.cfg
+# tok_abc123
+```
+
+If the secret doesn't exist, prints an error and exits with code 1.
+
+---
+
+### remove
+
+Deletes a secret from the keyring.
+
+```bash
+eventum-keyring remove <name> [--cryptfile <path>]
+```
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `name` | Yes | Name of the secret to delete. |
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--cryptfile` | path | Path to the cryptfile. Must exist. If omitted, uses the system default location. |
+
+```bash
+eventum-keyring remove db_password
+# Done
+```
+
+Prints `Done` to stderr on success. If the secret doesn't exist, prints an error and exits with code 1.
+
+## Exit codes
+
+All three commands share the same exit code conventions:
+
+| Code | Meaning |
+|------|---------|
+| `0` | Operation completed successfully. |
+| `1` | Error — secret not found, blank name, cryptfile access issue, or other failure. |
+
+## Environment variables
+
+### EVENTUM_KEYRING_PASSWORD
+
+The encryption password used to read and write the cryptfile. Set this before running any keyring command:
+
+```bash
+export EVENTUM_KEYRING_PASSWORD="your-strong-password"
+```
+
+If the variable is not set, Eventum uses the default password `eventum` and logs a warning. For production use, always set a custom password.
+
+<Callout type="warn">
+The same `EVENTUM_KEYRING_PASSWORD` must be set when running `eventum generate` or `eventum run` — otherwise Eventum cannot decrypt the secrets stored in the cryptfile.
+</Callout>
+
+## The cryptfile
+
+The cryptfile is an AES-encrypted file managed by [keyrings.cryptfile](https://pypi.org/project/keyrings.cryptfile/). All secrets are stored under the service name `eventum`.
+
+The `--cryptfile` flag on each command controls which file is used. This should match the path configured elsewhere:
+
+| Context | Where the path is set |
+|---------|-----------------------|
+| `eventum run` | `path.keyring_cryptfile` in [eventum.yml](/docs/core/config/eventum-yml#path) |
+| `eventum generate` | `--cryptfile` flag |
+| `eventum-keyring` | `--cryptfile` flag on each subcommand |
+
+When `--cryptfile` is omitted, all three tools fall back to the system default keyring location.
+
+## Examples
+
+Setting up secrets for a project:
+
+```bash
+export EVENTUM_KEYRING_PASSWORD="project-key"
+
+# Store credentials
+eventum-keyring set opensearch_password "prod-password" --cryptfile ./cryptfile.cfg
+eventum-keyring set ch_password "clickhouse-secret" --cryptfile ./cryptfile.cfg
+eventum-keyring set auth_password "admin-password" --cryptfile ./cryptfile.cfg
+
+# Verify
+eventum-keyring get opensearch_password --cryptfile ./cryptfile.cfg
+# prod-password
+```
+
+Then reference them in configs:
+
+```yaml title="generator.yml"
+output:
+  - opensearch:
+      hosts:
+        - https://opensearch:9200
+      username: admin
+      password: ${secrets.opensearch_password}
+```
+
+```bash
+eventum generate \
+  --id my-gen \
+  --path ./generator.yml \
+  --cryptfile ./cryptfile.cfg
+```
+
+Rotating a secret:
+
+```bash
+# Update the value — same name overwrites the previous secret
+eventum-keyring set opensearch_password "new-password" --cryptfile ./cryptfile.cfg
+
+# Restart or hot-reload to pick up the change
+kill -HUP $(pgrep -f "eventum run")
+```

@@ -1,0 +1,247 @@
+---
+title: eventum.yml
+description: Full schema reference for the main application configuration file — server, logging, paths, and default generation parameters.
+---
+
+The main application config controls how Eventum runs as a service with `eventum run`. It defines four sections: **server** settings, file **paths**, **logging**, and default **generation** parameters that all generators inherit.
+
+```yaml title="eventum.yml"
+server:
+  host: "0.0.0.0"
+  port: 9474
+
+path:
+  startup: /etc/eventum/startup.yml
+  generators_dir: /etc/eventum/generators
+  logs: /var/log/eventum
+  keyring_cryptfile: /etc/eventum/cryptfile.cfg
+
+log:
+  level: info
+  format: plain
+
+generation:
+  timezone: UTC
+  batch:
+    size: 10000
+```
+
+<Callout type="info">
+The config supports both **nested YAML** and **dot notation**. For example, `server.host: "0.0.0.0"` is equivalent to the nested `server: { host: "0.0.0.0" }`. Both formats can be mixed in the same file.
+</Callout>
+
+Extra fields are **forbidden** — any unrecognized key will cause a validation error at load time.
+
+---
+
+## server
+
+Controls the built-in web server that exposes the UI and REST API.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `server.ui_enabled` | boolean | `true` | — | Enable the web-based management UI. |
+| `server.api_enabled` | boolean | `true` | — | Enable the REST API endpoints. |
+| `server.host` | string | `"0.0.0.0"` | Non-empty. | Address the server binds to. |
+| `server.port` | integer | `9474` | >= 1 | Port the server binds to. |
+
+### server.ssl
+
+TLS/SSL settings for the server.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `server.ssl.enabled` | boolean | `false` | — | Enable HTTPS. When `true`, `cert` and `cert_key` are required. |
+| `server.ssl.verify_mode` | string or null | `null` | `"none"`, `"optional"`, or `"required"` | Client certificate verification mode. `"none"` — no client certificate required. `"optional"` — request but don't require. `"required"` — reject connections without a valid client certificate. |
+| `server.ssl.ca_cert` | path or null | `null` | Must be an absolute path. | CA certificate for verifying client certificates. |
+| `server.ssl.cert` | path or null | `null` | Must be an absolute path. Required when SSL is enabled. Must be provided together with `cert_key`. | Server certificate file. |
+| `server.ssl.cert_key` | path or null | `null` | Must be an absolute path. Required when SSL is enabled. Must be provided together with `cert`. | Server certificate private key file. |
+
+All SSL paths must be **absolute**.
+
+```yaml
+server:
+  ssl:
+    enabled: true
+    cert: /etc/eventum/server.crt
+    cert_key: /etc/eventum/server.key
+    verify_mode: optional
+    ca_cert: /etc/eventum/ca.crt
+```
+
+### server.auth
+
+HTTP basic authentication credentials for the UI and API.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `server.auth.user` | string | `"eventum"` | Non-empty. | Username. |
+| `server.auth.password` | string | `"eventum"` | Non-empty. | Password. |
+
+<Callout type="warn">
+Change the default credentials before exposing Eventum on a network.
+</Callout>
+
+---
+
+## path
+
+File system paths used by the application. All paths must be **absolute**.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `path.logs` | path | — | Required. Must be an absolute path. | Directory for application log files. Created automatically if it doesn't exist. |
+| `path.startup` | path | — | Required. Must be an absolute path. | Path to the [startup.yml](/docs/core/config/startup-yml) file. |
+| `path.generators_dir` | path | — | Required. Must be an absolute path. | Directory containing generator subdirectories. Generator paths in `startup.yml` are resolved relative to this directory. |
+| `path.keyring_cryptfile` | path | — | Required. Must be an absolute path. | Path to the encrypted keyring file used for [secrets](/docs/core/config/secrets). |
+| `path.generator_config_filename` | path | `"generator.yml"` | Single filename. Must end with `.yml` or `.yaml`. | The expected config filename inside each generator directory. Used by the API to auto-detect valid generator directories. |
+
+```yaml
+path:
+  startup: /etc/eventum/startup.yml
+  generators_dir: /etc/eventum/generators
+  logs: /var/log/eventum
+  keyring_cryptfile: /etc/eventum/cryptfile.cfg
+  generator_config_filename: generator.yml
+```
+
+---
+
+## log
+
+Controls application logging — separate from the events that generators produce.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `log.level` | string | `"info"` | `"debug"`, `"info"`, `"warning"`, `"error"`, or `"critical"` | Minimum severity level for log messages. |
+| `log.format` | string | `"plain"` | `"plain"` or `"json"` | Log output format. `"plain"` is human-readable, `"json"` is structured. |
+| `log.max_bytes` | integer | `10485760` (10 MiB) | >= 1024 | Maximum size per log file before rotation. |
+| `log.backups` | integer | `5` | >= 1 | Number of rotated log files to keep. |
+
+```yaml
+log:
+  level: info
+  format: json
+  max_bytes: 52428800    # 50 MiB
+  backups: 10
+```
+
+---
+
+## generation
+
+Default generation parameters inherited by all generators. Individual generators can override any of these in [startup.yml](/docs/core/config/startup-yml#overridable-generation-parameters).
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `generation.timezone` | string | `"UTC"` | Valid IANA timezone. Min length: 3. | Default timezone for generating timestamps. |
+
+### generation.batch
+
+Controls how events are grouped before being passed to output plugins:
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `generation.batch.size` | integer or null | `10000`\* | >= 1 | Maximum number of events per batch. |
+| `generation.batch.delay` | float or null | `1.0`\* | >= 0.1 | Maximum seconds to wait before flushing a partial batch. |
+
+\*The defaults of `10000` and `1.0` apply as a pair when **neither** field is specified. If you set only one, the other defaults to `null`. At least one of `size` or `delay` must be set. When both are set, the batch is flushed when either limit is reached — whichever comes first.
+
+### generation.queue
+
+Controls the internal queues between pipeline stages. These act as backpressure buffers — when a downstream stage is slower, the upstream stage will block once the queue is full.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `generation.queue.max_timestamp_batches` | integer | `10` | >= 1 | Maximum timestamp batches in the input→event queue. |
+| `generation.queue.max_event_batches` | integer | `10` | >= 1 | Maximum event batches in the event→output queue. |
+
+### Concurrency and ordering
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `generation.keep_order` | boolean | `false` | — | When `true`, output plugins process batches sequentially to preserve chronological order. |
+| `generation.max_concurrency` | integer | `100` | >= 1 | Maximum number of concurrent write operations across all output plugins. |
+| `generation.write_timeout` | integer | `10` | >= 1 | Timeout in seconds for a single write operation. |
+
+```yaml
+generation:
+  timezone: America/New_York
+  batch:
+    size: 20000
+    delay: 2.0
+  queue:
+    max_timestamp_batches: 20
+    max_event_batches: 20
+  keep_order: false
+  max_concurrency: 200
+  write_timeout: 30
+```
+
+---
+
+## Complete example
+
+```yaml title="eventum.yml"
+# Server
+server:
+  ui_enabled: true
+  api_enabled: true
+  host: "0.0.0.0"
+  port: 9474
+  ssl:
+    enabled: true
+    cert: /etc/eventum/server.crt
+    cert_key: /etc/eventum/server.key
+    verify_mode: none
+  auth:
+    user: admin
+    password: s3cret
+
+# Paths
+path:
+  startup: /etc/eventum/startup.yml
+  generators_dir: /etc/eventum/generators
+  logs: /var/log/eventum
+  keyring_cryptfile: /etc/eventum/cryptfile.cfg
+
+# Logging
+log:
+  level: info
+  format: json
+  max_bytes: 52428800
+  backups: 10
+
+# Default generation parameters
+generation:
+  timezone: UTC
+  batch:
+    size: 10000
+    delay: 1.0
+  queue:
+    max_timestamp_batches: 10
+    max_event_batches: 10
+  keep_order: false
+  max_concurrency: 100
+  write_timeout: 10
+```
+
+## What's next
+
+<Cards>
+  <Card
+    title="startup.yml"
+    description="Generator list and per-generator parameter overrides."
+    href="/docs/core/config/startup-yml"
+  />
+  <Card
+    title="generator.yml"
+    description="Full schema for the generator pipeline — input, event, and output."
+    href="/docs/core/config/generator-yml"
+  />
+  <Card
+    title="Project structure"
+    description="How files relate and how paths are resolved."
+    href="/docs/core/config/project-structure"
+  />
+</Cards>

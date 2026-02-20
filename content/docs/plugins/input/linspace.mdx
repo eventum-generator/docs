@@ -1,0 +1,43 @@
+---
+title: linspace
+description: Input plugin that distributes timestamps evenly across a time range.
+---
+
+Distributes a fixed number of timestamps evenly across a time range — similar to NumPy's `linspace`. Useful for generating datasets where events need to be uniformly spaced.
+
+## Parameters
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `start` | [VersatileDatetime](/docs/core/concepts/scheduling#date-ranges-and-versatile-datetime) | — | Required. Cannot be null. | Start of the range. |
+| `end` | [VersatileDatetime](/docs/core/concepts/scheduling#date-ranges-and-versatile-datetime) | — | Required. Cannot be null. | End of the range. |
+| `count` | integer | — | Required. >= 1 | Total number of timestamps to distribute. |
+| `endpoint` | boolean | `true` | — | Whether to include `end` as the last timestamp. |
+| `tags` | list of strings | `[]` | — | Tags attached to every timestamp. Accessible in templates via `tags`. |
+
+<Callout>
+`start` must be earlier than or equal to `end`. Neither can be `null` or `never`.
+</Callout>
+
+## Examples
+
+One event per minute across a full day:
+
+```yaml
+input:
+  - linspace:
+      start: "2024-01-01"
+      end: "2024-01-02"
+      count: 1440
+      endpoint: false
+```
+
+100 events in the next hour:
+
+```yaml
+input:
+  - linspace:
+      start: now
+      end: +1h
+      count: 100
+```

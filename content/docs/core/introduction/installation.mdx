@@ -1,0 +1,345 @@
+---
+title: Installation
+description: Install Eventum as a Python package, run it with Docker, or build from source.
+---
+
+## Prerequisites
+
+Eventum requires **Python 3.13** or later.
+
+<Steps>
+<Step>
+### Check your Python version
+
+```bash
+python --version
+```
+
+If you see `Python 3.13.x` or higher, you're ready. If not, install the required version:
+
+- **Ubuntu/Debian:** `sudo apt install python3.13`
+- **macOS (Homebrew):** `brew install python@3.13`
+- **Windows:** download from [python.org](https://www.python.org/downloads/)
+- **Any platform with uv:** `uv python install 3.13` (uv manages Python versions for you)
+
+</Step>
+<Step>
+### Choose an installation method
+
+| Method | Best for |
+|--------|----------|
+| [uv tool](#install-with-uv) | Easiest install — one command, no virtual environment management |
+| [pip](#install-with-pip) | When you already have a Python environment set up |
+| [Docker](#docker) | Containerized deployments without a local Python installation |
+| [From source](#build-from-source) | Development or running unreleased changes |
+
+</Step>
+</Steps>
+
+---
+
+## Install with uv
+
+[uv](https://docs.astral.sh/uv/) is a fast Python package manager. If you don't have it yet:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Install Eventum as a tool — this makes the `eventum` and `eventum-keyring` commands globally available:
+
+```bash
+uv tool install eventum-generator
+```
+
+<Callout type="info">
+`uv tool install` creates an isolated environment for Eventum automatically — no project setup or virtual environment management needed.
+</Callout>
+
+Verify the installation:
+
+```bash
+eventum --version
+```
+
+## Install with pip
+
+```bash
+pip install eventum-generator
+```
+
+<Callout type="warn">
+We recommend installing into a virtual environment to avoid dependency conflicts:
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install eventum-generator
+```
+</Callout>
+
+Verify the installation:
+
+```bash
+eventum --version
+```
+
+---
+
+## Set up a project
+
+After installing Eventum, you need to create a project directory with configuration files. The structure depends on how you plan to run Eventum.
+
+### Single generator mode
+
+For quick experiments and one-off generation with [`eventum generate`](/docs/core/cli/eventum-generate), all you need is a generator config file and its resources (e.g. templates):
+
+<Files>
+  <Folder name="my-project" defaultOpen>
+    <File name="generator.yml" />
+    <Folder name="templates" defaultOpen>
+      <File name="event.jinja" />
+    </Folder>
+  </Folder>
+</Files>
+
+```bash
+mkdir -p my-project/templates
+```
+
+Create a `generator.yml` that defines the three-stage pipeline — input, event, and output. See the [generator.yml](/docs/core/config/generator-yml) reference for the full schema.
+
+Then run it directly:
+
+```bash
+eventum generate --id my-gen --path my-project/generator.yml
+```
+
+See [First run](/docs/core/introduction/first-run) for a complete step-by-step example with template content.
+
+### Application mode
+
+For production use with [`eventum run`](/docs/core/cli/eventum-run) — multiple generators, a REST API, and the Studio web UI — you need three config files and a directory for your generators:
+
+<Files>
+  <Folder name="eventum" defaultOpen>
+    <File name="eventum.yml" />
+    <File name="startup.yml" />
+    <Folder name="generators" defaultOpen>
+      <Folder name="..." />
+    </Folder>
+    <Folder name="logs" />
+  </Folder>
+</Files>
+
+```bash
+mkdir -p eventum/{generators,logs}
+```
+
+| File | Purpose | Reference |
+|------|---------|-----------|
+| `eventum.yml` | Main application config — server settings, default generation parameters, logging, and file paths. | [eventum.yml reference](/docs/core/config/eventum-yml) |
+| `startup.yml` | List of generators to load at startup with per-generator parameter overrides. | [startup.yml reference](/docs/core/config/startup-yml) |
+| `generators/` | Each subdirectory is a self-contained generator with its own `generator.yml` and resources. | [generator.yml reference](/docs/core/config/generator-yml) |
+| `logs/` | Application log files (path configured in `eventum.yml`). | — |
+
+Create a minimal `eventum.yml` — update the paths to match your project location:
+
+```yaml title="eventum/eventum.yml"
+server:
+  host: "0.0.0.0"
+  port: 9474
+  auth:
+    user: eventum
+    password: eventum
+
+generation:
+  timezone: UTC
+  batch:
+    size: 10000
+
+log:
+  level: info
+
+path:
+  startup: /absolute/path/to/eventum/startup.yml
+  generators_dir: /absolute/path/to/eventum/generators
+  logs: /absolute/path/to/eventum/logs
+  keyring_cryptfile: /absolute/path/to/eventum/cryptfile.cfg
+```
+
+<Callout type="warn">
+All values in the `path` section must be **absolute paths**. Replace `/absolute/path/to/my-project` with the actual path on your system.
+</Callout>
+
+Create a `startup.yml` — this is where you register your generators. Start with an empty list and add generators as you create them:
+
+```yaml title="eventum/startup.yml"
+[]
+```
+
+Then start the application:
+
+```bash
+eventum run -c eventum/eventum.yml
+```
+
+Once running, open http://localhost:9474 in your browser to access the Studio UI.
+
+
+See [First run — Run as application](/docs/core/introduction/first-run#run-as-application) for a complete walkthrough with generator examples, and [Project structure](/docs/core/config/project-structure) for a detailed breakdown of how the files relate.
+
+---
+
+## Docker
+
+Official images are available on [Docker Hub](https://hub.docker.com/r/rnv812/eventum-generator). Docker does not require a local Python installation.
+
+### Project layout for Docker
+
+Prepare your project directory with the similar structure as the application mode above. The Docker container expects the config at `/app/config/eventum.yml` and generators in the directory you mount:
+
+<Files>
+  <Folder name="eventum" defaultOpen>
+    <Folder name="config" defaultOpen>
+      <File name="eventum.yml" />
+      <File name="startup.yml" />
+    </Folder>
+    <Folder name="generators" defaultOpen>
+      <Folder name="..." />
+    </Folder>
+    <Folder name="logs" />
+  </Folder>
+</Files>
+
+Since the files will be mounted into the container, use the **container paths** in `eventum.yml`:
+
+```yaml title="config/eventum.yml"
+server:
+  host: "0.0.0.0"
+  port: 9474
+  auth:
+    user: eventum
+    password: eventum
+
+generation:
+  timezone: UTC
+  batch:
+    size: 10000
+
+log:
+  level: info
+
+path:
+  startup: /app/config/startup.yml
+  generators_dir: /app/generators
+  logs: /app/logs
+  keyring_cryptfile: /app/config/cryptfile.cfg
+```
+
+### Run with Docker
+
+Mount your project directories and expose port `9474` for the API and Studio UI:
+
+```bash
+docker run --rm \
+  -v $(pwd)/config:/app/config \
+  -v $(pwd)/generators:/app/generators \
+  -v $(pwd)/logs:/app/logs \
+  -p 9474:9474 \
+  rnv812/eventum-generator:2.0
+```
+
+The container starts with `eventum run -c /app/config/eventum.yml` by default.
+
+### Run with Docker Compose
+
+For a more reproducible setup, use a `docker-compose.yml`:
+
+```yaml title="docker-compose.yml"
+services:
+  eventum:
+    image: rnv812/eventum-generator:2.0
+    ports:
+      - "9474:9474"
+    volumes:
+      - ./config:/app/config
+      - ./generators:/app/generators
+      - ./logs:/app/logs
+```
+
+```bash
+docker compose up -d
+```
+
+Once running, open http://localhost:9474 in your browser to access the Studio UI.
+
+---
+
+## Build from source
+
+For development or running the latest unreleased changes:
+
+<Steps>
+<Step>
+### Clone the repository
+
+```bash
+git clone https://github.com/eventum-project/eventum-generator.git
+cd eventum-generator
+```
+
+</Step>
+<Step>
+### Install dependencies
+
+[uv](https://docs.astral.sh/uv/) is required for dependency management:
+
+```bash
+uv sync
+```
+
+</Step>
+<Step>
+### Build the Studio UI
+
+The web interface is a React application that needs to be compiled separately. [Node.js](https://nodejs.org/) is required:
+
+```bash
+cd eventum/ui
+npm ci --legacy-peer-deps
+npm run build
+cd ../..
+```
+
+</Step>
+<Step>
+### Verify
+
+```bash
+uv run eventum --version
+```
+
+</Step>
+</Steps>
+
+---
+
+## What's next
+
+<Cards>
+  <Card
+    title="First run"
+    description="Create a generator and see events flowing in under 5 minutes."
+    href="/docs/core/introduction/first-run"
+  />
+  <Card
+    title="Project structure"
+    description="Detailed breakdown of application and generator directory layouts."
+    href="/docs/core/config/project-structure"
+  />
+  <Card
+    title="Features"
+    description="Explore the full set of capabilities Eventum provides."
+    href="/docs/core/introduction/features"
+  />
+</Cards>

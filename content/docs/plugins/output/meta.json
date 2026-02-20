@@ -1,0 +1,10 @@
+{
+  "title": "Output",
+  "pages": [
+    "stdout",
+    "file",
+    "http",
+    "opensearch",
+    "clickhouse"
+  ]
+}

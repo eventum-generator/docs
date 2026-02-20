@@ -1,0 +1,163 @@
+---
+title: startup.yml
+description: Full schema reference for the startup configuration file — generator entries, per-generator parameter overrides, and the parameter cascade from eventum.yml.
+---
+
+The startup file is a YAML list of generators that Eventum loads when it starts with `eventum run`. Each entry identifies a generator directory and can override any [generation parameter](#overridable-generation-parameters) from [eventum.yml](/docs/core/config/eventum-yml).
+
+```yaml title="startup.yml"
+- id: access-logs
+  path: access-logs/generator.yml
+  autostart: true
+
+- id: error-logs
+  path: error-logs/generator.yml
+  live_mode: false
+  batch:
+    size: 50000
+```
+
+## Parameter cascade
+
+Startup entries inherit generation parameters from `eventum.yml` and can override them individually. The cascade works in one direction:
+
+```
+eventum.yml (defaults) → startup.yml (per-generator overrides)
+```
+
+Any field not specified in a startup entry inherits the value from `eventum.yml`. This means you only need to specify what differs from the defaults.
+
+For example, if `eventum.yml` sets `timezone: UTC` and `batch.size: 10000`, a startup entry with `batch.size: 50000` will use UTC timezone (inherited) but a batch size of 50000 (overridden).
+
+## Generator entry fields
+
+### Core fields
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `id` | string | — | Required. Non-empty. Must be unique across all entries. | Unique identifier for the generator. Used in API endpoints and logs. |
+| `path` | path | — | Required. | Path to the generator config file. Relative paths are resolved against the `generators_dir` from [eventum.yml](/docs/core/config/eventum-yml#path). |
+| `autostart` | boolean | `true` | — | Whether to start this generator automatically when the application launches. If `false`, the generator is registered but must be started manually via the API. |
+
+### Execution mode
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `live_mode` | boolean | `true` | — | `true` — events are generated at their scheduled timestamps in real time (live mode). `false` — all events are generated as fast as possible without waiting (sample mode). |
+| `skip_past` | boolean | `true` | — | In live mode, whether to skip timestamps that have already passed when the generator starts. When `false`, Eventum will generate events for past timestamps immediately before catching up to real time. |
+
+### Variable substitution parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `params` | mapping | `{}` | Key-value pairs substituted into the generator config via `${params.name}` tokens. Can be flat or nested. |
+
+```yaml
+- id: web-logs
+  path: web-logs/generator.yml
+  params:
+    opensearch_host: https://opensearch.prod:9200
+    opensearch_user: admin
+    log_level: info
+```
+
+These values replace `${params.opensearch_host}`, `${params.opensearch_user}`, and `${params.log_level}` in the generator's `generator.yml`. See [Parameters](/docs/core/config/parameters) for more details.
+
+### Overridable generation parameters
+
+These fields correspond to the `generation` section of [eventum.yml](/docs/core/config/eventum-yml#generation). Any of them can be set per generator in startup.yml to override the application-level defaults.
+
+#### timezone
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `timezone` | string | `"UTC"` | Valid IANA timezone (e.g., `UTC`, `America/New_York`, `Europe/London`). Min length: 3. | Timezone used for interpreting and generating timestamps. |
+
+#### batch
+
+Controls how events are grouped before being passed to output plugins:
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `batch.size` | integer or null | `10000`\* | >= 1 | Maximum number of events per batch. |
+| `batch.delay` | float or null | `1.0`\* | >= 0.1 | Maximum seconds to wait before flushing a partial batch. |
+
+\*The defaults of `10000` and `1.0` apply as a pair when **neither** field is specified. If you set only one, the other defaults to `null`. At least one of `size` or `delay` must be set. When both are set, the batch is flushed when either limit is reached — whichever comes first.
+
+#### queue
+
+Controls the internal queues between pipeline stages:
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `queue.max_timestamp_batches` | integer | `10` | >= 1 | Maximum number of timestamp batches held in the input→event queue. Controls backpressure when the event plugin is slower than input. |
+| `queue.max_event_batches` | integer | `10` | >= 1 | Maximum number of event batches held in the event→output queue. Controls backpressure when output plugins are slower than event processing. |
+
+#### Concurrency and ordering
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `keep_order` | boolean | `false` | — | When `true`, output plugins process batches sequentially to preserve chronological order. When `false`, batches may be written concurrently and arrive out of order. |
+| `max_concurrency` | integer | `100` | >= 1 | Maximum number of concurrent write operations across all output plugins. Acts as a semaphore to prevent overloading destinations. |
+| `write_timeout` | integer | `10` | >= 1 | Timeout in seconds for a single write operation. If an output plugin takes longer than this, the write is cancelled. |
+
+## Format variants
+
+Startup entries support both **nested YAML** and **dot notation** for overriding nested parameters:
+
+<Callout type="info">
+Both formats produce identical results — use whichever is more readable for your case.
+</Callout>
+
+```yaml title="Nested YAML"
+- id: my-generator
+  path: my-generator/generator.yml
+  batch:
+    size: 5000
+    delay: 0.5
+  queue:
+    max_timestamp_batches: 20
+```
+
+```yaml title="Dot notation"
+- id: my-generator
+  path: my-generator/generator.yml
+  batch.size: 5000
+  batch.delay: 0.5
+  queue.max_timestamp_batches: 20
+```
+
+## Complete example
+
+```yaml title="startup.yml"
+# High-throughput access log generator — sample mode, large batches
+- id: access-logs
+  path: access-logs/generator.yml
+  autostart: true
+  live_mode: false
+  timezone: America/New_York
+  batch:
+    size: 50000
+  max_concurrency: 50
+  write_timeout: 30
+  params:
+    opensearch_host: https://opensearch.prod:9200
+    opensearch_user: admin
+
+# Real-time error log generator — live mode, ordered output
+- id: error-logs
+  path: error-logs/generator.yml
+  autostart: true
+  live_mode: true
+  skip_past: true
+  keep_order: true
+  max_concurrency: 10
+  params:
+    severity: error
+
+# Metrics generator — registered but not started automatically
+- id: metrics
+  path: metrics/generator.yml
+  autostart: false
+  timezone: UTC
+```

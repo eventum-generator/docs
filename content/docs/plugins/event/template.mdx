@@ -1,0 +1,720 @@
+---
+title: template
+description: Event plugin that renders Jinja2 templates with Faker, Mimesis, random helpers, state management, and multiple picking modes.
+---
+
+Renders Jinja2 templates with a rich context — timestamps, data-generation modules, samples, and persistent state. This is the most commonly used event plugin and covers the vast majority of synthetic data generation scenarios.
+
+For a conceptual walkthrough of template features, see [Producing events](/docs/core/concepts/producing).
+
+## Common fields
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `mode` | string | — | Required. One of: `all`, `any`, `chance`, `spin`, `chain`, `fsm`. |
+| `templates` | list of template configs | — | Required. At least one template. |
+| `params` | mapping | `{}` | Extra parameters accessible in templates via `params`. |
+| `samples` | mapping of [sample configs](#samples) | `{}` | Named datasets accessible in templates via `samples`. |
+
+The `mode` field determines how templates are selected for each incoming timestamp.
+
+---
+
+## Modes
+
+### all
+
+Every template is rendered for every timestamp. Produces N events per timestamp, where N is the number of templates.
+
+```yaml
+event:
+  template:
+    mode: all
+    templates:
+      - access_log:
+          template: templates/access.jinja
+      - error_log:
+          template: templates/error.jinja
+```
+
+### any
+
+A single template is chosen at random (uniform distribution) for each timestamp.
+
+```yaml
+event:
+  template:
+    mode: any
+    templates:
+      - success:
+          template: templates/success.jinja
+      - error:
+          template: templates/error.jinja
+```
+
+### chance
+
+A single template is chosen at random with **weighted probability**. Each template has a `chance` value — the higher the value relative to others, the more likely it is to be selected.
+
+| Extra parameter | Type | Constraints | Description |
+|-----------------|------|-------------|-------------|
+| `chance` | float | Required. > 0 | Relative probability weight. |
+
+```yaml
+event:
+  template:
+    mode: chance
+    templates:
+      - success:
+          template: templates/success.jinja
+          chance: 90
+      - error:
+          template: templates/error.jinja
+          chance: 10
+```
+
+### spin
+
+Templates are rendered in round-robin order. The first timestamp uses the first template, the second uses the second, and so on, cycling back to the first after the last.
+
+```yaml
+event:
+  template:
+    mode: spin
+    templates:
+      - request:
+          template: templates/request.jinja
+      - response:
+          template: templates/response.jinja
+```
+
+### chain
+
+Templates are rendered in a fixed order defined by the `chain` list. All templates in the chain are rendered for every timestamp, in the specified order.
+
+| Extra parameter | Type | Constraints | Description |
+|-----------------|------|-------------|-------------|
+| `chain` | list of strings | Required. At least one alias. | Ordered list of template aliases to render. |
+
+```yaml
+event:
+  template:
+    mode: chain
+    chain: [login, browse, checkout, logout]
+    templates:
+      - login:
+          template: templates/login.jinja
+      - browse:
+          template: templates/browse.jinja
+      - checkout:
+          template: templates/checkout.jinja
+      - logout:
+          template: templates/logout.jinja
+```
+
+### fsm
+
+Templates represent states in a **finite state machine**. After each timestamp, the machine evaluates transition conditions to decide the next state. This enables stateful event sequences like user sessions or protocol flows.
+
+**How it works:**
+1. The machine starts at the template marked `initial: true`.
+2. That template is rendered, producing an event. During rendering, the template can modify state variables (`locals`, `shared`, `globals`).
+3. After rendering, transitions are evaluated **in order** — the first transition whose `when` condition is `true` fires.
+4. The machine moves to the state named in the `to` field.
+5. On the next timestamp, the new current template is rendered and the cycle repeats.
+6. If no transition matches, the machine stays in the current state.
+
+| Extra parameter | Type | Default | Constraints | Description |
+|-----------------|------|---------|-------------|-------------|
+| `initial` | boolean | `false` | Exactly one template must be `true`. | Marks the starting state. |
+| `transitions` | list of [transition configs](#fsm-transitions) | `[]` | — | Possible transitions from this state. |
+
+```yaml
+event:
+  template:
+    mode: fsm
+    templates:
+      - idle:
+          template: templates/idle.jinja
+          initial: true
+          transitions:
+            - to: active
+              when:
+                gt:
+                  shared.request_count: 0
+      - active:
+          template: templates/active.jinja
+          transitions:
+            - to: idle
+              when:
+                eq:
+                  shared.request_count: 0
+```
+
+---
+
+## Template entry
+
+For `all`, `any`, `spin`, and `chain` modes:
+
+| Parameter | Type | Constraints | Description |
+|-----------|------|-------------|-------------|
+| `template` | path | Required. Must end with `.jinja`. | Path to the Jinja2 template file. |
+
+For `chance` mode, add the `chance` field. For `fsm` mode, add `initial` and `transitions`.
+
+---
+
+## FSM transitions
+
+Each transition defines a target state and a condition:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `to` | string | Target template alias. |
+| `when` | [condition](#fsm-conditions) | Condition that must evaluate to `true` for the transition to fire. |
+
+Transitions are evaluated **in order** — the first matching transition wins. If no transition matches, the machine stays in the current state. Use `always` as a fallback at the end of a transitions list.
+
+```yaml
+transitions:
+  # Evaluated first: go to "error" if too many failures
+  - to: error
+    when:
+      gt:
+        shared.fail_count: 10
+  # Evaluated second: go to "done" if counter hit zero
+  - to: done
+    when:
+      eq:
+        shared.remaining: 0
+  # Fallback: stay in "active" otherwise
+  - to: active
+    when:
+      always:
+```
+
+## FSM conditions
+
+Conditions inspect template state variables or event metadata. State is organized into three scopes, and field names follow the pattern `<scope>.<field>`:
+
+| Scope | Pattern | Description |
+|-------|---------|-------------|
+| `locals` | `locals.counter` | State local to the current template. Each template has its own locals. |
+| `shared` | `shared.status` | Shared across all templates within the same generator. |
+| `globals` | `globals.session_id` | Global state shared across all generators. |
+
+Templates set state values during rendering (e.g., `{% do shared.set("counter", shared.counter + 1) %}`), and transitions read those values to decide the next state.
+
+### Comparison checks
+
+Each takes a mapping of `<state_field>: <value>`:
+
+| Condition | Description | Example |
+|-----------|-------------|---------|
+| `eq` | Field equals value | `eq: { shared.status: "ready" }` |
+| `gt` | Field greater than value | `gt: { locals.retries: 3 }` |
+| `ge` | Field greater than or equal to value | `ge: { shared.score: 100 }` |
+| `lt` | Field less than value | `lt: { locals.ttl: 0 }` |
+| `le` | Field less than or equal to value | `le: { shared.attempts: 5 }` |
+| `matches` | Field matches regex pattern | `matches: { shared.path: "^/api/.*" }` |
+
+```yaml
+# Transition when a counter exceeds a threshold
+- to: overloaded
+  when:
+    gt:
+      shared.request_count: 1000
+
+# Transition when status matches a pattern
+- to: api_handler
+  when:
+    matches:
+      shared.path: "^/api/v[0-9]+/"
+```
+
+### Length checks
+
+Check the length of a sequence field:
+
+| Condition | Description | Example |
+|-----------|-------------|---------|
+| `len_eq` | Length equals value | `len_eq: { shared.queue: 0 }` |
+| `len_gt` | Length greater than value | `len_gt: { shared.items: 10 }` |
+| `len_ge` | Length greater or equal | `len_ge: { shared.batch: 50 }` |
+| `len_lt` | Length less than value | `len_lt: { shared.buffer: 100 }` |
+| `len_le` | Length less or equal | `len_le: { shared.errors: 3 }` |
+
+```yaml
+# Transition when a queue is full
+- to: flush
+  when:
+    len_ge:
+      shared.event_buffer: 100
+
+# Transition when all items are processed
+- to: complete
+  when:
+    len_eq:
+      shared.pending_items: 0
+```
+
+### Membership checks
+
+| Condition | Description | Example |
+|-----------|-------------|---------|
+| `contains` | Sequence field contains value | `contains: { shared.seen_codes: 500 }` |
+| `in` | Value is in sequence field | `in: { shared.status: ["error", "fatal"] }` |
+
+```yaml
+# Transition if a specific error code was encountered
+- to: handle_server_error
+  when:
+    contains:
+      shared.error_codes: 500
+
+# Transition if current status is one of several values
+- to: retry
+  when:
+    in:
+      shared.status: ["timeout", "rate_limited", "unavailable"]
+```
+
+### Timestamp checks
+
+Evaluate the current event timestamp against specified time components. Any subset of components can be provided — unspecified components are ignored.
+
+| Condition | Description |
+|-----------|-------------|
+| `before` | Current timestamp is before the specified time. |
+| `after` | Current timestamp is at or after the specified time. |
+
+Available components: `year`, `month`, `day`, `hour`, `minute`, `second`, `microsecond`.
+
+```yaml
+# Business hours: different behavior before and after 9 AM
+- to: peak_traffic
+  when:
+    after:
+      hour: 9
+      minute: 0
+
+# Switch to end-of-year mode in December
+- to: year_end_processing
+  when:
+    after:
+      month: 12
+      day: 1
+```
+
+### State and tag checks
+
+| Condition | Description | Example |
+|-----------|-------------|---------|
+| `defined` | State field exists | `defined: locals.user_id` |
+| `has_tags` | Event has tag(s) | `has_tags: critical` or `has_tags: [urgent, high]` |
+| `always` | Always true (unconditional) | `always:` |
+| `never` | Always false | `never:` |
+
+```yaml
+# Transition only if a field has been set during rendering
+- to: authenticated
+  when:
+    defined: shared.auth_token
+
+# Transition based on event tags
+- to: alert
+  when:
+    has_tags: [critical, security]
+
+# Unconditional fallback (always goes to this state)
+- to: default_state
+  when:
+    always:
+```
+
+### Logic operators
+
+Combine or negate conditions:
+
+| Operator | Description |
+|----------|-------------|
+| `or` | List of conditions (at least 2). True if **any** is true. |
+| `and` | List of conditions (at least 2). True if **all** are true. |
+| `not` | Single condition. Inverts the result. |
+
+```yaml
+# AND: both conditions must be true
+- to: critical_alert
+  when:
+    and:
+      - gt:
+          shared.error_count: 5
+      - has_tags: critical
+
+# OR: either condition triggers the transition
+- to: throttle
+  when:
+    or:
+      - gt:
+          shared.request_count: 10000
+      - gt:
+          shared.error_rate: 0.5
+
+# NOT: transition when the field is NOT in the expected set
+- to: unknown_method
+  when:
+    not:
+      in:
+        shared.method: ["GET", "POST", "PUT", "DELETE"]
+
+# Nested: complex logic
+- to: escalate
+  when:
+    and:
+      - gt:
+          shared.fail_count: 3
+      - or:
+          - has_tags: production
+          - gt:
+              shared.severity: 8
+```
+
+---
+
+## FSM examples
+
+### User session flow
+
+A user goes through login, browsing, and logout. The session tracks page views in shared state and transitions based on accumulated activity.
+
+```yaml
+event:
+  template:
+    mode: fsm
+    templates:
+      - login:
+          template: templates/login.jinja
+          initial: true
+          transitions:
+            - to: browse
+              when:
+                always:
+
+      - browse:
+          template: templates/browse.jinja
+          transitions:
+            # After 10+ page views, user proceeds to checkout
+            - to: checkout
+              when:
+                ge:
+                  shared.page_views: 10
+            # Small chance of early logout (handled in template via random)
+            - to: logout
+              when:
+                eq:
+                  shared.should_leave: true
+            # Otherwise keep browsing (stay in current state)
+
+      - checkout:
+          template: templates/checkout.jinja
+          transitions:
+            - to: logout
+              when:
+                always:
+
+      - logout:
+          template: templates/logout.jinja
+          transitions:
+            # Start a new session
+            - to: login
+              when:
+                always:
+```
+
+In `templates/browse.jinja`, the template updates state:
+```
+{%- do shared.set("page_views", shared.get("page_views", 0) + 1) -%}
+{%- do shared.set("should_leave", random.random() < 0.05) -%}
+{{ timestamp }} GET /page/{{ random.randint(1, 100) }} 200
+```
+
+### HTTP request-response with errors
+
+Model a client that sends requests and may get errors, retries, and eventually either succeeds or gives up.
+
+```yaml
+event:
+  template:
+    mode: fsm
+    templates:
+      - send_request:
+          template: templates/request.jinja
+          initial: true
+          transitions:
+            - to: handle_error
+              when:
+                gt:
+                  shared.status_code: 399
+            - to: success
+              when:
+                le:
+                  shared.status_code: 399
+
+      - handle_error:
+          template: templates/error.jinja
+          transitions:
+            # Give up after 3 retries
+            - to: give_up
+              when:
+                ge:
+                  shared.retries: 3
+            # Retry
+            - to: send_request
+              when:
+                always:
+
+      - success:
+          template: templates/success.jinja
+          transitions:
+            - to: send_request
+              when:
+                always:
+
+      - give_up:
+          template: templates/give_up.jinja
+          transitions:
+            # Reset and start fresh
+            - to: send_request
+              when:
+                always:
+```
+
+### Time-of-day traffic patterns
+
+Use timestamp conditions to switch between traffic patterns depending on the hour.
+
+```yaml
+event:
+  template:
+    mode: fsm
+    templates:
+      - night_traffic:
+          template: templates/night.jinja
+          initial: true
+          transitions:
+            - to: morning_ramp
+              when:
+                after:
+                  hour: 6
+
+      - morning_ramp:
+          template: templates/morning.jinja
+          transitions:
+            - to: peak_traffic
+              when:
+                after:
+                  hour: 9
+            - to: night_traffic
+              when:
+                before:
+                  hour: 6
+
+      - peak_traffic:
+          template: templates/peak.jinja
+          transitions:
+            - to: evening_wind_down
+              when:
+                after:
+                  hour: 17
+
+      - evening_wind_down:
+          template: templates/evening.jinja
+          transitions:
+            - to: night_traffic
+              when:
+                after:
+                  hour: 22
+```
+
+### Authentication flow with state checks
+
+Model a system where login creates a token, authenticated requests use it, and the token can expire.
+
+```yaml
+event:
+  template:
+    mode: fsm
+    templates:
+      - unauthenticated:
+          template: templates/login_attempt.jinja
+          initial: true
+          transitions:
+            # Template sets shared.auth_token on successful login
+            - to: authenticated
+              when:
+                defined: shared.auth_token
+            # Stay unauthenticated if login fails
+
+      - authenticated:
+          template: templates/api_call.jinja
+          transitions:
+            # Token expired (template increments request_count)
+            - to: unauthenticated
+              when:
+                gt:
+                  shared.request_count: 50
+            # Error threshold reached
+            - to: locked_out
+              when:
+                and:
+                  - gt:
+                      shared.consecutive_errors: 5
+                  - has_tags: auth_failure
+
+      - locked_out:
+          template: templates/locked.jinja
+          transitions:
+            # Cool down, then allow retry
+            - to: unauthenticated
+              when:
+                gt:
+                  shared.cooldown_ticks: 10
+```
+
+### Multi-stage pipeline with queue tracking
+
+Track items flowing through processing stages using length checks.
+
+```yaml
+event:
+  template:
+    mode: fsm
+    templates:
+      - ingesting:
+          template: templates/ingest.jinja
+          initial: true
+          transitions:
+            # When batch is full, move to processing
+            - to: processing
+              when:
+                len_ge:
+                  shared.batch: 100
+
+      - processing:
+          template: templates/process.jinja
+          transitions:
+            # Processing error: some items matched error pattern
+            - to: error_handling
+              when:
+                contains:
+                  shared.failed_ids: "FATAL"
+            # All processed
+            - to: flushing
+              when:
+                len_eq:
+                  shared.batch: 0
+
+      - error_handling:
+          template: templates/error_handler.jinja
+          transitions:
+            - to: processing
+              when:
+                not:
+                  contains:
+                    shared.failed_ids: "FATAL"
+            - to: flushing
+              when:
+                always:
+
+      - flushing:
+          template: templates/flush.jinja
+          transitions:
+            - to: ingesting
+              when:
+                always:
+```
+
+---
+
+## Samples
+
+Named datasets loaded once at startup and accessible in templates via `samples.<name>`. Three sample types are available:
+
+### items
+
+Inline list of values:
+
+| Parameter | Type | Constraints | Description |
+|-----------|------|-------------|-------------|
+| `type` | string | Must be `"items"`. | Sample type discriminator. |
+| `source` | list | At least one item. | Inline list of values. |
+
+```yaml
+samples:
+  status_codes:
+    type: items
+    source: [200, 201, 301, 404, 500]
+```
+
+### csv
+
+Load from a CSV file:
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `type` | string | — | Must be `"csv"`. | Sample type discriminator. |
+| `source` | path | — | Must end with `.csv`. | Path to the CSV file. |
+| `header` | boolean | `false` | — | Whether the first row is a header. |
+| `delimiter` | string | `","` | Non-empty. | Column delimiter. |
+
+```yaml
+samples:
+  users:
+    type: csv
+    source: samples/users.csv
+    header: true
+```
+
+### json
+
+Load from a JSON file:
+
+| Parameter | Type | Constraints | Description |
+|-----------|------|-------------|-------------|
+| `type` | string | Must be `"json"`. | Sample type discriminator. |
+| `source` | path | Must end with `.json`. | Path to the JSON file. |
+
+```yaml
+samples:
+  endpoints:
+    type: json
+    source: samples/endpoints.json
+```
+
+---
+
+## Complete example
+
+```yaml
+event:
+  template:
+    mode: chance
+    params:
+      app_name: my-service
+    samples:
+      users:
+        type: csv
+        source: samples/users.csv
+        header: true
+      paths:
+        type: items
+        source: ["/api/users", "/api/orders", "/api/products", "/health"]
+    templates:
+      - access:
+          template: templates/access.jinja
+          chance: 95
+      - error:
+          template: templates/error.jinja
+          chance: 5
+```

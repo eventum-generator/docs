@@ -1,4 +1,82 @@
 ---
-title: Overview
-description: description
+title: Eventum Studio
+description: The built-in web interface for managing generators, editing configs, debugging events, and monitoring performance — all from your browser.
 ---
+
+Eventum Studio is the web-based management UI that ships with Eventum. It gives you a visual interface for everything you can do through config files and the CLI — browsing projects, configuring plugins, debugging event output, monitoring running generators, and managing application settings.
+
+Studio is served automatically when you run Eventum in application mode:
+
+```bash
+eventum run -c eventum.yml
+```
+
+Then open your browser at http://localhost:9474 (or whichever host/port you configured).
+
+## What you can do in Studio
+
+| Area | What it covers |
+|------|----------------|
+| [Overview](/docs/studio/overview) | System dashboard — resource usage, flow statistics, instance status at a glance |
+| [Instances](/docs/studio/instances) | Running and finished generators — start, stop, restart, view metrics and logs |
+| [Projects](/docs/studio/projects) | Generator configs — visual editors for input, event, and output plugins with live preview |
+| [Settings](/docs/studio/settings) | Application settings, secrets management, and server lifecycle controls |
+
+## Enabling and disabling Studio
+
+Studio is controlled by two settings in [eventum.yml](/docs/core/config/eventum-yml):
+
+```yaml title="eventum.yml"
+server:
+  ui_enabled: true    # enables the web UI
+  api_enabled: true   # enables the REST API (required for Studio to function)
+```
+
+Setting `ui_enabled: false` disables the web interface while keeping the REST API available. Setting `api_enabled: false` disables both — Studio needs the API to communicate with the backend.
+
+## Authentication
+
+Studio uses HTTP basic authentication. The default credentials are:
+
+| Field | Default |
+|-------|---------|
+| Username | `eventum` |
+| Password | `eventum` |
+
+Change these in `eventum.yml` before exposing Eventum on a network:
+
+```yaml title="eventum.yml"
+server:
+  auth:
+    user: admin
+    password: s3cret
+```
+
+## Theme
+
+Studio supports light and dark themes. Toggle between them using the sun/moon icon in the top-right corner of the top bar. The theme preference is saved in the browser.
+
+## What's next
+
+<Cards>
+  <Card
+    title="Overview dashboard"
+    description="System resources, flow stats, and instance summary."
+    href="/docs/studio/overview"
+  />
+  <Card
+    title="Instances"
+    description="Manage running generators — start, stop, metrics, and logs."
+    href="/docs/studio/instances"
+  />
+  <Card
+    title="Projects"
+    description="Visual plugin editors with live preview and debugging."
+    href="/docs/studio/projects"
+  />
+  <Card
+    title="Settings"
+    description="Application config, secrets, and server controls."
+    href="/docs/studio/settings"
+  />
+</Cards>

@@ -1,0 +1,37 @@
+---
+title: http
+description: Input plugin that opens an HTTP endpoint for on-demand timestamp generation.
+---
+
+Opens an HTTP endpoint that accepts POST requests. Each incoming request triggers timestamp generation on demand, making this plugin useful for event-driven or API-triggered workflows.
+
+## Parameters
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `port` | integer | — | Required. 1–65535 | Port to bind to. |
+| `host` | string | `"0.0.0.0"` | Non-empty | Address to bind to. |
+| `max_pending_requests` | integer | `100` | >= 1 | Maximum number of queued requests before new ones are rejected. |
+| `tags` | list of strings | `[]` | — | Tags attached to every timestamp. Accessible in templates via `tags`. |
+
+## Examples
+
+Basic on-demand endpoint:
+
+```yaml
+input:
+  - http:
+      port: 8080
+```
+
+With a higher queue limit and custom bind address:
+
+```yaml
+input:
+  - http:
+      host: 127.0.0.1
+      port: 9090
+      max_pending_requests: 500
+```
+
+See [Scheduling — On-demand scheduling](/docs/core/concepts/scheduling#on-demand-scheduling-http) for usage details.

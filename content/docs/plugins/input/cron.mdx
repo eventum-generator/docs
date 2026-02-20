@@ -1,0 +1,68 @@
+---
+title: cron
+description: Input plugin that generates timestamps on a cron schedule with second-level precision.
+---
+
+Generates timestamps on a cron schedule. Supports second-level precision, year fields, and random values via the extended syntax provided by [croniter](https://github.com/kiorky/croniter).
+
+## Parameters
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `expression` | string | — | Required. Valid cron expression. | Cron expression defining the schedule. |
+| `count` | integer | — | Required. > 0 | Number of timestamps to emit per cron tick. |
+| `start` | [VersatileDatetime](/docs/core/concepts/scheduling#date-ranges-and-versatile-datetime) | `null` | — | Start of the active range. Defaults to current time if omitted. |
+| `end` | [VersatileDatetime](/docs/core/concepts/scheduling#date-ranges-and-versatile-datetime) | `null` | — | End of the active range. `null` means run indefinitely. |
+| `tags` | list of strings | `[]` | — | Tags attached to every timestamp. Accessible in templates via `tags`. |
+
+<Callout>
+When both `start` and `end` are specified, `start` must be earlier than or equal to `end`.
+</Callout>
+
+## Cron expression format
+
+The standard format is `minute hour day month weekday`, but croniter extends it with optional seconds and year fields:
+
+| Field | Position | Allowed values |
+|-------|----------|---------------|
+| Second | 1st (optional) | 0–59 |
+| Minute | 2nd | 0–59 |
+| Hour | 3rd | 0–23 |
+| Day of month | 4th | 1–31 |
+| Month | 5th | 1–12 |
+| Day of week | 6th | 0–6 (0 = Sunday) |
+| Year | 7th (optional) | 1970–2099 |
+
+Special characters: `*` (any), `,` (list), `-` (range), `/` (step), `R` (random value within range).
+
+## Examples
+
+Every second:
+
+```yaml
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+```
+
+Every 5 minutes during business hours:
+
+```yaml
+input:
+  - cron:
+      expression: "*/5 9-17 * * 1-5"
+      count: 1
+      start: "2024-01-01"
+      end: "2024-12-31"
+```
+
+Burst of 100 events at the top of each hour, tagged:
+
+```yaml
+input:
+  - cron:
+      expression: "0 * * * *"
+      count: 100
+      tags: [hourly-burst]
+```

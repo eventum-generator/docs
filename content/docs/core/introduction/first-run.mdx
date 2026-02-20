@@ -69,7 +69,7 @@ This config generates one event per second using a cron expression, renders it w
 ### Run it
 
 ```bash
-eventum generate --id my-gen --path generator.yml --batch.size 1
+eventum generate --id my-gen --path generator.yml
 ```
 
 Events start printing to your terminal:
@@ -85,19 +85,7 @@ Press `Ctrl+C` to stop.
 </Step>
 </Steps>
 
-### Useful flags
-
-| Flag | Description |
-|------|-------------|
-| `--live-mode` / `--no-live-mode` | Stream events in real time (default) or generate everything as fast as possible |
-| `--skip-past` / `--no-skip-past` | Skip timestamps in the past when starting in live mode (default: skip) |
-| `--timezone` | Time zone for timestamps, e.g. `Europe/Moscow` (default: `UTC`) |
-| `--batch.size` | Number of events per processing batch (default: `10000`) |
-| `-v` ... `-vvvvv` | Verbosity level from `CRITICAL` to `DEBUG` |
-| `--params` | Pass custom parameters accessible in templates via `params` variable |
-| `--cryptfile` | Path to encrypted keyring file for [secrets](/docs/core/config/vars/secrets) |
-
-For the full CLI reference see [`$ eventum generate`](/docs/core/cli/eventum-generate) command page.
+For the full list of available flags see the [`$ eventum generate`](/docs/core/cli/eventum-generate) CLI reference.
 
 ---
 
@@ -205,10 +193,10 @@ generation.batch.delay: 1.0
 log.level: info
 log.format: plain
 
-path.logs: logs/
-path.startup: startup.yml
-path.generators_dir: generators/
-path.keyring_cryptfile: cryptfile.cfg
+path.logs: /home/user/my-project/logs/
+path.startup: /home/user/my-project/startup.yml
+path.generators_dir: /home/user/my-project/generators/
+path.keyring_cryptfile: /home/user/my-project/cryptfile.cfg
 ```
 
 Key sections:
@@ -240,7 +228,7 @@ Eventum starts all generators marked with `autostart: true` and launches the ser
 2026-02-18T19:51:14.076947Z [info     ] Starting web UI service        [eventum.server.main]
 ```
 
-- **Studio UI** — open `http://localhost:9474` in your browser to manage generators visually
+- **Studio UI** — open http://localhost:9474 in your browser to manage generators visually
 - **REST API** — available at the same address under `/api` route (and specs under `/api/swagger`, `/api/asyncapi` and `/api/redoc` routes); see the [API reference](/docs/api) for endpoints
 - **Graceful shutdown** — press `Ctrl+C` or send `SIGTERM`
 - **Hot reload** — send `SIGHUP` to restart with updated configuration

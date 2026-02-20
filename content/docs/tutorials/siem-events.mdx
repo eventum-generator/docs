@@ -1,0 +1,387 @@
+---
+title: "SIEM: Windows Security Events → OpenSearch"
+description: Generate realistic Windows Security Event Log data and index it into OpenSearch for SIEM rule development and detection testing.
+---
+
+Build a generator that produces Windows Security Event Log sessions — logon, privilege assignment, process creation, and logoff — with realistic timing and user behavior. Events are indexed into OpenSearch, ready for dashboards and detection rules.
+
+<Callout type="info">
+**No OpenSearch?** Replace the `opensearch` output with `stdout: {}` in the generator config. Everything else stays the same.
+</Callout>
+
+## What you'll build
+
+The generator uses a **finite state machine** (FSM) to model user sessions. Each session follows a fixed flow:
+
+1. **Logon** (Event ID 4624) — a user logs in, session context is established.
+2. **Privilege assignment** (Event ID 4672) — special privileges are assigned.
+3. **Process creation** (Event ID 4688) — the user launches several processes. The FSM loops on this state.
+4. **Logoff** (Event ID 4634) — the session ends, and the cycle restarts.
+
+A [time-patterns](/docs/plugins/input/time-patterns) input controls the arrival rate, producing timestamps at natural intervals. Each timestamp advances the FSM by one step.
+
+## Prerequisites
+
+- [Eventum installed](/docs/core/introduction/installation)
+- An OpenSearch instance accessible over HTTP(S) *(optional — stdout works for local testing)*
+
+## Project structure
+
+<Files>
+  <Folder name="eventum" defaultOpen>
+    <File name="eventum.yml" />
+    <File name="startup.yml" />
+    <Folder name="generators" defaultOpen>
+      <Folder name="winevents" defaultOpen>
+        <File name="generator.yml" />
+        <Folder name="patterns" defaultOpen>
+          <File name="traffic.yml" />
+        </Folder>
+        <Folder name="templates" defaultOpen>
+          <File name="logon.jinja" />
+          <File name="privilege.jinja" />
+          <File name="process.jinja" />
+          <File name="logoff.jinja" />
+        </Folder>
+        <Folder name="data" defaultOpen>
+          <File name="users.json" />
+        </Folder>
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+## Build it
+
+<Steps>
+<Step>
+### Create the project directory
+
+```bash
+mkdir -p eventum/generators/winevents/{patterns,templates,data}
+cd eventum
+```
+
+</Step>
+<Step>
+### Define the traffic pattern
+
+The [time-patterns](/docs/plugins/input/time-patterns) plugin generates timestamps using a statistical model. The pattern file has four components:
+
+- **Oscillator** — the repeating time window (every 10 seconds).
+- **Multiplier** — how many timestamps per period (7 ≈ one full session).
+- **Randomizer** — adds ±20% variance to the count.
+- **Spreader** — distributes timestamps within each period (uniform = evenly spaced).
+
+```yaml title="generators/winevents/patterns/traffic.yml"
+label: Security events
+oscillator:
+  start: "now"
+  end: "never"
+  period: 10
+  unit: seconds
+multiplier:
+  ratio: 7
+randomizer:
+  deviation: 0.2
+  direction: mixed
+spreader:
+  distribution: uniform
+  parameters:
+    low: 0.0
+    high: 1.0
+```
+
+This produces roughly 7 timestamps every 10 seconds — enough to complete one user session per cycle.
+
+</Step>
+<Step>
+### Create sample data
+
+The user pool is a JSON file loaded as a [sample](/docs/plugins/event/template#samples). Each session randomly picks a user from this list. Sample rows are tuples following the JSON key order: `[0]` name, `[1]` domain.
+
+```json title="generators/winevents/data/users.json"
+[
+  { "name": "jsmith", "domain": "CORP" },
+  { "name": "ajohnson", "domain": "CORP" },
+  { "name": "mwilliams", "domain": "CORP" },
+  { "name": "kbrown", "domain": "CORP" },
+  { "name": "admin", "domain": "CORP" },
+  { "name": "svc-backup", "domain": "CORP" }
+]
+```
+
+</Step>
+<Step>
+### Write the session templates
+
+Each template produces one JSON event following [Elastic Common Schema](https://www.elastic.co/guide/en/ecs/current/index.html) field naming — a widely used format for SIEM ingestion.
+
+**Logon** — initializes the session. Picks a random user, generates a session ID, and stores everything in [`shared`](/docs/core/concepts/producing#state) state so subsequent templates can access it.
+
+```jinja title="generators/winevents/templates/logon.jinja"
+{% set user = module.rand.choice(samples.users) %}
+{% set session_id = module.rand.crypto.uuid4() %}
+{% set src_ip = module.faker.locale.en.ipv4_private() %}
+{% set workstation = "WS-" ~ module.rand.number.integer(1000, 9999) %}
+{% set logon_type = module.rand.weighted_choice(["Interactive", "Network", "RemoteInteractive"], [0.5, 0.3, 0.2]) %}
+{% do shared.set("session_id", session_id) %}
+{% do shared.set("username", user[0]) %}
+{% do shared.set("domain", user[1]) %}
+{% do shared.set("src_ip", src_ip) %}
+{% do shared.set("workstation", workstation) %}
+{% do shared.set("process_count", 0) %}
+{
+  "@timestamp": "{{ timestamp.isoformat() }}",
+  "event": {
+    "code": 4624,
+    "action": "logged-in",
+    "provider": "Microsoft-Windows-Security-Auditing"
+  },
+  "host": { "name": "{{ workstation }}" },
+  "source": { "ip": "{{ src_ip }}" },
+  "user": { "name": "{{ user[0] }}", "domain": "{{ user[1] }}" },
+  "winlog": {
+    "logon": { "id": "{{ session_id }}", "type": "{{ logon_type }}" }
+  },
+  "message": "An account was successfully logged on."
+}
+```
+
+**Privilege assignment** — follows logon, reads session context from `shared`.
+
+```jinja title="generators/winevents/templates/privilege.jinja"
+{
+  "@timestamp": "{{ timestamp.isoformat() }}",
+  "event": {
+    "code": 4672,
+    "action": "assigned-special-privileges",
+    "provider": "Microsoft-Windows-Security-Auditing"
+  },
+  "host": { "name": "{{ shared.get('workstation') }}" },
+  "user": { "name": "{{ shared.get('username') }}", "domain": "{{ shared.get('domain') }}" },
+  "winlog": {
+    "logon": { "id": "{{ shared.get('session_id') }}" }
+  },
+  "message": "Special privileges assigned to new logon."
+}
+```
+
+**Process creation** — the FSM loops on this state. Each call increments a counter in `shared`; after 4 iterations the FSM transitions to logoff.
+
+```jinja title="generators/winevents/templates/process.jinja"
+{% do shared.set("process_count", shared.get("process_count", 0) + 1) %}
+{% set proc = module.rand.choice(["cmd.exe", "powershell.exe", "notepad.exe", "chrome.exe", "svchost.exe", "taskmgr.exe"]) %}
+{
+  "@timestamp": "{{ timestamp.isoformat() }}",
+  "event": {
+    "code": 4688,
+    "action": "created-process",
+    "provider": "Microsoft-Windows-Security-Auditing"
+  },
+  "host": { "name": "{{ shared.get('workstation') }}" },
+  "user": { "name": "{{ shared.get('username') }}", "domain": "{{ shared.get('domain') }}" },
+  "process": {
+    "name": "{{ proc }}",
+    "executable": "C:\\Windows\\System32\\{{ proc }}",
+    "pid": {{ module.rand.number.integer(1000, 65535) }}
+  },
+  "winlog": {
+    "logon": { "id": "{{ shared.get('session_id') }}" }
+  },
+  "message": "A new process has been created."
+}
+```
+
+**Logoff** — ends the session. The FSM transitions back to logon, starting a new cycle.
+
+```jinja title="generators/winevents/templates/logoff.jinja"
+{
+  "@timestamp": "{{ timestamp.isoformat() }}",
+  "event": {
+    "code": 4634,
+    "action": "logged-off",
+    "provider": "Microsoft-Windows-Security-Auditing"
+  },
+  "host": { "name": "{{ shared.get('workstation') }}" },
+  "user": { "name": "{{ shared.get('username') }}", "domain": "{{ shared.get('domain') }}" },
+  "winlog": {
+    "logon": { "id": "{{ shared.get('session_id') }}" }
+  },
+  "message": "An account was logged off."
+}
+```
+
+The key pattern: the `logon` template writes session context into `shared` state, and all subsequent templates read from it. This keeps the session consistent — the same user, workstation, and session ID appear across every event in the session.
+
+</Step>
+<Step>
+### Configure the generator
+
+The generator config wires the pipeline together. The [FSM](/docs/core/concepts/producing#picking-modes) `transitions` define the session flow:
+
+```yaml title="generators/winevents/generator.yml"
+input:
+  - time_patterns:
+      patterns:
+        - patterns/traffic.yml
+
+event:
+  template:
+    mode: fsm
+    samples:
+      users:
+        type: json
+        source: data/users.json
+    templates:
+      - logon:
+          template: templates/logon.jinja
+          initial: true
+          transitions:
+            - to: privilege
+              when: { always: }
+      - privilege:
+          template: templates/privilege.jinja
+          transitions:
+            - to: process
+              when: { always: }
+      - process:
+          template: templates/process.jinja
+          transitions:
+            - to: process
+              when: { lt: { "shared.process_count": 4 } }
+            - to: logoff
+              when: { ge: { "shared.process_count": 4 } }
+      - logoff:
+          template: templates/logoff.jinja
+          transitions:
+            - to: logon
+              when: { always: }
+
+output:
+  - stdout:
+      formatter:
+        format: json
+  - opensearch:
+      hosts:
+        - ${params.opensearch_host}
+      username: ${params.opensearch_user}
+      password: ${secrets.opensearch_password}
+      index: winevents
+      verify: false
+```
+
+Reading the transitions:
+
+| From | To | Condition | Meaning |
+|------|----|-----------|---------|
+| logon | privilege | `always` | Every logon gets privileges |
+| privilege | process | `always` | Start creating processes |
+| process | process | `shared.process_count` &lt; 4 | Keep creating processes |
+| process | logoff | `shared.process_count` &ge; 4 | End the session |
+| logoff | logon | `always` | Start a new session |
+
+</Step>
+<Step>
+### Configure the application
+
+```yaml title="eventum.yml"
+server:
+  host: "0.0.0.0"
+  port: 9474
+
+path:
+  startup: /home/user/eventum/startup.yml
+  generators_dir: /home/user/eventum/generators
+  logs: /home/user/eventum/logs
+  keyring_cryptfile: /home/user/eventum/cryptfile.cfg
+
+generation:
+  timezone: UTC
+  batch:
+    size: 100
+```
+
+<Callout type="info">
+All `path.*` values must be **absolute paths**. Adjust to match your actual project location.
+</Callout>
+
+The startup file registers the generator and passes connection [parameters](/docs/core/config/parameters):
+
+```yaml title="startup.yml"
+- id: winevents
+  path: winevents/generator.yml
+  params:
+    opensearch_host: "https://localhost:9200"
+    opensearch_user: admin
+```
+
+Replace the values with your actual OpenSearch connection details.
+
+</Step>
+<Step>
+### Store the OpenSearch password
+
+Use the [keyring](/docs/core/cli/eventum-keyring) to encrypt the password:
+
+```bash
+eventum-keyring set opensearch_password
+```
+
+You'll be prompted for the keyring password and the secret value. The generator config references it as `${secrets.opensearch_password}`.
+
+<Callout type="info">
+Using stdout only? Skip this step and remove the `opensearch` block from `generator.yml`.
+</Callout>
+
+</Step>
+<Step>
+### Run it
+
+```bash
+eventum run -c eventum.yml
+```
+
+JSON events stream to stdout — each one is a step in a user session:
+
+```json
+{"@timestamp":"2025-06-15T14:23:01+00:00","event":{"code":4624,"action":"logged-in","provider":"Microsoft-Windows-Security-Auditing"},"host":{"name":"WS-4821"},"source":{"ip":"10.12.44.198"},"user":{"name":"jsmith","domain":"CORP"},"winlog":{"logon":{"id":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","type":"Interactive"}},"message":"An account was successfully logged on."}
+{"@timestamp":"2025-06-15T14:23:02+00:00","event":{"code":4672,"action":"assigned-special-privileges", ...}}
+{"@timestamp":"2025-06-15T14:23:03+00:00","event":{"code":4688,"action":"created-process", ...},"process":{"name":"powershell.exe", ...}}
+{"@timestamp":"2025-06-15T14:23:05+00:00","event":{"code":4688,"action":"created-process", ...},"process":{"name":"chrome.exe", ...}}
+{"@timestamp":"2025-06-15T14:23:06+00:00","event":{"code":4688,"action":"created-process", ...},"process":{"name":"cmd.exe", ...}}
+{"@timestamp":"2025-06-15T14:23:07+00:00","event":{"code":4688,"action":"created-process", ...},"process":{"name":"svchost.exe", ...}}
+{"@timestamp":"2025-06-15T14:23:09+00:00","event":{"code":4634,"action":"logged-off", ...}}
+```
+
+A complete session: logon → privilege → 4 processes → logoff. Then a new session starts with a different user.
+
+</Step>
+</Steps>
+
+## Going further
+
+- **Scale up traffic** — increase `multiplier.ratio` in `traffic.yml` to 100+ and reduce the oscillator period for high-volume SIEM testing.
+- **Add failed logons** — create a `logon_failed.jinja` template for Event ID 4625 and add it as an FSM branch with a probability-based condition.
+- **Vary session length** — store a random target in `shared` during logon (`module.rand.number.integer(2, 8)`) and check against it in the process transition.
+- **Multiple workstations** — add a second generator in `startup.yml` with different parameters to simulate traffic from separate network segments.
+
+## What's next
+
+<Cards>
+  <Card
+    title="time-patterns reference"
+    description="Full parameter docs for the time-patterns input plugin."
+    href="/docs/plugins/input/time-patterns"
+  />
+  <Card
+    title="FSM picking mode"
+    description="How finite state machine transitions work."
+    href="/docs/core/concepts/producing#picking-modes"
+  />
+  <Card
+    title="OpenSearch output"
+    description="Connection, auth, and TLS options for the OpenSearch plugin."
+    href="/docs/plugins/output/opensearch"
+  />
+</Cards>

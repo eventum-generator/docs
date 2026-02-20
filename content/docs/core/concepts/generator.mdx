@@ -17,17 +17,7 @@ Each stage is handled by a [plugin](/docs/core/concepts/plugins) — a swappable
 
 ### Input — *when* events happen
 
-An input plugin produces **timestamps** — the moments in time when events should occur. Different plugins offer different scheduling strategies:
-
-| Plugin | Produces timestamps... |
-|--------|----------------------|
-| `cron` | at moments defined by a cron expression |
-| `timer` | at fixed intervals (every N seconds) |
-| `linspace` | evenly spread across a date range |
-| `time_patterns` | following statistical distributions that mimic real traffic |
-| `timestamps` | from an explicit list of datetimes |
-| `static` | all at once, using the current time |
-| `http` | on demand, triggered by an HTTP request |
+An input plugin produces **timestamps** — the moments in time when events should occur. Different [input plugins](/docs/plugins#input-plugins) offer different scheduling strategies: cron expressions, fixed intervals, evenly spaced ranges, statistical distributions, and more.
 
 A generator can have **multiple input plugins** working simultaneously. Their timestamps are merged into a single stream before reaching the event stage. Each input plugin can attach **tags** to its timestamps so the event stage knows which source produced them.
 
@@ -47,17 +37,9 @@ See [Producing events](/docs/core/concepts/producing) for the full reference.
 
 ### Output — *where* events go
 
-An output plugin receives rendered events and writes them to a destination:
+An [output plugin](/docs/plugins#output-plugins) receives rendered events and writes them to a destination — the console, a local file, an HTTP endpoint, or a database.
 
-| Plugin | Sends events to... |
-|--------|-------------------|
-| `stdout` | the console (or stderr) |
-| `file` | a local file |
-| `http` | any HTTP endpoint |
-| `opensearch` | an OpenSearch cluster |
-| `clickhouse` | a ClickHouse database |
-
-A generator can have **multiple output plugins**. Every event is delivered to all configured outputs — you don't need to duplicate generators to write the same data to a file and an HTTP endpoint. Each output plugin can apply a **formatter** (plain text, JSON, JSON batch, or a custom Jinja2 template) to transform events before writing.
+A generator can have **multiple output plugins**. Every event is delivered to all configured outputs — you don't need to duplicate generators to write the same data to a file and an HTTP endpoint. Each output plugin can apply a [formatter](/docs/plugins/formatters) to transform events before writing.
 
 See [Outputting events](/docs/core/concepts/output) for the full reference.
 
