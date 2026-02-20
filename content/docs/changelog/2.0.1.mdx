@@ -1,0 +1,36 @@
+---
+title: 🛠️ 2.0.1
+description: Eventum 2.0.1 patch release — CLI params fix, pydantic validation fix, expanded test coverage, and CI improvements.
+---
+
+Released **February 21, 2026**
+
+A patch release with bug fixes, significantly expanded test coverage, and CI improvements.
+
+## 🐛 Bug fixes
+
+- **`--params` CLI option** — fixed JSON input not being parsed correctly for dict-type Click parameters.
+- **Path extension validation** — fixed pydantic validation error when validating file path extensions (`.csv`, `.json`, `.jinja`) by replacing `Field(pattern=...)` with `@field_validator` on `Path` fields.
+
+---
+
+## 🧪 Testing
+
+Added comprehensive tests across all packages:
+
+- **API** — auth, generators, configs, instances, startup, secrets, file tree, timestamps aggregation.
+- **App** — generator and parameter models.
+- **CLI** — keyring commands and pydantic converter.
+- **Core** — config loader, generator, initializer, and parameters.
+- **Plugins** — ClickHouse and stdout output plugin configs.
+- **Server** — server main and UI routes.
+
+---
+
+## 📝 Other changes
+
+- Updated app slogan in CLI splash screen.
+- Updated documentation links.
+- Added Codecov badge to CI.
+- Added HTML report export to CI.
+- Fixed Docker build.
