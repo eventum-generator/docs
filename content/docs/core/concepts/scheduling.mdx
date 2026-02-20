@@ -5,6 +5,8 @@ description: How timestamps flow from input plugins through the pipeline — mer
 
 The [Generator](/docs/core/concepts/generator) page introduced the idea that input plugins produce timestamps and the generator delivers events at those moments. This page goes deeper into how that process actually works and how to take advantage of it.
 
+For per-plugin parameters and configuration, see the [input plugin reference](/docs/plugins#input-plugins).
+
 ## From timestamps to events
 
 An input plugin doesn't emit events directly — it emits **timestamps**. A timestamp is a point in time that answers one question: "when should an event happen?" The event plugin later decides *what* happens at that moment.
@@ -23,6 +25,37 @@ input:
       expression: "* * * * * *"   # every second
       count: 10                    # 10 events per tick
 ```
+
+## Date ranges and versatile datetime
+
+Most input plugins accept `start` and `end` parameters to define when timestamps should be produced. These fields use a **versatile datetime** format — you can specify them in several ways:
+
+| Format | Example | Meaning |
+|--------|---------|---------|
+| ISO 8601 | `"2025-06-15T09:00:00"` | An exact moment |
+| Human-readable | `"1st August 2025"` | Parsed naturally |
+| Keyword `now` | `"now"` | Current system time |
+| Keyword `never` | `"never"` | No bound (run indefinitely) |
+| Relative expression | `"+1h"`, `"-30m"`, `"+1d12h"` | Offset from now (or from `start` when used in `end`) |
+| Time of day | `"14:30:00"` | Anchored to the current date |
+
+Relative expressions use a compact syntax: combine `d` (days), `h` (hours), `m` (minutes), and `s` (seconds) with an optional `+`/`-` sign. A few examples:
+
+```yaml
+start: "now"           # from this moment
+start: "-1h"           # one hour ago
+start: "2025-01-01"    # exact date
+
+end: "+24h"            # 24 hours after start
+end: "+7d12h"          # 7 days and 12 hours after start
+end: "never"           # run indefinitely
+```
+
+<Callout>
+When used in the `end` field, relative expressions are calculated from the `start` value, not from the current time. So `start: "2025-01-01"` with `end: "+7d"` means January 1 through January 8.
+</Callout>
+
+Not all input plugins support these fields. Schedule-based plugins like `cron`, `timer`, `linspace`, and `time_patterns` accept `start` and/or `end` to define the active window. Other plugins (`timestamps`, `static`, `http`) determine their timing differently. See each plugin's [reference page](/docs/plugins#input-plugins) for which fields are available.
 
 ## Combining multiple inputs
 

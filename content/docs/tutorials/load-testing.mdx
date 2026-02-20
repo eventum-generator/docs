@@ -1,0 +1,228 @@
+---
+title: API Load Testing
+description: Stress-test a REST API with diverse, realistic request payloads at maximum throughput using sample mode.
+---
+
+Build a generator that fires a burst of diverse API requests at a target endpoint as fast as possible. Use it to benchmark throughput, uncover race conditions, and validate rate limiters — all without writing test scripts.
+
+## What you'll build
+
+The generator uses:
+
+- [**static**](/docs/plugins/input/static) input — produces a burst of N timestamps instantly.
+- [**Sample mode**](/docs/core/concepts/scheduling#live-mode-vs-sample-mode) (`--live-mode false`) — releases all timestamps without waiting for the clock.
+- [**chance**](/docs/core/concepts/producing#picking-modes) picking mode — weighted mix of request types (GET, POST, PUT, DELETE).
+- [**HTTP output**](/docs/plugins/output/http) — sends each event as a request to the target API.
+- **Batch tuning** — controls how many requests are in flight at once.
+
+## Prerequisites
+
+- [Eventum installed](/docs/core/introduction/installation)
+- A target API endpoint to test (this tutorial uses a placeholder URL — replace it with your own)
+
+<Callout type="warn">
+Only load-test APIs you own or have explicit permission to test. Sending high-volume traffic to third-party services may violate their terms of service.
+</Callout>
+
+## Project structure
+
+<Files>
+  <Folder name="load-test" defaultOpen>
+    <File name="generator.yml" />
+    <Folder name="templates" defaultOpen>
+      <File name="get-users.jinja" />
+      <File name="create-user.jinja" />
+      <File name="update-user.jinja" />
+      <File name="delete-user.jinja" />
+    </Folder>
+  </Folder>
+</Files>
+
+## Build it
+
+<Steps>
+<Step>
+### Create the project directory
+
+```bash
+mkdir -p load-test/templates
+cd load-test
+```
+
+</Step>
+<Step>
+### Write request templates
+
+Each template produces a JSON request body. The [HTTP output](/docs/plugins/output/http) sends it as a POST to the target endpoint. The template includes the HTTP method and path so the API can route accordingly (adjust the format to match your API's expectations).
+
+**GET users** — list endpoint, no body needed.
+
+```jinja title="templates/get-users.jinja"
+{
+  "method": "GET",
+  "path": "/api/v1/users",
+  "params": {
+    "page": {{ module.rand.number.integer(1, 100) }},
+    "limit": {{ module.rand.choice([10, 25, 50]) }}
+  }
+}
+```
+
+**Create user** — POST with a realistic payload.
+
+```jinja title="templates/create-user.jinja"
+{
+  "method": "POST",
+  "path": "/api/v1/users",
+  "body": {
+    "name": "{{ module.faker.locale.en.name() }}",
+    "email": "{{ module.faker.locale.en.email() }}",
+    "role": "{{ module.rand.weighted_choice(["viewer", "editor", "admin"], [0.6, 0.3, 0.1]) }}",
+    "department": "{{ module.rand.choice(["engineering", "marketing", "sales", "support", "hr"]) }}"
+  }
+}
+```
+
+**Update user** — PUT with partial changes.
+
+```jinja title="templates/update-user.jinja"
+{
+  "method": "PUT",
+  "path": "/api/v1/users/{{ module.rand.number.integer(1, 10000) }}",
+  "body": {
+    "name": "{{ module.faker.locale.en.name() }}",
+    "role": "{{ module.rand.choice(["viewer", "editor", "admin"]) }}"
+  }
+}
+```
+
+**Delete user** — DELETE by ID.
+
+```jinja title="templates/delete-user.jinja"
+{
+  "method": "DELETE",
+  "path": "/api/v1/users/{{ module.rand.number.integer(1, 10000) }}"
+}
+```
+
+</Step>
+<Step>
+### Configure the generator
+
+The `static` input generates 5,000 timestamps at once. The `chance` mode distributes requests across the four types with a realistic CRUD mix.
+
+```yaml title="generator.yml"
+input:
+  - static:
+      count: 5000
+
+event:
+  template:
+    mode: chance
+    templates:
+      - get-users:
+          template: templates/get-users.jinja
+          chance: 0.50
+      - create-user:
+          template: templates/create-user.jinja
+          chance: 0.25
+      - update-user:
+          template: templates/update-user.jinja
+          chance: 0.15
+      - delete-user:
+          template: templates/delete-user.jinja
+          chance: 0.10
+
+output:
+  - http:
+      url: "http://localhost:8080/api/v1/batch"
+      method: POST
+      success_code: 200
+      headers:
+        Content-Type: "application/json"
+        Authorization: "Bearer test-token"
+      formatter:
+        format: json-batch
+```
+
+Key settings:
+
+- **static count: 5000** — the total number of requests to generate.
+- **chance distribution** — 50% reads, 25% creates, 15% updates, 10% deletes — mimics a typical web application workload.
+- **json-batch formatter** — groups events into a JSON array per batch, reducing HTTP round-trips.
+
+</Step>
+<Step>
+### Run it
+
+Use [`eventum generate`](/docs/core/cli/eventum-generate) in sample mode with tuned batch settings:
+
+```bash
+eventum generate \
+  --path generator.yml \
+  --id load-test \
+  --live-mode false \
+  --batch.size 100 \
+  --max-concurrency 10
+```
+
+Flags explained:
+
+| Flag | Effect |
+|------|--------|
+| `--live-mode false` | Releases all 5,000 timestamps instantly — maximum throughput |
+| `--batch.size 100` | Groups 100 events per batch before sending |
+| `--max-concurrency 10` | Up to 10 HTTP requests in flight simultaneously |
+
+The generator fires 5,000 requests grouped into 50 batches of 100, with up to 10 batches in flight at once. Adjust `--batch.size` and `--max-concurrency` to find your API's breaking point.
+
+</Step>
+<Step>
+### Monitor results
+
+While the test runs (or immediately after), check the metrics:
+
+```bash
+# If running with eventum run, query the REST API:
+curl -s http://localhost:9474/api/v1/instances/load-test/metrics | python -m json.tool
+```
+
+Key metrics to watch:
+
+| Metric | What it tells you |
+|--------|-------------------|
+| `write_ok` | Successful API requests |
+| `write_failed` | Failed requests (timeouts, 5xx errors) |
+| `format_failed` | Events that failed JSON validation before sending |
+
+For `eventum generate` runs, check the summary printed at exit, or add a `stdout` output to see events in real time.
+
+</Step>
+</Steps>
+
+## Going further
+
+- **Ramp-up pattern** — replace `static` with [linspace](/docs/plugins/input/linspace) over a 5-minute window in live mode to gradually increase load.
+- **Error injection** — add a template that sends intentionally malformed requests (missing required fields, invalid types) to test API error handling.
+- **Multi-endpoint testing** — run several generators in parallel via `startup.yml`, each targeting a different API service.
+- **Throughput measurement** — pipe `stdout` output through `pv -l` to count events per second in real time.
+
+## What's next
+
+<Cards>
+  <Card
+    title="static reference"
+    description="Burst timestamp generation for one-shot workloads."
+    href="/docs/plugins/input/static"
+  />
+  <Card
+    title="HTTP output"
+    description="URL, headers, auth, and concurrency settings."
+    href="/docs/plugins/output/http"
+  />
+  <Card
+    title="Performance tuning"
+    description="Batching, concurrency, and backpressure controls."
+    href="/docs/faq#performance-and-tuning"
+  />
+</Cards>

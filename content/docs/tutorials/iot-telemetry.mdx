@@ -1,0 +1,216 @@
+---
+title: IoT Sensor Telemetry
+description: Stream continuous sensor readings with realistic drift and noise as NDJSON — no server setup required.
+---
+
+Build a generator that simulates IoT sensor readings — temperature, humidity, and pressure — with realistic value drift and gaussian noise. The output is NDJSON (one JSON object per line), piped directly to stdout for use with `jq`, Kafka producers, log files, or any tool that consumes newline-delimited JSON.
+
+This tutorial uses [`eventum generate`](/docs/core/cli/eventum-generate) — no `eventum.yml` or `startup.yml` needed. Just a generator directory and a single command.
+
+## What you'll build
+
+The generator uses:
+
+- [**timer**](/docs/plugins/input/timer) input — emits a timestamp every 5 seconds.
+- [**spin**](/docs/core/concepts/producing#picking-modes) picking mode — cycles through three sensor templates round-robin.
+- [**locals state**](/docs/core/concepts/producing#state) — per-sensor value drift that persists across readings.
+- [**stdout output**](/docs/plugins/output/stdout) with `json` formatter — validates each event and outputs compact NDJSON.
+
+## Prerequisites
+
+- [Eventum installed](/docs/core/introduction/installation)
+
+## Project structure
+
+<Files>
+  <Folder name="iot-sensors" defaultOpen>
+    <File name="generator.yml" />
+    <Folder name="templates" defaultOpen>
+      <File name="temperature.jinja" />
+      <File name="humidity.jinja" />
+      <File name="pressure.jinja" />
+    </Folder>
+  </Folder>
+</Files>
+
+## Build it
+
+<Steps>
+<Step>
+### Create the project directory
+
+```bash
+mkdir -p iot-sensors/templates
+cd iot-sensors
+```
+
+</Step>
+<Step>
+### Write the sensor templates
+
+Each template simulates a different sensor type. The key technique is **value drift**: instead of generating independent random values, each reading is based on the previous one plus a small random delta. This produces realistic time-series data where values change gradually.
+
+**Temperature** — drifts around 22°C with ±0.3°C noise per reading.
+
+```jinja title="templates/temperature.jinja"
+{% set prev = locals.get("value", 22.0) %}
+{% set delta = module.rand.number.floating(-0.3, 0.3) %}
+{% set value = prev + delta %}
+{% set value = [15.0, [value, 35.0] | min] | max %}
+{% do locals.set("value", value) %}
+{
+  "sensor_id": "sensor-temp-01",
+  "metric": "temperature",
+  "value": {{ "%.2f" | format(value) }},
+  "unit": "celsius",
+  "timestamp": "{{ timestamp.isoformat() }}"
+}
+```
+
+The `[15.0, [value, 35.0] | min] | max` expression clamps the value between 15°C and 35°C, preventing unrealistic drift over long runs.
+
+**Humidity** — drifts around 55% with ±1.5% noise.
+
+```jinja title="templates/humidity.jinja"
+{% set prev = locals.get("value", 55.0) %}
+{% set delta = module.rand.number.floating(-1.5, 1.5) %}
+{% set value = prev + delta %}
+{% set value = [20.0, [value, 90.0] | min] | max %}
+{% do locals.set("value", value) %}
+{
+  "sensor_id": "sensor-hum-01",
+  "metric": "humidity",
+  "value": {{ "%.1f" | format(value) }},
+  "unit": "percent",
+  "timestamp": "{{ timestamp.isoformat() }}"
+}
+```
+
+**Pressure** — drifts around 1013 hPa with ±0.5 hPa noise.
+
+```jinja title="templates/pressure.jinja"
+{% set prev = locals.get("value", 1013.0) %}
+{% set delta = module.rand.number.floating(-0.5, 0.5) %}
+{% set value = prev + delta %}
+{% set value = [990.0, [value, 1040.0] | min] | max %}
+{% do locals.set("value", value) %}
+{
+  "sensor_id": "sensor-pres-01",
+  "metric": "pressure",
+  "value": {{ "%.1f" | format(value) }},
+  "unit": "hPa",
+  "timestamp": "{{ timestamp.isoformat() }}"
+}
+```
+
+Each sensor template has its own `locals` — the temperature drift is independent of humidity drift. The value persists between calls, creating smooth, correlated time-series data.
+
+</Step>
+<Step>
+### Configure the generator
+
+The `timer` input emits a timestamp every 5 seconds. With `spin` mode and three templates, each sensor reports once every 15 seconds (5 seconds × 3 templates per cycle).
+
+```yaml title="generator.yml"
+input:
+  - timer:
+      seconds: 5
+      count: 1
+
+event:
+  template:
+    mode: spin
+    templates:
+      - temperature:
+          template: templates/temperature.jinja
+      - humidity:
+          template: templates/humidity.jinja
+      - pressure:
+          template: templates/pressure.jinja
+
+output:
+  - stdout:
+      formatter:
+        format: json
+```
+
+The `json` formatter validates each event as JSON and outputs it on a single line — standard NDJSON format.
+
+</Step>
+<Step>
+### Run it
+
+No `eventum.yml` or `startup.yml` needed — [`eventum generate`](/docs/core/cli/eventum-generate) runs a single generator directly:
+
+```bash
+eventum generate --path generator.yml --id sensors
+```
+
+Readings stream to stdout every 5 seconds, cycling through sensors:
+
+```json
+{"sensor_id":"sensor-temp-01","metric":"temperature","value":22.15,"unit":"celsius","timestamp":"2025-06-15T14:00:00+00:00"}
+{"sensor_id":"sensor-hum-01","metric":"humidity","value":54.2,"unit":"percent","timestamp":"2025-06-15T14:00:05+00:00"}
+{"sensor_id":"sensor-pres-01","metric":"pressure","value":1013.3,"unit":"hPa","timestamp":"2025-06-15T14:00:10+00:00"}
+{"sensor_id":"sensor-temp-01","metric":"temperature","value":22.28,"unit":"celsius","timestamp":"2025-06-15T14:00:15+00:00"}
+{"sensor_id":"sensor-hum-01","metric":"humidity","value":53.8,"unit":"percent","timestamp":"2025-06-15T14:00:20+00:00"}
+```
+
+Notice how values change gradually — temperature drifts from 22.15 to 22.28, humidity from 54.2 to 53.8. This is the drift pattern at work.
+
+</Step>
+<Step>
+### Pipe to other tools
+
+The NDJSON output works directly with standard Unix tools:
+
+```bash
+# Filter by sensor type
+eventum generate --path generator.yml --id sensors | jq 'select(.metric == "temperature")'
+
+# Write to file for later analysis
+eventum generate --path generator.yml --id sensors > readings.ndjson
+
+# Count readings per sensor (run for a while, then Ctrl+C)
+eventum generate --path generator.yml --id sensors | jq -r '.sensor_id' | sort | uniq -c
+
+# Generate a finite dataset: 1000 readings in sample mode
+eventum generate --path generator.yml --id sensors-batch \
+  --live-mode false \
+  | head -1000 > dataset.ndjson
+```
+
+<Callout type="info">
+For a finite dataset, use the `timer` plugin's `repeat` parameter. Set `repeat: 334` to generate 334 cycles × 3 sensors = 1,002 readings, then the generator stops automatically.
+</Callout>
+
+</Step>
+</Steps>
+
+## Going further
+
+- **Anomaly injection** — use `module.rand.chance(0.02)` to occasionally spike a value far outside the normal range, simulating sensor faults.
+- **Multiple sensor sites** — run several generators with different sensor IDs and baseline values to simulate a multi-location deployment.
+- **Kafka integration** — pipe stdout to a Kafka producer: `eventum generate --path generator.yml --id sensors | kafka-console-producer --topic iot-readings --broker-list localhost:9092`.
+- **Historical dataset** — replace `timer` with [linspace](/docs/plugins/input/linspace) to generate a year of readings at 5-minute intervals in sample mode.
+- **Alert thresholds** — add a second generator that monitors the `globals` state (written by the sensor generator) and produces alerts when values exceed thresholds.
+
+## What's next
+
+<Cards>
+  <Card
+    title="timer reference"
+    description="Fixed-interval timestamp generation."
+    href="/docs/plugins/input/timer"
+  />
+  <Card
+    title="State management"
+    description="Locals, shared, and globals — persistent state in templates."
+    href="/docs/core/concepts/producing#state"
+  />
+  <Card
+    title="eventum generate"
+    description="Run a single generator from the command line."
+    href="/docs/core/cli/eventum-generate"
+  />
+</Cards>

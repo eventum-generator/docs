@@ -1,0 +1,211 @@
+---
+title: Scheduled Telegram Alerts
+description: Simulate a monitoring system that sends alert notifications to a Telegram chat on a cron schedule.
+---
+
+Build a generator that simulates infrastructure monitoring alerts and delivers them to a Telegram chat via the Bot API. Alerts fire on a cron schedule with randomized severity and service names — a miniature alerting pipeline in a few files.
+
+## What you'll build
+
+The generator uses:
+
+- [**cron**](/docs/plugins/input/cron) input — fires every 2 minutes.
+- **Template** with conditional Jinja2 logic — different message format per severity level.
+- [**HTTP output**](/docs/plugins/output/http) — sends POST requests to the Telegram Bot API.
+- [**Secrets**](/docs/core/config/secrets) — bot token stored securely in the keyring.
+- [**Parameters**](/docs/core/config/parameters) — chat ID passed through `startup.yml`.
+
+## Prerequisites
+
+- [Eventum installed](/docs/core/introduction/installation)
+- A Telegram bot token (create one via [@BotFather](https://t.me/BotFather))
+- The chat ID of the target chat (send a message to your bot, then query `https://api.telegram.org/bot<TOKEN>/getUpdates` to find it)
+
+## Project structure
+
+<Files>
+  <Folder name="eventum" defaultOpen>
+    <File name="eventum.yml" />
+    <File name="startup.yml" />
+    <Folder name="generators" defaultOpen>
+      <Folder name="alerts" defaultOpen>
+        <File name="generator.yml" />
+        <Folder name="templates" defaultOpen>
+          <File name="alert.jinja" />
+        </Folder>
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+## Build it
+
+<Steps>
+<Step>
+### Create the project directory
+
+```bash
+mkdir -p eventum/generators/alerts/templates
+cd eventum
+```
+
+</Step>
+<Step>
+### Write the alert template
+
+The template produces a JSON body for the Telegram [sendMessage](https://core.telegram.org/bots/api#sendmessage) API. It uses `module.rand` to pick a random severity and service, then builds a Markdown-formatted message with an emoji indicator.
+
+```jinja title="generators/alerts/templates/alert.jinja"
+{% set severity = module.rand.weighted_choice(["info", "warning", "critical", "resolved"], [0.4, 0.35, 0.2, 0.05]) %}
+{% set service = module.rand.choice(["api-gateway", "auth-service", "db-primary", "cache-redis", "worker-queue", "nginx-lb"]) %}
+{% set icons = {"info": "\u2139\ufe0f", "warning": "\u26a0\ufe0f", "critical": "\ud83d\udd34", "resolved": "\u2705"} %}
+{% set metric = module.rand.choice(["CPU usage", "memory usage", "request latency", "error rate", "disk I/O", "connection pool"]) %}
+{% if severity == "critical" %}
+{% set value = module.rand.number.integer(90, 100) %}
+{% elif severity == "warning" %}
+{% set value = module.rand.number.integer(70, 89) %}
+{% else %}
+{% set value = module.rand.number.integer(10, 69) %}
+{% endif %}
+{
+  "chat_id": {{ params.chat_id }},
+  "parse_mode": "Markdown",
+  "text": "{{ icons[severity] }} *{{ severity | upper }}* | `{{ service }}`\n\n{{ metric }}: *{{ value }}%*\nHost: `{{ module.faker.locale.en.hostname() }}`\nTime: {{ timestamp.strftime('%H:%M:%S UTC') }}"
+}
+```
+
+The message looks like this in Telegram:
+
+> 🔴 **CRITICAL** | `db-primary`
+>
+> CPU usage: **95%**
+> Host: `srv-db-01.example.com`
+> Time: 14:30:00 UTC
+
+</Step>
+<Step>
+### Configure the generator
+
+The cron expression `0 */2 * * * *` fires at second 0 of every 2nd minute. The HTTP output posts to the Telegram API endpoint.
+
+```yaml title="generators/alerts/generator.yml"
+input:
+  - cron:
+      expression: "0 */2 * * * *"
+      count: 1
+
+event:
+  template:
+    mode: all
+    params:
+      chat_id: ${params.chat_id}
+    templates:
+      - alert:
+          template: templates/alert.jinja
+
+output:
+  - stdout: {}
+  - http:
+      url: "https://api.telegram.org/bot${secrets.telegram_token}/sendMessage"
+      method: POST
+      success_code: 200
+      headers:
+        Content-Type: "application/json"
+      formatter:
+        format: plain
+```
+
+<Callout>
+The `plain` formatter passes the template output as-is — the template already produces a valid JSON request body. The `stdout` output is included for local debugging; remove it in production.
+</Callout>
+
+</Step>
+<Step>
+### Configure the application
+
+```yaml title="eventum.yml"
+server:
+  host: "0.0.0.0"
+  port: 9474
+
+path:
+  startup: /home/user/eventum/startup.yml
+  generators_dir: /home/user/eventum/generators
+  logs: /home/user/eventum/logs
+  keyring_cryptfile: /home/user/eventum/cryptfile.cfg
+```
+
+<Callout type="info">
+All `path.*` values must be **absolute paths**. Adjust to match your actual project location.
+</Callout>
+
+The startup file passes the chat ID as a [parameter](/docs/core/config/parameters):
+
+```yaml title="startup.yml"
+- id: alerts
+  path: alerts/generator.yml
+  params:
+    chat_id: "123456789"
+```
+
+Replace `123456789` with your actual Telegram chat ID.
+
+</Step>
+<Step>
+### Store the bot token
+
+The bot token is sensitive — store it in the [keyring](/docs/core/cli/eventum-keyring):
+
+```bash
+eventum-keyring set telegram_token
+```
+
+Enter your bot token when prompted (e.g., `110201543:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw`).
+
+</Step>
+<Step>
+### Run it
+
+```bash
+eventum run -c eventum.yml
+```
+
+Every 2 minutes, an alert message appears in your Telegram chat. The terminal shows the raw JSON body on stdout:
+
+```json
+{
+  "chat_id": 123456789,
+  "parse_mode": "Markdown",
+  "text": "\u26a0\ufe0f *WARNING* | `cache-redis`\n\nmemory usage: *78%*\nHost: `srv-cache-02.example.com`\nTime: 14:32:00 UTC"
+}
+```
+
+</Step>
+</Steps>
+
+## Going further
+
+- **Escalation schedule** — use [multiple inputs](/docs/core/concepts/scheduling#combining-multiple-inputs) with different cron expressions: check every 2 minutes during business hours, every 10 minutes overnight.
+- **Incident sequences** — switch to [FSM mode](/docs/core/concepts/producing#picking-modes) to model alert → acknowledged → investigating → resolved workflows.
+- **Slack or Discord** — swap the Telegram API URL for a [Slack Incoming Webhook](https://api.slack.com/messaging/webhooks) or [Discord Webhook](https://discord.com/developers/docs/resources/webhook) URL and adjust the JSON payload accordingly.
+- **Silence window** — use the cron `start`/`end` fields to suppress alerts during maintenance windows.
+
+## What's next
+
+<Cards>
+  <Card
+    title="cron reference"
+    description="Cron expressions, date ranges, and extended syntax."
+    href="/docs/plugins/input/cron"
+  />
+  <Card
+    title="HTTP output"
+    description="URL, headers, auth, and TLS options for HTTP delivery."
+    href="/docs/plugins/output/http"
+  />
+  <Card
+    title="Secrets"
+    description="Encrypting credentials with the keyring."
+    href="/docs/core/config/secrets"
+  />
+</Cards>

@@ -29,7 +29,7 @@ Templates also support **persistent state** — `locals` for per-template state,
 />
 
 <Callout type="info">
-Templates support multiple **picking modes** for selecting which template to render: `all`, `any` (random), `chance` (weighted probability), `spin` (round-robin), `chain` (fixed cycle), and `fsm` (finite state machine with conditional transitions). See [Producing events](/docs/core/concepts/producing) for details.
+Templates support multiple [picking modes](/docs/core/concepts/producing#picking-modes) for selecting which template to render — from simple random selection to a full finite state machine with conditional transitions.
 </Callout>
 
 ## Python scripts
@@ -66,17 +66,7 @@ def produce(params: dict) -> str | list[str]:
 
 ## Flexible scheduling
 
-Eventum gives you precise control over *when* events happen. Choose from several input plugins depending on your use case:
-
-| Plugin | Description | Example use case |
-|--------|-------------|-----------------|
-| **cron** | Cron expressions with second-level precision | `* * * * * *` — one event every second |
-| **timer** | Fixed interval between events | Every 5 seconds, repeat forever |
-| **linspace** | Evenly spaced across a date range | 10,000 events spread over a week |
-| **time_patterns** | Statistical distributions with oscillator, multiplier, randomizer, and spreader | Realistic traffic curves with daily peaks and nightly dips |
-| **timestamps** | Exact list of datetimes | Replay a known sequence of moments |
-| **static** | Fixed count with current timestamp | Instant batch of N events |
-| **http** | On-demand via HTTP requests | External system triggers generation |
+Eventum gives you precise control over *when* events happen. Choose from several [input plugins](/docs/plugins#input-plugins) — cron expressions, fixed intervals, evenly spaced ranges, statistical time patterns, and more.
 
 You can combine multiple input plugins in a single generator — for example, a `cron` plugin for steady baseline traffic and a `time_patterns` plugin for periodic spikes. Each plugin can carry **tags** that propagate to templates, so you can conditionally vary event content based on the source.
 
@@ -89,17 +79,9 @@ You can combine multiple input plugins in a single generator — for example, a 
 
 ## Multiple output destinations
 
-Every generator can send events to one or more outputs simultaneously. Write to a local file for archival while also pushing to OpenSearch for analysis — no duplicated generators needed.
+Every generator can send events to one or more [output plugins](/docs/plugins#output-plugins) simultaneously. Write to a local file for archival while also pushing to a database for analysis — no duplicated generators needed. Destinations include the console, local files, HTTP endpoints, and databases.
 
-| Output | Description |
-|--------|-------------|
-| **stdout** | Print to console — great for debugging and piping |
-| **file** | Write to a local file with configurable flush, encoding, and file mode |
-| **HTTP** | Send to any HTTP endpoint with full control over method, headers, auth, and TLS |
-| **OpenSearch** | Index events via the Bulk API with multi-node load balancing |
-| **ClickHouse** | Insert events using the native client with DSN support and multiple input formats |
-
-All output plugins support **formatters** to transform events before delivery: plain text, JSON, JSON batch, or a custom Jinja2 template. You can also control **event ordering** — run outputs in parallel for throughput, or serialize them to maintain strict chronological order.
+All output plugins support [formatters](/docs/plugins/formatters) to transform events before delivery. You can also control **event ordering** — run outputs in parallel for throughput, or serialize them to maintain strict chronological order.
 
 <ThemedImage
   lightSrc="/images/home/outputs_light.png"
@@ -171,7 +153,7 @@ output:
       flush_interval: 1
 ```
 
-Configs support **variable substitution** with `${params.name}` for user-defined parameters and `${secrets.name}` for credentials stored in the secure keyring.
+Generator configs support **variable substitution** with `${params.name}` for user-defined parameters and `${secrets.name}` for credentials stored in the secure keyring.
 
 ## Web UI — Eventum Studio
 

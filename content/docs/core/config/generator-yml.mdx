@@ -1,0 +1,154 @@
+---
+title: generator.yml
+description: Schema reference for the generator configuration file — the three-stage pipeline structure, variable substitution, and available plugins.
+---
+
+The generator config file defines the three-stage pipeline that produces events. It has exactly three top-level keys — `input`, `event`, and `output` — each configuring one stage:
+
+```yaml title="generator.yml"
+input:
+  - <plugin_name>:
+      <plugin_params>
+
+event:
+  <plugin_name>:
+    <plugin_params>
+
+output:
+  - <plugin_name>:
+      <plugin_params>
+```
+
+All relative paths inside the file are resolved from the **directory containing `generator.yml`**, not from the working directory. This makes generator directories fully portable. See [Project structure — Path resolution](/docs/core/config/project-structure#path-resolution) for details.
+
+<Callout type="info">
+Extra fields are **forbidden** — any unrecognized key will cause a validation error at load time.
+</Callout>
+
+## Top-level structure
+
+| Key | Type | Required | Description |
+|-----|------|----------|-------------|
+| `input` | list of plugin configs | Yes | One or more input plugins. At least one is required. |
+| `event` | single plugin config | Yes | Exactly one event plugin. |
+| `output` | list of plugin configs | Yes | One or more output plugins. At least one is required. |
+
+Each plugin config is a single-key mapping where the key is the plugin name and the value is a mapping of plugin-specific parameters:
+
+```yaml
+- cron:          # plugin name
+    expression: "* * * * * *"  # plugin parameter
+    count: 1                   # plugin parameter
+```
+
+## Variable substitution
+
+Generator config file supports **variable substitution** using `${ }` syntax. This lets you parameterize configs without hardcoding values:
+
+```yaml title="generator.yml"
+output:
+  - opensearch:
+      hosts:
+        - ${params.opensearch_host}
+      username: ${params.opensearch_user}
+      password: ${secrets.opensearch_password}
+```
+
+Two types of variables are available:
+
+| Syntax | Source | Example |
+|--------|--------|---------|
+| `${params.name}` | Passed via CLI `--params` or `startup.yml` `params` field | `${params.host}` |
+| `${secrets.name}` | Loaded from the encrypted keyring | `${secrets.db_password}` |
+
+See [Parameters](/docs/core/config/parameters) and [Secrets](/docs/core/config/secrets) for details on how to pass and manage these values.
+
+
+## Input plugins
+
+Input plugins define **when** events are generated. Multiple input plugins can be combined — their timestamp streams are merged chronologically. Every input plugin supports an optional `tags` field.
+
+See the [input plugin reference](/docs/plugins#input-plugins) for all available plugins and their parameters.
+
+---
+
+## Event plugins
+
+Event plugins define **what** events look like. Exactly one event plugin is configured per generator.
+
+See the [event plugin reference](/docs/plugins#event-plugins) for all available plugins and their parameters.
+
+---
+
+## Output plugins
+
+Output plugins define **where** events are sent. Multiple output plugins can be configured — every event is delivered to all of them (fan-out). Every output plugin supports a [formatter](/docs/plugins/formatters).
+
+See the [output plugin reference](/docs/plugins#output-plugins) for all available plugins and their parameters.
+
+---
+
+## Versatile datetime
+
+Several input plugins accept datetime values in a flexible format called **versatile datetime**. The following formats are accepted:
+
+| Format | Example | Description |
+|--------|---------|-------------|
+| ISO 8601 | `"2024-06-15T14:30:00"` | Standard datetime string. |
+| Human-readable | `"June 15, 2024 2:30 PM"`, `"yesterday 3pm"` | Parsed with [dateparser](https://dateparser.readthedocs.io/). |
+| Time of day | `"14:30:00"` | Interpreted as today at the given time. |
+| `now` | `now` | Current time at evaluation. |
+| `never` | `never` | No time limit (used for `end`). |
+| Relative expression | `+1h`, `-30m`, `+1d12h30m` | Offset from `start` (for `end`) or from current time (for `start`). Units: `d`, `h`, `m`, `s`. |
+
+See [Scheduling — Date ranges and versatile datetime](/docs/core/concepts/scheduling#date-ranges-and-versatile-datetime) for more details and examples.
+
+---
+
+## Complete example
+
+```yaml title="generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+      tags: [web]
+
+  - cron:
+      expression: "*/10 * * * * *"
+      count: 1
+      tags: [error]
+
+event:
+  template:
+    mode: chance
+    samples:
+      users:
+        type: csv
+        source: samples/users.csv
+        header: true
+    templates:
+      - access:
+          template: templates/access.jinja
+          chance: 95
+      - error:
+          template: templates/error.jinja
+          chance: 5
+
+output:
+  - stdout:
+      formatter:
+        format: plain
+
+  - file:
+      path: output/events.jsonl
+      formatter:
+        format: json
+
+  - opensearch:
+      hosts:
+        - ${params.opensearch_host}
+      username: ${params.opensearch_user}
+      password: ${secrets.opensearch_password}
+      index: logs
+```

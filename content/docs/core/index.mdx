@@ -1,31 +1,142 @@
 ---
 title: Overview
-description: A map of the Core documentation
+description: A map of the Core documentation — from installation to mastery.
 ---
 
-This part of documentation covers everything you need for basic usage of Eventum: installing the tool, understanding its core abstractions, configuring generators, and running them from the command line.
+<div className="not-prose my-6 rounded-2xl border border-fd-border bg-linear-to-br from-fd-card via-fd-card to-fd-accent/20 p-8 text-center">
+  <div className="text-5xl mb-4">📦</div>
+  <div className="text-2xl font-semibold mb-2">Core documentation</div>
+  <div className="text-fd-muted-foreground max-w-xl mx-auto">
+    Everything you need to understand, configure, and run Eventum.
+    Follow the sections in order or jump to what you need.
+  </div>
+</div>
 
-If you're new to Eventum, start with **Introduction** to get up and running, then explore **Concepts** to understand how the pieces fit together. Once you're comfortable, **Configuration** and **CLI** give you full control over every detail.
+<Mermaid chart={`graph LR
+    INTRO["Introduction"]:::done --> CONCEPTS["Concepts"]:::section
+    CONCEPTS --> CONFIG["Configuration"]:::section
+    CONFIG --> CLI["CLI"]:::section
+    CLI --> NEXT["What's Next"]:::section
+    classDef section fill:#8282ef,color:#fff,stroke:#6b6bd4,stroke-width:2px
+    classDef done fill:#22c55e,color:#fff,stroke:#16a34a,stroke-width:2px`} />
+
+---
+
+## 🚀 Introduction
+
+Install Eventum, learn what it does, and run your first generator from zero to output in under five minutes.
 
 <Cards>
   <Card
-    title="Introduction"
-    description="Install Eventum, learn what it can do, and run your first generator end to end."
+    title="Features"
+    description="What Eventum can do — pipeline model, plugin types, live and sample modes, scaling."
     href="/docs/core/introduction/features"
   />
   <Card
-    title="Concepts"
-    description="Generators, plugins, the input → event → output pipeline, scheduling modes, and event production strategies."
+    title="Installation"
+    description="pip, Docker, or from source — pick your setup."
+    href="/docs/core/introduction/installation"
+  />
+  <Card
+    title="First run"
+    description="Create a generator and see events flowing in under 5 minutes."
+    href="/docs/core/introduction/first-run"
+  />
+</Cards>
+
+---
+
+## 🧩 Concepts
+
+How Eventum works under the hood — the generator pipeline, plugin system, scheduling strategies, event production, and output delivery.
+
+<Cards>
+  <Card
+    title="Generator"
+    description="The central abstraction — input → event → output pipeline, modes, and lifecycle."
     href="/docs/core/concepts/generator"
   />
   <Card
-    title="Configuration"
-    description="Project layout, YAML config files (generator, startup, eventum), and variable substitution."
+    title="Plugins"
+    description="Three plugin types, how they connect, and how configuration flows through."
+    href="/docs/core/concepts/plugins"
+  />
+  <Card
+    title="Scheduling"
+    description="When events fire — cron, timer, time-patterns, live vs sample mode."
+    href="/docs/core/concepts/scheduling"
+  />
+  <Card
+    title="Producing events"
+    description="Picking modes, Jinja2 templates, state management, samples."
+    href="/docs/core/concepts/producing"
+  />
+  <Card
+    title="Output"
+    description="Fan-out delivery, formatters, async lifecycle, batching, error handling."
+    href="/docs/core/concepts/output"
+  />
+</Cards>
+
+---
+
+## ⚙️ Configuration
+
+YAML config files, project layout, and runtime variables — everything that controls how generators behave.
+
+<Cards>
+  <Card
+    title="Project structure"
+    description="How files relate, path resolution, single-generator vs application mode."
     href="/docs/core/config/project-structure"
   />
   <Card
-    title="CLI"
-    description="Command-line reference for eventum generate, eventum run, and eventum keyring."
+    title="generator.yml"
+    description="The generator pipeline config — input, event, and output plugins."
+    href="/docs/core/config/generator-yml"
+  />
+  <Card
+    title="startup.yml"
+    description="Generator list and per-generator parameter overrides."
+    href="/docs/core/config/startup-yml"
+  />
+  <Card
+    title="eventum.yml"
+    description="Server, logging, paths, and default generation parameters."
+    href="/docs/core/config/eventum-yml"
+  />
+  <Card
+    title="Parameters"
+    description="Passing runtime values into generator configs."
+    href="/docs/core/config/parameters"
+  />
+  <Card
+    title="Secrets"
+    description="Encrypted credentials via the keyring."
+    href="/docs/core/config/secrets"
+  />
+</Cards>
+
+---
+
+## 💻 CLI
+
+Three commands that cover every runtime scenario — single-generator runs, full application mode, and secret management.
+
+<Cards>
+  <Card
+    title="$ eventum generate"
+    description="Run a single generator from the command line — all options, verbosity, and piping."
     href="/docs/core/cli/eventum-generate"
+  />
+  <Card
+    title="$ eventum run"
+    description="Start the full application with server, API, and Studio UI."
+    href="/docs/core/cli/eventum-run"
+  />
+  <Card
+    title="$ eventum-keyring"
+    description="Set, get, and remove encrypted secrets in the keyring."
+    href="/docs/core/cli/eventum-keyring"
   />
 </Cards>

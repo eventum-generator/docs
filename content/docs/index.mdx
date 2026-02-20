@@ -3,52 +3,78 @@ title: Getting started
 description: Learn how Eventum works and generate your first events in minutes.
 ---
 
-Eventum is a data generation platform that produces synthetic events and delivers them anywhere — in real time or in batch. Whether you need a continuous stream of application logs hitting your SIEM, a one-off dataset to seed a staging database, or a high-throughput workload to stress-test a pipeline, Eventum lets you describe *what* your data looks like and *when* it should appear, then takes care of the rest.
+<div className="not-prose my-6 rounded-2xl border border-fd-border bg-linear-to-br from-fd-card via-fd-card to-[#8282ef]/10 p-8 text-center">
+  <img src="/logo.svg" alt="Eventum" className="h-16 w-auto mx-auto mb-4" />
+  <div className="text-2xl font-semibold mb-2">Welcome to Eventum</div>
+  <div className="text-fd-muted-foreground max-w-2xl mx-auto">
+    A data generation platform that produces synthetic events and delivers them
+    anywhere — in real time or in batch. Describe <strong>what</strong> your data looks like
+    and <strong>when</strong> it should appear, Eventum takes care of the rest.
+  </div>
+</div>
 
-## Why Eventum
+---
 
-Building and testing data-driven systems usually means waiting for real data to accumulate or writing throwaway scripts that are hard to maintain and impossible to reuse. Eventum solves this by giving you a declarative way to generate realistic data on demand.
+## ⚡ Why Eventum
 
-- **Realistic content** — templates powered by [Faker](https://faker.readthedocs.io/) and [Mimesis](https://mimesis.name/) produce believable names, IPs, timestamps, and domain-specific values out of the box.
-- **Precise timing** — generate events on a cron schedule, at fixed intervals, spread uniformly across a time range, or following complex statistical patterns that mimic real-world traffic.
-- **Multiple destinations** — send events to stdout for quick debugging, write to files, or push directly to ClickHouse, OpenSearch, or any HTTP endpoint — all at the same time.
-- **Live and batch modes** — stream events in real time at their actual timestamps, or generate an entire dataset as fast as possible.
-- **Scalable by design** — run multiple generators in parallel, each with its own schedule, templates, and outputs. Manage them through a REST API or a built-in web UI.
+Building and testing data-driven systems usually means waiting for real data to accumulate or writing throwaway scripts. Eventum gives you a declarative way to generate realistic data on demand.
 
-## How it works
+<div className="not-prose grid grid-cols-1 sm:grid-cols-2 gap-3 my-6">
+  <div className="rounded-xl border border-fd-border bg-fd-card p-4">
+    <div className="text-lg mb-1">🎭 Realistic content</div>
+    <div className="text-sm text-fd-muted-foreground">Templates powered by Faker and Mimesis produce believable names, IPs, timestamps, and domain-specific values.</div>
+  </div>
+  <div className="rounded-xl border border-fd-border bg-fd-card p-4">
+    <div className="text-lg mb-1">🕐 Precise timing</div>
+    <div className="text-sm text-fd-muted-foreground">Cron schedules, fixed intervals, uniform ranges, or statistical patterns that mimic real-world traffic.</div>
+  </div>
+  <div className="rounded-xl border border-fd-border bg-fd-card p-4">
+    <div className="text-lg mb-1">📡 Multiple destinations</div>
+    <div className="text-sm text-fd-muted-foreground">stdout, files, ClickHouse, OpenSearch, or any HTTP endpoint — all at the same time.</div>
+  </div>
+  <div className="rounded-xl border border-fd-border bg-fd-card p-4">
+    <div className="text-lg mb-1">🔀 Live and batch modes</div>
+    <div className="text-sm text-fd-muted-foreground">Stream events at their actual timestamps, or generate an entire dataset as fast as possible.</div>
+  </div>
+</div>
 
-Every generator in Eventum runs a three-stage pipeline. You describe each stage in a simple YAML config — no code required for most use cases.
+---
 
-<Cards>
-  <Card
-    title="Input"
-    description="Defines when events occur. Generates timestamps using schedules, timers, cron expressions, or custom time patterns."
-    href="/docs/core/concepts/scheduling"
-  />
-  <Card
-    title="Event"
-    description="Defines what events look like. Renders Jinja2 templates with Faker/Mimesis, executes Python scripts, or replays recorded logs."
-    href="/docs/core/concepts/producing"
-  />
-  <Card
-    title="Output"
-    description="Defines where events go. Writes to stdout, files, ClickHouse, OpenSearch, or any HTTP endpoint."
-    href="/docs/core/concepts/output"
-  />
-</Cards>
+## 🔧 How it works
 
-An **input plugin** produces timestamps — the moments when events should happen. A **event plugin** takes each timestamp and renders it into an actual event string using a template or a script. Finally, one or more **output plugins** deliver the resulting events to their destinations. This separation means you can swap any part independently: change the schedule without touching the template, or add a new output without modifying anything else.
+Every generator runs a three-stage pipeline. You describe each stage in YAML — no code required.
 
-## Quick example
+<Mermaid chart={`graph LR
+    INPUT["🕐 Input"]:::stage --> EVENT["📄 Event"]:::stage
+    EVENT --> OUTPUT["📤 Output"]:::stage
+    classDef stage fill:#8282ef,color:#fff,stroke:#6b6bd4,stroke-width:2px`} />
+
+<div className="not-prose grid grid-cols-1 sm:grid-cols-3 gap-3 my-6">
+  <div className="rounded-xl border-2 border-[#8282ef]/30 bg-[#8282ef]/5 p-4 text-center">
+    <div className="font-semibold mb-1">Input</div>
+    <div className="text-sm text-fd-muted-foreground">Defines <strong>when</strong> events occur — schedules, timers, cron, or time patterns.</div>
+  </div>
+  <div className="rounded-xl border-2 border-[#8282ef]/30 bg-[#8282ef]/5 p-4 text-center">
+    <div className="font-semibold mb-1">Event</div>
+    <div className="text-sm text-fd-muted-foreground">Defines <strong>what</strong> events look like — Jinja2 templates, Python scripts, or log replay.</div>
+  </div>
+  <div className="rounded-xl border-2 border-[#8282ef]/30 bg-[#8282ef]/5 p-4 text-center">
+    <div className="font-semibold mb-1">Output</div>
+    <div className="text-sm text-fd-muted-foreground">Defines <strong>where</strong> events go — stdout, files, databases, or HTTP endpoints.</div>
+  </div>
+</div>
+
+Swap any part independently: change the schedule without touching the template, or add a new output without modifying anything else.
+
+---
+
+## 🚀 Quick example
 
 <Steps>
 <Step>
 ### Create a template
 
-Create a file `events.jinja` with the content you want to generate.
-Templates use Jinja2 syntax and have access to built-in modules like
-`faker` for realistic data. Each render receives a `timestamp` variable
-with the exact moment the event should represent.
+Templates use Jinja2 syntax with built-in modules like `faker` for realistic data. Each render receives a `timestamp` variable.
 
 ```jinja title="events.jinja"
 {{ timestamp }} INFO  user={{ module.faker.user_name() }} action=login ip={{ module.faker.ipv4() }}
@@ -58,9 +84,7 @@ with the exact moment the event should represent.
 <Step>
 ### Create a generator config
 
-Create a file `generator.yml` that wires the three pipeline stages together.
-This config uses a `cron` input that fires every second, the `template` event
-plugin to render the template above, and `stdout` output to print results.
+Wire the three pipeline stages together — `cron` input firing every second, `template` event plugin, and `stdout` output.
 
 ```yaml title="generator.yml"
 input:
@@ -87,7 +111,7 @@ output:
 eventum generate --path generator.yml --live-mode
 ```
 
-Events start printing to your terminal at one per second:
+Events start printing at one per second:
 
 ```
 2025-06-15 12:00:01+00:00 INFO  user=jsmith action=login ip=192.168.44.12
@@ -103,7 +127,9 @@ This example runs a single generator from the command line. To run multiple gene
 with a server, API, and web UI, see the [`eventum run`](/docs/core/cli/eventum-run) command.
 </Callout>
 
-## What's next
+---
+
+## 📖 What's next
 
 <Cards>
   <Card

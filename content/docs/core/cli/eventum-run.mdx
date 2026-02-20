@@ -1,4 +1,81 @@
 ---
 title: "$ eventum run"
-description: description
+description: Run Eventum as a full application — web server, REST API, multiple generators, and hot reload.
 ---
+
+Starts Eventum as a long-running application. This mode launches the web server (UI and REST API), loads all generators defined in [startup.yml](/docs/core/config/startup-yml), and keeps running until stopped. Use this for production deployments and any scenario where you need multiple generators, runtime management, or monitoring.
+
+```bash
+eventum run -c <config-file>
+```
+
+## Options
+
+| Option | Type | Default | Required | Description |
+|--------|------|---------|----------|-------------|
+| `-c, --config` | path | — | Yes | Path to the main [eventum.yml](/docs/core/config/eventum-yml) configuration file. Must exist and be readable. |
+
+All other settings — server, logging, generation defaults, file paths — are defined inside the config file rather than as CLI flags. See the [eventum.yml](/docs/core/config/eventum-yml) reference for the full schema.
+
+## What happens on startup
+
+1. The application loads all generators listed in [startup.yml](/docs/core/config/startup-yml).
+2. Generators with `autostart: true` (the default) begin generating events immediately. Generators with `autostart: false` are registered but remain idle until started via the API or UI.
+3. The web server starts on the configured `host:port`, exposing the UI and REST API.
+
+## Signal handling
+
+| Signal | Behavior |
+|--------|----------|
+| `SIGTERM`, `SIGINT` (Ctrl+C) | Stops all generators and the server, then exits. |
+| `SIGHUP` | **Hot reload** — stops all generators, re-reads the config file and startup list, and restarts with the updated configuration. The process stays alive. |
+
+`SIGHUP` is useful for applying config changes without downtime:
+
+```bash
+# Edit eventum.yml or startup.yml, then:
+kill -HUP $(pgrep -f "eventum run")
+```
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Normal shutdown (not typically seen — signal-based termination uses code 1). |
+| `1` | Error during startup (invalid config, YAML parse error, validation failure) or signal-based termination. |
+
+## Error messages
+
+**YAML parsing failure:**
+```
+Error: Failed to parse configuration YAML content: <details>
+```
+
+**Schema validation failure:**
+```
+Error: Failed to validate settings:
+  --server.port: Input should be a valid integer
+  --log.level: Input should be 'debug', 'info', 'warning', 'error' or 'critical'
+```
+
+Option names in validation errors use `--` prefix and kebab-case to match CLI conventions.
+
+## Examples
+
+Basic usage:
+
+```bash
+eventum run -c eventum.yml
+```
+
+Running in the background:
+
+```bash
+eventum run -c eventum.yml &
+
+# Later, hot reload after config changes:
+kill -HUP %1
+
+# Graceful shutdown:
+kill %1
+```

@@ -1,0 +1,56 @@
+---
+title: Tutorials
+description: Step-by-step walkthroughs that build complete Eventum projects from scratch — covering real-world use cases, every plugin type, and production patterns.
+---
+
+Each tutorial builds a complete, runnable project from an empty directory. You'll create configuration files, write templates, and see the output — no code is left unexplained.
+
+## Before you start
+
+Make sure Eventum is [installed](/docs/core/introduction/installation). If you want to follow along with output destinations (OpenSearch, ClickHouse, Telegram), have those services accessible — each tutorial lists its prerequisites up front.
+
+## Tutorials
+
+<Cards>
+  <Card
+    title="SIEM: Windows Security Events → OpenSearch"
+    description="Generate realistic Windows Security Event Log data and index it into OpenSearch for SIEM rule development."
+    href="/docs/tutorials/siem-events"
+  />
+  <Card
+    title="E-Commerce Transactions → CSV"
+    description="Produce a shaped CSV dataset of purchases, refunds, and chargebacks for analytics or ML training."
+    href="/docs/tutorials/csv-dataset"
+  />
+  <Card
+    title="Scheduled Telegram Alerts"
+    description="Simulate a monitoring system that sends alert notifications to a Telegram chat on a cron schedule."
+    href="/docs/tutorials/telegram-alerts"
+  />
+  <Card
+    title="Web Clickstream → ClickHouse"
+    description="Model user browsing sessions with a finite state machine and stream page views into ClickHouse."
+    href="/docs/tutorials/web-clickstream"
+  />
+  <Card
+    title="API Load Testing"
+    description="Stress-test a REST API with diverse payloads at maximum throughput using sample mode."
+    href="/docs/tutorials/load-testing"
+  />
+  <Card
+    title="IoT Sensor Telemetry"
+    description="Stream continuous sensor readings with realistic drift and noise as NDJSON — no server required."
+    href="/docs/tutorials/iot-telemetry"
+  />
+</Cards>
+
+## What each tutorial covers
+
+| Tutorial | Input | Event mode | Output | Key features |
+|----------|-------|------------|--------|--------------|
+| [SIEM Events](/docs/tutorials/siem-events) | time-patterns | FSM | OpenSearch | Stateful sessions, daily traffic curves, samples |
+| [CSV Dataset](/docs/tutorials/csv-dataset) | linspace | chance | file | Template formatter, samples, shared state |
+| [Telegram Alerts](/docs/tutorials/telegram-alerts) | cron | all | http | Secrets, parameters, JSON payloads |
+| [Web Clickstream](/docs/tutorials/web-clickstream) | time-patterns | FSM | ClickHouse | Session modeling, locals state, transitions |
+| [Load Testing](/docs/tutorials/load-testing) | static | chance | http | Sample mode, burst generation, batching |
+| [IoT Telemetry](/docs/tutorials/iot-telemetry) | timer | spin | stdout | `eventum generate`, value drift, NDJSON |

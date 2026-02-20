@@ -5,6 +5,8 @@ description: How event plugins turn timestamps into event strings — the templa
 
 An event plugin sits in the middle of the [generator pipeline](/docs/core/concepts/generator#the-three-stage-pipeline). It receives a **timestamp** and **tags** from the input stage and returns one or more **event strings** that the output stage delivers. This page explains how that process works for each of the three event plugins.
 
+For per-plugin parameters and configuration, see the [event plugin reference](/docs/plugins#event-plugins).
+
 ## What an event plugin receives
 
 Every time the event plugin is called, it gets two values:
@@ -123,16 +125,7 @@ Each second, 5 timestamps arrive, and each one renders the template with fresh r
 
 ### Picking modes
 
-When a generator has **multiple templates**, the picking mode controls which templates render on each call:
-
-| Mode | Behavior |
-|------|----------|
-| `all` | Renders every template, produces multiple events per timestamp |
-| `any` | Randomly picks one template |
-| `chance` | Picks one template based on weighted probabilities |
-| `spin` | Cycles through templates in round-robin order |
-| `chain` | Follows a user-defined sequence |
-| `fsm` | Picks based on a finite state machine with conditional transitions |
+When a generator has **multiple templates**, the picking mode controls which templates render on each call. Modes range from simple (render all, pick one at random) to advanced (finite state machine with conditional transitions). See the [template plugin reference](/docs/plugins/event/template) for the full list of modes and their parameters.
 
 **`all` mode** is the default and the simplest — every template produces an event for every timestamp. It's the right choice when you want to generate multiple correlated event types from the same schedule.
 

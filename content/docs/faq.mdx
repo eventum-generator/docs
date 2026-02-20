@@ -1,5 +1,274 @@
 ---
 title: FAQ
-description: description
+description: Answers to common questions about installing, configuring, and running Eventum.
 icon: CircleQuestionMark
 ---
+
+## Getting started
+
+<Accordions>
+<Accordion title="What is the fastest way to try Eventum?">
+Create a minimal generator directory with a template and a `generator.yml`, then run it directly from the command line:
+
+```bash
+eventum generate --path ./my-generator --id demo
+```
+
+No `eventum.yml` or `startup.yml` is needed — [`eventum generate`](/docs/core/cli/eventum-generate) runs a single generator without the full application stack. See the [First run](/docs/core/introduction/first-run) guide for a step-by-step walkthrough.
+</Accordion>
+
+<Accordion title="When should I use eventum generate vs eventum run?">
+Use [`eventum generate`](/docs/core/cli/eventum-generate) for quick, single-generator runs — testing a template, piping output into another tool, or generating a one-off dataset.
+
+Use [`eventum run`](/docs/core/cli/eventum-run) when you need any of:
+- Multiple generators running concurrently.
+- The REST API or Studio web UI.
+- Hot-reload via `SIGHUP`.
+- Centralized logging, secrets, and configuration.
+</Accordion>
+
+<Accordion title="Do I need to know Python to use Eventum?">
+No. Most workflows are covered entirely by YAML configuration and Jinja2 templates. Python is only required if you choose the [script event plugin](/docs/plugins/event/script), which is optional.
+</Accordion>
+
+<Accordion title="What Python version is required?">
+Eventum requires **Python 3.13** or later.
+</Accordion>
+</Accordions>
+
+## Templates and event generation
+
+<Accordions>
+<Accordion title="How do I generate realistic data in templates?">
+Use the `module` context variable. It gives you access to three data-generation libraries:
+
+| Library | Access pattern | Strength |
+|---------|---------------|----------|
+| [Faker](https://faker.readthedocs.io/) | `module.faker.locale.en.name()` | 70+ locales, hundreds of providers |
+| [Mimesis](https://mimesis.name/) | `module.mimesis.locale.en.person.full_name()` | High performance, locale-aware |
+| rand | `module.rand.number.integer(1, 100)` | Lightweight random helpers |
+
+`module` is also a gateway to **any installed Python package** — for example, `module.json.dumps(...)` or `module.math.sqrt(...)`.
+</Accordion>
+
+<Accordion title="Can I use state across event generations?">
+Yes. Three state scopes are available inside templates:
+
+- **`locals`** — visible only to the current template.
+- **`shared`** — visible to all templates within the same generator.
+- **`globals`** — visible across all generators in the application (thread-safe).
+
+```jinja
+{# increment a per-template counter #}
+{% do locals.set('n', locals.get('n', 0) + 1) %}
+{{ locals.n }}
+```
+
+See [Producing events — State](/docs/core/concepts/producing#state) for details.
+</Accordion>
+
+<Accordion title="What are picking modes?">
+A picking mode determines which template(s) render on each event timestamp. Modes range from simple (render all, pick one at random, weighted probability) to advanced (round-robin cycling, fixed sequences, and a finite state machine with conditional transitions).
+
+See [Producing events — Picking modes](/docs/core/concepts/producing#picking-modes) for examples and the [template plugin reference](/docs/plugins/event/template) for the full list.
+</Accordion>
+
+<Accordion title="Can I load external data into templates?">
+Yes. Define [samples](/docs/plugins/event/template#samples) in `generator.yml` and reference them in templates via the `samples` variable. Supported formats:
+
+- **CSV** — each row becomes a dict with column headers as keys.
+- **JSON** — loaded as a Python object.
+- **Items** — inline list of strings defined directly in the YAML config.
+</Accordion>
+</Accordions>
+
+## Scheduling and input
+
+<Accordions>
+<Accordion title="How do I schedule events at specific times?">
+Choose the [input plugin](/docs/plugins#input-plugins) that matches your scheduling pattern — cron expressions, fixed intervals, evenly spaced ranges, statistical distributions, explicit datetime lists, or on-demand HTTP triggers.
+
+You can combine multiple input plugins in a single generator — their timestamps are [merged](/docs/core/concepts/scheduling#combining-multiple-inputs) in chronological order.
+</Accordion>
+
+<Accordion title="What timezone does Eventum use?">
+UTC by default. Override it per-generator in [`startup.yml`](/docs/core/config/startup-yml), in the [generation defaults](/docs/core/config/eventum-yml#generation) in `eventum.yml`, or with the `--timezone` CLI flag.
+</Accordion>
+
+<Accordion title="What happens if a generator starts with timestamps in the past?">
+It depends on the `skip_past` setting:
+
+- **`true`** (default) — past timestamps are discarded and generation starts from "now."
+- **`false`** — past timestamps are emitted immediately as a burst, then generation continues in real time.
+
+Set `skip_past: false` when you need to backfill historical data or replay a time range.
+</Accordion>
+
+<Accordion title="What is the difference between live mode and sample mode?">
+- **Live mode** (`live_mode: true`) — timestamps are released at their real wall-clock times. The generator waits until each scheduled moment arrives.
+- **Sample mode** (`live_mode: false`) — all timestamps are released as fast as possible, ignoring the clock. Useful for quickly generating large datasets or running benchmarks.
+</Accordion>
+</Accordions>
+
+## Output and delivery
+
+<Accordions>
+<Accordion title="Can I write to multiple destinations at the same time?">
+Yes. Add multiple output plugins to the same generator. Every event is delivered to **all** of them (fan-out). For example, write to a file for local debugging and to ClickHouse for production storage simultaneously.
+</Accordion>
+
+<Accordion title="What output formats are available?">
+Output plugins use [formatters](/docs/plugins/formatters) to transform events before delivery. Formats range from plain pass-through to JSON encoding and custom Jinja2 templates. See the [Formatters reference](/docs/plugins/formatters) for the full list.
+</Accordion>
+
+<Accordion title="How do I maintain chronological order in output?">
+Set `keep_order: true` in the generator or generation config. This serializes output writes so events arrive in timestamp order. The default (`false`) allows concurrent writes for higher throughput.
+</Accordion>
+
+<Accordion title="What happens if an output plugin fails?">
+Output failures are **non-fatal** — the generator keeps running. Failed writes are counted in the `write_failed` metric and logged. Other output plugins are not affected. You can monitor error counts through the [REST API](/docs/api) or [Studio](/docs/studio/instances#instance-metrics).
+</Accordion>
+</Accordions>
+
+## Configuration and secrets
+
+<Accordions>
+<Accordion title="What is the difference between parameters and secrets?">
+| | Parameters | Secrets |
+|-|-----------|---------|
+| **Storage** | Plain text in `startup.yml` or CLI `--params` | Encrypted in the keyring (cryptfile) |
+| **Reference syntax** | `${params.name}` | `${secrets.name}` |
+| **Use case** | Hostnames, ports, feature flags, table names | Passwords, API keys, tokens |
+| **Management** | Edit YAML directly | Use [`eventum-keyring`](/docs/core/cli/eventum-keyring) CLI or [Studio](/docs/studio/settings#secrets) |
+</Accordion>
+
+<Accordion title="How do I store passwords securely?">
+Use the [`eventum-keyring`](/docs/core/cli/eventum-keyring) CLI to add secrets to the encrypted cryptfile:
+
+```bash
+eventum-keyring set db_password
+```
+
+Then reference the secret in `generator.yml`:
+
+```yaml
+password: ${secrets.db_password}
+```
+
+The cryptfile is protected by a keyring password that you provide at runtime (via the `EVENTUM_KEYRING_PASSWORD` environment variable or interactive prompt).
+</Accordion>
+
+<Accordion title="Can I reuse the same generator config across environments?">
+Yes. Use `${params.name}` tokens in the config and pass different values per environment through [`startup.yml`](/docs/core/config/startup-yml) or the `--params` CLI flag. This keeps generator configs portable — the same template works for dev, staging, and production.
+</Accordion>
+
+<Accordion title="What happens if a config references a missing parameter or secret?">
+Eventum raises an error at load time and the generator does not start. This prevents incomplete configuration from running silently. The error message names the missing variable.
+</Accordion>
+
+<Accordion title="How are file paths resolved?">
+Paths in `eventum.yml` — both `path.*` and `server.ssl.*` — must be **absolute**. Inside `generator.yml`, relative paths (e.g. `templates/event.jinja`) are resolved from the directory containing the generator config file, not from the working directory. See [Project structure — Path resolution](/docs/core/config/project-structure#path-resolution).
+</Accordion>
+</Accordions>
+
+## Performance and tuning
+
+<Accordions>
+<Accordion title="How do I control event throughput?">
+Several knobs affect throughput:
+
+- **`count`** (input plugins) — how many timestamps per tick.
+- **`batch.size`** — how many events are grouped before passing to output. Larger batches reduce per-event overhead.
+- **`batch.delay`** — maximum seconds before flushing a partial batch.
+- **`max_concurrency`** — limit on parallel output write operations.
+</Accordion>
+
+<Accordion title="What is backpressure?">
+Backpressure prevents memory overflow when one pipeline stage is slower than the one feeding it. If output plugins are slow, the event queue fills up and event production pauses. If event production is slow, the timestamp queue fills up and input pauses. Queue depths are controlled by `queue.max_timestamp_batches` and `queue.max_event_batches`.
+</Accordion>
+
+<Accordion title="Should I use live mode or sample mode for load testing?">
+Use **sample mode** (`live_mode: false`). It generates events as fast as possible without waiting for wall-clock alignment, which maximizes throughput for load testing and dataset generation.
+</Accordion>
+</Accordions>
+
+## Deployment and operations
+
+<Accordions>
+<Accordion title="How do I reload configuration without downtime?">
+Send `SIGHUP` to the Eventum process:
+
+```bash
+kill -HUP $(pidof eventum)
+```
+
+This triggers a hot reload — all generators are stopped, configuration is re-read, and generators are re-started according to the updated config. The REST API and Studio remain available during the reload.
+</Accordion>
+
+<Accordion title="Can I start a generator later even though it has autostart: false?">
+Yes. Generators with `autostart: false` are registered but not started on launch. Start them later through the [REST API](/docs/api) or [Studio Instances page](/docs/studio/instances#lifecycle-controls).
+</Accordion>
+
+<Accordion title="Can multiple generators share state?">
+Within a single Eventum application — yes, through the `globals` variable, which is thread-safe. Across separate Eventum processes — no. Cross-process state requires external coordination (a shared database, message queue, etc.).
+</Accordion>
+
+<Accordion title="How do I debug event production?">
+Several approaches, from fastest to most thorough:
+
+1. **Studio debugger** — open the [Event plugin debugger](/docs/studio/projects#debugger) in Studio, set a timestamp, and click Produce to see output instantly.
+2. **Stdout output** — add a `stdout` output plugin and inspect events in the terminal.
+3. **Verbose logging** — run with `-vvvvv` to enable DEBUG-level logs on stderr.
+4. **Error counters** — check `produce_failed`, `format_failed`, and `write_failed` metrics via the REST API or Studio.
+</Accordion>
+
+<Accordion title="How do I monitor generator health in production?">
+- **Studio dashboard** — the [Overview page](/docs/studio/overview) shows system resources, flow statistics, and instance status in real time.
+- **REST API** — query per-instance metrics (generated, written, failed counters, EPS) programmatically.
+- **Logs** — structured JSON logs (`log.format: json` in `eventum.yml`) can be ingested by your existing log aggregation stack.
+</Accordion>
+</Accordions>
+
+## Troubleshooting
+
+<Accordions>
+<Accordion title="The generator does not start — what should I check?">
+1. **YAML syntax** — run a YAML linter on your config files.
+2. **Missing variables** — verify all `${params.*}` and `${secrets.*}` tokens have corresponding values.
+3. **File paths** — confirm template, sample, and pattern file paths exist relative to the generator directory.
+4. **Logs** — check the error message in the logs. Validation errors include the field name and expected type.
+</Accordion>
+
+<Accordion title="Events are arriving out of order">
+By default, output plugins write concurrently. Set `keep_order: true` in the generation config to serialize writes and maintain strict chronological ordering. Note that this reduces throughput.
+</Accordion>
+
+<Accordion title="A template renders but produces unexpected output">
+1. Check the template in the [Studio debugger](/docs/studio/projects#debugger) — it shows the exact output for a given timestamp.
+2. Verify your Jinja2 syntax — missing `{{ }}` delimiters or incorrect filter usage are common issues.
+3. Check that sample data files exist and are in the expected format (CSV with headers, valid JSON).
+4. If using state (`locals`, `shared`, `globals`), use the [State tab](/docs/studio/projects#state) in Studio to inspect current values.
+</Accordion>
+
+<Accordion title="Events are being dropped">
+Check the per-plugin error counters:
+
+| Counter | Meaning |
+|---------|---------|
+| `format_failed` | The formatter rejected the event (e.g., invalid JSON for a `json` formatter). |
+| `write_failed` | The output plugin failed to deliver the event (network error, timeout, auth failure). |
+| `produce_failed` | The event plugin failed to render the template (Jinja2 error, script exception). |
+
+These counters are available through the [REST API](/docs/api) and the [Instance metrics dialog](/docs/studio/instances#instance-metrics) in Studio.
+</Accordion>
+
+<Accordion title="The generator is running slowly">
+Identify the bottleneck stage:
+
+- **Input slow** — timestamp generation is the limiter. Simplify the scheduling pattern or reduce `count`.
+- **Event production slow** — template rendering is expensive. Simplify templates, reduce sample dataset sizes, or use the `script` plugin for compute-heavy logic.
+- **Output slow** — the destination can't keep up. Increase `max_concurrency`, enlarge `batch.size`, add `batch.delay`, or check the destination's health.
+
+Monitor queue depths and EPS (events per second) in [Studio](/docs/studio/overview) to pinpoint which stage is falling behind.
+</Accordion>
+</Accordions>

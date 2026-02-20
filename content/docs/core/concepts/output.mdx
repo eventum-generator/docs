@@ -1,0 +1,101 @@
+---
+title: Outputting events
+description: How output plugins deliver events — formatters, concurrent writes, fan-out delivery, and error tracking.
+---
+
+Output plugins are the final stage of the [generator pipeline](/docs/core/concepts/generator#the-three-stage-pipeline). They receive event strings from the event plugin and write them to a destination — the console, a file, an HTTP endpoint, or a database. This page covers the mechanics that make output flexible: formatters, fan-out delivery, concurrency, and error handling.
+
+For per-plugin parameters and configuration, see the [output plugin reference](/docs/plugins#output-plugins).
+
+## Fan-out delivery
+
+A generator can have multiple output plugins. Every event is delivered to **all** of them — there is no filtering or routing at the output stage. If you need different events to go to different destinations, use separate generators with different event plugins.
+
+This design is intentional: the output stage is a fan-out, not a router. It's common to combine a local file (for debugging or archival) with a remote destination (for production use):
+
+```yaml
+output:
+  # Local debug log
+  - file:
+      path: output/events.jsonl
+      formatter:
+        format: json
+
+  # Production endpoint
+  - opensearch:
+      hosts:
+        - https://opensearch.example.com:9200
+      index: events
+      username: admin
+      password: ${secrets.opensearch_password}
+```
+
+Both plugins receive every event independently. If one fails, the other is not affected.
+
+## Formatters
+
+Before an event reaches the plugin's write method, it passes through a **formatter** that transforms the raw event string. Formats range from plain pass-through to JSON encoding and custom Jinja2 templates.
+
+Each plugin ships with a sensible default. You only need to set the `formatter` field when you want something different.
+
+For the full list of formats and their parameters, see the [Formatters reference](/docs/plugins/formatters).
+
+## Async lifecycle
+
+Output plugins follow an **asynchronous lifecycle** — `open`, `write`, and `close` are all async. This allows multiple plugins to write concurrently without blocking each other. The lifecycle runs once per generator execution:
+
+1. **`open`** — Establishes connections, opens file handles, resets metrics.
+2. **`write`** (repeated) — Receives a batch of formatted events and writes them to the destination.
+3. **`close`** — Flushes buffers, closes connections, releases resources.
+
+Formatting itself also runs off the main thread, so a slow formatter doesn't block other plugins.
+
+## Concurrency
+
+When a generator has multiple output plugins, their writes run **concurrently** by default. Two parameters control this behavior:
+
+**`max_concurrency`** — limits the total number of concurrent write operations across all output plugins. Defaults to `100`. If your destinations can't handle high parallelism, lower this value:
+
+```bash
+eventum generate ... --max-concurrency 10
+```
+
+**`keep_order`** — when set to `true`, the generator waits for all output plugins to finish writing a batch before starting the next one. This guarantees that events arrive at every destination in chronological order, at the cost of throughput:
+
+```bash
+eventum generate ... --keep-order
+```
+
+With `keep_order: false` (the default), plugins write independently — a fast plugin won't wait for a slow one.
+
+## Error tracking
+
+Each output plugin independently tracks three counters:
+
+| Counter | What it counts |
+|---------|---------------|
+| **written** | Events successfully delivered |
+| **write_failed** | Events that failed to write (network error, rejected by destination) |
+| **format_failed** | Events that failed formatting (e.g. invalid JSON for `json` formatter) |
+
+A formatting failure skips the event but doesn't stop the batch. A write failure is logged but doesn't affect other output plugins. These counters are available through the [REST API](/docs/api) and [Studio](/docs/studio) for monitoring.
+
+## What's next
+
+<Cards>
+  <Card
+    title="Output plugins"
+    description="Per-plugin parameters, examples, and behavior."
+    href="/docs/plugins#output-plugins"
+  />
+  <Card
+    title="Formatters"
+    description="Full reference for all five formatter types."
+    href="/docs/plugins/formatters"
+  />
+  <Card
+    title="Generator"
+    description="Pipeline tuning parameters and execution modes."
+    href="/docs/core/concepts/generator"
+  />
+</Cards>

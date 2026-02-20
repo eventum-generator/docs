@@ -1,0 +1,194 @@
+---
+title: replay
+description: Event plugin that replays events from an existing log file, optionally replacing timestamps.
+---
+
+Replays events from an existing log file. Each line of the file becomes one event. Optionally replaces original timestamps with the timestamps provided by the input plugin, so you can "re-schedule" historical data.
+
+## Parameters
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `path` | path | — | Required | Path to the log file. |
+| `timestamp_pattern` | string or null | `null` | Must contain a `timestamp` named group if set. | Regex pattern to locate the timestamp in each line. |
+| `timestamp_format` | string or null | `null` | C89 strftime format. | Format of the timestamp in the log file. Defaults to ISO 8601 if omitted. |
+| `repeat` | boolean | `false` | — | Whether to loop back to the start after reaching the end of the file. |
+| `chunk_size` | integer | `1048576` | >= 0 | Bytes to read per chunk. `0` reads the entire file at once. |
+| `encoding` | string | `"utf_8"` | Valid Python codec name. | File encoding. |
+
+## How it works
+
+The plugin reads the log file line by line using buffered chunks. Each call to the plugin consumes the **next line** from the file:
+
+1. On startup, the plugin opens the file and begins reading from position 0.
+2. For each incoming timestamp, it reads the next line and either returns it as-is or replaces the original timestamp.
+3. When the file ends, the plugin either stops producing events or loops back to the start (if `repeat: true`).
+
+The file is not loaded entirely into memory — it's read in chunks controlled by `chunk_size`, making it safe for large files.
+
+## Timestamp replacement
+
+When both `timestamp_pattern` and `timestamp_format` are provided, the plugin finds the original timestamp in each line using the regex pattern and replaces it with the timestamp from the input plugin. This lets you replay historical logs at a different time or rate.
+
+The regex must include a named group called `timestamp`:
+
+```yaml
+timestamp_pattern: '^\[(?P<timestamp>[^\]]+)\]'
+timestamp_format: "%d/%b/%Y:%H:%M:%S %z"
+```
+
+If these fields are omitted, lines are emitted as-is without modification.
+
+## Examples
+
+### Simple replay — emit lines as-is
+
+The simplest use case: feed an existing log file as events without any modification. Each line becomes one event.
+
+```yaml title="generator.yml"
+event:
+  replay:
+    path: logs/access.log
+```
+
+Given this input file:
+
+```text title="logs/access.log"
+127.0.0.1 - - [01/Dec/2023:12:34:56 +0000] "GET /index.html HTTP/1.1" 200 1024
+127.0.0.1 - - [01/Dec/2023:12:35:01 +0000] "POST /form HTTP/1.1" 201 512
+192.168.1.1 - - [01/Dec/2023:12:35:15 +0000] "GET /about.html HTTP/1.1" 200 2048
+```
+
+Each timestamp from the input plugin produces one event — the next line from the file, unchanged:
+
+```text title="Output (3 events)"
+127.0.0.1 - - [01/Dec/2023:12:34:56 +0000] "GET /index.html HTTP/1.1" 200 1024
+127.0.0.1 - - [01/Dec/2023:12:35:01 +0000] "POST /form HTTP/1.1" 201 512
+192.168.1.1 - - [01/Dec/2023:12:35:15 +0000] "GET /about.html HTTP/1.1" 200 2048
+```
+
+The original timestamps stay intact. The input plugin controls *when* events are emitted, but the content is untouched.
+
+### Replay with timestamp replacement
+
+Re-schedule historical logs to new timestamps. The plugin finds the original timestamp in each line using a regex pattern and replaces it with the current timestamp from the input plugin.
+
+```yaml title="generator.yml"
+input:
+  - cron:
+      expression: "*/5 * * * * *"   # every 5 seconds
+      count: 1
+
+event:
+  replay:
+    path: logs/access.log
+    timestamp_pattern: '\[(?P<timestamp>[^\]]+)\]'
+    timestamp_format: "%d/%b/%Y:%H:%M:%S %z"
+```
+
+Given the same input file, the original timestamps get replaced with the schedule-generated ones:
+
+```text title="Input file"
+127.0.0.1 - - [01/Dec/2023:12:34:56 +0000] "GET /index.html HTTP/1.1" 200 1024
+127.0.0.1 - - [01/Dec/2023:12:35:01 +0000] "POST /form HTTP/1.1" 201 512
+192.168.1.1 - - [01/Dec/2023:12:35:15 +0000] "GET /about.html HTTP/1.1" 200 2048
+```
+
+```text title="Output (timestamps replaced by input plugin schedule)"
+127.0.0.1 - - [20/Feb/2026:10:00:00 +0000] "GET /index.html HTTP/1.1" 200 1024
+127.0.0.1 - - [20/Feb/2026:10:00:05 +0000] "POST /form HTTP/1.1" 201 512
+192.168.1.1 - - [20/Feb/2026:10:00:10 +0000] "GET /about.html HTTP/1.1" 200 2048
+```
+
+The log content stays the same — only the timestamp portion matched by the regex is swapped.
+
+### Replay JSON logs with ISO timestamps
+
+Works with any log format. Here's an example with JSON logs where timestamps appear in a different position:
+
+```yaml title="generator.yml"
+event:
+  replay:
+    path: logs/app.jsonl
+    timestamp_pattern: '"time":"(?P<timestamp>[^"]+)"'
+    timestamp_format: "%Y-%m-%dT%H:%M:%S"
+```
+
+```json title="logs/app.jsonl"
+{"level":"INFO","time":"2023-11-15T08:30:00","msg":"Server started","port":8080}
+{"level":"INFO","time":"2023-11-15T08:30:01","msg":"Connected to database","db":"postgres"}
+{"level":"WARN","time":"2023-11-15T08:30:05","msg":"Slow query detected","duration_ms":1200}
+```
+
+```json title="Output (timestamps replaced)"
+{"level":"INFO","time":"2026-02-20T10:00:00","msg":"Server started","port":8080}
+{"level":"INFO","time":"2026-02-20T10:00:05","msg":"Connected to database","db":"postgres"}
+{"level":"WARN","time":"2026-02-20T10:00:10","msg":"Slow query detected","duration_ms":1200}
+```
+
+### Continuous replay for load testing
+
+Loop a small sample file to generate a continuous stream. The plugin resets to the beginning of the file when it reaches the end, pairing each line with the next timestamp from the input plugin.
+
+```yaml title="generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"   # every second
+      count: 10                    # 10 timestamps per tick
+
+event:
+  replay:
+    path: logs/sample-requests.log
+    repeat: true
+```
+
+```text title="logs/sample-requests.log (5 lines)"
+GET /api/users 200
+POST /api/orders 201
+GET /api/products 200
+DELETE /api/orders/42 404
+GET /health 200
+```
+
+With 10 timestamps per second and a 5-line file, the file loops every 0.5 seconds:
+
+```text title="Output (first 10 events — file loops after line 5)"
+GET /api/users 200
+POST /api/orders 201
+GET /api/products 200
+DELETE /api/orders/42 404
+GET /health 200
+GET /api/users 200        ← file loops back to the start
+POST /api/orders 201
+GET /api/products 200
+DELETE /api/orders/42 404
+GET /health 200
+```
+
+This is useful for load testing: take a small representative sample and replay it at whatever rate the input plugin generates timestamps.
+
+### Replay syslog with custom encoding
+
+Handle log files from legacy systems with non-UTF-8 encodings:
+
+```yaml title="generator.yml"
+event:
+  replay:
+    path: logs/legacy-syslog.log
+    timestamp_pattern: '^(?P<timestamp>\w{3}\s+\d+\s+\d{2}:\d{2}:\d{2})'
+    timestamp_format: "%b %d %H:%M:%S"
+    encoding: latin_1
+    chunk_size: 4194304     # 4 MiB chunks for large files
+```
+
+```text title="logs/legacy-syslog.log"
+Dec  1 12:34:56 server01 sshd[1234]: Accepted publickey for admin
+Dec  1 12:35:01 server01 kernel: [UFW BLOCK] IN=eth0 SRC=10.0.0.5
+Dec  1 12:35:15 server01 nginx: 192.168.1.50 "GET /dashboard" 200
+```
+
+```text title="Output (timestamps replaced)"
+Feb 20 10:00:00 server01 sshd[1234]: Accepted publickey for admin
+Feb 20 10:00:05 server01 kernel: [UFW BLOCK] IN=eth0 SRC=10.0.0.5
+Feb 20 10:00:10 server01 nginx: 192.168.1.50 "GET /dashboard" 200
+```

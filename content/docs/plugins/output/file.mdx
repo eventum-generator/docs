@@ -1,0 +1,59 @@
+---
+title: file
+description: Output plugin that writes events to a local file with auto-reopen and rotation support.
+---
+
+Writes events to a local file. Automatically reopens the file if it is deleted or rotated, and closes the file handle after a period of inactivity to prevent handle leaks.
+
+## Parameters
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `path` | path | — | Required | Output file path. |
+| `flush_interval` | float | `1` | >= 0 | Seconds between buffer flushes. |
+| `cleanup_interval` | float | `10` | >= 1.0 | Seconds of inactivity before the file handle is closed. |
+| `file_mode` | integer | `640` | 0–7777 | Unix file permissions (octal notation). |
+| `write_mode` | string | `"append"` | `"append"` or `"overwrite"` | Whether to append to or overwrite the file. |
+| `encoding` | string | `"utf_8"` | Valid Python codec name. | File encoding. |
+| `separator` | string | `"\n"` (OS line separator) | — | String inserted between events. |
+| `formatter` | [formatter](/docs/plugins/formatters) | `plain` | — | How events are serialized before writing. |
+
+## Behavior
+
+- **Auto-reopen**: If the output file is deleted or becomes inaccessible while the generator runs (e.g., by an external log rotator), the plugin automatically recreates and reopens it on the next write.
+- **Auto-close**: After `cleanup_interval` seconds with no writes, the file handle is closed to prevent resource leaks. It reopens automatically on the next write.
+- **Write modes**: `append` adds to the end of the file; `overwrite` truncates the file on each open.
+
+## Examples
+
+Append JSON lines to a log file:
+
+```yaml
+output:
+  - file:
+      path: output/events.jsonl
+      formatter:
+        format: json
+```
+
+Overwrite with pretty-printed JSON:
+
+```yaml
+output:
+  - file:
+      path: output/latest.json
+      write_mode: overwrite
+      formatter:
+        format: json
+        indent: 2
+```
+
+Custom separator and permissions:
+
+```yaml
+output:
+  - file:
+      path: /var/log/eventum/events.log
+      file_mode: 644
+      separator: "\n---\n"
+```

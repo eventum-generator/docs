@@ -1,4 +1,5 @@
 {
   "root": true,
-  "icon": "AppWindow"
+  "icon": "AppWindow",
+  "pages": ["index", "overview", "instances", "projects", "settings"]
 }

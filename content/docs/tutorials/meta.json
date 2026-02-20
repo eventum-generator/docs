@@ -1,0 +1,13 @@
+{
+  "root": true,
+  "icon": "GraduationCap",
+  "pages": [
+    "index",
+    "siem-events",
+    "csv-dataset",
+    "telegram-alerts",
+    "web-clickstream",
+    "load-testing",
+    "iot-telemetry"
+  ]
+}

@@ -1,0 +1,381 @@
+---
+title: Web Clickstream → ClickHouse
+description: Model user browsing sessions with a finite state machine and stream page views into ClickHouse for funnel analysis.
+---
+
+Build a generator that models realistic user browsing sessions — landing, browsing, adding to cart, checkout, and exit — and streams the clickstream data into ClickHouse. Each session follows a probabilistic path through a finite state machine, producing the kind of data you'd use for funnel analysis, cohort queries, and conversion tracking.
+
+## What you'll build
+
+The generator uses:
+
+- [**time-patterns**](/docs/plugins/input/time-patterns) input — daily traffic curve with a peak at midday.
+- [**FSM**](/docs/core/concepts/producing#picking-modes) picking mode — five states modeling a user journey with probabilistic transitions.
+- [**locals state**](/docs/core/concepts/producing#state) — session ID and page view counter per session.
+- [**ClickHouse output**](/docs/plugins/output/clickhouse) — events inserted as JSON rows into a `page_views` table.
+
+## Prerequisites
+
+- [Eventum installed](/docs/core/introduction/installation)
+- A ClickHouse instance with HTTP interface enabled (default port 8123)
+
+<Callout type="info">
+**No ClickHouse?** Replace the `clickhouse` output with `stdout: {}` to preview the JSON events in your terminal.
+</Callout>
+
+## Project structure
+
+<Files>
+  <Folder name="eventum" defaultOpen>
+    <File name="eventum.yml" />
+    <File name="startup.yml" />
+    <Folder name="generators" defaultOpen>
+      <Folder name="clickstream" defaultOpen>
+        <File name="generator.yml" />
+        <Folder name="patterns" defaultOpen>
+          <File name="daily-traffic.yml" />
+        </Folder>
+        <Folder name="templates" defaultOpen>
+          <File name="landing.jinja" />
+          <File name="browse.jinja" />
+          <File name="add-to-cart.jinja" />
+          <File name="checkout.jinja" />
+          <File name="exit.jinja" />
+        </Folder>
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+## Prepare ClickHouse
+
+Create the target table before running the generator:
+
+```sql
+CREATE TABLE IF NOT EXISTS page_views (
+    timestamp DateTime64(3),
+    session_id String,
+    user_agent String,
+    referrer String,
+    page String,
+    page_type String,
+    duration_ms UInt32,
+    items_in_cart UInt8
+) ENGINE = MergeTree()
+ORDER BY (timestamp, session_id);
+```
+
+## Build it
+
+<Steps>
+<Step>
+### Create the project directory
+
+```bash
+mkdir -p eventum/generators/clickstream/{patterns,templates}
+cd eventum
+```
+
+</Step>
+<Step>
+### Define the daily traffic pattern
+
+The traffic pattern uses a **triangular** distribution to concentrate page views during business hours — ramping up from morning, peaking around midday, and tapering off in the evening.
+
+```yaml title="generators/clickstream/patterns/daily-traffic.yml"
+label: Daily web traffic
+oscillator:
+  start: "now"
+  end: "never"
+  period: 1
+  unit: hours
+multiplier:
+  ratio: 30
+randomizer:
+  deviation: 0.3
+  direction: mixed
+spreader:
+  distribution: triangular
+  parameters:
+    left: 0.1
+    mode: 0.5
+    right: 0.9
+```
+
+This produces ~30 page views per hour with peak density in the middle of each hour. Over a full day, the hourly cycle creates a natural traffic rhythm.
+
+</Step>
+<Step>
+### Write the session templates
+
+The FSM models a user journey through five pages. Each template generates a JSON page view event and manages session state.
+
+**Landing page** — the entry point. Initializes a new session with a random user agent and referrer.
+
+```jinja title="generators/clickstream/templates/landing.jinja"
+{% set session_id = module.rand.crypto.uuid4() %}
+{% do shared.set("session_id", session_id) %}
+{% do shared.set("page_views", 1) %}
+{% do shared.set("items_in_cart", 0) %}
+{% set ua = module.faker.locale.en.user_agent() %}
+{% do shared.set("user_agent", ua) %}
+{% set ref = module.rand.choice(["https://google.com", "https://bing.com", "https://twitter.com", "direct", "https://reddit.com"]) %}
+{% do shared.set("referrer", ref) %}
+{
+  "timestamp": "{{ timestamp.strftime('%Y-%m-%d %H:%M:%S.%f') }}",
+  "session_id": "{{ session_id }}",
+  "user_agent": "{{ ua }}",
+  "referrer": "{{ ref }}",
+  "page": "/",
+  "page_type": "landing",
+  "duration_ms": {{ module.rand.number.integer(500, 5000) }},
+  "items_in_cart": 0
+}
+```
+
+**Browse** — product listing or detail pages. The user explores; the page view counter increments.
+
+```jinja title="generators/clickstream/templates/browse.jinja"
+{% do shared.set("page_views", shared.get("page_views", 0) + 1) %}
+{% set pages = ["/products", "/products/wireless-mouse", "/products/usb-hub", "/products/keyboard", "/products/webcam", "/categories/electronics", "/categories/home"] %}
+{
+  "timestamp": "{{ timestamp.strftime('%Y-%m-%d %H:%M:%S.%f') }}",
+  "session_id": "{{ shared.get('session_id') }}",
+  "user_agent": "{{ shared.get('user_agent') }}",
+  "referrer": "{{ shared.get('referrer') }}",
+  "page": "{{ module.rand.choice(pages) }}",
+  "page_type": "browse",
+  "duration_ms": {{ module.rand.number.integer(1000, 15000) }},
+  "items_in_cart": {{ shared.get("items_in_cart", 0) }}
+}
+```
+
+**Add to cart** — the user adds an item. Increments `items_in_cart`.
+
+```jinja title="generators/clickstream/templates/add-to-cart.jinja"
+{% do shared.set("page_views", shared.get("page_views", 0) + 1) %}
+{% do shared.set("items_in_cart", shared.get("items_in_cart", 0) + 1) %}
+{
+  "timestamp": "{{ timestamp.strftime('%Y-%m-%d %H:%M:%S.%f') }}",
+  "session_id": "{{ shared.get('session_id') }}",
+  "user_agent": "{{ shared.get('user_agent') }}",
+  "referrer": "{{ shared.get('referrer') }}",
+  "page": "/cart",
+  "page_type": "add_to_cart",
+  "duration_ms": {{ module.rand.number.integer(500, 3000) }},
+  "items_in_cart": {{ shared.get("items_in_cart") }}
+}
+```
+
+**Checkout** — completes the purchase.
+
+```jinja title="generators/clickstream/templates/checkout.jinja"
+{% do shared.set("page_views", shared.get("page_views", 0) + 1) %}
+{
+  "timestamp": "{{ timestamp.strftime('%Y-%m-%d %H:%M:%S.%f') }}",
+  "session_id": "{{ shared.get('session_id') }}",
+  "user_agent": "{{ shared.get('user_agent') }}",
+  "referrer": "{{ shared.get('referrer') }}",
+  "page": "/checkout/complete",
+  "page_type": "checkout",
+  "duration_ms": {{ module.rand.number.integer(2000, 10000) }},
+  "items_in_cart": {{ shared.get("items_in_cart", 0) }}
+}
+```
+
+**Exit** — the user leaves. The FSM transitions back to `landing` to start a new session.
+
+```jinja title="generators/clickstream/templates/exit.jinja"
+{
+  "timestamp": "{{ timestamp.strftime('%Y-%m-%d %H:%M:%S.%f') }}",
+  "session_id": "{{ shared.get('session_id') }}",
+  "user_agent": "{{ shared.get('user_agent') }}",
+  "referrer": "{{ shared.get('referrer') }}",
+  "page": "{{ module.rand.choice(['/products', '/', '/categories/electronics']) }}",
+  "page_type": "exit",
+  "duration_ms": {{ module.rand.number.integer(100, 1000) }},
+  "items_in_cart": {{ shared.get("items_in_cart", 0) }}
+}
+```
+
+</Step>
+<Step>
+### Configure the generator
+
+The FSM transitions model conversion funnel probabilities:
+
+```yaml title="generators/clickstream/generator.yml"
+input:
+  - time_patterns:
+      patterns:
+        - patterns/daily-traffic.yml
+
+event:
+  template:
+    mode: fsm
+    templates:
+      - landing:
+          template: templates/landing.jinja
+          initial: true
+          transitions:
+            - to: browse
+              when: { always: }
+      - browse:
+          template: templates/browse.jinja
+          transitions:
+            - to: browse
+              when:
+                and:
+                  - { lt: { "shared.page_views": 4 } }
+                  - { lt: { "shared.items_in_cart": 1 } }
+            - to: exit
+              when: { ge: { "shared.page_views": 6 } }
+            - to: add-to-cart
+              when: { ge: { "shared.page_views": 4 } }
+      - add-to-cart:
+          template: templates/add-to-cart.jinja
+          transitions:
+            - to: browse
+              when: { lt: { "shared.items_in_cart": 2 } }
+            - to: checkout
+              when: { ge: { "shared.items_in_cart": 2 } }
+      - checkout:
+          template: templates/checkout.jinja
+          transitions:
+            - to: exit
+              when: { always: }
+      - exit:
+          template: templates/exit.jinja
+          transitions:
+            - to: landing
+              when: { always: }
+
+output:
+  - stdout:
+      formatter:
+        format: json
+  - clickhouse:
+      host: ${params.clickhouse_host}
+      port: ${params.clickhouse_port}
+      database: default
+      table: page_views
+      username: ${params.clickhouse_user}
+      password: ${secrets.clickhouse_password}
+```
+
+The session flow:
+
+| From | To | Condition | Meaning |
+|------|----|-----------|---------|
+| landing | browse | `always` | Everyone browses first |
+| browse | browse | page_views &lt; 4 **and** cart empty | Keep browsing |
+| browse | exit | page_views &ge; 6 | Bounced without buying |
+| browse | add-to-cart | page_views &ge; 4 | Interested enough to add |
+| add-to-cart | browse | cart &lt; 2 items | Continue shopping |
+| add-to-cart | checkout | cart &ge; 2 items | Ready to buy |
+| checkout | exit | `always` | Session complete |
+| exit | landing | `always` | New session starts |
+
+<Callout type="info">
+Transitions are evaluated **in order** — the first matching condition wins. The exit check (`page_views >= 6`) must come before add-to-cart (`page_views >= 4`) so that long browsing sessions can bounce without buying.
+</Callout>
+
+</Step>
+<Step>
+### Configure the application
+
+```yaml title="eventum.yml"
+server:
+  host: "0.0.0.0"
+  port: 9474
+
+path:
+  startup: /home/user/eventum/startup.yml
+  generators_dir: /home/user/eventum/generators
+  logs: /home/user/eventum/logs
+  keyring_cryptfile: /home/user/eventum/cryptfile.cfg
+
+generation:
+  timezone: UTC
+  batch:
+    size: 500
+```
+
+<Callout type="info">
+All `path.*` values must be **absolute paths**. Adjust to match your actual project location.
+</Callout>
+
+```yaml title="startup.yml"
+- id: clickstream
+  path: clickstream/generator.yml
+  params:
+    clickhouse_host: "localhost"
+    clickhouse_port: 8123
+    clickhouse_user: "default"
+```
+
+Store the ClickHouse password in the [keyring](/docs/core/cli/eventum-keyring):
+
+```bash
+eventum-keyring set clickhouse_password
+```
+
+</Step>
+<Step>
+### Run it
+
+```bash
+eventum run -c eventum.yml
+```
+
+Events stream to both stdout and ClickHouse. Each session produces 5–8 page views:
+
+```json
+{"timestamp":"2025-06-15 14:23:01.142000","session_id":"a1b2c3d4-...","page":"/","page_type":"landing","duration_ms":2340,"items_in_cart":0, ...}
+{"timestamp":"2025-06-15 14:23:03.891000","session_id":"a1b2c3d4-...","page":"/products/webcam","page_type":"browse","duration_ms":8920,"items_in_cart":0, ...}
+{"timestamp":"2025-06-15 14:23:05.204000","session_id":"a1b2c3d4-...","page":"/products","page_type":"browse","duration_ms":5430,"items_in_cart":0, ...}
+...
+{"timestamp":"2025-06-15 14:23:09.817000","session_id":"a1b2c3d4-...","page":"/checkout/complete","page_type":"checkout","duration_ms":7210,"items_in_cart":2, ...}
+```
+
+Query the conversion funnel in ClickHouse:
+
+```sql
+SELECT
+    page_type,
+    count() AS views,
+    uniqExact(session_id) AS sessions
+FROM page_views
+GROUP BY page_type
+ORDER BY views DESC;
+```
+
+</Step>
+</Steps>
+
+## Going further
+
+- **Bounce rate** — add a direct `landing → exit` transition with a probability condition to model users who leave immediately.
+- **A/B testing** — use [tags](/docs/core/concepts/plugins#tags-input-plugins) to label timestamps as variant A or B, then branch the FSM based on `has_tags`.
+- **Multi-device sessions** — run two generators in `startup.yml` with different user agent pools (mobile vs. desktop) writing to the same table.
+- **Real-time dashboards** — connect Grafana to ClickHouse and build a live funnel dashboard showing conversion rates as events stream in.
+
+## What's next
+
+<Cards>
+  <Card
+    title="FSM picking mode"
+    description="Conditions, transitions, and stateful event sequences."
+    href="/docs/core/concepts/producing#picking-modes"
+  />
+  <Card
+    title="time-patterns reference"
+    description="Oscillators, spreaders, and traffic shaping."
+    href="/docs/plugins/input/time-patterns"
+  />
+  <Card
+    title="ClickHouse output"
+    description="Connection, formats, and TLS settings."
+    href="/docs/plugins/output/clickhouse"
+  />
+</Cards>

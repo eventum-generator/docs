@@ -1,3 +1,10 @@
 {
-  "pages": ["project-structure", "files", "vars"]
+  "pages": [
+    "project-structure",
+    "generator-yml",
+    "startup-yml",
+    "eventum-yml",
+    "parameters",
+    "secrets"
+  ]
 }

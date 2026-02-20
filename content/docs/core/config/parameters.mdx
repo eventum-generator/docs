@@ -1,0 +1,129 @@
+---
+title: Parameters
+description: How to pass runtime values into generator configs via startup.yml entries to keep configurations reusable across environments.
+---
+
+Parameters let you inject values into a [generator config](/docs/core/config/generator-yml) at load time without editing the YAML file itself. A single generator directory can serve development, staging, and production by swapping the parameters passed to it.
+
+## How it works
+
+Any value in `generator.yml` can contain a `${params.name}` token. Before the YAML is parsed, Eventum replaces every token with the matching value from the parameters you provide:
+
+```yaml title="generator.yml"
+output:
+  - opensearch:
+      hosts:
+        - ${params.opensearch_host}
+      username: ${params.opensearch_user}
+      index: ${params.index_name}
+```
+
+The substitution uses [Jinja2](https://jinja.palletsprojects.com/) under the hood with `${` / `}` delimiters, so the full Jinja2 expression syntax is available if needed.
+
+## Providing parameters
+
+### Via startup.yml
+
+When running with [`eventum run`](/docs/core/cli/eventum-run), parameters are set per generator in the `params` field of each [startup.yml](/docs/core/config/startup-yml) entry:
+
+```yaml title="startup.yml"
+- id: access-logs
+  path: access-logs/generator.yml
+  params:
+    opensearch_host: https://opensearch.prod:9200
+    opensearch_user: admin
+    index_name: access-logs
+```
+
+Each key in `params` maps to a `${params.<key>}` token in the generator config. Parameter names must be flat (no nesting) — use descriptive names like `opensearch_host` rather than nested structures.
+
+### Via CLI flags
+
+When running with [`eventum generate`](/docs/core/cli/eventum-generate), pass parameters as a JSON object with the `--params` flag:
+
+```bash
+eventum generate \
+  --id access-logs \
+  --path access-logs/generator.yml \
+  --params '{"opensearch_host": "https://localhost:9200", "opensearch_user": "admin", "index_name": "dev-logs"}'
+```
+
+The JSON keys map to the same `${params.<key>}` tokens. This is useful for one-off runs and CI pipelines where you don't want to create a `startup.yml`.
+
+## Type handling
+
+Parameter values retain the type defined in YAML. Standard YAML type inference applies: `8443` is an integer, `"8443"` is a string, `true` is a boolean.
+
+Since substitution happens as text replacement before YAML parsing, the final type depends on what the YAML parser sees after substitution. In practice this rarely matters, but if you need an exact type, quote accordingly in `startup.yml`.
+
+For example, to ensure a port is parsed as an integer:
+
+```yaml
+params:
+  port: 8443          # integer
+  port_str: "8443"    # string
+  enabled: true       # boolean
+```
+
+## Missing parameters
+
+If a generator config references `${params.name}` but no matching parameter is provided, Eventum raises an error at load time and the generator does not start:
+
+```
+Error: Failed to obtain params used in configuration
+Reason: Parameters {'index_name'} are missing
+```
+
+This is intentional — it prevents generators from running with incomplete configuration.
+
+## When to use parameters
+
+**Environment-specific values** — hosts, ports, index names, file paths that differ between dev and prod:
+
+```yaml title="startup.yml"
+# Development
+- id: web-logs
+  path: web-logs/generator.yml
+  params:
+    opensearch_host: https://localhost:9200
+    index_name: dev-logs
+
+# Production
+- id: web-logs
+  path: web-logs/generator.yml
+  params:
+    opensearch_host: https://opensearch.prod:9200
+    index_name: prod-logs
+```
+
+**Shared generators with different targets** — the same generator directory reused for different outputs:
+
+```yaml title="startup.yml"
+- id: logs-to-file
+  path: web-logs/generator.yml
+  params:
+    output_path: /tmp/events.jsonl
+
+- id: logs-to-opensearch
+  path: web-logs/generator.yml
+  params:
+    output_path: /var/log/events.jsonl
+```
+
+**Tunable thresholds** — values you want to adjust without editing the generator:
+
+```yaml title="generator.yml"
+input:
+  - cron:
+      expression: "${params.schedule}"
+      count: 1
+
+output:
+  - http:
+      url: ${params.endpoint}
+      success_code: ${params.expected_code}
+```
+
+<Callout>
+For sensitive values like passwords and API keys, use [secrets](/docs/core/config/secrets) instead of parameters. Parameters are stored in plain text in `startup.yml`.
+</Callout>

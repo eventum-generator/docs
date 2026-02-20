@@ -1,4 +1,178 @@
 ---
 title: Project structure
-description: description
+description: How Eventum projects are organized — application-level files, generator directories, and the relationship between them.
 ---
+
+Eventum has two levels of configuration: the **application** level (for `eventum run`) and the **generator** level (for both `eventum run` and `eventum generate`). Understanding the structure makes it easier to navigate the config pages that follow.
+
+## Application level
+
+When running Eventum as a full application with `eventum run`, the project root contains two config files and a directory of generators:
+
+<Files>
+  <Folder name="eventum" defaultOpen>
+    <File name="eventum.yml" />
+    <File name="startup.yml" />
+    <Folder name="generators" defaultOpen>
+      <Folder name="access-logs">
+        <File name="generator.yml" />
+        <Folder name="templates">
+          <File name="access.jinja" />
+        </Folder>
+      </Folder>
+      <Folder name="error-logs">
+        <File name="generator.yml" />
+        <Folder name="templates">
+          <File name="error.jinja" />
+        </Folder>
+      </Folder>
+    </Folder>
+    <Folder name="logs" />
+  </Folder>
+</Files>
+
+| File | Purpose |
+|------|---------|
+| [`eventum.yml`](/docs/core/config/eventum-yml) | Main application config — server settings, default generation parameters, logging, and file paths. |
+| [`startup.yml`](/docs/core/config/startup-yml) | List of generators to load at startup, with per-generator overrides for execution parameters. |
+| `generators/` | Directory containing generator subdirectories. Each subdirectory holds a self-contained generator. |
+| `logs/` | Application log files (path configurable in `eventum.yml`). |
+
+### How the files relate
+
+`eventum.yml` points to `startup.yml` and to the generators directory:
+
+```yaml title="eventum.yml"
+path:
+  startup: /opt/eventum/startup.yml
+  generators_dir: /opt/eventum/generators
+  logs: /opt/eventum/logs
+  keyring_cryptfile: /opt/eventum/cryptfile.cfg
+```
+
+All `path.*` values must be absolute paths.
+
+`startup.yml` lists which generators to start and can override any generation parameter from `eventum.yml` on a per-generator basis:
+
+```yaml title="startup.yml"
+- id: access-logs
+  path: access-logs/generator.yml   # relative to generators_dir
+  autostart: true
+  timezone: America/New_York
+
+- id: error-logs
+  path: error-logs/generator.yml
+  live_mode: false                  # override: run in sample mode
+  batch:
+    size: 50000                     # override: larger batches
+```
+
+Parameters cascade: `eventum.yml` sets the defaults → `startup.yml` overrides per generator. Any field not specified in `startup.yml` inherits from `eventum.yml`.
+
+## Generator level
+
+A generator is a self-contained directory with a config file and its supporting resources:
+
+<Files>
+  <Folder name="access-logs" defaultOpen>
+    <File name="generator.yml" />
+    <Folder name="templates" defaultOpen>
+      <File name="access.jinja" />
+      <File name="error.jinja" />
+    </Folder>
+    <Folder name="scripts">
+      <File name="produce.py" />
+    </Folder>
+    <Folder name="samples">
+      <File name="users.csv" />
+      <File name="endpoints.json" />
+    </Folder>
+    <Folder name="patterns">
+      <File name="traffic.yml" />
+    </Folder>
+  </Folder>
+</Files>
+
+Only `generator.yml` is required. The other directories depend on which plugins you use:
+
+| Directory | Used by | Contains |
+|-----------|---------|----------|
+| `templates/` | `template` event plugin | Jinja2 `.jinja` files |
+| `scripts/` | `script` event plugin | Python `.py` files |
+| `samples/` | `template` event plugin (samples) | CSV, JSON, or other data files |
+| `patterns/` | `time_patterns` input plugin | Time pattern YAML definitions |
+
+### generator.yml
+
+The generator config defines the three-stage pipeline — input, event, and output:
+
+```yaml title="generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: all
+    templates:
+      - access_log:
+          template: templates/access.jinja
+
+output:
+  - stdout: {}
+  - file:
+      path: output/events.log
+```
+
+See the [generator.yml](/docs/core/config/generator-yml) reference for the full schema.
+
+### Path resolution
+
+All relative paths inside `generator.yml` are resolved from the **directory containing the config file**, not from the working directory. This means a generator directory is fully portable — you can move it anywhere and it works as long as its internal structure is intact.
+
+For example, if `generator.yml` is at `/opt/eventum/generators/access-logs/generator.yml`, then `templates/access.jinja` resolves to `/opt/eventum/generators/access-logs/templates/access.jinja`.
+
+## Single-generator mode
+
+When using `eventum generate`, you don't need `eventum.yml` or `startup.yml` — just a generator directory with its config:
+
+<Files>
+  <Folder name="my-generator" defaultOpen>
+    <File name="generator.yml" />
+    <Folder name="templates">
+      <File name="event.jinja" />
+    </Folder>
+  </Folder>
+</Files>
+
+```bash
+eventum generate --id my-gen --path my-generator/generator.yml ...
+```
+
+All execution parameters (timezone, batch size, live mode, etc.) are passed as CLI flags instead of being defined in `startup.yml`. See the [`eventum generate`](/docs/core/cli/eventum-generate) reference for all available flags.
+
+## What's next
+
+<Cards>
+  <Card
+    title="generator.yml"
+    description="Full schema reference for the generator config file."
+    href="/docs/core/config/generator-yml"
+  />
+  <Card
+    title="startup.yml"
+    description="Generator list and per-generator parameter overrides."
+    href="/docs/core/config/startup-yml"
+  />
+  <Card
+    title="eventum.yml"
+    description="Application-wide settings — server, logging, paths."
+    href="/docs/core/config/eventum-yml"
+  />
+  <Card
+    title="Parameters"
+    description="Passing runtime values to generator configs."
+    href="/docs/core/config/parameters"
+  />
+</Cards>

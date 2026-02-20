@@ -19,41 +19,17 @@ Each type has its own set of available plugins. You can mix and match within a t
 
 ### Input plugins
 
-| Plugin | Description |
-|--------|-------------|
-| `cron` | Cron expressions (down to the second) |
-| `timer` | Fixed-interval ticks |
-| `linspace` | Evenly spaced timestamps across a date range |
-| `time_patterns` | Statistical distributions that mimic real traffic |
-| `timestamps` | An explicit list of datetimes |
-| `static` | All at once, using the current time |
-| `http` | On demand, triggered by an HTTP request |
-
-A generator can combine **multiple input plugins**. Their timestamps are merged into a single chronological stream before reaching the event stage.
+Input plugins produce timestamps using different scheduling strategies — cron expressions, fixed intervals, evenly spaced ranges, statistical distributions, and more. A generator can combine **multiple input plugins**; their timestamps are merged into a single chronological stream before reaching the event stage.
 
 ### Event plugins
 
-| Plugin | Description |
-|--------|-------------|
-| `template` | Renders Jinja2 templates with Faker, Mimesis, random helpers, and more |
-| `script` | Runs a Python function for full programmatic control |
-| `replay` | Reads events from an existing log file |
-
-A generator has exactly **one event plugin**.
+Event plugins turn timestamps into event strings. The primary plugin renders Jinja2 templates; alternatives include running a Python function or replaying events from an existing log file. A generator has exactly **one event plugin**.
 
 ### Output plugins
 
-| Plugin | Description |
-|--------|-------------|
-| `stdout` | Prints to the console (or stderr) |
-| `file` | Writes to a local file |
-| `http` | Sends to any HTTP endpoint |
-| `opensearch` | Indexes into an OpenSearch cluster |
-| `clickhouse` | Inserts into a ClickHouse database |
+Output plugins write events to a destination — the console, a local file, an HTTP endpoint, or a database. A generator can have **multiple output plugins**; every event is delivered to all of them.
 
-A generator can have **multiple output plugins**. Every event is delivered to all of them.
-
-For full parameter references, see the [Plugins](/docs/plugins) documentation section.
+For the full list of available plugins and their parameters, see the [Plugins](/docs/plugins) reference.
 
 ## Configuration
 
@@ -124,13 +100,7 @@ output:
         format: json
 ```
 
-Example formats:
-
-| Format | What it does |
-|--------|-------------|
-| `plain` | Writes the event string as-is (default) |
-| `json` | Wraps each event in a JSON object |
-| `ndjson` | Writes newline-delimited JSON (one object per line) |
+For the full list of formats and parameters, see the [Formatters reference](/docs/plugins/formatters).
 
 ## Lifecycle
 
@@ -161,36 +131,11 @@ Error counts are exposed through the [REST API](/docs/api) and [Studio](/docs/st
 
 ## Choosing a plugin
 
-### When to use each input plugin
+The [Plugins reference](/docs/plugins) lists every available plugin with its parameters. As a rule of thumb:
 
-| If you need... | Use |
-|----------------|-----|
-| A steady, repeating schedule | `cron` or `timer` |
-| A fixed number of events spread over a range | `linspace` |
-| Traffic that looks like real-world patterns | `time_patterns` |
-| Events at known, specific times | `timestamps` |
-| All events right now with the current timestamp | `static` |
-| Events triggered by an external system | `http` |
-
-### When to use each event plugin
-
-| If you need... | Use |
-|----------------|-----|
-| Realistic synthetic data with randomization | `template` |
-| Complex logic that templates can't express | `script` |
-| To reprocess or replay historical logs | `replay` |
-
-`template` is the right choice for the vast majority of use cases. Reach for `script` only when you need control flow, external API calls, or logic that doesn't fit Jinja2.
-
-### When to use each output plugin
-
-| If you need... | Use |
-|----------------|-----|
-| Quick debugging or piping to another tool | `stdout` |
-| A persistent local log file | `file` |
-| Sending to a webhook, REST API, or log collector | `http` |
-| Indexing into OpenSearch / Elasticsearch | `opensearch` |
-| Inserting into ClickHouse | `clickhouse` |
+- **Input** — use `cron` or `timer` for repeating schedules, `linspace` for evenly spaced ranges, `time_patterns` for realistic traffic shapes, or `http` for on-demand triggers.
+- **Event** — `template` covers the vast majority of use cases. Reach for `script` only when you need full programmatic control, and `replay` to reprocess existing logs.
+- **Output** — pick the plugin that matches your destination. You can combine multiple outputs to write to several destinations at once.
 
 ## What's next
 

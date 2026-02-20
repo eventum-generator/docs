@@ -1,5 +1,266 @@
 ---
 title: Glossary
-description: description
+description: Definitions of key terms and concepts used throughout the Eventum documentation.
 icon: BookA
 ---
+
+<div className="not-prose my-4 flex flex-wrap gap-1.5">
+  <a href="#a" className="inline-flex size-8 items-center justify-center rounded-md border text-sm font-medium no-underline transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground">A</a>
+  <a href="#b" className="inline-flex size-8 items-center justify-center rounded-md border text-sm font-medium no-underline transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground">B</a>
+  <a href="#c" className="inline-flex size-8 items-center justify-center rounded-md border text-sm font-medium no-underline transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground">C</a>
+  <a href="#e" className="inline-flex size-8 items-center justify-center rounded-md border text-sm font-medium no-underline transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground">E</a>
+  <a href="#f" className="inline-flex size-8 items-center justify-center rounded-md border text-sm font-medium no-underline transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground">F</a>
+  <a href="#g" className="inline-flex size-8 items-center justify-center rounded-md border text-sm font-medium no-underline transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground">G</a>
+  <a href="#h" className="inline-flex size-8 items-center justify-center rounded-md border text-sm font-medium no-underline transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground">H</a>
+  <a href="#i" className="inline-flex size-8 items-center justify-center rounded-md border text-sm font-medium no-underline transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground">I</a>
+  <a href="#k" className="inline-flex size-8 items-center justify-center rounded-md border text-sm font-medium no-underline transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground">K</a>
+  <a href="#l" className="inline-flex size-8 items-center justify-center rounded-md border text-sm font-medium no-underline transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground">L</a>
+  <a href="#m" className="inline-flex size-8 items-center justify-center rounded-md border text-sm font-medium no-underline transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground">M</a>
+  <a href="#o" className="inline-flex size-8 items-center justify-center rounded-md border text-sm font-medium no-underline transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground">O</a>
+  <a href="#p" className="inline-flex size-8 items-center justify-center rounded-md border text-sm font-medium no-underline transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground">P</a>
+  <a href="#q" className="inline-flex size-8 items-center justify-center rounded-md border text-sm font-medium no-underline transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground">Q</a>
+  <a href="#r" className="inline-flex size-8 items-center justify-center rounded-md border text-sm font-medium no-underline transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground">R</a>
+  <a href="#s" className="inline-flex size-8 items-center justify-center rounded-md border text-sm font-medium no-underline transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground">S</a>
+  <a href="#t" className="inline-flex size-8 items-center justify-center rounded-md border text-sm font-medium no-underline transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground">T</a>
+  <a href="#v" className="inline-flex size-8 items-center justify-center rounded-md border text-sm font-medium no-underline transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground">V</a>
+</div>
+
+## A
+
+#### Autostart
+
+A boolean flag in [`startup.yml`](/docs/core/config/startup-yml) that controls whether a generator instance starts automatically when the Eventum application launches. Instances with `autostart: false` are registered but remain inactive until started manually through the REST API or Studio.
+
+## B
+
+#### Backpressure
+
+A flow-control mechanism that prevents memory overflow when one pipeline stage is slower than the one feeding it. If the event queue is full, event production pauses. If the timestamp queue is full, input generation pauses. Queue depths are controlled by `queue.max_timestamp_batches` and `queue.max_event_batches`.
+
+#### Batch
+
+A group of events processed together as a unit. Batching amortizes per-event overhead and is controlled by two parameters: `batch.size` (maximum events per batch) and `batch.delay` (maximum seconds before flushing a partial batch). See [eventum.yml — Generation](/docs/core/config/eventum-yml#generation).
+
+## C
+
+#### Chain
+
+A [picking mode](/docs/core/concepts/producing#picking-modes) that cycles through templates in a fixed, user-defined sequence. Unlike `spin` (which uses the natural order), `chain` lets you specify an explicit order with optional repeats.
+
+#### Chance
+
+A [picking mode](/docs/core/concepts/producing#picking-modes) that selects a template using weighted probabilities. Each template has a `chance` value (0.0–1.0); the chances across all templates must sum to 1.0.
+
+#### Cryptfile
+
+An AES-encrypted file that stores secrets, managed by the `keyrings.cryptfile` library. Protected by a keyring password provided at runtime. See [Secrets](/docs/core/config/secrets).
+
+## E
+
+#### Event plugin
+
+The second stage of the [generator pipeline](/docs/core/concepts/generator#the-three-stage-pipeline). Receives timestamps from input plugins and produces event strings. See [event plugins](/docs/plugins#event-plugins) for available types.
+
+#### Eventum Studio
+
+The built-in web interface shipped with Eventum. Provides a visual dashboard, generator management, plugin editors, event debugger, and administration tools — all accessible from a browser. See [Eventum Studio](/docs/studio).
+
+#### eventum.yml
+
+The main application configuration file. Defines server settings (host, port, SSL, authentication), generation defaults (timezone, batching, concurrency), logging, and file paths. See [eventum.yml reference](/docs/core/config/eventum-yml).
+
+## F
+
+#### Fan-out
+
+The delivery model used by output plugins. Every event produced by the event plugin is sent to **all** configured output plugins. There is no routing or filtering — each output receives a copy of every event.
+
+#### Finite State Machine (FSM)
+
+A [picking mode](/docs/core/concepts/producing#picking-modes) for stateful event sequences. Each template is a state with defined transitions. Transitions can be unconditional or conditional (evaluated at runtime using Jinja2 expressions). Useful for modeling workflows like user sessions.
+
+#### Formatter
+
+A transformation layer on output plugins that reshapes event strings before delivery. See [Formatters](/docs/plugins/formatters) for available formats.
+
+## G
+
+#### Generator
+
+The core execution unit in Eventum. A generator is a self-contained pipeline that produces events through three stages: input (when), event (what), and output (where). Each generator runs independently with its own configuration, state, and metrics. See [Generator concepts](/docs/core/concepts/generator).
+
+#### generator.yml
+
+The configuration file for a single generator. Defines the input plugin(s), event plugin, and output plugin(s) that form the generator pipeline. Located inside a generator directory. See [generator.yml reference](/docs/core/config/generator-yml).
+
+#### Globals
+
+A state scope shared across all generators in the application. Accessible as `globals` in templates. Thread-safe — reads and writes are synchronized. Useful for cross-generator coordination. See [Producing events — State](/docs/core/concepts/producing#state).
+
+## H
+
+#### Hot reload
+
+Reloading configuration without stopping the application. Triggered by sending `SIGHUP` to the Eventum process or clicking **Restart** in Studio. All generators stop, configuration is re-read, and generators restart with updated settings.
+
+## I
+
+#### Input plugin
+
+The first stage of the [generator pipeline](/docs/core/concepts/generator#the-three-stage-pipeline). Produces timestamps that define when events should be generated. See [input plugins](/docs/plugins#input-plugins) for available types.
+
+#### Instance
+
+A running (or finished) copy of a generator. Each instance has a unique ID, its own metrics, logs, and lifecycle. Multiple instances can use the same generator project with different parameters. Managed through the [Instances page](/docs/studio/instances) in Studio or the REST API.
+
+## K
+
+#### Keep order
+
+A generation flag (`keep_order: true`) that serializes output writes to maintain strict chronological order. When disabled (default), output plugins write concurrently for higher throughput.
+
+#### Keyring
+
+The encrypted credential store used by Eventum. Secrets are added with [`eventum-keyring set`](/docs/core/cli/eventum-keyring) and referenced in configs via `${secrets.name}` tokens. See [Secrets](/docs/core/config/secrets).
+
+## L
+
+#### Live mode
+
+The default operating mode (`live_mode: true`). Timestamps are released at their real wall-clock times — the generator waits until each scheduled moment arrives before emitting the event. Contrast with [sample mode](#sample-mode).
+
+#### Locals
+
+A state scope private to a single template. Each template has its own `locals` dictionary, invisible to other templates. Useful for per-template counters and accumulators. See [Producing events — State](/docs/core/concepts/producing#state).
+
+## M
+
+#### Merging
+
+The process of combining timestamps from multiple input plugins in a single generator. Timestamps are interleaved in chronological order so the event plugin receives a single unified stream. See [Scheduling — Merging](/docs/core/concepts/scheduling#merging-multiple-inputs).
+
+#### Module
+
+A context variable available in templates that acts as a gateway to Python packages. Provides access to [Faker](https://faker.readthedocs.io/) (`module.faker`), [Mimesis](https://mimesis.name/) (`module.mimesis`), the built-in `rand` helper (`module.rand`), and any installed Python package (`module.json`, `module.math`, etc.).
+
+#### Multiplier
+
+A component in [time-patterns](/docs/plugins/input/time-patterns) scheduling that sets the baseline number of events per period. Combined with a [randomizer](#randomizer) to add variance. See [Scheduling — Multiplier](/docs/core/concepts/scheduling#multiplier).
+
+## O
+
+#### Oscillator
+
+A component in [time-patterns](/docs/plugins/input/time-patterns) scheduling that divides time into repeating periods (e.g., every hour, every day). Defined by a start time, end time, period length, and period unit. See [Scheduling — Oscillator](/docs/core/concepts/scheduling#oscillator).
+
+#### Output plugin
+
+The third stage of the [generator pipeline](/docs/core/concepts/generator#the-three-stage-pipeline). Receives formatted events and writes them to a destination. See [output plugins](/docs/plugins#output-plugins) for available types.
+
+## P
+
+#### Parameters
+
+Runtime values injected into configuration files through `${params.name}` tokens. Defined in [`startup.yml`](/docs/core/config/startup-yml) per-generator or passed via the `--params` CLI flag. See [Parameters](/docs/core/config/parameters).
+
+#### Picking mode
+
+A strategy that determines which template(s) render on each event timestamp. See [Producing events — Picking modes](/docs/core/concepts/producing#picking-modes) for available modes.
+
+#### Pipeline
+
+The three-stage data flow inside a generator: Input (timestamps) → Event (strings) → Output (delivery). Each stage is handled by one or more plugins. See [Generator — The three-stage pipeline](/docs/core/concepts/generator#the-three-stage-pipeline).
+
+#### Plugin
+
+A swappable, self-contained component that handles one stage of the generator pipeline. Plugins are identified by type (input, event, output) and name (e.g., `cron`, `template`, `clickhouse`). See [Plugins concepts](/docs/core/concepts/plugins).
+
+#### Project
+
+In Studio, a project corresponds to a generator directory on disk — a `generator.yml` file and its supporting resources (templates, scripts, samples). The [Projects page](/docs/studio/projects) provides visual editors for each project.
+
+## Q
+
+#### Queue
+
+An internal buffer between pipeline stages. Two queues exist per generator: a timestamp queue (input → event) and an event queue (event → output). Queue sizes control [backpressure](#backpressure).
+
+## R
+
+#### Rand
+
+A lightweight built-in helper available in templates as `module.rand`. Provides random choices, weighted selection, numbers (integer, float, gaussian), and string generation (hex, digits, letters). See [Producing events — rand](/docs/core/concepts/producing#rand).
+
+#### Randomizer
+
+A component in [time-patterns](/docs/plugins/input/time-patterns) scheduling that adds natural variance to the baseline event count set by the [multiplier](#multiplier). Controlled by a deviation parameter. See [Scheduling — Randomizer](/docs/core/concepts/scheduling#randomizer).
+
+#### Replay plugin
+
+An [event plugin](/docs/plugins/event/replay) that reads events from existing log or data files instead of generating new ones. Optionally replaces embedded timestamps with current values using regex patterns.
+
+#### REST API
+
+HTTP endpoints for programmatic control of Eventum — managing generators, querying metrics, reading logs, and modifying configuration. Enabled via `api_enabled: true` in `eventum.yml`. See [API reference](/docs/api).
+
+## S
+
+#### Sample mode
+
+An operating mode (`live_mode: false`) where all timestamps are released as fast as possible, ignoring the wall clock. Used for quickly generating large datasets, benchmarking, or backfilling. Contrast with [live mode](#live-mode).
+
+#### Samples
+
+External datasets loaded into template context from CSV, JSON, or inline item lists. Defined in `generator.yml` and accessed in templates via the `samples` variable. See [Template plugin — Samples](/docs/plugins/event/template#samples).
+
+#### Script plugin
+
+An [event plugin](/docs/plugins/event/script) that executes a Python function to produce events. The function receives the timestamp, tags, and parameters, and returns one or more event strings. Used when Jinja2 templates cannot express the required logic.
+
+#### Secrets
+
+Encrypted credentials stored in the [keyring](#keyring) and referenced in configs via `${secrets.name}` tokens. Managed with the [`eventum-keyring`](/docs/core/cli/eventum-keyring) CLI or the [Secrets page](/docs/studio/settings#secrets) in Studio. See [Secrets](/docs/core/config/secrets).
+
+#### Shared
+
+A state scope visible to all templates within the same generator. Accessible as `shared` in templates. Useful for cross-template coordination like maintaining a shared counter or session pool. See [Producing events — State](/docs/core/concepts/producing#state).
+
+#### Skip past
+
+A boolean flag (`skip_past`) that controls whether timestamps in the past are discarded when a generator starts. When `true` (default), only future timestamps are emitted. When `false`, past timestamps are released immediately as a burst.
+
+#### Spin
+
+A [picking mode](/docs/core/concepts/producing#picking-modes) that cycles through templates in round-robin order — template 1, template 2, ..., template N, template 1, and so on.
+
+#### Spreader
+
+A component in [time-patterns](/docs/plugins/input/time-patterns) scheduling that distributes events within each period using a probability distribution (uniform, triangular, beta). Controls the intra-period traffic shape. See [Scheduling — Spreader](/docs/core/concepts/scheduling#spreader).
+
+#### startup.yml
+
+The configuration file that lists which generators to run, with per-generator overrides for mode, parameters, and generation settings. See [startup.yml reference](/docs/core/config/startup-yml).
+
+## T
+
+#### Tags
+
+Arbitrary string labels attached by input plugins to timestamps. Tags are propagated through the pipeline and available in templates via the `tags` variable. Useful for varying event content based on the scheduling source.
+
+#### Template plugin
+
+The primary [event plugin](/docs/plugins/event/template) that renders Jinja2 templates with access to data-generation libraries, parameters, samples, and persistent state. Supports multiple templates with configurable [picking modes](#picking-mode).
+
+#### Timestamp
+
+A timezone-aware datetime value produced by an input plugin. Represents the scheduled moment for an event. Passed to the event plugin as the `timestamp` context variable.
+
+## V
+
+#### Variable substitution
+
+A pre-processing step that replaces `${params.name}` and `${secrets.name}` tokens in YAML configuration files before parsing. Uses Jinja2 syntax internally. See [Parameters](/docs/core/config/parameters) and [Secrets](/docs/core/config/secrets).
+
+#### VersatileDatetime
+
+A flexible datetime format accepted by input plugins. Supports ISO 8601 (`2025-01-01T00:00:00Z`), human-readable strings (`January 1, 2025`), keywords (`now`, `never`), and relative expressions (`+1h`, `-30m`). See [generator.yml — VersatileDatetime](/docs/core/config/generator-yml#versatiledatetime).

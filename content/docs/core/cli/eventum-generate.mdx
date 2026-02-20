@@ -1,4 +1,143 @@
 ---
 title: "$ eventum generate"
-description: description
+description: Run a single generator from the command line — all options, verbosity levels, signal handling, and exit codes.
 ---
+
+Runs a single generator without the application server. This is the quickest way to test a generator or produce events in a script or CI pipeline. All execution parameters that would normally come from [eventum.yml](/docs/core/config/eventum-yml) and [startup.yml](/docs/core/config/startup-yml) are passed as CLI flags instead.
+
+```bash
+eventum generate [OPTIONS]
+```
+
+## Options
+
+### Generator
+
+| Option | Type | Default | Required | Description |
+|--------|------|---------|----------|-------------|
+| `--id` | string | — | Yes | Unique identifier for the generator. Used in log messages. |
+| `--path` | path | — | Yes | Path to the generator config file (`generator.yml`). |
+| `--live-mode` | boolean | `true` | No | `true` — generate events at their scheduled timestamps in real time. `false` — generate all events as fast as possible (sample mode). |
+| `--skip-past` | boolean | `true` | No | In live mode, skip timestamps that have already passed when the generator starts. When `false`, past timestamps are generated immediately before catching up to real time. |
+| `--params` | JSON | `{}` | No | JSON object of [parameters](/docs/core/config/parameters) to substitute into the generator config. Example: `--params '{"host": "localhost", "port": 9200}'`. |
+
+### Generation parameters
+
+These correspond to the `generation` section of [eventum.yml](/docs/core/config/eventum-yml#generation):
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--timezone` | string | `"UTC"` | IANA timezone for timestamp generation (e.g. `UTC`, `America/New_York`, `Europe/London`). |
+| `--batch.size` | integer | `10000` | Maximum number of events per batch. At least one of `--batch.size` or `--batch.delay` must be set. |
+| `--batch.delay` | float | `1.0` | Maximum seconds to wait before flushing a partial batch. At least one of `--batch.size` or `--batch.delay` must be set. |
+| `--queue.max-timestamp-batches` | integer | `10` | Maximum timestamp batches in the input→event queue. |
+| `--queue.max-event-batches` | integer | `10` | Maximum event batches in the event→output queue. |
+| `--keep-order` | boolean | `false` | Process output batches sequentially to preserve chronological order. Disables concurrent writes. |
+| `--max-concurrency` | integer | `100` | Maximum concurrent write operations across all output plugins. |
+| `--write-timeout` | integer | `10` | Timeout in seconds for a single write operation. |
+
+### Logging and security
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `-v, --verbose` | count | `0` | Verbosity level for log output. Repeat the flag to increase (up to 5 times). Logs are written to stderr. |
+| `--cryptfile` | path | — | Path to the keyring cryptfile for [secret](/docs/core/config/secrets) retrieval. If omitted, uses the system default location. |
+
+### Verbosity levels
+
+| Flag | Level | What gets logged |
+|------|-------|-----------------|
+| *(none)* | Disabled | No log output |
+| `-v` | CRITICAL | Only critical errors |
+| `-vv` | ERROR | Errors and critical |
+| `-vvv` | WARNING | Warnings, errors, and critical |
+| `-vvvv` | INFO | Informational messages and above (recommended for debugging) |
+| `-vvvvv` | DEBUG | Everything, including internal details |
+
+## Signal handling
+
+| Signal | Behavior |
+|--------|----------|
+| `SIGINT` (Ctrl+C) | Stops the generator gracefully and exits. |
+| `SIGTERM` | Stops the generator gracefully and exits. |
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Generator completed successfully. |
+| `1` | Generator failed to start (invalid config, missing secrets, plugin error). |
+| `130` | Terminated by SIGINT (128 + 2). |
+| `143` | Terminated by SIGTERM (128 + 15). |
+
+## Examples
+
+Minimal invocation — generate events in real time with console output:
+
+```bash
+eventum generate --id my-gen --path ./my-generator/generator.yml
+```
+
+Sample mode with verbose logging — generate all events at once:
+
+```bash
+eventum generate \
+  --id test-gen \
+  --path ./generators/access-logs/generator.yml \
+  --live-mode false \
+  -vvvv
+```
+
+Custom timezone and batch size:
+
+```bash
+eventum generate \
+  --id web-logs \
+  --path ./generators/web/generator.yml \
+  --timezone America/New_York \
+  --batch.size 50000 \
+  --batch.delay 2.0
+```
+
+With secrets from a keyring cryptfile:
+
+```bash
+eventum generate \
+  --id prod-gen \
+  --path ./generators/prod/generator.yml \
+  --cryptfile ./cryptfile.cfg \
+  -vvvv
+```
+
+With parameters to inject values into the generator config:
+
+```bash
+eventum generate \
+  --id web-logs \
+  --path ./generators/web/generator.yml \
+  --params '{"opensearch_host": "https://localhost:9200", "index_name": "dev-logs"}'
+```
+
+Ordered output for deterministic results:
+
+```bash
+eventum generate \
+  --id ordered-gen \
+  --path ./generator.yml \
+  --keep-order true \
+  --max-concurrency 10 \
+  --write-timeout 30
+```
+
+Pipe output to another tool:
+
+```bash
+eventum generate \
+  --id pipe-gen \
+  --path ./generator.yml \
+  --live-mode false | jq '.'
+```
+
+<Callout type="info">
+When piping output, make sure the generator uses the [`stdout`](/docs/plugins/output/stdout) output plugin. Logs go to stderr (when enabled with `-v`), so they won't interfere with piped event data.
+</Callout>

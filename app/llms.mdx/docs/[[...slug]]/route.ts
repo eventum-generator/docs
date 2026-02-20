@@ -6,7 +6,7 @@ export const revalidate = false;
 
 export async function GET(
   _req: Request,
-  { params }: RouteContext<'/llms.mdx/docs/[[...slug]]'>
+  { params }: { params: Promise<{ slug?: string[] }> }
 ) {
   const { slug } = await params;
   // remove the appended "index.mdx"

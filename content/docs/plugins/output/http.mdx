@@ -1,0 +1,78 @@
+---
+title: http
+description: Output plugin that sends events to any HTTP endpoint with batching, TLS, and proxy support.
+---
+
+Sends events to an HTTP endpoint. By default, events are batched into a single JSON array (`json-batch` formatter) and sent as one request per batch.
+
+## Parameters
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `url` | URL | — | Required. Valid HTTP/HTTPS URL. | Target endpoint URL. |
+| `method` | string | `"POST"` | `GET`, `HEAD`, `OPTIONS`, `POST`, `PUT`, `PATCH`, or `DELETE` | HTTP method. |
+| `success_code` | integer | `201` | >= 100 | Expected response status code. |
+| `headers` | mapping | `{}` | — | Custom request headers. |
+| `username` | string or null | `null` | Non-empty if set. | Username for HTTP basic auth. |
+| `password` | string or null | `null` | Non-empty if set. | Password for HTTP basic auth. |
+| `connect_timeout` | integer | `10` | >= 1 | Connection timeout in seconds. |
+| `request_timeout` | integer | `300` | >= 1 | Full request timeout in seconds. |
+| `verify` | boolean | `false` | — | Whether to verify the server's TLS certificate. |
+| `ca_cert` | path or null | `null` | Non-empty if set. | Path to CA certificate file. |
+| `client_cert` | path or null | `null` | Non-empty if set. | Path to client certificate. Must be provided together with `client_cert_key`. |
+| `client_cert_key` | path or null | `null` | Non-empty if set. | Path to client certificate key. Must be provided together with `client_cert`. |
+| `proxy_url` | URL or null | `null` | Valid HTTP/HTTPS URL. | Proxy address. |
+| `formatter` | [formatter](/docs/plugins/formatters) | `json-batch` | — | How events are serialized before sending. |
+
+## Behavior
+
+- Events are batched by the generator's `batch.size` / `batch.delay` settings and sent as a single HTTP request per batch.
+- The default `json-batch` formatter wraps all events in a JSON array — ideal for endpoints that accept batch payloads.
+- If the response code doesn't match `success_code`, the write is counted as failed.
+
+## Examples
+
+Basic POST to a webhook:
+
+```yaml
+output:
+  - http:
+      url: https://api.example.com/events
+      method: POST
+      success_code: 200
+      headers:
+        Content-Type: application/json
+```
+
+With authentication and custom API key:
+
+```yaml
+output:
+  - http:
+      url: https://api.example.com/ingest
+      headers:
+        Authorization: "Bearer ${secrets.api_token}"
+        Content-Type: application/json
+      success_code: 200
+```
+
+Mutual TLS with client certificates:
+
+```yaml
+output:
+  - http:
+      url: https://secure.example.com/events
+      verify: true
+      ca_cert: certs/ca.pem
+      client_cert: certs/client.pem
+      client_cert_key: certs/client-key.pem
+```
+
+Via proxy:
+
+```yaml
+output:
+  - http:
+      url: https://api.example.com/events
+      proxy_url: http://proxy.internal:8080
+```
