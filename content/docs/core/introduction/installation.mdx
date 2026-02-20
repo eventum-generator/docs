@@ -246,7 +246,7 @@ docker run --rm \
   -v $(pwd)/generators:/app/generators \
   -v $(pwd)/logs:/app/logs \
   -p 9474:9474 \
-  rnv812/eventum-generator:2.0
+  rnv812/eventum-generator:latest
 ```
 
 The container starts with `eventum run -c /app/config/eventum.yml` by default.
@@ -258,7 +258,7 @@ For a more reproducible setup, use a `docker-compose.yml`:
 ```yaml title="docker-compose.yml"
 services:
   eventum:
-    image: rnv812/eventum-generator:2.0
+    image: rnv812/eventum-generator:latest
     ports:
       - "9474:9474"
     volumes:
