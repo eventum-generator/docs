@@ -1,0 +1,25 @@
+---
+title: 🛠️ 2.0.2
+description: Eventum 2.0.2 patch release — fix for reading generator configs with placeholders via API.
+---
+
+Released **February 21, 2026**
+
+A patch release that fixes an issue with reading generator configs containing parameter and secret placeholders through the REST API.
+
+## 🐛 Bug fixes
+
+- **Generator config API** — fixed the GET endpoint returning a validation error when a generator config contained `${params.*}` or `${secrets.*}` placeholders. The endpoint now uses loose validation for reading configs while keeping strict validation for creating and updating.
+
+---
+
+## 🧪 Testing
+
+- Added test for reading generator configs with placeholders via the API.
+
+---
+
+## 📝 Other changes
+
+- Updated GitHub URLs in README and pyproject.toml to match the new organization.
+- Improved release script with detailed usage instructions and phase handling.
