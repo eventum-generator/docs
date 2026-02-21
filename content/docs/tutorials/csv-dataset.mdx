@@ -79,29 +79,29 @@ Each template produces a single CSV row. All three templates share the same colu
 
 ```jinja title="templates/purchase.jinja"
 {% set product = module.rand.choice(samples.products) %}
-{% set amount = module.rand.number.floating(product[2], product[3]) %}
+{% set amount = module.rand.number.floating(product.min_price, product.max_price) %}
 {% do shared.set("revenue", shared.get("revenue", 0) + amount) %}
-{{ module.rand.crypto.uuid4() }},{{ timestamp.strftime("%Y-%m-%d %H:%M:%S") }},purchase,C-{{ module.rand.number.integer(10000, 99999) }},{{ module.faker.locale.en.name() }},{{ product[0] }},{{ product[1] }},{{ "%.2f" | format(amount) }},USD
+{{ module.rand.crypto.uuid4() }},{{ timestamp.strftime("%Y-%m-%d %H:%M:%S") }},purchase,C-{{ module.rand.number.integer(10000, 99999) }},{{ module.faker.locale.en.name() }},{{ product.name }},{{ product.category }},{{ "%.2f" | format(amount) }},USD
 ```
 
-Sample rows are tuples following the JSON key order: `[0]` name, `[1]` category, `[2]` min\_price, `[3]` max\_price.
+JSON sample rows support named access via object keys: `product.name`, `product.category`, `product.min_price`, `product.max_price`.
 
 **Refund** — returns a product. The amount is negative.
 
 ```jinja title="templates/refund.jinja"
 {% set product = module.rand.choice(samples.products) %}
-{% set amount = module.rand.number.floating(product[2], product[3]) %}
+{% set amount = module.rand.number.floating(product.min_price, product.max_price) %}
 {% do shared.set("revenue", shared.get("revenue", 0) - amount) %}
-{{ module.rand.crypto.uuid4() }},{{ timestamp.strftime("%Y-%m-%d %H:%M:%S") }},refund,C-{{ module.rand.number.integer(10000, 99999) }},{{ module.faker.locale.en.name() }},{{ product[0] }},{{ product[1] }},-{{ "%.2f" | format(amount) }},USD
+{{ module.rand.crypto.uuid4() }},{{ timestamp.strftime("%Y-%m-%d %H:%M:%S") }},refund,C-{{ module.rand.number.integer(10000, 99999) }},{{ module.faker.locale.en.name() }},{{ product.name }},{{ product.category }},-{{ "%.2f" | format(amount) }},USD
 ```
 
 **Chargeback** — disputed transaction. Rare (5% of total).
 
 ```jinja title="templates/chargeback.jinja"
 {% set product = module.rand.choice(samples.products) %}
-{% set amount = module.rand.number.floating(product[2], product[3]) %}
+{% set amount = module.rand.number.floating(product.min_price, product.max_price) %}
 {% do shared.set("revenue", shared.get("revenue", 0) - amount) %}
-{{ module.rand.crypto.uuid4() }},{{ timestamp.strftime("%Y-%m-%d %H:%M:%S") }},chargeback,C-{{ module.rand.number.integer(10000, 99999) }},{{ module.faker.locale.en.name() }},{{ product[0] }},{{ product[1] }},-{{ "%.2f" | format(amount) }},USD
+{{ module.rand.crypto.uuid4() }},{{ timestamp.strftime("%Y-%m-%d %H:%M:%S") }},chargeback,C-{{ module.rand.number.integer(10000, 99999) }},{{ module.faker.locale.en.name() }},{{ product.name }},{{ product.category }},-{{ "%.2f" | format(amount) }},USD
 ```
 
 <Callout>

@@ -678,7 +678,7 @@ samples:
 
 ### json
 
-Load from a JSON file:
+Load from a JSON file (array of objects with consistent keys):
 
 | Parameter | Type | Constraints | Description |
 |-----------|------|-------------|-------------|
@@ -692,9 +692,52 @@ samples:
     source: samples/endpoints.json
 ```
 
+<Callout>
+All objects in a JSON sample must have the **same set of keys**. If keys differ between objects, the sample will fail to load with an error.
+</Callout>
+
+### Accessing sample rows
+
+Each row in a sample is a tuple-like object. You can pick a random row and access its fields:
+
+```jinja
+{%- set user = samples.users | random -%}
+```
+
+**Named access** — CSV samples with `header: true` and JSON samples expose fields by name, matching CSV column headers or JSON object keys:
+
+```jinja
+{%- set user = samples.users | random -%}
+{{ user.name }}           {# "John" #}
+{{ user.email }}          {# "john@example.com" #}
+```
+
+This works with Jinja2 filters like `selectattr`:
+
+```jinja
+{%- set admins = samples.users | selectattr("role", "equalto", "admin") | list -%}
+```
+
+**Index access** — all sample types (including `items` and CSV without headers) support positional index access:
+
+```jinja
+{{ user[0] }}             {# first field #}
+{{ user[1] }}             {# second field #}
+```
+
+Both access styles work on the same row — named access is available whenever headers or keys are present, index access always works.
+
 ---
 
 ## Complete example
+
+Given a CSV file with headers:
+
+```csv title="samples/users.csv"
+name,email,role
+John,john@example.com,admin
+Jane,jane@example.com,user
+```
 
 ```yaml
 event:
@@ -717,4 +760,10 @@ event:
       - error:
           template: templates/error.jinja
           chance: 5
+```
+
+```jinja title="templates/access.jinja"
+{%- set user = samples.users | random -%}
+{%- set path = module.rand.choice(samples.paths) -%}
+{{ timestamp.isoformat() }} [{{ params.app_name }}] {{ user.name }} ({{ user.email }}) GET {{ path }} 200
 ```
