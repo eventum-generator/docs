@@ -20,6 +20,290 @@ The `mode` field determines how templates are selected for each incoming timesta
 
 ---
 
+## Template context
+
+Inside a `.jinja` template, the following variables are available:
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `timestamp` | `datetime` | Timezone-aware datetime of the current event. |
+| `tags` | `tuple[str, ...]` | Tags from the input plugin that produced this timestamp. |
+| `module` | module provider | Gateway to data-generation libraries and any Python module. See [Modules](#modules). |
+| `params` | `dict` | User-defined constant parameters from the `params` config field. |
+| `samples` | sample reader | Named datasets from the `samples` config field. See [Samples](#samples). |
+| `locals` | state | Per-template state that persists across renders. See [State](#state). |
+| `shared` | state | State shared across all templates in the same generator. See [State](#state). |
+| `globals` | state | State shared across all generators, thread-safe. See [State](#state). |
+| `subprocess` | subprocess runner | Execute shell commands. See [Subprocess](#subprocess). |
+
+`timestamp` is a standard Python `datetime` object — all its methods work directly: `timestamp.isoformat()`, `timestamp.strftime('%Y-%m-%d')`, `timestamp.year`, `timestamp.hour`, etc.
+
+---
+
+## Modules
+
+The `module` object provides access to three built-in data-generation libraries and acts as a gateway to any Python package installed in the environment. Access a module by name: `module.<name>`.
+
+### `module.rand`
+
+Built-in random utilities organized into namespaces. This is the most commonly used module for generating synthetic data.
+
+#### Top-level functions
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `choice` | `(items) → T` | Return a random item from a sequence. |
+| `choices` | `(items, n) → list[T]` | Return `n` random items with replacement. |
+| `weighted_choice` | `(items, weights) → T` | Return a random item with weighted probability. Items and weights are two separate sequences of the same length. |
+| `weighted_choices` | `(items, weights, n) → list[T]` | Return `n` items with weighted probability. |
+| `shuffle` | `(items) → list \| str` | Shuffle elements. Returns a string if the input is a string. |
+| `chance` | `(prob) → bool` | Return `True` with the given probability (0.0–1.0). |
+
+```jinja
+{%- set method = module.rand.choice(["GET", "POST", "PUT", "DELETE"]) -%}
+{%- set status = module.rand.weighted_choice([200, 301, 404, 500], [80, 5, 10, 5]) -%}
+{% if module.rand.chance(0.05) %}RARE EVENT{% endif %}
+```
+
+#### `rand.number`
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `integer` | `(a, b) → int` | Random integer in \[a, b\] inclusive. |
+| `floating` | `(a, b) → float` | Random float in \[a, b\]. |
+| `gauss` | `(mu, sigma) → float` | Random float from a Gaussian (normal) distribution. |
+
+```jinja
+{%- set port = module.rand.number.integer(1024, 65535) -%}
+{%- set latency = module.rand.number.floating(0.1, 2.5) -%}
+{%- set score = module.rand.number.gauss(50, 10) -%}
+```
+
+#### `rand.string`
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `letters_lowercase` | `(size) → str` | Random lowercase ASCII letters. |
+| `letters_uppercase` | `(size) → str` | Random uppercase ASCII letters. |
+| `letters` | `(size) → str` | Random mixed-case ASCII letters. |
+| `digits` | `(size) → str` | Random digit characters. |
+| `punctuation` | `(size) → str` | Random ASCII punctuation characters. |
+| `hex` | `(size) → str` | Random hex characters (0–9, a–f). |
+
+```jinja
+{%- set token = module.rand.string.hex(32) -%}
+{%- set code = module.rand.string.letters_uppercase(6) -%}
+```
+
+#### `rand.network`
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `ip_v4` | `() → str` | Random IPv4 address (any range). |
+| `ip_v4_public` | `() → str` | Random public IPv4 (excludes private and reserved ranges). |
+| `ip_v4_private_a` | `() → str` | Random Class A private IPv4 (10.0.0.0/8). |
+| `ip_v4_private_b` | `() → str` | Random Class B private IPv4 (172.16.0.0/12). |
+| `ip_v4_private_c` | `() → str` | Random Class C private IPv4 (192.168.0.0/16). |
+| `mac` | `() → str` | Random MAC address (colon-separated, e.g. `a4:3b:00:ff:12:9e`). |
+
+```jinja
+{%- set src_ip = module.rand.network.ip_v4_public() -%}
+{%- set dst_ip = module.rand.network.ip_v4_private_c() -%}
+{%- set mac_addr = module.rand.network.mac() -%}
+```
+
+#### `rand.crypto`
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `uuid4` | `() → str` | Random UUID v4. |
+| `md5` | `() → str` | Random 32-character hex string (MD5-length). |
+| `sha256` | `() → str` | Random 64-character hex string (SHA-256-length). |
+
+```jinja
+{%- set request_id = module.rand.crypto.uuid4() -%}
+{%- set checksum = module.rand.crypto.sha256() -%}
+```
+
+#### `rand.datetime`
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `timestamp` | `(start, end) → datetime` | Random timestamp in range \[start, end\]. Both arguments are `datetime` objects. |
+
+#### Combined example
+
+```jinja
+{%- set src_ip = module.rand.network.ip_v4_public() -%}
+{%- set method = module.rand.weighted_choice(["GET", "POST", "PUT"], [70, 20, 10]) -%}
+{%- set status = module.rand.weighted_choice([200, 301, 404, 500], [80, 5, 10, 5]) -%}
+{%- set request_id = module.rand.crypto.uuid4() -%}
+{%- set bytes_sent = module.rand.number.integer(200, 15000) -%}
+{{ timestamp.isoformat() }} {{ src_ip }} {{ method }} /api/resource {{ status }} {{ bytes_sent }} {{ request_id }}
+```
+
+### `module.faker`
+
+The [Faker](https://faker.readthedocs.io/) library for generating realistic fake data. Access a Faker instance by locale:
+
+```jinja
+{{ module.faker.locale['en_US'].name() }}            {# "John Smith" #}
+{{ module.faker.locale['en_US'].email() }}            {# "john.smith@example.com" #}
+{{ module.faker.locale['en_US'].ipv4() }}             {# "192.168.1.100" #}
+{{ module.faker.locale['en_US'].user_agent() }}       {# "Mozilla/5.0 ..." #}
+{{ module.faker.locale['de_DE'].city() }}             {# "Berlin" #}
+{{ module.faker.locale['ja_JP'].name() }}             {# "山田 太郎" #}
+```
+
+Locale instances are created once and cached. Faker supports [hundreds of providers](https://faker.readthedocs.io/en/master/providers.html) — names, addresses, phone numbers, credit cards, companies, dates, user agents, and more.
+
+<Callout>
+In Jinja2, both dot notation (`module.faker.locale.en_US`) and bracket notation (`module.faker.locale['en_US']`) work. Bracket notation is recommended for locale codes with special characters.
+</Callout>
+
+### `module.mimesis`
+
+The [Mimesis](https://mimesis.name/) library for high-performance data generation. It provides four access paths:
+
+| Access path | Returns | Description |
+|-------------|---------|-------------|
+| `module.mimesis.locale['en']` | `Generic` | Full Mimesis provider for a locale. |
+| `module.mimesis.spec['usa']` | country-specific provider | Country-specific data (SSN, tax ID, etc.). |
+| `module.mimesis.enums` | module | Mimesis enums (`Gender`, `FileType`, `TLDType`, etc.). |
+| `module.mimesis.random` | module | Mimesis random utilities. |
+
+```jinja
+{{ module.mimesis.locale['en'].person.full_name() }}        {# "John Doe" #}
+{{ module.mimesis.locale['en'].internet.ip_v4() }}          {# "10.0.1.42" #}
+{{ module.mimesis.locale['en'].address.city() }}            {# "San Francisco" #}
+{{ module.mimesis.locale['ru'].person.full_name() }}        {# "Иванов Иван" #}
+{{ module.mimesis.spec['usa'].ssn() }}                      {# "123-45-6789" #}
+```
+
+Available `spec` keys: `brazil`, `denmark`, `italy`, `netherlands`, `poland`, `russia`, `ukraine`, `usa`.
+
+### Any Python module
+
+If the name isn't one of the three built-ins (`rand`, `faker`, `mimesis`), the `module` object imports it from the Python standard library or any package installed in the environment:
+
+```jinja
+{# Standard library #}
+{{ module.json.dumps({"event": "test"}) }}
+{{ module.math.ceil(3.14) }}
+{{ module.hashlib.sha256(b"data").hexdigest() }}
+{{ module.base64.b64encode(b"hello").decode() }}
+{{ module.datetime.timedelta(seconds=30) }}
+```
+
+Modules are imported once and cached for subsequent access. If a module is not found, a `KeyError` is raised.
+
+---
+
+## State
+
+Templates can store and retrieve values that persist across renders. State is organized into three scopes:
+
+| Scope | Variable | Visibility | Thread safety | Typical use |
+|-------|----------|------------|---------------|-------------|
+| Local | `locals` | Current template only | Single-threaded | Per-template counters, accumulators |
+| Shared | `shared` | All templates in one generator | Single-threaded | Cross-template coordination, session tracking |
+| Global | `globals` | All generators in the application | Thread-safe (RLock) | Global counters, inter-generator data |
+
+### State API
+
+All three scopes provide the same methods:
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `get` | `(key, default=None) → Any` | Get a value. Returns `default` if the key doesn't exist. |
+| `set` | `(key, value) → None` | Set a value. |
+| `update` | `(mapping) → None` | Set multiple values at once from a dict. |
+| `clear` | `() → None` | Remove all values. |
+| `as_dict` | `() → dict` | Get a shallow copy of the entire state. |
+| `[key]` | bracket access | Same as `get(key)`. |
+
+The `globals` scope has two additional methods for manual locking:
+
+| Method | Description |
+|--------|-------------|
+| `acquire()` | Acquire the state lock. |
+| `release()` | Release the state lock. |
+
+<Callout type="warn">
+Individual `globals` operations (`get`, `set`, etc.) are already thread-safe. Use `acquire()` / `release()` only when you need multiple operations to execute atomically — for example, reading a counter and incrementing it without another generator modifying it in between.
+</Callout>
+
+### Examples
+
+**Per-template counter** with `locals`:
+
+```jinja
+{%- do locals.set('n', locals.get('n', 0) + 1) -%}
+Event #{{ locals.get('n') }} at {{ timestamp.isoformat() }}
+```
+
+**Monotonic record ID** with `shared` — a common pattern where all templates in a generator share a single incrementing counter:
+
+```jinja
+{%- set record_id = shared.get('record_id', 1) -%}
+... use record_id in the event body ...
+{%- do shared.set('record_id', record_id + 1) -%}
+```
+
+**Atomic compound operation** with `globals`:
+
+```jinja
+{%- do globals.acquire() -%}
+{%- set total = globals.get('total', 0) -%}
+{%- do globals.set('total', total + 1) -%}
+{%- do globals.release() -%}
+```
+
+---
+
+## Subprocess
+
+The `subprocess` variable lets you execute shell commands from templates.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `command` | string | — | Shell command to execute. |
+| `cwd` | string | `None` | Working directory. |
+| `env` | mapping | `None` | Environment variables. |
+| `timeout` | float | `None` | Timeout in seconds. |
+
+The `run` method returns a result object with three fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `stdout` | string | Standard output (decoded as UTF-8). |
+| `stderr` | string | Standard error (decoded as UTF-8). |
+| `exit_code` | int | Process exit code. |
+
+```jinja
+{%- set result = subprocess.run('hostname', timeout=5.0) -%}
+{{ result.stdout | trim }}
+```
+
+<Callout type="warn">
+Subprocess calls run synchronously and block event production. Use short timeouts to avoid stalling the pipeline.
+</Callout>
+
+---
+
+## Jinja2 extensions
+
+The template environment loads two Jinja2 extensions automatically:
+
+| Extension | What it enables | Example |
+|-----------|-----------------|---------|
+| `jinja2.ext.do` | Expression statements via `{% do ... %}` — call methods that return nothing without producing output. | `{% do shared.set('count', 0) %}` |
+| `jinja2.ext.loopcontrols` | `{% break %}` and `{% continue %}` inside `{% for %}` loops. | `{% for u in users %}{% if u.skip %}{% continue %}{% endif %}{{ u.name }}{% endfor %}` |
+
+The `do` extension is essential for state management — without it, calling `shared.set(...)` (which returns `None`) would require workarounds like `{% set _ = shared.set(...) %}`.
+
+---
+
 ## Modes
 
 ### all
@@ -730,9 +1014,11 @@ Both access styles work on the same row — named access is available whenever h
 
 ---
 
-## Complete example
+## Examples
 
-Given a CSV file with headers:
+### Access log with modules, params, and samples
+
+A generator that produces HTTP access log lines using random utilities, user-defined parameters, and sample data:
 
 ```csv title="samples/users.csv"
 name,email,role
@@ -740,12 +1026,13 @@ John,john@example.com,admin
 Jane,jane@example.com,user
 ```
 
-```yaml
+```yaml title="generator.yml"
 event:
   template:
     mode: chance
     params:
       app_name: my-service
+      server_port: 8080
     samples:
       users:
         type: csv
@@ -766,5 +1053,81 @@ event:
 ```jinja title="templates/access.jinja"
 {%- set user = samples.users | random -%}
 {%- set path = module.rand.choice(samples.paths) -%}
-{{ timestamp.isoformat() }} [{{ params.app_name }}] {{ user.name }} ({{ user.email }}) GET {{ path }} 200
+{%- set status = module.rand.weighted_choice([200, 301, 404], [85, 5, 10]) -%}
+{%- set bytes_sent = module.rand.number.integer(200, 15000) -%}
+{%- set request_id = module.rand.crypto.uuid4() -%}
+{{ timestamp.isoformat() }} [{{ params.app_name }}] {{ user.name }} ({{ user.email }}) GET {{ path }} {{ status }} {{ bytes_sent }} {{ request_id }}
+```
+
+### Monotonic counter with shared state
+
+All templates in a generator share a single incrementing counter via `shared`. The counter persists across renders regardless of which template is picked:
+
+```yaml title="generator.yml"
+event:
+  template:
+    mode: all
+    templates:
+      - event_a:
+          template: templates/event_a.jinja
+      - event_b:
+          template: templates/event_b.jinja
+```
+
+```jinja title="templates/event_a.jinja"
+{%- set id = shared.get('seq', 1) -%}
+{%- do shared.set('seq', id + 1) -%}
+{"id": {{ id }}, "type": "A", "timestamp": "{{ timestamp.isoformat() }}"}
+```
+
+```jinja title="templates/event_b.jinja"
+{%- set id = shared.get('seq', 1) -%}
+{%- do shared.set('seq', id + 1) -%}
+{"id": {{ id }}, "type": "B", "timestamp": "{{ timestamp.isoformat() }}"}
+```
+
+Since both templates use `shared`, the sequence is global to the generator. If `event_a` renders first and gets `id=1`, then `event_b` gets `id=2`.
+
+### Cross-template correlation
+
+Login events store session data in `shared` state that logout events consume — a common pattern for generating correlated event pairs:
+
+```jinja title="templates/login.jinja"
+{%- set session_id = module.rand.crypto.uuid4() -%}
+{%- set user = samples.users | random -%}
+{%- set sessions = shared.get('sessions', []) -%}
+{%- do sessions.append({"id": session_id, "user": user.name}) -%}
+{%- do shared.set('sessions', sessions) -%}
+{{ timestamp.isoformat() }} LOGIN user={{ user.name }} session={{ session_id }}
+```
+
+```jinja title="templates/logout.jinja"
+{%- set sessions = shared.get('sessions', []) -%}
+{%- if sessions -%}
+  {%- set session = sessions.pop(0) -%}
+  {%- do shared.set('sessions', sessions) -%}
+{{ timestamp.isoformat() }} LOGOUT user={{ session.user }} session={{ session.id }}
+{%- else -%}
+{{ timestamp.isoformat() }} LOGOUT user=anonymous session=none
+{%- endif -%}
+```
+
+### Filtering sample data
+
+Use Jinja2's `selectattr` filter to pick rows from samples that match specific criteria:
+
+```jinja
+{%- set admin_users = samples.users | selectattr("role", "equalto", "admin") | list -%}
+{%- set user = admin_users | random -%}
+{{ timestamp.isoformat() }} ADMIN_ACTION user={{ user.name }} action=config_change
+```
+
+You can also filter sample data in loops:
+
+```jinja
+{%- set category_urls = [] -%}
+{%- for u in samples.urls if u.category == "api" -%}
+  {%- do category_urls.append(u) -%}
+{%- endfor -%}
+{%- set url = category_urls | random -%}
 ```
