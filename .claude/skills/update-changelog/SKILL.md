@@ -39,6 +39,8 @@ Review each commit and categorize changes into sections:
 
 Only include sections that have entries. Skip internal-only changes that have no user relevance (e.g. release script tweaks) — but use your judgment; if a change is borderline, include it under "Other changes".
 
+**Important**: The docs MDX page is user-facing. Keep descriptions a bit more general than `CHANGELOG.md` and avoid overly technical implementation details. Don't include super technical internal changes in the MDX page — save those for `CHANGELOG.md` only. But improving tests coverage notes etc. and small improvements can be included in general descriptions.
+
 ## Step 2: Read existing changelogs for format reference
 
 Read both files to match the established format exactly:
