@@ -98,7 +98,7 @@ This produces roughly 7 timestamps every 10 seconds — enough to complete one u
 <Step>
 ### Create sample data
 
-The user pool is a JSON file loaded as a [sample](/docs/plugins/event/template#samples). Each session randomly picks a user from this list. Sample rows are tuples following the JSON key order: `[0]` name, `[1]` domain.
+The user pool is a JSON file loaded as a [sample](/docs/plugins/event/template#samples). Each session randomly picks a user from this list. JSON sample rows support named access via object keys — `user.name`, `user.domain`.
 
 ```json title="generators/winevents/data/users.json"
 [
@@ -126,8 +126,8 @@ Each template produces one JSON event following [Elastic Common Schema](https://
 {% set workstation = "WS-" ~ module.rand.number.integer(1000, 9999) %}
 {% set logon_type = module.rand.weighted_choice(["Interactive", "Network", "RemoteInteractive"], [0.5, 0.3, 0.2]) %}
 {% do shared.set("session_id", session_id) %}
-{% do shared.set("username", user[0]) %}
-{% do shared.set("domain", user[1]) %}
+{% do shared.set("username", user.name) %}
+{% do shared.set("domain", user.domain) %}
 {% do shared.set("src_ip", src_ip) %}
 {% do shared.set("workstation", workstation) %}
 {% do shared.set("process_count", 0) %}
@@ -140,7 +140,7 @@ Each template produces one JSON event following [Elastic Common Schema](https://
   },
   "host": { "name": "{{ workstation }}" },
   "source": { "ip": "{{ src_ip }}" },
-  "user": { "name": "{{ user[0] }}", "domain": "{{ user[1] }}" },
+  "user": { "name": "{{ user.name }}", "domain": "{{ user.domain }}" },
   "winlog": {
     "logon": { "id": "{{ session_id }}", "type": "{{ logon_type }}" }
   },

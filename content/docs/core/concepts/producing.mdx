@@ -229,15 +229,19 @@ event:
 Access in templates:
 
 ```jinja
-{# CSV row by index #}
-{{ samples.users[0][0] }}
+{# Pick a random user — named access via CSV headers #}
+{%- set user = samples.users | random -%}
+{{ user.name }}
 
-{# JSON data #}
-{{ samples.endpoints[0] }}
+{# JSON rows also support named access via object keys #}
+{%- set ep = samples.endpoints | random -%}
+{{ ep.host }}
 
 {# Inline items #}
 {{ module.rand.choice(samples.status_codes) }}
 ```
+
+CSV samples with `header: true` and JSON samples support named field access (e.g. `user.name`). All sample types support index access (e.g. `user[0]`). See the [template plugin reference](/docs/plugins/event/template#accessing-sample-rows) for details.
 
 ### Running shell commands
 
