@@ -1,0 +1,42 @@
+---
+title: 🚩 2.1.0
+description: Eventum 2.1.0 minor release — performance boost, named sample access, placeholder support in Studio, and bug fixes.
+---
+
+Released **February 21, 2026**
+
+A minor release with a significant performance improvement, new features for working with sample data and placeholders, and several bug fixes.
+
+## 🚀 New features
+
+- **Named sample access** — access CSV and JSON sample data by column name in templates (e.g., `sample.column_name` instead of `sample[0]`).
+- **Placeholder support in Studio** — plugin config forms in [Eventum Studio](/docs/studio/overview) now accept `${params.*}` and `${secrets.*}` placeholders.
+
+---
+
+## ⚡ Performance
+
+- **Timezone handling** — migrated from `pytz` to Python's built-in `zoneinfo` module, resulting in up to 2x faster event producing.
+
+---
+
+## 🐛 Bug fixes
+
+- **Missing dataset headers** — CSV and JSON samples without headers now get automatically generated default column names.
+- **YAML comments in configs** — full-line YAML comments no longer break config loading when used with template variables.
+- **File output plugin** — fixed file not being properly closed before reopening.
+- **Heterogeneous JSON samples** — samples with inconsistent keys across records are now handled correctly.
+- **Stdout output plugin** — fixed a platform-specific bug by switching from `writelines()` to `write()`.
+
+---
+
+## 🧪 Testing
+
+- Expanded test coverage for placeholder support, sample data handling, config loading, and API model validation.
+
+---
+
+## 📝 Other changes
+
+- Added Eventum Improvement Proposals document.
+- Formatted default values in plugin parameter schemas for better readability.
