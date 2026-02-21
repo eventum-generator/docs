@@ -54,14 +54,20 @@ Built-in random utilities organized into namespaces. This is the most commonly u
 |----------|-----------|-------------|
 | `choice` | `(items) → T` | Return a random item from a sequence. |
 | `choices` | `(items, n) → list[T]` | Return `n` random items with replacement. |
-| `weighted_choice` | `(items, weights) → T` | Return a random item with weighted probability. Items and weights are two separate sequences of the same length. |
-| `weighted_choices` | `(items, weights, n) → list[T]` | Return `n` items with weighted probability. |
+| `weighted_choice` | `(items, weights) → T` | Return a random item with weighted probability. Also accepts a dict: `({item: weight, ...})`. |
+| `weighted_choices` | `(items, weights, n) → list[T]` | Return `n` items with weighted probability. Also accepts a dict: `({item: weight, ...}, n)`. |
 | `shuffle` | `(items) → list \| str` | Shuffle elements. Returns a string if the input is a string. |
 | `chance` | `(prob) → bool` | Return `True` with the given probability (0.0–1.0). |
 
 ```jinja
 {%- set method = module.rand.choice(["GET", "POST", "PUT", "DELETE"]) -%}
+
+{# Dict form — keys are items, values are weights #}
+{%- set status = module.rand.weighted_choice({200: 80, 301: 5, 404: 10, 500: 5}) -%}
+
+{# Two-sequence form — also supported #}
 {%- set status = module.rand.weighted_choice([200, 301, 404, 500], [80, 5, 10, 5]) -%}
+
 {% if module.rand.chance(0.05) %}RARE EVENT{% endif %}
 ```
 
