@@ -102,6 +102,10 @@ One-sentence summary of the release.
 1. **Update `../eventum/CHANGELOG.md`** — insert the new version entry above the previous one
 2. **Create `content/docs/changelog/<version>.mdx`** — the docs page
 
-## Step 4: Verify
+## Step 4: Update CLAUDE.md
+
+Update `CLAUDE.md` (this repo) — add the new version to the **changelog** list in the **Content Structure** tree (under `content/docs/changelog/`).
+
+## Step 5: Verify
 
 Run `pnpm build` in the docs project root to verify the new page builds correctly. If the build fails, fix the issue and rebuild.

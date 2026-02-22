@@ -80,7 +80,16 @@ Search for existing pages that should link to the new page:
 1. Find pages that mention the topic: search `content/docs/` for relevant keywords.
 2. Add cross-reference links where appropriate (don't force links — only where they naturally fit).
 
-### Phase 6: Verify
+### Phase 6: Update CLAUDE.md
+
+Update CLAUDE.md files to reflect the new page:
+
+1. **`CLAUDE.md`** (this repo) — Add the new page to the **Content Structure** tree under the appropriate section. If a new subdirectory was created, add it too.
+2. If the new page documents a new sidebar tab or section, update the **Sidebar tabs** list.
+
+Reference the "Keeping CLAUDE.md Accurate" section at the bottom of `CLAUDE.md` for the full list of triggers.
+
+### Phase 7: Verify
 
 Run the docs build to verify everything works:
 
