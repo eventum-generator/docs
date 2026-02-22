@@ -78,11 +78,25 @@ Built-in random utilities organized into namespaces. This is the most commonly u
 | `integer` | `(a, b) → int` | Random integer in \[a, b\] inclusive. |
 | `floating` | `(a, b) → float` | Random float in \[a, b\]. |
 | `gauss` | `(mu, sigma) → float` | Random float from a Gaussian (normal) distribution. |
+| `lognormal` | `(mu, sigma) → float` | Random float from a log-normal distribution (always positive, right-skewed). |
+| `exponential` | `(lambd) → float` | Random float from an exponential distribution. `lambd` is the rate (1/mean). |
+| `pareto` | `(alpha, xmin=1.0) → float` | Random float from a Pareto distribution (heavy-tailed, values ≥ `xmin`). |
+| `triangular` | `(low, high, mode) → float` | Random float from a triangular distribution in \[`low`, `high`\] peaking at `mode`. |
+| `clamp` | `(value, min, max) → float` | Clamp `value` to the range \[`min`, `max`\]. |
 
 ```jinja
 {%- set port = module.rand.number.integer(1024, 65535) -%}
 {%- set latency = module.rand.number.floating(0.1, 2.5) -%}
 {%- set score = module.rand.number.gauss(50, 10) -%}
+
+{# Statistical distributions #}
+{%- set duration = module.rand.number.lognormal(3.0, 1.0) -%}
+{%- set wait_time = module.rand.number.exponential(0.5) -%}
+{%- set file_size = module.rand.number.pareto(1.5, xmin=100.0) -%}
+{%- set temperature = module.rand.number.triangular(15.0, 35.0, 22.0) -%}
+
+{# Combine a distribution with clamp to bound the result #}
+{%- set bytes_sent = module.rand.number.clamp(module.rand.number.gauss(5000, 2000), 0, 15000) -%}
 ```
 
 #### `rand.string`
