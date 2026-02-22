@@ -25,7 +25,7 @@ eventum-generator/
 
 - **Docs** (`docs/`): Next.js 16 + Fumadocs + Tailwind CSS 4 static site. Deployed to [eventum.run](https://eventum.run).
 - **Backend** (`../eventum/`): Python package `eventum-generator`. FastAPI server, plugin system, CLI.
-- **Content Packs** (`../content-packs/`): Collection of 8 generator projects producing ECS-compatible synthetic events (Windows Security, Sysmon, Linux auditd, Nginx, Apache, DNS, Firewall, Checkpoint).
+- **Content Packs** (`../content-packs/`): Collection of 18 generator projects producing ECS-compatible synthetic events across 7 categories (Windows, Linux, Web, Network, Security, Email, VPN).
 
 ## Commands
 
@@ -136,7 +136,7 @@ content/docs/
   studio/                       # overview, instances, projects, settings
   api/                          # AUTO-GENERATED from OpenAPI (auth, generators, configs, instance, preview, secrets, startup)
   tutorials/                    # csv-dataset, iot-telemetry, load-testing, siem-events, telegram-alerts, web-clickstream
-  changelog/                    # 2.0.0, 2.0.1, 2.0.2
+  changelog/                    # 2.0.0, 2.0.1, 2.0.2, 2.1.0
 ```
 
 ### Key Files
@@ -306,18 +306,27 @@ FastAPI + Uvicorn (server), NumPy (timestamp arrays), Pydantic (models), Faker +
 
 ## Content Packs
 
-The `../content-packs/` repo contains 8 ready-to-use generators:
+The `../content-packs/` repo contains 18 ready-to-use generators:
 
-| Generator | Data Source | Key Events |
-|-----------|------------|------------|
-| `windows-security` | Windows Event Log | 4624 (logon), 4688 (process), 4672 (privilege), etc. |
-| `windows-sysmon` | Sysmon | Process creation, network connections, registry |
-| `linux-auditd` | Linux audit (Auditbeat) | Syscalls, user auth, file access |
-| `web-nginx` | Nginx logs | HTTP requests, status codes, user agents |
-| `web-apache` | Apache logs | HTTP access patterns |
-| `network-dns` | DNS queries | A, CNAME, MX lookups |
-| `network-firewall` | Firewall logs | Allow/deny connections |
-| `network-checkpoint` | Checkpoint FW | Security events, connection tracking |
+| Category | Generator | Data Source |
+|----------|-----------|-------------|
+| Windows | `windows-security` | Windows Event Log (4624, 4688, 4672, etc.) |
+| Windows | `windows-sysmon` | Sysmon (process, network, registry) |
+| Linux | `linux-auditd` | Linux audit / Auditbeat |
+| Web | `web-nginx` | Nginx access/error logs |
+| Web | `web-apache` | Apache access logs |
+| Network | `network-dns` | DNS queries (A, CNAME, MX) |
+| Network | `network-firewall` | Generic firewall allow/deny |
+| Network | `network-checkpoint` | Checkpoint FW events |
+| Network | `network-cisco-asa` | Cisco ASA firewall |
+| Network | `network-fortigate` | Fortigate firewall |
+| Network | `network-juniper-srx` | Juniper SRX firewall |
+| Network | `network-netflow` | NetFlow traffic data |
+| Network | `network-paloalto-url` | Palo Alto URL filtering |
+| Network | `network-snort` | Snort IDS alerts |
+| Security | `security-suricata` | Suricata IDS events |
+| Email | `fortinet-fortimail` | Fortimail email gateway |
+| VPN | `vpn-cisco-anyconnect` | Cisco AnyConnect VPN |
 
 All output is **ECS-compatible JSON** (Elastic Common Schema). Each generator is self-contained with `generator.yml`, Jinja2 templates, sample data, and documentation.
 
@@ -351,3 +360,16 @@ All output is **ECS-compatible JSON** (Elastic Common Schema). Each generator is
 - **Development branch**: `develop`
 - **GitHub org**: `eventum-generator` (repos: `eventum`, `docs`, `content-packs`)
 - Don't commit unless explicitly asked
+
+## Keeping CLAUDE.md Accurate
+
+This file is the primary context for AI tools working on the codebase. It must stay current. Update it when:
+
+- **Tech stack version bump** — update versions in the tech stack table (compare with `package.json`)
+- **New/removed docs page or section** — update the content structure tree
+- **New component** — update the components table
+- **Routing change** — update the routing section
+- **New sidebar tab** — update sidebar tabs list
+- **Content-packs change** — update generator count/table if generators were added or removed
+- **New changelog version** — add to the changelog list in the content structure tree
+- **Key file added/renamed** — update the key files table
