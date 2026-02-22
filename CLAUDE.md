@@ -306,29 +306,7 @@ FastAPI + Uvicorn (server), NumPy (timestamp arrays), Pydantic (models), Faker +
 
 ## Content Packs
 
-The `../content-packs/` repo contains 20 ready-to-use generators:
-
-| Category | Generator | Data Source |
-|----------|-----------|-------------|
-| Windows | `windows-security` | Windows Event Log (4624, 4688, 4672, etc.) |
-| Windows | `windows-sysmon` | Sysmon (process, network, registry) |
-| Windows | `windows-powershell` | PowerShell script block, module, and engine logging |
-| Linux | `linux-auditd` | Linux audit / Auditbeat |
-| Web | `web-nginx` | Nginx access/error logs |
-| Web | `web-apache` | Apache access logs |
-| Network | `network-dns` | DNS queries (A, CNAME, MX) |
-| Network | `network-firewall` | Generic firewall allow/deny |
-| Network | `network-checkpoint` | Checkpoint FW events |
-| Network | `network-cisco-asa` | Cisco ASA firewall |
-| Network | `network-fortigate` | Fortigate firewall |
-| Network | `network-juniper-srx` | Juniper SRX firewall |
-| Network | `network-netflow` | NetFlow traffic data |
-| Network | `network-paloalto-url` | Palo Alto URL filtering |
-| Network | `network-snort` | Snort IDS alerts |
-| Security | `security-suricata` | Suricata IDS events |
-| Email | `email-exchange` | Microsoft Exchange message tracking |
-| Email | `fortinet-fortimail` | Fortimail email gateway |
-| VPN | `vpn-cisco-anyconnect` | Cisco AnyConnect VPN |
+The `../content-packs/` repo contains ready-to-use generators.
 
 All output is **ECS-compatible JSON** (Elastic Common Schema). Each generator is self-contained with `generator.yml`, Jinja2 templates, sample data, and documentation.
 
