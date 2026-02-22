@@ -25,7 +25,7 @@ eventum-generator/
 
 - **Docs** (`docs/`): Next.js 16 + Fumadocs + Tailwind CSS 4 static site. Deployed to [eventum.run](https://eventum.run).
 - **Backend** (`../eventum/`): Python package `eventum-generator`. FastAPI server, plugin system, CLI.
-- **Content Packs** (`../content-packs/`): Collection of 18 generator projects producing ECS-compatible synthetic events across 7 categories (Windows, Linux, Web, Network, Security, Email, VPN).
+- **Content Packs** (`../content-packs/`): Collection of generator projects producing ECS-compatible synthetic events across different categories (Windows, Linux, Web, Network, Security, Email, VPN, etc.).
 
 ## Commands
 
@@ -306,12 +306,13 @@ FastAPI + Uvicorn (server), NumPy (timestamp arrays), Pydantic (models), Faker +
 
 ## Content Packs
 
-The `../content-packs/` repo contains 18 ready-to-use generators:
+The `../content-packs/` repo contains 20 ready-to-use generators:
 
 | Category | Generator | Data Source |
 |----------|-----------|-------------|
 | Windows | `windows-security` | Windows Event Log (4624, 4688, 4672, etc.) |
 | Windows | `windows-sysmon` | Sysmon (process, network, registry) |
+| Windows | `windows-powershell` | PowerShell script block, module, and engine logging |
 | Linux | `linux-auditd` | Linux audit / Auditbeat |
 | Web | `web-nginx` | Nginx access/error logs |
 | Web | `web-apache` | Apache access logs |
@@ -325,6 +326,7 @@ The `../content-packs/` repo contains 18 ready-to-use generators:
 | Network | `network-paloalto-url` | Palo Alto URL filtering |
 | Network | `network-snort` | Snort IDS alerts |
 | Security | `security-suricata` | Suricata IDS events |
+| Email | `email-exchange` | Microsoft Exchange message tracking |
 | Email | `fortinet-fortimail` | Fortimail email gateway |
 | VPN | `vpn-cisco-anyconnect` | Cisco AnyConnect VPN |
 
