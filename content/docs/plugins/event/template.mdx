@@ -30,6 +30,7 @@ Inside a `.jinja` template, the following variables are available:
 | `tags` | `tuple[str, ...]` | Tags from the input plugin that produced this timestamp. |
 | `module` | module provider | Gateway to data-generation libraries and any Python module. See [Modules](#modules). |
 | `params` | `dict` | User-defined constant parameters from the `params` config field. |
+| `vars` | `dict` | Per-template variables from the `vars` config field. Each template entry can define its own `vars`, allowing the same `.jinja` file to be reused with different bindings. |
 | `samples` | sample reader | Named datasets from the `samples` config field. See [Samples](#samples). |
 | `locals` | state | Per-template state that persists across renders. See [State](#state). |
 | `shared` | state | State shared across all templates in the same generator. See [State](#state). |
@@ -461,9 +462,10 @@ event:
 
 For `all`, `any`, `spin`, and `chain` modes:
 
-| Parameter | Type | Constraints | Description |
-|-----------|------|-------------|-------------|
-| `template` | path | Required. Must end with `.jinja`. | Path to the Jinja2 template file. |
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `template` | path | — | Required. Must end with `.jinja`. | Path to the Jinja2 template file. |
+| `vars` | mapping | `{}` | — | Per-template variables accessible in the template via `vars`. Allows the same template file to be reused with different bindings. |
 
 For `chance` mode, add the `chance` field. For `fsm` mode, add `initial` and `transitions`.
 
@@ -1032,9 +1034,109 @@ This works with Jinja2 filters like `selectattr`:
 
 Both access styles work on the same row — named access is available whenever headers or keys are present, index access always works.
 
+### Picking sample rows
+
+Each sample provides methods for random row selection — both uniform and weighted.
+
+#### Uniform picking
+
+Use `pick()` to select a single random row, or `pick_n(n)` to select multiple:
+
+```jinja
+{%- set user = samples.users.pick() -%}
+{{ user.name }}
+
+{%- set five_users = samples.users.pick_n(5) -%}
+{%- for u in five_users -%}
+  {{ u.name }}
+{%- endfor -%}
+```
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `pick` | `() → Row` | Pick a single random row (uniform distribution). |
+| `pick_n` | `(n: int) → list[Row]` | Pick `n` random rows with replacement. |
+
+<Callout>
+`pick()` is equivalent to `| random` but is also available as a method for consistency with the weighted API below.
+</Callout>
+
+#### Weighted picking
+
+If your sample includes a numeric column for weights, you can pick rows with probability proportional to those weights:
+
+```csv title="samples/services.csv"
+name,port,protocol,weight
+HTTP,80,tcp,50
+HTTPS,443,tcp,30
+SSH,22,tcp,10
+DNS,53,udp,10
+```
+
+```jinja
+{%- set service = samples.services.weighted_pick('weight') -%}
+{{ service.name }}:{{ service.port }}
+
+{%- set batch = samples.services.weighted_pick_n('weight', 10) -%}
+```
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `weighted_pick` | `(weight: str) → Row` | Pick a single random row with probability proportional to the named weight column. |
+| `weighted_pick_n` | `(weight: str, n: int) → list[Row]` | Pick `n` random rows with replacement, weighted by the named column. |
+
+<Callout>
+The weight column must contain numeric values (integers or floats). Negative values and all-zero weights will produce an error. The weight column remains part of the returned row — you can simply ignore it in your template.
+</Callout>
+
+<Callout>
+Weights are extracted and cached on the first call. Repeated calls to `weighted_pick` with the same column are efficient even at high throughput.
+</Callout>
+
 ---
 
 ## Examples
+
+### Parameterized template reuse with vars
+
+Multiple template entries can point to the **same** `.jinja` file with different per-template variables. This eliminates duplication when events differ only by a few constants — such as protocol variants:
+
+```yaml title="generator.yml"
+event:
+  template:
+    mode: chance
+    params:
+      hostname: fw-01
+    templates:
+      - tcp_built:
+          template: templates/connection-built.json.jinja
+          chance: 220
+          vars:
+            protocol: tcp
+            iana_number: "6"
+      - udp_built:
+          template: templates/connection-built.json.jinja
+          chance: 75
+          vars:
+            protocol: udp
+            iana_number: "17"
+      - icmp_built:
+          template: templates/connection-built.json.jinja
+          chance: 15
+          vars:
+            protocol: icmp
+            iana_number: "1"
+```
+
+```jinja title="templates/connection-built.json.jinja"
+{%- set src_ip = module.rand.network.ip_v4_private_c() -%}
+{%- set dst_ip = module.rand.network.ip_v4_public() -%}
+{%- set src_port = module.rand.number.integer(1024, 65535) -%}
+{%- set dst_port = module.rand.number.integer(1, 1023) -%}
+{"timestamp": "{{ timestamp.isoformat() }}", "hostname": "{{ params.hostname }}", "protocol": "{{ vars.protocol }}", "iana_number": {{ vars.iana_number }}, "src": "{{ src_ip }}:{{ src_port }}", "dst": "{{ dst_ip }}:{{ dst_port }}"}
+```
+
+One template file, three config entries — instead of three nearly identical template files.
 
 ### Access log with modules, params, and samples
 
