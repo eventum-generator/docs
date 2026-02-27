@@ -1,0 +1,243 @@
+---
+title: "$ eventum service"
+description: Install, uninstall, and check status of Eventum as a systemd service.
+---
+
+Manages Eventum as a systemd service. This command group handles the full lifecycle — creating directories, generating default configs, installing a systemd unit file, and tearing everything down. Designed for production deployments where Eventum should start on boot and run continuously via [`eventum run`](/docs/core/cli/eventum-run).
+
+```bash
+eventum service <command> [OPTIONS]
+```
+
+## Mode detection
+
+Eventum automatically picks system or user mode based on who runs the command:
+
+| Context | Mode | Config dir | Log dir | Unit file |
+|---------|------|-----------|---------|-----------|
+| Running as root | System | `/etc/eventum/` | `/var/log/eventum/` | `/etc/systemd/system/eventum.service` |
+| Running as non-root | User | `~/.config/eventum/` | `~/.local/state/eventum/logs/` | `~/.config/systemd/user/eventum.service` |
+| Root with `--user` | User | (same as above) | (same as above) | (same as above) |
+
+The `--user` flag forces user mode even when running as root.
+## Commands
+
+### install
+
+Creates directories, generates default configuration files, and installs a systemd unit.
+
+```bash
+eventum service install [--config-dir <path>] [--log-dir <path>] [--user] [--no-ask]
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--config-dir` | path | See [mode detection](#mode-detection) | Directory for configuration files. |
+| `--log-dir` | path | See [mode detection](#mode-detection) | Directory for log files. |
+| `--user` | flag | `false` | Install as a user service even when running as root. |
+| `--no-ask` | flag | `false` | Skip all prompts — use defaults and proceed without confirmation. |
+
+When `--config-dir` or `--log-dir` are omitted and `--no-ask` is not set, the installer prompts for each directory with the default pre-filled.
+
+**What it creates:**
+
+| Path | Contents |
+|------|----------|
+| `<config-dir>/` | Configuration directory |
+| `<config-dir>/generators/` | Generator configs (referenced by [startup.yml](/docs/core/config/startup-yml)) |
+| `<config-dir>/eventum.yml` | Main config with sensible defaults — see [generated config](#generated-config) |
+| `<config-dir>/startup.yml` | Empty generator list (`[]`) |
+| `<config-dir>/cryptfile.cfg` | Empty keyring cryptfile |
+| `<log-dir>/` | Log directory |
+| Unit file | systemd service unit |
+
+Existing files are never overwritten. If `eventum.yml` or `startup.yml` already exist, they are preserved and a message is printed.
+
+<Callout type="info">
+After installation, the service is **not started automatically**. Follow the printed next steps to enable and start it.
+</Callout>
+
+**Interactive example:**
+
+```bash
+$ eventum service install
+Configuration directory [/etc/eventum]:
+Log directory [/var/log/eventum]:
+
+Eventum service will be installed with the following settings:
+  Mode:       system
+  Binary:     /usr/local/bin/eventum
+  Config dir: /etc/eventum
+  Log dir:    /var/log/eventum
+  Unit file:  /etc/systemd/system/eventum.service
+
+Proceed? [Y/n]: y
+Created /etc/eventum/
+Created /etc/eventum/generators/
+Created /var/log/eventum/
+Generated /etc/eventum/eventum.yml
+Generated /etc/eventum/startup.yml
+Created /etc/eventum/cryptfile.cfg
+Installed /etc/systemd/system/eventum.service
+Reloaded systemd daemon
+
+Done! Next steps:
+  1. Review configuration:  cat /etc/eventum/eventum.yml
+  2. Enable on boot:        sudo systemctl enable eventum
+  3. Start the service:     sudo systemctl start eventum
+  4. Check status:          eventum service status
+```
+
+**Non-interactive (scripted):**
+
+```bash
+sudo eventum service install \
+  --config-dir /opt/eventum/config \
+  --log-dir /opt/eventum/logs \
+  --no-ask
+```
+
+---
+
+### uninstall
+
+Stops the service, removes the systemd unit file, and optionally purges configuration and log directories.
+
+```bash
+eventum service uninstall [--user] [--purge]
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--user` | flag | `false` | Uninstall the user service even when running as root. |
+| `--purge` | flag | `false` | Also remove configuration and log directories (prompts for confirmation). |
+
+Without `--purge`, configuration files are preserved and a hint is printed showing how to remove them later.
+
+```bash
+$ sudo eventum service uninstall
+Stopping eventum service...
+Disabling eventum service...
+Removed /etc/systemd/system/eventum.service
+Reloaded systemd daemon
+
+Done!
+Configuration files preserved in /etc/eventum/
+To also remove configuration and logs, run:
+  sudo eventum service uninstall --purge
+```
+
+With `--purge`, each directory is confirmed individually:
+
+```bash
+$ sudo eventum service uninstall --purge
+Stopping eventum service...
+Disabling eventum service...
+Removed /etc/systemd/system/eventum.service
+Reloaded systemd daemon
+Remove configuration directory /etc/eventum/ and all its contents? [y/N]: y
+Removed /etc/eventum/
+Remove log directory /var/log/eventum/ and all its contents? [y/N]: y
+Removed /var/log/eventum/
+
+Done!
+```
+
+---
+
+### status
+
+Shows the current state of the Eventum service.
+
+```bash
+eventum service status [--user]
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--user` | flag | `false` | Check the user service even when running as root. |
+
+```bash
+$ eventum service status
+Service:  installed
+Unit:     /etc/systemd/system/eventum.service
+State:    active (running)
+Enabled:  yes
+Config:   /etc/eventum/eventum.yml
+```
+
+If the service is not installed:
+
+```
+Service:  not installed
+```
+
+## Generated config
+
+The `install` command generates an [eventum.yml](/docs/core/config/eventum-yml) with all required sections and sensible defaults:
+
+```yaml title="eventum.yml"
+# Eventum Configuration
+# Generated by: eventum service install
+# Full reference: https://eventum.run/docs/configuration
+
+server.ui_enabled: true
+server.api_enabled: true
+server.host: 0.0.0.0
+server.port: 9474
+server.auth.user: eventum
+server.auth.password: eventum
+generation.timezone: UTC
+log.level: info
+log.format: plain
+path.logs: /var/log/eventum
+path.startup: /etc/eventum/startup.yml
+path.generators_dir: /etc/eventum/generators
+path.keyring_cryptfile: /etc/eventum/cryptfile.cfg
+```
+
+<Callout type="warn">
+The default credentials (`eventum`/`eventum`) are for initial setup only. Change `server.auth.user` and `server.auth.password` before exposing the server to a network.
+</Callout>
+
+Path values are resolved to absolute paths based on the directories chosen during installation. The config uses [dot notation](/docs/core/config/eventum-yml) which Eventum expands to nested YAML at load time.
+
+## Systemd unit
+
+The generated unit file runs `eventum run -c <config-path>` as a `Type=simple` service:
+
+- **Restart** on failure with a 5-second delay
+- **Hot reload** via `systemctl reload eventum` (sends SIGHUP — see [signal handling](/docs/core/cli/eventum-run#signal-handling))
+- **Journal logging** — view with `journalctl -u eventum`
+
+Standard systemd commands work as expected:
+
+```bash
+# Start / stop / restart
+sudo systemctl start eventum
+sudo systemctl stop eventum
+sudo systemctl restart eventum
+
+# Hot reload (re-reads config without downtime)
+sudo systemctl reload eventum
+
+# Enable on boot
+sudo systemctl enable eventum
+
+# View logs
+journalctl -u eventum -f
+```
+
+For user services, add `--user` and drop `sudo`:
+
+```bash
+systemctl --user start eventum
+journalctl --user -u eventum -f
+```
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Command completed successfully. |
+| `1` | Error — service not installed, permission denied, systemd not available, or other failure. |

@@ -135,6 +135,10 @@ For production use with [`eventum run`](/docs/core/cli/eventum-run) — multiple
 mkdir -p eventum/{generators,logs}
 ```
 
+<Callout type="info">
+On Linux with systemd, [`eventum service install`](/docs/core/cli/eventum-service) creates this entire structure automatically — directories, default config, empty startup file, and a systemd unit — in a single command.
+</Callout>
+
 | File | Purpose | Reference |
 |------|---------|-----------|
 | `eventum.yml` | Main application config — server settings, default generation parameters, logging, and file paths. | [eventum.yml reference](/docs/core/config/eventum-yml) |
