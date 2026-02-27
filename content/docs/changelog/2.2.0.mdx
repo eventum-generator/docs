@@ -1,0 +1,24 @@
+---
+title: 🚩 2.2.0
+description: Eventum 2.2.0 minor release — systemd service management, weighted sampling, per-template variables, and new random distributions.
+---
+
+Released **February 27, 2026**
+
+A minor release introducing systemd service management, weighted sampling for templates, per-template variables, expanded random distribution functions, and several quality-of-life fixes.
+
+## 🚀 New features
+
+- **Systemd service management** — new CLI commands to install, uninstall, start, stop, restart, and check the status of Eventum as a systemd service.
+- **Weighted sampling** — CSV and JSON samples can now include a weight column for non-uniform random selection of rows in templates.
+- **Per-template variables** — templates can define their own local variables alongside shared ones, enabling more modular generator configurations.
+- **Random distribution functions** — new `rand.gauss`, `rand.triangular`, `rand.expo`, `rand.lognorm`, `rand.beta`, and `rand.pareto` methods for realistic data generation.
+- **Dict input for `rand.weighted_choice`** — pass weight mappings directly without needing a separate sample file.
+
+---
+
+## 🐛 Bug fixes
+
+- **CSV quoting** — added `quotechar` config to the CSV sample reader with better error messages for inconsistent column counts.
+- **File output directories** — the file output plugin now creates intermediate directories automatically.
+- **Studio links** — updated community links to GitHub Discussions in Eventum Studio.

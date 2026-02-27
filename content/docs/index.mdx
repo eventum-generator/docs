@@ -77,7 +77,7 @@ Swap any part independently: change the schedule without touching the template, 
 Templates use Jinja2 syntax with built-in modules like `faker` for realistic data. Each render receives a `timestamp` variable.
 
 ```jinja title="events.jinja"
-{{ timestamp }} INFO  user={{ module.faker.user_name() }} action=login ip={{ module.faker.ipv4() }}
+{{ timestamp }} INFO  user={{ module.faker.locale.en.user_name() }} action=login ip={{ module.faker.locale.en.ipv4() }}
 ```
 
 </Step>

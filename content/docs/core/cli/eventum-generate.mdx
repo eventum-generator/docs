@@ -54,6 +54,10 @@ These correspond to the `generation` section of [eventum.yml](/docs/core/config/
 | `-vvvv` | INFO | Informational messages and above (recommended for debugging) |
 | `-vvvvv` | DEBUG | Everything, including internal details |
 
+<Callout type="info">
+Logging is disabled by default so that log messages don't mix with generated events on stdout. Pass `-v` one or more times to enable logs — they are written to stderr.
+</Callout>
+
 ## Signal handling
 
 | Signal | Behavior |
