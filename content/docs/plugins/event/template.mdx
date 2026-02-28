@@ -184,12 +184,11 @@ In Jinja2, both dot notation (`module.faker.locale.en_US`) and bracket notation 
 
 ### `module.mimesis`
 
-The [Mimesis](https://mimesis.name/) library for high-performance data generation. It provides four access paths:
+The [Mimesis](https://mimesis.name/) library for high-performance data generation. It provides three access paths:
 
 | Access path | Returns | Description |
 |-------------|---------|-------------|
 | `module.mimesis.locale['en']` | `Generic` | Full Mimesis provider for a locale. |
-| `module.mimesis.spec['usa']` | country-specific provider | Country-specific data (SSN, tax ID, etc.). |
 | `module.mimesis.enums` | module | Mimesis enums (`Gender`, `FileType`, `TLDType`, etc.). |
 | `module.mimesis.random` | module | Mimesis random utilities. |
 
@@ -198,10 +197,7 @@ The [Mimesis](https://mimesis.name/) library for high-performance data generatio
 {{ module.mimesis.locale['en'].internet.ip_v4() }}          {# "10.0.1.42" #}
 {{ module.mimesis.locale['en'].address.city() }}            {# "San Francisco" #}
 {{ module.mimesis.locale['ru'].person.full_name() }}        {# "Иванов Иван" #}
-{{ module.mimesis.spec['usa'].ssn() }}                      {# "123-45-6789" #}
 ```
-
-Available `spec` keys: `brazil`, `denmark`, `italy`, `netherlands`, `poland`, `russia`, `ukraine`, `usa`.
 
 ### Any Python module
 

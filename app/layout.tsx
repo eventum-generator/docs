@@ -2,6 +2,7 @@ import { RootProvider } from 'fumadocs-ui/provider/next';
 import { Poppins } from 'next/font/google';
 import { Metadata } from 'next/types';
 
+import { RouteValidator } from '@/components/RouteValidator';
 import './global.css';
 
 const poppins = Poppins({ subsets: ['latin'], weight: '500' });
@@ -18,7 +19,7 @@ export default function Layout({ children }: LayoutProps<'/'>) {
     <html lang="en" className={poppins.className} suppressHydrationWarning>
       <body className="flex flex-col min-h-screen">
         <RootProvider search={{ options: { type: 'static' } }}>
-          {children}
+          <RouteValidator>{children}</RouteValidator>
         </RootProvider>
       </body>
     </html>
