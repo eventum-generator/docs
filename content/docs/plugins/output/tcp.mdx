@@ -1,0 +1,81 @@
+---
+title: tcp
+description: Output plugin that sends events over a raw TCP socket connection with optional TLS support.
+---
+
+Sends events over a TCP connection. Useful for forwarding events to syslog receivers, SIEM collectors, or any service that accepts data over raw TCP.
+
+## Parameters
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `host` | string | — | Required. Non-empty. | Hostname or IP address to connect to. |
+| `port` | integer | — | Required. 1–65535. | TCP port number. |
+| `encoding` | string | `"utf_8"` | Valid Python encoding name. | Encoding used to encode events before sending. |
+| `separator` | string | OS line separator | — | Separator appended after each event. |
+| `connect_timeout` | integer | `10` | >= 1 | Connection timeout in seconds. |
+| `ssl` | boolean | `false` | — | Whether to use SSL/TLS for the connection. |
+| `verify` | boolean | `true` | — | Whether to verify the server's TLS certificate. |
+| `ca_cert` | path or null | `null` | — | Path to CA certificate file. |
+| `client_cert` | path or null | `null` | — | Path to client certificate. Must be provided together with `client_cert_key`. |
+| `client_cert_key` | path or null | `null` | — | Path to client certificate key. Must be provided together with `client_cert`. |
+| `formatter` | [formatter](/docs/plugins/formatters) | `plain` | — | How events are serialized before sending. |
+
+## Behavior
+
+- A single TCP connection is opened when the plugin starts and reused for all events within a generation run.
+- Events are encoded using the configured encoding, with the separator appended after each event.
+- All events in a batch are concatenated and sent as a single write for efficiency.
+- If the connection drops during writing, the write is counted as failed. The plugin does not attempt automatic reconnection.
+
+## Examples
+
+Send events to a syslog receiver:
+
+```yaml
+output:
+  - tcp:
+      host: syslog.example.com
+      port: 514
+      separator: "\n"
+```
+
+Forward JSON events to a SIEM collector:
+
+```yaml
+output:
+  - tcp:
+      host: 10.0.0.50
+      port: 5044
+      separator: "\n"
+      formatter:
+        format: json
+```
+
+With TLS encryption:
+
+```yaml
+output:
+  - tcp:
+      host: secure-collector.example.com
+      port: 6514
+      ssl: true
+      verify: true
+      ca_cert: certs/ca.pem
+      separator: "\n"
+```
+
+Mutual TLS with client certificates:
+
+```yaml
+output:
+  - tcp:
+      host: secure-collector.example.com
+      port: 6514
+      ssl: true
+      verify: true
+      ca_cert: certs/ca.pem
+      client_cert: certs/client.pem
+      client_cert_key: certs/client-key.pem
+      separator: "\n"
+```

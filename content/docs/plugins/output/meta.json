@@ -4,7 +4,9 @@
     "stdout",
     "file",
     "http",
+    "kafka",
     "opensearch",
-    "clickhouse"
+    "clickhouse",
+    "tcp"
   ]
 }
