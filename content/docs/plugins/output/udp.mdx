@@ -1,0 +1,48 @@
+---
+title: udp
+description: Output plugin that sends events as UDP datagrams to a remote host.
+---
+
+Sends each event as a separate UDP datagram. Useful for forwarding events to syslog receivers, SIEM collectors, or any service that accepts data over UDP.
+
+## Parameters
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `host` | string | — | Required. Non-empty. | Hostname or IP address to send datagrams to. |
+| `port` | integer | — | Required. 1–65535. | UDP port number. |
+| `encoding` | string | `"utf_8"` | Valid Python encoding name. | Encoding used to encode events before sending. |
+| `separator` | string | OS line separator | — | Separator appended after each event. |
+| `formatter` | [formatter](/docs/plugins/formatters) | `plain` | — | How events are serialized before sending. |
+
+## Behavior
+
+- A connected UDP socket is created when the plugin starts and reused for all events within a generation run.
+- Each event is sent as a separate UDP datagram with the separator appended, preserving natural UDP message boundaries.
+- If a single event fails to encode (e.g., due to encoding mismatch), it is skipped and the remaining events are still sent.
+- UDP is connectionless — there is no delivery confirmation. Events may be silently dropped by the network.
+- ICMP errors (e.g., destination unreachable) are logged but do not interrupt event delivery.
+
+## Examples
+
+Send events to a syslog receiver:
+
+```yaml
+output:
+  - udp:
+      host: syslog.example.com
+      port: 514
+      separator: "\n"
+```
+
+Forward JSON events to a log collector:
+
+```yaml
+output:
+  - udp:
+      host: 10.0.0.50
+      port: 9000
+      separator: "\n"
+      formatter:
+        format: json
+```
