@@ -36,3 +36,14 @@ pnpm generate-api-docs    # Regenerate API docs from OpenAPI spec (requires bun)
 - **Static export**: `output: 'export'` + `trailingSlash: true`.
 - **Main branch**: `master`, development on `develop`
 - Don't commit unless explicitly asked
+
+## Agent Architecture
+
+This repo is part of the Eventum agent-orchestrated platform. When running from `../eventum/`, the **Team Lead** (main Claude session) delegates documentation work to specialized agents:
+
+- **docs-writer** — creates/updates MDX pages, changelog entries, navigation. Primary agent for this repo.
+- **content-growth** — creates blog posts and promotional content in `content/blog/`.
+- **code-reviewer** — reviews documentation for accuracy and completeness.
+- **qa-engineer** — runs `pnpm build` to verify changes.
+
+All agent definitions live in `../eventum/.claude/agents/`. If working standalone in this repo (not via TL), follow the conventions above directly.
