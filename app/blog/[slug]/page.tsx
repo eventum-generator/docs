@@ -96,7 +96,7 @@ export async function generateMetadata(props: {
   if (!post) notFound();
 
   return {
-    title: `${post.title} | Eventum Blog`,
+    title: post.title,
     description: post.description,
     openGraph: {
       title: post.title,
@@ -105,6 +105,7 @@ export async function generateMetadata(props: {
       publishedTime: post.date,
       authors: [post.author],
       tags: post.tags,
+      images: [`/og/blog/${slug}/image.png`],
     },
   };
 }

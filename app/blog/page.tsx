@@ -4,7 +4,7 @@ import BlogContent from './blog-content';
 import { getAllTags, getBlogPostsMeta } from '@/lib/blog-source';
 
 export const metadata: Metadata = {
-  title: 'Blog | Eventum',
+  title: 'Blog',
   description:
     'Product updates, use cases, and engineering insights from the Eventum team.',
 };

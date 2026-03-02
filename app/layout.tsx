@@ -8,9 +8,23 @@ import './global.css';
 const poppins = Poppins({ subsets: ['latin'], weight: '500' });
 
 export const metadata: Metadata = {
-  title: 'Eventum',
+  metadataBase: new URL('https://eventum.run'),
+  title: {
+    default: 'Eventum',
+    template: '%s | Eventum',
+  },
+  description:
+    'Data generation platform',
   icons: {
     icon: '/logo.svg',
+  },
+  openGraph: {
+    siteName: 'Eventum',
+    type: 'website',
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
   },
 };
 
