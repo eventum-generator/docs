@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 
 import { LogRain } from '@/components/pages/not-found/LogRain';
 
-const VALID_PREFIXES = ['/docs'];
+const VALID_PREFIXES = ['/docs', '/blog'];
 
 export function RouteValidator({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
