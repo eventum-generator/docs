@@ -14,11 +14,11 @@ export default function BlogPage() {
   const tags = getAllTags();
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-10 sm:py-14">
+    <div role="main" className="mx-auto max-w-7xl px-6 py-10 sm:py-14 overflow-y-auto">
       <h1 className="text-2xl font-semibold tracking-tight text-fd-foreground mb-8">
         Blog
       </h1>
       <BlogContent posts={posts} tags={tags} />
-    </main>
+    </div>
   );
 }

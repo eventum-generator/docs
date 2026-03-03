@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 import { getBlogPost, getBlogSlugs } from '@/lib/blog-source';
+import { getTagClassName } from '@/lib/blog-tags';
 import { getMDXComponents } from '@/mdx-components';
 
 function formatDate(dateString: string): string {
@@ -27,7 +28,7 @@ export default async function BlogPostPage(props: {
   const MDX = post.body;
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10 sm:py-14">
+    <div role="main" className="mx-auto max-w-3xl px-6 py-10 sm:py-14 overflow-y-auto">
       <Link
         href="/blog"
         className="group inline-flex items-center gap-1.5 text-sm font-medium text-fd-muted-foreground/60 hover:text-fd-foreground transition-colors duration-200 mb-8"
@@ -65,7 +66,7 @@ export default async function BlogPostPage(props: {
               {post.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="text-xs font-medium text-fd-muted-foreground/50 uppercase tracking-wider"
+                  className={getTagClassName(tag)}
                 >
                   {tag}
                 </span>
@@ -76,11 +77,11 @@ export default async function BlogPostPage(props: {
           <div className="mt-8 border-b border-fd-border/40" />
         </header>
 
-        <div className="prose prose-headings:tracking-tight prose-headings:font-semibold prose-p:leading-[1.75] prose-p:text-fd-foreground/85 prose-a:text-fd-primary prose-a:no-underline prose-a:font-medium hover:prose-a:underline prose-img:rounded-lg prose-blockquote:border-fd-primary/30 prose-blockquote:not-italic prose-blockquote:text-fd-muted-foreground/80">
+        <div className="prose prose-headings:tracking-tight prose-headings:font-semibold prose-p:leading-[1.75] prose-p:text-fd-foreground/85 prose-a:text-fd-primary prose-a:no-underline prose-a:font-medium [&_a:hover]:underline [&_:is(h1,h2,h3,h4,h5,h6)_a]:text-inherit [&_:is(h1,h2,h3,h4,h5,h6)_a]:no-underline [&_:is(h1,h2,h3,h4,h5,h6)_a:hover]:no-underline prose-img:rounded-lg prose-blockquote:border-fd-primary/30 prose-blockquote:not-italic prose-blockquote:text-fd-muted-foreground/80">
           <MDX components={getMDXComponents()} />
         </div>
       </article>
-    </main>
+    </div>
   );
 }
 
