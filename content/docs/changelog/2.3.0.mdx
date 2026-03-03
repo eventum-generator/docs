@@ -1,0 +1,34 @@
+---
+title: 🚩 2.3.0
+description: Eventum 2.3.0 minor release — Kafka, TCP, and UDP output plugins, free-threaded Python 3.14t, multithreaded architecture.
+---
+
+Released **March 3, 2026**
+
+A minor release bringing three new output plugins for network-based event delivery, a move to Python 3.14t (free-threaded), and a reworked multithreaded core architecture.
+
+## 🚀 New features
+
+- **[Kafka](/docs/plugins/output/kafka) output plugin** — full Apache Kafka integration with SASL authentication, SSL/mTLS, compression (gzip, snappy, lz4, zstd), and batching.
+- **[TCP](/docs/plugins/output/tcp) output plugin** — send events over persistent TCP connections with SSL/TLS support and automatic reconnection.
+- **[UDP](/docs/plugins/output/udp) output plugin** — send events as UDP datagrams.
+
+---
+
+## ⚡ Performance
+
+- **Python 3.14t** — migrated to free-threaded Python 3.14 for improved concurrency.
+- **Multithreaded architecture** — the core pipeline has been reworked to leverage multithreading for better performance and reliability.
+
+---
+
+## 🧪 Testing
+
+- Expanded test coverage with integration and performance tests.
+
+---
+
+## 📝 Other changes
+
+- Expanded [template plugin](/docs/plugins/event/template) documentation.
+- Added [blog](/blog) to the documentation site.

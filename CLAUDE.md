@@ -36,3 +36,28 @@ pnpm generate-api-docs    # Regenerate API docs from OpenAPI spec (requires bun)
 - **Static export**: `output: 'export'` + `trailingSlash: true`.
 - **Main branch**: `master`, development on `develop`
 - Don't commit unless explicitly asked
+
+## Agent Architecture
+
+This repo is part of the Eventum agent-orchestrated platform. When running from `../eventum/`, **Tim** (Team Lead, main Claude session) delegates documentation work to specialized agents. Each agent has a human name for easy reference:
+
+| Name (EN) | Имя (RU) | Agent ID | Role |
+|-----------|----------|----------|------|
+| Tim | Тим | — | Team Lead (orchestrator) |
+| Richie | Ричи | `researcher` | Research specialist |
+| Archie | Арчи | `architect` | Software architect |
+| Dave | Дейв | `developer` | Full-stack developer |
+| Tess | Тэсс | `qa-engineer` | QA engineer |
+| Ray | Рэй | `code-reviewer` | Code reviewer |
+| Doc | Док | `docs-writer` | Documentation writer |
+| Jane | Джейн | `generator-builder` | Generator builder |
+| Stu | Стю | `product-strategist` | Product strategist |
+| Grey | Грей | `content-growth` | Content & growth |
+
+Agents primarily working with this repo:
+- **Doc** (`docs-writer`) — creates/updates MDX pages, changelog entries, navigation. Primary agent for this repo.
+- **Grey** (`content-growth`) — creates blog posts and promotional content in `content/blog/`.
+- **Ray** (`code-reviewer`) — reviews documentation for accuracy and completeness.
+- **Tess** (`qa-engineer`) — runs `pnpm build` to verify changes.
+
+All agent definitions live in `../eventum/.claude/agents/`. If working standalone in this repo (not via TL), follow the conventions above directly.

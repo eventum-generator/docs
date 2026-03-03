@@ -5,7 +5,11 @@ description: Install Eventum as a Python package, run it with Docker, or build f
 
 ## Prerequisites
 
-Eventum requires **Python 3.13** or later.
+Eventum requires **Python 3.14** or later.
+
+<Callout type="info">
+For best performance, use the **free-threaded build** (Python 3.14t). It disables the GIL, allowing multiple generators to run truly in parallel. Install it with `uv python install 3.14t`.
+</Callout>
 
 <Steps>
 <Step>
@@ -15,12 +19,12 @@ Eventum requires **Python 3.13** or later.
 python --version
 ```
 
-If you see `Python 3.13.x` or higher, you're ready. If not, install the required version:
+If you see `Python 3.14.x` or higher, you're ready. If not, install the required version:
 
-- **Ubuntu/Debian:** `sudo apt install python3.13`
-- **macOS (Homebrew):** `brew install python@3.13`
+- **Ubuntu/Debian:** `sudo apt install python3.14`
+- **macOS (Homebrew):** `brew install python@3.14`
 - **Windows:** download from [python.org](https://www.python.org/downloads/)
-- **Any platform with uv:** `uv python install 3.13` (uv manages Python versions for you)
+- **Any platform with uv:** `uv python install 3.14` (uv manages Python versions for you)
 
 </Step>
 <Step>
@@ -288,8 +292,8 @@ For development or running the latest unreleased changes:
 ### Clone the repository
 
 ```bash
-git clone https://github.com/eventum-project/eventum-generator.git
-cd eventum-generator
+git clone https://github.com/eventum-generator/eventum.git
+cd eventum
 ```
 
 </Step>

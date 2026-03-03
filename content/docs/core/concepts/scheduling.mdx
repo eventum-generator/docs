@@ -162,7 +162,7 @@ input:
 ```
 
 ```bash
-eventum generate ... --no-live-mode
+eventum generate ... --live-mode false
 ```
 
 ### Simulate business-hours traffic
@@ -235,10 +235,10 @@ input:
 
 ```bash
 # Replay at original pace
-eventum generate ... --live-mode --no-skip-past
+eventum generate ... --live-mode --skip-past false
 
 # Replay as fast as possible
-eventum generate ... --no-live-mode
+eventum generate ... --live-mode false
 ```
 
 ## What's next

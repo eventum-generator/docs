@@ -149,4 +149,18 @@ button {
   height: 100%;
 }
 
+/* Blog: staggered fade-in animation */
+@keyframes blog-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
+.blog-animate-in {
+  animation: blog-fade-in 0.3s ease-out both;
+}

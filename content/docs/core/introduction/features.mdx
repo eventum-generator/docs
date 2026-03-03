@@ -90,12 +90,12 @@ All output plugins support [formatters](/docs/plugins/formatters) to transform e
   className="rounded-lg border mt-2"
 />
 
-## Live and batch modes
+## Live and sample modes
 
 Eventum supports two execution modes that cover both real-time streaming and bulk generation:
 
 - **Live mode** — events are emitted at the exact moments defined by their timestamps, synchronized with the wall clock. This is ideal for simulating real-time traffic, feeding a SIEM, or stress-testing a pipeline with a realistic event rate.
-- **Batch mode** — all events are generated as fast as possible regardless of their timestamps. Use this when you need to seed a database, create a historical dataset, or backfill a time range.
+- **Sample mode** — all events are generated as fast as possible regardless of their timestamps. Use this when you need to seed a database, create a historical dataset, or backfill a time range.
 
 Both modes use the same generator config — switch between them with a single flag:
 
@@ -104,7 +104,7 @@ Both modes use the same generator config — switch between them with a single f
 eventum generate --path generator.yml ... --live-mode
 
 # As fast as possible
-eventum generate --path generator.yml ... --no-live-mode
+eventum generate --path generator.yml ... --live-mode false
 ```
 
 ## Log replay
