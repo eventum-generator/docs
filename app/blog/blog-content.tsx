@@ -6,6 +6,7 @@ import { SiGithub } from '@icons-pack/react-simple-icons';
 import { BookOpen, Rss } from 'lucide-react';
 
 import type { BlogPostMeta } from '@/lib/blog-source';
+import { getTagClassName } from '@/lib/blog-tags';
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('en-US', {
@@ -173,7 +174,7 @@ export default function BlogContent({
                     <>
                       <span className="text-fd-border">·</span>
                       {post.tags.map((tag) => (
-                        <span key={tag} className="uppercase tracking-wider">
+                        <span key={tag} className={getTagClassName(tag)}>
                           {tag}
                         </span>
                       ))}

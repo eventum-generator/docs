@@ -1,0 +1,48 @@
+---
+title: "Eventum 2.3.0: Kafka, TCP, and UDP Output Plugins"
+description: "Eventum 2.3.0 adds three new output plugins for network-based event delivery, migrates to free-threaded Python 3.14t, and reworks the core pipeline for multithreaded performance."
+date: "2026-03-03T12:00:00"
+author: "Eventum Team"
+tags:
+  - release
+---
+
+Eventum 2.3.0 is here, and it is the biggest release since 2.0. This version adds three new output plugins for streaming events over the network, migrates the runtime to free-threaded Python 3.14t, and reworks the core pipeline architecture for true multithreading.
+
+## Three new output plugins
+
+The headline of this release is first-class support for network-based event delivery:
+
+**[Kafka](/docs/plugins/output/kafka)** — Full Apache Kafka integration with SASL authentication (PLAIN, SCRAM-SHA-256, SCRAM-SHA-512), SSL/mTLS, compression (gzip, snappy, lz4, zstd), batching, and idempotent delivery. If your observability stack ingests from Kafka, Eventum can now produce directly to your topics.
+
+**[TCP](/docs/plugins/output/tcp)** — Persistent TCP connections with SSL/TLS support and automatic reconnection. Ideal for sending events to syslog collectors, SIEM forwarders, or any service listening on a TCP socket.
+
+**[UDP](/docs/plugins/output/udp)** — Lightweight UDP datagrams for high-volume, fire-and-forget delivery where low latency matters more than guaranteed delivery.
+
+All three plugins work with Eventum's [formatter system](/docs/plugins/formatters), so you can serialize events as JSON, plain text, or any custom format before they hit the wire.
+
+### Quick example: Kafka output
+
+```yaml
+output:
+  - kafka:
+      bootstrap_servers:
+        - broker1:9092
+        - broker2:9092
+      topic: security-events
+      compression_type: lz4
+      linger_ms: 50
+      enable_idempotence: true
+```
+
+That is all it takes to stream events into a Kafka topic with LZ4 compression and exactly-once semantics. Add `security_protocol`, `sasl_mechanism`, and credentials when your cluster requires authentication. See the [full Kafka plugin docs](/docs/plugins/output/kafka) for every available parameter.
+
+## Free-threaded Python 3.14t
+
+Eventum now runs on Python 3.14t — the free-threaded build that removes the Global Interpreter Lock (GIL). This means Python threads can execute in parallel on multiple CPU cores, which directly benefits Eventum's pipeline where input, event, and output stages run concurrently.
+
+## Multithreaded core architecture
+
+Alongside the Python upgrade, the core pipeline has been reworked to take full advantage of multithreading. The result is higher throughput and better resource utilization, especially when running multiple generator instances.
+
+Read the full [changelog](/docs/changelog/2.3.0) for every detail.
