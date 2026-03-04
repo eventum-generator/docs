@@ -117,7 +117,7 @@ cd content-packs
 eventum generate \\
   --path generators/${slug}/generator.yml \\
   --id ${generatorId} \\
-  --live-mode`;
+  --live-mode true`;
 
   const dockerCommand = `git clone https://github.com/eventum-generator/content-packs.git
 cd content-packs
