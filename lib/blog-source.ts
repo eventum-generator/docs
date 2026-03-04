@@ -11,6 +11,7 @@ export interface BlogPostMeta {
   author: string;
   tags?: string[];
   pinned?: boolean;
+  cover?: string;
   slug: string;
 }
 
@@ -28,6 +29,7 @@ export function getBlogPostsMeta(): BlogPostMeta[] {
     author: post.author,
     tags: post.tags,
     pinned: post.pinned,
+    cover: post.cover,
     slug: getPostSlug(post),
   }));
 }
