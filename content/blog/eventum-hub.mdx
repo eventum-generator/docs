@@ -1,0 +1,77 @@
+---
+title: "Introducing Eventum Hub: Ready-to-Use Data Generators in One Place"
+description: "Browse, search, and launch synthetic data generators for cloud, network, endpoint, security, and more — all from a single catalog."
+date: "2026-03-04T12:00:00"
+author: "Eventum Team"
+tags:
+  - announcement
+cover: "/blog/eventum-hub/hub-preview.png"
+---
+
+We're excited to launch **[Eventum Hub](/hub)** — a curated catalog of production-quality synthetic data generators.
+
+![Eventum Hub](/blog/eventum-hub/hub-preview.png)
+
+## The Problem
+
+You need realistic test data. Maybe you're building a SIEM pipeline, load-testing a log aggregator, training an ML model, or just trying to see if your Kafka consumer handles malformed JSON gracefully. The options are: write a script that outputs `{"foo": "bar"}` a thousand times, find a public dataset that's close enough, or spend hours crafting realistic samples by hand.
+
+None of these are great.
+
+## One Catalog, Every Data Source You Need
+
+Eventum Hub is a growing catalog of generators across categories like Cloud, Endpoint, Network, Security, Web & Access, and Email. Each one produces schema-compliant, statistically realistic events — ECS-compatible JSON with proper field distributions, correlated sessions, and weighted event frequencies based on production traffic patterns.
+
+New generators are added regularly. Browse the full catalog to see what's available.
+
+## Browse and Discover
+
+The Hub page features full-text search, category filters, and format filters. Find what you need in seconds:
+
+- Search by name, description, or event type
+- Filter by category (Cloud, Endpoint, Network, Security, Web & Access, Email)
+- Filter by output format (JSON, ECS)
+
+Each generator has a dedicated detail page with event type tables, realism features, configurable parameters, and sample JSON output with syntax highlighting.
+
+## From Zero to Events in 30 Seconds
+
+Every generator page includes a **Quick Start** section with copy-paste commands. Pick your deployment method:
+
+**CLI:**
+
+```bash
+uv tool install eventum-generator
+git clone https://github.com/eventum-generator/content-packs.git
+cd content-packs
+eventum generate \
+  --path generators/windows-security/generator.yml \
+  --id windows-security \
+  --live-mode
+```
+
+**Docker:**
+
+```bash
+git clone https://github.com/eventum-generator/content-packs.git
+cd content-packs
+docker compose up -d
+```
+
+That's it. Realistic Windows Security events (or any other source) streaming to a file (by default).
+
+## What Makes the Data Realistic?
+
+These aren't random field generators. Each content pack models real-world behavior:
+
+- **Weighted event distributions** — logon events dominate Windows Security logs, not audit policy changes. The generators match production ratios.
+- **Correlated sessions** — a VPN connection triggers authentication, IP assignment, and eventual disconnection. Events reference the same session IDs, users, and hosts.
+- **Realistic field values** — IP addresses from proper RFC 1918 ranges, valid UUIDs, plausible usernames, correct event ID codes.
+- **Configurable parameters** — domain names, IP ranges, hostnames, and fleet sizes are all tunable via CLI flags.
+
+## Open and Growing
+
+All content packs are [open source on GitHub](https://github.com/eventum-generator/content-packs). New generators are added regularly — and if you don't see the data source you need, contributions are welcome.
+
+**[Browse the Hub &rarr;](/hub)**
+

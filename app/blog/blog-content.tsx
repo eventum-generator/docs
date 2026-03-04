@@ -186,6 +186,16 @@ export default function BlogContent({
                   {post.title}
                 </h2>
 
+                {post.cover && (
+                  <div className="mt-1 overflow-hidden rounded-lg border border-fd-border/30">
+                    <img
+                      src={post.cover}
+                      alt={post.title}
+                      className="w-full object-cover object-top max-h-72"
+                    />
+                  </div>
+                )}
+
                 <p className="text-[0.9375rem] text-fd-muted-foreground/70 leading-relaxed">
                   {post.description}
                 </p>

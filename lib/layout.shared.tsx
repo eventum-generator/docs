@@ -1,5 +1,5 @@
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
-import { BookOpen, House, Newspaper } from 'lucide-react';
+import { BookOpen, Boxes, House, Newspaper } from 'lucide-react';
 
 export const gitConfig = {
   user: 'eventum-generator',
@@ -39,6 +39,13 @@ export function baseOptions(): BaseLayoutProps {
         icon: <BookOpen size={16} />,
         text: 'Documentation',
         url: '/docs',
+        on: 'all',
+        active: 'nested-url',
+      },
+      {
+        icon: <Boxes size={16} />,
+        text: 'Eventum Hub',
+        url: '/hub',
         on: 'all',
         active: 'nested-url',
       },
