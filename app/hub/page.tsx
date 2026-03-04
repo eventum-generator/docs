@@ -51,6 +51,12 @@ export default function HubPage() {
 
       {/* Catalog */}
       <HubContent generators={generators} />
+
+      {/* Disclaimer */}
+      <p className="mt-16 text-center text-xs text-fd-muted-foreground/40 leading-relaxed">
+        All product names, logos, and brands are property of their respective
+        owners. Eventum is not affiliated with or endorsed by any of them.
+      </p>
     </div>
   );
 }
