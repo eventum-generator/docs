@@ -1,8 +1,17 @@
 import type { LucideIcon } from 'lucide-react';
-import { Cloud, Globe, Mail, Monitor, Network, Shield } from 'lucide-react';
+import {
+  Cloud,
+  Database,
+  Globe,
+  Mail,
+  Monitor,
+  Network,
+  Shield,
+} from 'lucide-react';
 
 export type CategoryId =
   | 'cloud'
+  | 'database'
   | 'email'
   | 'endpoint'
   | 'network'
@@ -22,8 +31,15 @@ export const CATEGORIES: CategoryMeta[] = [
     id: 'cloud',
     name: 'Cloud',
     icon: Cloud,
-    description: 'AWS, Azure, and Microsoft 365',
+    description: 'AWS, GCP, Azure, Microsoft 365, and Okta',
     color: 'bg-sky-500/10 text-sky-600 dark:text-sky-400',
+  },
+  {
+    id: 'database',
+    name: 'Database',
+    icon: Database,
+    description: 'Database audit and query logs',
+    color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
   },
   {
     id: 'endpoint',
@@ -71,8 +87,11 @@ export function getCategoryForSlug(slug: string): CategoryId {
     'windows-sysmon': 'endpoint',
     'linux-auditd': 'endpoint',
     'cloud-aws-cloudtrail': 'cloud',
+    'cloud-aws-guardduty': 'cloud',
     'cloud-aws-vpc-flow': 'cloud',
     'cloud-azure-activity': 'cloud',
+    'cloud-azure-entra-id': 'cloud',
+    'cloud-gcp-audit': 'cloud',
     'cloud-m365-audit': 'cloud',
     'network-cisco-asa': 'network',
     'network-checkpoint': 'network',
@@ -91,6 +110,9 @@ export function getCategoryForSlug(slug: string): CategoryId {
     'vpn-cisco-anyconnect': 'web-access',
     'email-exchange': 'email',
     'fortinet-fortimail': 'email',
+    'database-postgresql': 'database',
+    'identity-okta': 'cloud',
+    'security-waf': 'security',
   };
 
   return SLUG_CATEGORY_MAP[slug] ?? 'network';
