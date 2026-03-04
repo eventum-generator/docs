@@ -17,7 +17,7 @@ export default function HubPage() {
   return (
     <div
       role="main"
-      className="mx-auto max-w-7xl px-6 py-10 sm:py-14 overflow-y-auto"
+      className="mx-auto w-full max-w-7xl px-6 py-10 sm:py-14 overflow-y-auto"
     >
       {/* Hero */}
       <div className="mb-10 blog-animate-in">

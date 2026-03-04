@@ -149,6 +149,10 @@ button {
   height: 100%;
 }
 
+:root:has(#nd-home-layout) {
+  overflow-x: clip;
+}
+
 /* Blog: staggered fade-in animation */
 @keyframes blog-fade-in {
   from {
