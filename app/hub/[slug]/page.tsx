@@ -27,7 +27,7 @@ export default async function GeneratorDetailPage(props: {
   return (
     <div
       role="main"
-      className="mx-auto max-w-4xl px-6 py-10 sm:py-14 overflow-y-auto"
+      className="mx-auto w-full max-w-4xl px-6 py-10 sm:py-14 overflow-y-auto"
     >
       {/* Back link */}
       <Link
@@ -198,6 +198,7 @@ export async function generateMetadata(props: {
       title: `${generator.displayName} | Eventum Hub`,
       description: generator.description,
       type: 'article',
+      images: [`/og/hub/${slug}/image.png`],
     },
   };
 }

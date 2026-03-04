@@ -20,7 +20,6 @@ export async function GET(
 
   return generateOGImage({
     title: post.title,
-    description: post.description,
     site: 'Eventum Blog',
     icon: <img src={logoSrc} alt="" width={48} height={48} />,
     primaryColor: 'rgba(130,130,239,0.3)',
