@@ -109,11 +109,7 @@ function CopyButton({ text }: { text: string }) {
 }
 
 export function QuickStartTabs({ slug, generatorId }: QuickStartTabsProps) {
-  const [activeTab, setActiveTab] = useState<'docker' | 'cli'>('docker');
-
-  const dockerCommand = `git clone https://github.com/eventum-generator/content-packs.git
-cd content-packs
-docker compose up -d`;
+  const [activeTab, setActiveTab] = useState<'cli' | 'docker'>('cli');
 
   const cliCommand = `uv tool install eventum-generator
 git clone https://github.com/eventum-generator/content-packs.git
@@ -123,21 +119,14 @@ eventum generate \\
   --id ${generatorId} \\
   --live-mode`;
 
+  const dockerCommand = `git clone https://github.com/eventum-generator/content-packs.git
+cd content-packs
+docker compose up -d`;
+
   return (
     <div className="rounded-xl border border-fd-border/50 overflow-hidden">
       {/* Tab headers */}
       <div className="flex border-b border-fd-border/50 bg-fd-muted/30">
-        <button
-          type="button"
-          onClick={() => setActiveTab('docker')}
-          className={`px-4 py-2.5 text-sm font-medium transition-colors ${
-            activeTab === 'docker'
-              ? 'text-fd-foreground border-b-2 border-fd-primary -mb-px'
-              : 'text-fd-muted-foreground hover:text-fd-foreground'
-          }`}
-        >
-          Docker
-        </button>
         <button
           type="button"
           onClick={() => setActiveTab('cli')}
@@ -148,6 +137,17 @@ eventum generate \\
           }`}
         >
           CLI
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('docker')}
+          className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+            activeTab === 'docker'
+              ? 'text-fd-foreground border-b-2 border-fd-primary -mb-px'
+              : 'text-fd-muted-foreground hover:text-fd-foreground'
+          }`}
+        >
+          Docker
         </button>
       </div>
 
