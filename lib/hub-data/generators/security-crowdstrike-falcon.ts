@@ -1,7 +1,7 @@
 import type { GeneratorMeta } from '@/lib/hub-types';
 
-export const crowdstrikeFalcon: GeneratorMeta = {
-    slug: 'crowdstrike-falcon',
+export const securityCrowdstrikeFalcon: GeneratorMeta = {
+    slug: 'security-crowdstrike-falcon',
     displayName: 'CrowdStrike Falcon',
     category: 'security',
     description:
@@ -16,7 +16,7 @@ export const crowdstrikeFalcon: GeneratorMeta = {
       'Remote session correlation',
       'Shared monotonic offset counter',
     ],
-    generatorId: 'crowdstrike-falcon',
+    generatorId: 'security-crowdstrike-falcon',
     eventTypes: [
       {
         id: 'epp-detection',

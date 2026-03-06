@@ -35,7 +35,7 @@ import { databasePostgresql } from './generators/database-postgresql';
 import { identityOkta } from './generators/identity-okta';
 import { proxyZscaler } from './generators/proxy-zscaler';
 import { securityWaf } from './generators/security-waf';
-import { crowdstrikeFalcon } from './generators/crowdstrike-falcon';
+import { securityCrowdstrikeFalcon } from './generators/security-crowdstrike-falcon';
 import { defenderEndpoint } from './generators/defender-endpoint';
 import { vpnPaloaltoGlobalprotect } from './generators/vpn-paloalto-globalprotect';
 
@@ -75,7 +75,7 @@ export const generators: GeneratorMeta[] = [
   databasePostgresql,
   identityOkta,
   securityWaf,
-  crowdstrikeFalcon,
+  securityCrowdstrikeFalcon,
   defenderEndpoint,
   vpnPaloaltoGlobalprotect,
 ];

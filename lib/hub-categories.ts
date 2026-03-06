@@ -118,7 +118,7 @@ export function getCategoryForSlug(slug: string): CategoryId {
     'database-postgresql': 'database',
     'identity-okta': 'cloud',
     'security-waf': 'security',
-    'crowdstrike-falcon': 'security',
+    'security-crowdstrike-falcon': 'security',
     'defender-endpoint': 'security',
   };
 
