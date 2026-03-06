@@ -1,14 +1,13 @@
-import type { Metadata } from 'next';
 import { Layers, Package } from 'lucide-react';
-
-import { generators } from '@/lib/hub-data';
+import type { Metadata } from 'next';
 
 import HubContent from './hub-content';
+import { generators } from '@/lib/hub-data';
 
 export const metadata: Metadata = {
   title: 'Eventum Hub',
   description:
-    'Production-quality synthetic data for testing, development, and training. Browse ready-to-use event generators across multiple categories.',
+    'Synthetic data for testing, development, and training. Browse ready-to-use event generators across multiple categories.',
 };
 
 const categoryCount = new Set(generators.map((g) => g.category)).size;
@@ -25,9 +24,8 @@ export default function HubPage() {
           Eventum Hub
         </h1>
         <p className="mt-3 max-w-2xl text-base text-fd-muted-foreground/70 leading-relaxed">
-          Production-quality synthetic data for testing, development, and
-          training. One command to start generating realistic, schema-compliant
-          events from any source.
+          Synthetic data for testing, development, and training. One command to
+          start generating realistic, schema-compliant events from any source.
         </p>
 
         {/* Stats */}
