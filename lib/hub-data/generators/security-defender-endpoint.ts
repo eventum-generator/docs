@@ -1,7 +1,7 @@
 import type { GeneratorMeta } from '@/lib/hub-types';
 
-export const defenderEndpoint: GeneratorMeta = {
-    slug: 'defender-endpoint',
+export const securityDefenderEndpoint: GeneratorMeta = {
+    slug: 'security-defender-endpoint',
     displayName: 'Microsoft Defender for Endpoint',
     category: 'security',
     description:

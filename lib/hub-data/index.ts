@@ -30,6 +30,7 @@ import { webApache } from './generators/web-apache';
 import { linuxAuditd } from './generators/linux-auditd';
 import { linuxSyslog } from './generators/linux-syslog';
 import { emailExchange } from './generators/email-exchange';
+import { emailKasperskyKsmg } from './generators/email-kaspersky-ksmg';
 import { fortinetFortimail } from './generators/fortinet-fortimail';
 import { vpnCiscoAnyconnect } from './generators/vpn-cisco-anyconnect';
 import { databaseMssqlAudit } from './generators/database-mssql-audit';
@@ -40,7 +41,7 @@ import { securityWaf } from './generators/security-waf';
 import { securityCrowdstrikeFalcon } from './generators/security-crowdstrike-falcon';
 import { securityKasperskyKata } from './generators/security-kaspersky-kata';
 import { securityKasperskyKsc } from './generators/security-kaspersky-ksc';
-import { defenderEndpoint } from './generators/defender-endpoint';
+import { securityDefenderEndpoint } from './generators/security-defender-endpoint';
 import { kubernetesAudit } from './generators/kubernetes-audit';
 import { vpnCitrixNetscaler } from './generators/vpn-citrix-netscaler';
 import { vpnPaloaltoGlobalprotect } from './generators/vpn-paloalto-globalprotect';
@@ -50,6 +51,7 @@ import { dlpInfowatch } from './generators/dlp-infowatch';
 import { proxyKasperskyKwts } from './generators/proxy-kaspersky-kwts';
 import { securityPtNad } from './generators/security-pt-nad';
 import { monitoringZabbix } from './generators/monitoring-zabbix';
+import { databaseMysqlAudit } from './generators/database-mysql-audit';
 
 export const generators: GeneratorMeta[] = [
   windowsSecurity,
@@ -82,18 +84,20 @@ export const generators: GeneratorMeta[] = [
   linuxAuditd,
   linuxSyslog,
   emailExchange,
+  emailKasperskyKsmg,
   fortinetFortimail,
   vpnCiscoAnyconnect,
   vpnCitrixNetscaler,
   proxyZscaler,
   databaseMssqlAudit,
+  databaseMysqlAudit,
   databasePostgresql,
   identityOkta,
   securityWaf,
   securityCrowdstrikeFalcon,
   securityKasperskyKata,
   securityKasperskyKsc,
-  defenderEndpoint,
+  securityDefenderEndpoint,
   kubernetesAudit,
   vpnPaloaltoGlobalprotect,
   vpnVipnet,
