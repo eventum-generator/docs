@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  Activity,
   Cloud,
   Database,
   Globe,
@@ -14,6 +15,7 @@ export type CategoryId =
   | 'database'
   | 'email'
   | 'endpoint'
+  | 'monitoring'
   | 'network'
   | 'security'
   | 'web-access';
@@ -47,6 +49,13 @@ export const CATEGORIES: CategoryMeta[] = [
     icon: Monitor,
     description: 'Windows and Linux host telemetry',
     color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+  },
+  {
+    id: 'monitoring',
+    name: 'Monitoring',
+    icon: Activity,
+    description: 'Infrastructure and application monitoring',
+    color: 'bg-teal-500/10 text-teal-600 dark:text-teal-400',
   },
   {
     id: 'network',
@@ -86,6 +95,7 @@ export function getCategoryForSlug(slug: string): CategoryId {
     'windows-powershell': 'endpoint',
     'windows-sysmon': 'endpoint',
     'linux-auditd': 'endpoint',
+    'linux-syslog': 'endpoint',
     'cloud-aws-cloudtrail': 'cloud',
     'cloud-aws-guardduty': 'cloud',
     'cloud-aws-vpc-flow': 'cloud',
@@ -101,18 +111,36 @@ export function getCategoryForSlug(slug: string): CategoryId {
     'network-juniper-srx': 'network',
     'network-netflow': 'network',
     'network-wireless-aruba': 'network',
+    'network-continent': 'network',
+    'network-usergate': 'network',
     'security-suricata': 'security',
     'network-snort': 'security',
+    'network-paloalto-traffic': 'network',
+    'network-paloalto-threat': 'security',
     'network-paloalto-url': 'security',
     'web-nginx': 'web-access',
     'web-apache': 'web-access',
     'proxy-zscaler': 'web-access',
     'vpn-cisco-anyconnect': 'web-access',
+    'vpn-citrix-netscaler': 'web-access',
+    'vpn-paloalto-globalprotect': 'web-access',
     'email-exchange': 'email',
     'fortinet-fortimail': 'email',
+    'database-mssql-audit': 'database',
     'database-postgresql': 'database',
     'identity-okta': 'cloud',
+    'kubernetes-audit': 'cloud',
     'security-waf': 'security',
+    'security-crowdstrike-falcon': 'security',
+    'security-kaspersky-kata': 'security',
+    'security-kaspersky-ksc': 'security',
+    'defender-endpoint': 'security',
+    'endpoint-secret-net': 'endpoint',
+    'dlp-infowatch': 'security',
+    'vpn-vipnet': 'web-access',
+    'proxy-kaspersky-kwts': 'web-access',
+    'security-pt-nad': 'security',
+    'monitoring-zabbix': 'monitoring',
   };
 
   return SLUG_CATEGORY_MAP[slug] ?? 'network';
