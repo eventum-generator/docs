@@ -125,6 +125,7 @@ export function getCategoryForSlug(slug: string): CategoryId {
     'vpn-citrix-netscaler': 'web-access',
     'vpn-paloalto-globalprotect': 'web-access',
     'email-exchange': 'email',
+    'email-kaspersky-ksmg': 'email',
     'fortinet-fortimail': 'email',
     'database-mssql-audit': 'database',
     'database-postgresql': 'database',
