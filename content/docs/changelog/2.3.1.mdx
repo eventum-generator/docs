@@ -1,0 +1,12 @@
+---
+title: 🩹 2.3.1
+description: Eventum 2.3.1 patch release — fix Docker image failing to start.
+---
+
+Released **March 24, 2026**
+
+A patch release fixing the broken Docker image.
+
+## 🐛 Bug fixes
+
+- **Fix Docker image startup** — the container failed with `exec /app/.venv/bin/eventum: no such file or directory` due to issues in the Dockerfile.
