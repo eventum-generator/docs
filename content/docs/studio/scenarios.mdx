@@ -1,39 +1,56 @@
 ---
 title: Scenarios
-description: Group generator instances into named scenarios for coordinated lifecycle control, shared global state management, and data flow visualization.
+description: Group generator instances into named scenarios for coordinated lifecycle control, global state management, and data flow visualization.
 ---
 
-A **scenario** is a named grouping of generator instances. Where [projects](/docs/studio/projects) define *what* a generator does (its config), a scenario defines *which instances work together* at runtime. Use scenarios to coordinate multiple generators that form a logical unit — for example, a "corporate-network" scenario might group an authentication service generator and a web proxy generator that share state through global variables.
+A **scenario** is a named grouping of generator instances that work together as a logical unit. Where [projects](/docs/studio/projects) define *what* a generator does (its config), a scenario defines *which instances collaborate* at runtime — sharing state, coordinating lifecycles, and forming a coherent data pipeline.
+
+For example, a corporate network simulation might involve an authentication service that tracks active user sessions, a web proxy that uses those sessions to generate realistic HTTP traffic, and a DNS server that references blocked domains maintained by the proxy. These generators need to start and stop together, and they exchange data through global state. A scenario ties them into one manageable unit.
 
 ## How scenarios work
 
 Scenarios are defined through the `scenarios` field in [startup.yml](/docs/core/config/startup-yml). Each generator entry can list one or more scenario names:
 
 ```yaml title="startup.yml"
+# Authentication service — tracks user sessions
 - id: auth-service
   path: auth-service/generator.yml
+  autostart: true
   scenarios:
     - corporate-network
+    - security-monitoring
 
+# Web proxy — generates HTTP traffic using active sessions
 - id: web-proxy
   path: web-proxy/generator.yml
+  autostart: true
   scenarios:
     - corporate-network
 
-- id: test-generator
-  path: test/generator.yml
+# DNS server — resolves domains, respects blocked list
+- id: dns-server
+  path: dns-server/generator.yml
+  autostart: true
   scenarios:
-    - test-scenario
     - corporate-network
+
+# Firewall — logs network connections from active users
+- id: firewall
+  path: firewall/generator.yml
+  autostart: true
+  scenarios:
+    - corporate-network
+    - security-monitoring
 ```
+
+In this example, the `corporate-network` scenario groups all four generators — they simulate interconnected services in a corporate environment. The `security-monitoring` scenario groups only `auth-service` and `firewall` — the subset relevant for security event correlation. A generator can belong to multiple scenarios.
 
 Key characteristics:
 
-- A generator can belong to **multiple scenarios**.
 - A scenario is created simply by tagging generators with the same name — there is no separate scenario config file.
 - Scenarios provide **coordinated lifecycle control** — start or stop all generators in a scenario at once.
-- Scenarios provide a **shared global state** view — inspect and modify the `globals` dictionary that all template event plugins share.
-- When generators use `globals.set()` and `globals.get()` in their templates, the scenario page visualizes these data flows.
+- Scenarios provide a **global state** view — inspect and modify the `globals` dictionary shared between all template event plugins.
+- When generators use `globals.set()` and `globals.get()` in their templates, the scenario page visualizes these data flows as a graph.
 
 ## Scenario list
 
@@ -73,7 +90,7 @@ The toolbar provides bulk actions for selected scenarios (use the checkboxes in 
 
 Click **Create new** to open the creation dialog. Provide:
 
-- **Scenario name** — a unique name for the scenario (e.g. `network-monitoring`).
+- **Scenario name** — a unique name for the scenario (e.g. `corporate-network`).
 - **Instances** — a multi-select list of all available generator instances. Select at least one.
 
 The selected instances are tagged with the scenario name in `startup.yml`. The scenario appears in the list immediately.
@@ -91,16 +108,18 @@ Clicking a scenario name opens the detail page. The layout is split into two mai
 
 ### Data Flow diagram
 
-The Data Flow diagram is a visual representation of how generators in the scenario interact through global state. It appears automatically when any generator in the scenario uses `globals.set()` or `globals.get()` in its Jinja2 templates.
+The Data Flow diagram visualizes how generators in the scenario interact through global state. It appears automatically when any generator in the scenario uses `globals.set()` or `globals.get()` in its Jinja2 templates.
 
 The diagram shows:
 
 - **Instance nodes** (left side) — each generator instance, with a status indicator (green for running, grey for inactive). Click an instance node to scroll to its card below.
 - **Key nodes** (right side, dashed border) — each global state key that is read or written by the generators.
-- **Write edges** (instance to key) — dashed arrows showing which generators write to which global keys.
-- **Read edges** (key to instance) — dashed arrows showing which generators read from which global keys.
+- **Write edges** (instance → key) — dashed arrows showing which generators write to which global keys.
+- **Read edges** (key → instance) — dashed arrows showing which generators read from which global keys.
 
-Hovering over an instance card or a globals reference highlights the related nodes and edges in the diagram, dimming everything else. This makes it easy to trace data dependencies in complex scenarios.
+In the screenshot, you can see that `auth-service` writes to `active_sessions`, while `web-proxy` reads `active_sessions` and writes to `blocked_domains`. This is the core of the corporate network simulation — the authentication service maintains a list of logged-in users, and the web proxy uses that list to generate traffic that looks like it comes from real user sessions.
+
+Hovering over an instance card or a globals reference highlights the related nodes and edges in the diagram, dimming everything else. This makes it easy to trace data dependencies in complex scenarios with many generators and shared keys.
 
 ### Instance cards
 
@@ -113,17 +132,17 @@ Below the Data Flow diagram, the **Instances** section lists each generator in t
 | Action | Description |
 |--------|-------------|
 | **Start / Stop** | Start or stop this individual instance. |
-| **Show metrics** | Open the metrics dialog for this instance. |
-| **Show logs** | Open the log viewer for this instance. |
-| **Edit instance** | Navigate to the instance settings page. |
-| **Go to project** | Navigate to the project editor for this generator's config. |
+| **Show metrics** | Open the [metrics page](/docs/studio/instances#instance-metrics) for this instance. |
+| **Show logs** | Open the [log viewer](/docs/studio/instances#instance-logs) for this instance. |
+| **Edit instance** | Navigate to the [instance settings](/docs/studio/instances#instance-settings) page. |
+| **Go to project** | Navigate to the [project editor](/docs/studio/projects) for this generator's config. |
 | **Remove** | Remove this instance from the scenario (does not delete the instance). |
 
 When a generator uses global state, the card is expandable. Click to expand and see:
 
 - **Templates** — each template file that references globals, shown as a clickable link.
-- **Writes** — global keys written by each template, shown with a right-arrow icon.
-- **Reads** — global keys read by each template, shown with a left-arrow icon.
+- **Writes** — global keys written by each template (e.g. `auth-service` writes `active_sessions` with current user session data).
+- **Reads** — global keys read by each template (e.g. `web-proxy` reads `active_sessions` to pick a user for the next HTTP request).
 
 Hovering over a write or read entry highlights the corresponding edge in the Data Flow diagram.
 
@@ -138,6 +157,8 @@ Clicking a template file name in an expanded instance card opens a preview modal
   className="rounded-lg border mt-2"
 />
 
+For instance, the web proxy template reads active sessions, picks a random user, resolves their IP address, and generates an HTTP request on behalf of that user — all driven by state that the auth-service generator maintains in `globals`.
+
 ### Bulk actions
 
 The instance list header provides three actions:
@@ -149,7 +170,7 @@ The instance list header provides three actions:
 | **Start All** | Start all generators in the scenario. |
 
 <Callout type="warn">
-When stopping generators that belong to multiple scenarios, a warning dialog shows which other scenarios will be affected. Review the list carefully before confirming.
+When stopping generators that belong to multiple scenarios, a warning dialog shows which other scenarios will be affected. For example, stopping `auth-service` from the `corporate-network` scenario will also affect `security-monitoring` if `auth-service` belongs to both. Review the list carefully before confirming.
 </Callout>
 
 ---
@@ -169,29 +190,32 @@ The panel displays a key-value table with:
 
 | Column | Description |
 |--------|-------------|
-| **Key** | The global state key name. |
-| **Value** | The current value, displayed as a badge. Click to edit in a JSON editor. |
+| **Key** | The global state key name (e.g. `active_sessions`, `blocked_domains`). |
+| **Value** | The current value, displayed as a badge. Click to view or edit in a JSON editor. |
 | **Actions** | Edit and delete buttons for each key. |
+
+In the screenshot, `active_sessions` contains an array of user session objects (with username, IP, department, etc.), and `blocked_domains` contains a list of domain names that the web proxy has flagged. These values are live — they update as the generators run and modify state.
 
 ### Managing global state
 
 - **Add** — click the add button to create a new key-value pair. Values are entered as JSON.
-- **Edit** — click the edit button on a row to modify a key's value in a JSON editor dialog.
+- **Edit** — click the edit button on a row to modify a key's value in a JSON editor dialog. This is useful for testing — for example, you can manually inject a session into `active_sessions` and watch how the web proxy picks it up.
 - **Delete** — click the delete button to remove a key from global state.
 - **Clear** — remove all keys from global state at once.
 - **Sync** — refresh the state from the backend (the panel also auto-refreshes every 5 seconds).
 
 <Callout type="warn">
-Modifying global state affects all currently running generator instances, not just the ones in this scenario. Global state is shared application-wide — use the scenario view to understand which generators depend on which keys before making changes.
+Modifying global state affects all currently running generator instances, not just the ones in this scenario. Global state is shared application-wide — use the Data Flow diagram to understand which generators depend on which keys before making changes.
 </Callout>
 
 ---
 
 ## Configuration
 
-Scenarios are configured through the `scenarios` field in [startup.yml](/docs/core/config/startup-yml#scenarios). You can also create and manage scenarios entirely from the Studio UI — changes made in the UI are written back to the startup file on disk.
+Scenarios are configured through the `scenarios` field in [startup.yml](/docs/core/config/startup-yml). You can also create and manage scenarios entirely from the Studio UI — changes made in the UI are written back to the startup file on disk.
 
 ```yaml title="startup.yml"
+# Corporate network simulation — auth, proxy, DNS, and firewall
 - id: auth-service
   path: auth-service/generator.yml
   autostart: true
@@ -204,6 +228,19 @@ Scenarios are configured through the `scenarios` field in [startup.yml](/docs/co
   autostart: true
   scenarios:
     - corporate-network
+
+- id: dns-server
+  path: dns-server/generator.yml
+  autostart: true
+  scenarios:
+    - corporate-network
+
+- id: firewall
+  path: firewall/generator.yml
+  autostart: true
+  scenarios:
+    - corporate-network
+    - security-monitoring
 ```
 
-In this example, the `corporate-network` scenario contains both `auth-service` and `web-proxy`, while `security-monitoring` contains only `auth-service`. The `auth-service` generator appears in both scenarios.
+In this example, the `corporate-network` scenario contains all four generators that simulate interconnected corporate services. The `security-monitoring` scenario contains only `auth-service` and `firewall` — the subset needed for security event correlation and alerting. Starting `corporate-network` brings up the full simulation; starting `security-monitoring` brings up only the security-relevant generators.
