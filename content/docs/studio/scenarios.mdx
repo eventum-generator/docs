@@ -1,0 +1,209 @@
+---
+title: Scenarios
+description: Group generator instances into named scenarios for coordinated lifecycle control, shared global state management, and data flow visualization.
+---
+
+A **scenario** is a named grouping of generator instances. Where [projects](/docs/studio/projects) define *what* a generator does (its config), a scenario defines *which instances work together* at runtime. Use scenarios to coordinate multiple generators that form a logical unit — for example, a "corporate-network" scenario might group an authentication service generator and a web proxy generator that share state through global variables.
+
+## How scenarios work
+
+Scenarios are defined through the `scenarios` field in [startup.yml](/docs/core/config/startup-yml). Each generator entry can list one or more scenario names:
+
+```yaml title="startup.yml"
+- id: auth-service
+  path: auth-service/generator.yml
+  scenarios:
+    - corporate-network
+
+- id: web-proxy
+  path: web-proxy/generator.yml
+  scenarios:
+    - corporate-network
+
+- id: test-generator
+  path: test/generator.yml
+  scenarios:
+    - test-scenario
+    - corporate-network
+```
+
+Key characteristics:
+
+- A generator can belong to **multiple scenarios**.
+- A scenario is created simply by tagging generators with the same name — there is no separate scenario config file.
+- Scenarios provide **coordinated lifecycle control** — start or stop all generators in a scenario at once.
+- Scenarios provide a **shared global state** view — inspect and modify the `globals` dictionary that all template event plugins share.
+- When generators use `globals.set()` and `globals.get()` in their templates, the scenario page visualizes these data flows.
+
+## Scenario list
+
+The Scenarios page shows all scenarios derived from the startup configuration.
+
+<ThemedImage
+  lightSrc="/images/studio_ui/scenarios_page_light.png"
+  darkSrc="/images/studio_ui/scenarios_page_dark.png"
+  alt="Scenarios page in Eventum Studio"
+  className="rounded-lg border mt-2"
+/>
+
+The table has the following columns:
+
+| Column | Description |
+|--------|-------------|
+| **Name** | The scenario name. Click to open the scenario detail page. |
+| **Instances** | Number of generator instances in the scenario. |
+| **Status** | Aggregate status — shows badges for running, stopped, initializing, and stopping instance counts. |
+
+### Filtering
+
+- **Search by name** — text filter on scenario names.
+
+### Toolbar
+
+The toolbar provides bulk actions for selected scenarios (use the checkboxes in each row):
+
+| Action | Description |
+|--------|-------------|
+| **Delete** | Remove the selected scenarios. This untags the generators — it does not delete the instances themselves. |
+| **Refresh** | Refresh the status of all generators. |
+| **Stop** | Stop all generators in the selected scenarios. |
+| **Start** | Start all generators in the selected scenarios. |
+
+## Creating a scenario
+
+Click **Create new** to open the creation dialog. Provide:
+
+- **Scenario name** — a unique name for the scenario (e.g. `network-monitoring`).
+- **Instances** — a multi-select list of all available generator instances. Select at least one.
+
+The selected instances are tagged with the scenario name in `startup.yml`. The scenario appears in the list immediately.
+
+## Scenario detail page
+
+Clicking a scenario name opens the detail page. The layout is split into two main areas: the left column contains the Data Flow diagram and the instance cards, while the right column shows the Global State panel.
+
+<ThemedImage
+  lightSrc="/images/studio_ui/scenario_page_light.png"
+  darkSrc="/images/studio_ui/scenario_page_dark.png"
+  alt="Scenario detail page in Eventum Studio"
+  className="rounded-lg border mt-2"
+/>
+
+### Data Flow diagram
+
+The Data Flow diagram is a visual representation of how generators in the scenario interact through global state. It appears automatically when any generator in the scenario uses `globals.set()` or `globals.get()` in its Jinja2 templates.
+
+The diagram shows:
+
+- **Instance nodes** (left side) — each generator instance, with a status indicator (green for running, grey for inactive). Click an instance node to scroll to its card below.
+- **Key nodes** (right side, dashed border) — each global state key that is read or written by the generators.
+- **Write edges** (instance to key) — dashed arrows showing which generators write to which global keys.
+- **Read edges** (key to instance) — dashed arrows showing which generators read from which global keys.
+
+Hovering over an instance card or a globals reference highlights the related nodes and edges in the diagram, dimming everything else. This makes it easy to trace data dependencies in complex scenarios.
+
+### Instance cards
+
+Below the Data Flow diagram, the **Instances** section lists each generator in the scenario as an expandable card. Each card shows:
+
+- **Status indicator** — colored dot (green for running, yellow for initializing, grey for stopped).
+- **Generator ID** — the instance identifier.
+- **Context menu** (three-dot icon) — per-instance actions:
+
+| Action | Description |
+|--------|-------------|
+| **Start / Stop** | Start or stop this individual instance. |
+| **Show metrics** | Open the metrics dialog for this instance. |
+| **Show logs** | Open the log viewer for this instance. |
+| **Edit instance** | Navigate to the instance settings page. |
+| **Go to project** | Navigate to the project editor for this generator's config. |
+| **Remove** | Remove this instance from the scenario (does not delete the instance). |
+
+When a generator uses global state, the card is expandable. Click to expand and see:
+
+- **Templates** — each template file that references globals, shown as a clickable link.
+- **Writes** — global keys written by each template, shown with a right-arrow icon.
+- **Reads** — global keys read by each template, shown with a left-arrow icon.
+
+Hovering over a write or read entry highlights the corresponding edge in the Data Flow diagram.
+
+### Template preview
+
+Clicking a template file name in an expanded instance card opens a preview modal showing the template source code with syntax highlighting. This lets you inspect how `globals.set()` and `globals.get()` are used without leaving the scenario page.
+
+<ThemedImage
+  lightSrc="/images/studio_ui/scenario_page_template_light.png"
+  darkSrc="/images/studio_ui/scenario_page_template_dark.png"
+  alt="Template preview modal in the scenario page"
+  className="rounded-lg border mt-2"
+/>
+
+### Bulk actions
+
+The instance list header provides three actions:
+
+| Action | Description |
+|--------|-------------|
+| **Add** | Open a dialog to add an existing generator instance to the scenario. |
+| **Stop All** | Stop all generators in the scenario. If any generators are shared with other scenarios, a confirmation dialog lists the affected scenarios. |
+| **Start All** | Start all generators in the scenario. |
+
+<Callout type="warn">
+When stopping generators that belong to multiple scenarios, a warning dialog shows which other scenarios will be affected. Review the list carefully before confirming.
+</Callout>
+
+---
+
+## Global State panel
+
+The right side of the scenario detail page shows the Global State panel — a live view of the `globals` dictionary shared across all template event plugins.
+
+<ThemedImage
+  lightSrc="/images/studio_ui/scenario_page_state_light.png"
+  darkSrc="/images/studio_ui/scenario_page_state_dark.png"
+  alt="Global State panel in the scenario page"
+  className="rounded-lg border mt-2"
+/>
+
+The panel displays a key-value table with:
+
+| Column | Description |
+|--------|-------------|
+| **Key** | The global state key name. |
+| **Value** | The current value, displayed as a badge. Click to edit in a JSON editor. |
+| **Actions** | Edit and delete buttons for each key. |
+
+### Managing global state
+
+- **Add** — click the add button to create a new key-value pair. Values are entered as JSON.
+- **Edit** — click the edit button on a row to modify a key's value in a JSON editor dialog.
+- **Delete** — click the delete button to remove a key from global state.
+- **Clear** — remove all keys from global state at once.
+- **Sync** — refresh the state from the backend (the panel also auto-refreshes every 5 seconds).
+
+<Callout type="warn">
+Modifying global state affects all currently running generator instances, not just the ones in this scenario. Global state is shared application-wide — use the scenario view to understand which generators depend on which keys before making changes.
+</Callout>
+
+---
+
+## Configuration
+
+Scenarios are configured through the `scenarios` field in [startup.yml](/docs/core/config/startup-yml#scenarios). You can also create and manage scenarios entirely from the Studio UI — changes made in the UI are written back to the startup file on disk.
+
+```yaml title="startup.yml"
+- id: auth-service
+  path: auth-service/generator.yml
+  autostart: true
+  scenarios:
+    - corporate-network
+    - security-monitoring
+
+- id: web-proxy
+  path: web-proxy/generator.yml
+  autostart: true
+  scenarios:
+    - corporate-network
+```
+
+In this example, the `corporate-network` scenario contains both `auth-service` and `web-proxy`, while `security-monitoring` contains only `auth-service`. The `auth-service` generator appears in both scenarios.

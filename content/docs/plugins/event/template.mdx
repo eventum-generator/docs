@@ -234,6 +234,7 @@ All three scopes provide the same methods:
 |--------|-----------|-------------|
 | `get` | `(key, default=None) → Any` | Get a value. Returns `default` if the key doesn't exist. |
 | `set` | `(key, value) → None` | Set a value. |
+| `pop` | `(key, default=None) → Any` | Remove a key and return its value. Returns `default` if the key doesn't exist. |
 | `update` | `(mapping) → None` | Set multiple values at once from a dict. |
 | `clear` | `() → None` | Remove all values. |
 | `as_dict` | `() → dict` | Get a shallow copy of the entire state. |
@@ -248,6 +249,10 @@ The `globals` scope has two additional methods for manual locking:
 
 <Callout type="warn">
 Individual `globals` operations (`get`, `set`, etc.) are already thread-safe. Use `acquire()` / `release()` only when you need multiple operations to execute atomically — for example, reading a counter and incrementing it without another generator modifying it in between.
+</Callout>
+
+<Callout type="info">
+Use [Scenarios](/docs/studio/scenarios) in Eventum Studio to visualize which generators read and write global state keys, and to manage global state values at runtime.
 </Callout>
 
 ### Examples

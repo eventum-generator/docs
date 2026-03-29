@@ -38,6 +38,7 @@ For example, if `eventum.yml` sets `timezone: UTC` and `batch.size: 10000`, a st
 | `id` | string | — | Required. Non-empty. Must be unique across all entries. | Unique identifier for the generator. Used in API endpoints and logs. |
 | `path` | path | — | Required. | Path to the generator config file. Relative paths are resolved against the `generators_dir` from [eventum.yml](/docs/core/config/eventum-yml#path). |
 | `autostart` | boolean | `true` | — | Whether to start this generator automatically when the application launches. If `false`, the generator is registered but must be started manually via the API. |
+| `scenarios` | list of strings | `[]` | — | Scenario names this generator belongs to. Scenarios group generators for coordinated lifecycle control and shared global state visualization in [Studio](/docs/studio/scenarios). A generator can belong to multiple scenarios. |
 
 ### Execution mode
 
@@ -140,6 +141,8 @@ Both formats produce identical results — use whichever is more readable for yo
     size: 50000
   max_concurrency: 50
   write_timeout: 30
+  scenarios:
+    - web-traffic
   params:
     opensearch_host: https://opensearch.prod:9200
     opensearch_user: admin
@@ -152,6 +155,9 @@ Both formats produce identical results — use whichever is more readable for yo
   skip_past: true
   keep_order: true
   max_concurrency: 10
+  scenarios:
+    - web-traffic
+    - alerting
   params:
     severity: error
 
