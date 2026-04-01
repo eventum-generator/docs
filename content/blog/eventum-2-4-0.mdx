@@ -1,0 +1,71 @@
+---
+title: "Eventum 2.4.0: Scenarios, Pipeline Metrics, and a New Home Page"
+description: "Eventum 2.4.0 introduces Scenarios for composing multi-instance workflows, a redesigned instance metrics modal, a new Home page, and editable state management."
+date: "2026-04-02T12:00:00"
+author: "Eventum Team"
+tags:
+  - release
+---
+
+Eventum 2.4.0 is out. The headline feature is **Scenarios** — a way to group generator instances into named workflows and manage them as a unit. This release also redesigns the instance metrics modal, adds a new Home page, and makes state management interactive.
+
+## Scenarios
+
+Until now, each generator instance lived on its own. If you needed several instances to work together — say, a firewall log generator feeding events that reference IPs from a DNS generator, both sharing global state — you had to start and stop them individually and keep track of which ones belonged together.
+
+Scenarios solve this. A scenario is a named group of generator instances with shared global state. You create a scenario, add instances to it, and start or stop them all at once.
+
+The **Scenarios page** gives you a table of all scenarios with search, bulk start/stop, and bulk delete.
+
+<ThemedImage
+  lightSrc="/images/studio_ui/scenarios_page_light.png"
+  darkSrc="/images/studio_ui/scenarios_page_dark.png"
+  alt="Scenarios page in Eventum Studio"
+  className="rounded-lg border mt-2"
+/>
+
+Click into a scenario and you get the **Scenario page** — an interactive Data Flow diagram that visualizes how instances connect through shared state, plus a Global State panel for inspecting and editing state at runtime.
+
+<ThemedImage
+  lightSrc="/images/studio_ui/scenario_page_light.png"
+  darkSrc="/images/studio_ui/scenario_page_dark.png"
+  alt="Scenario detail page with Data Flow diagram"
+  className="rounded-lg border mt-2"
+/>
+
+Scenarios are also fully accessible through the [REST API](/docs/api), so you can manage them programmatically if needed.
+
+## Instance metrics
+
+The instance metrics modal has been rebuilt as an interactive pipeline graph. Instead of a flat list of numbers, you now see your input, event, and output plugins laid out as a visual pipeline with a summary bar showing key metrics at a glance.
+
+<ThemedImage
+  lightSrc="/images/studio_ui/instance_metrics_light.png"
+  darkSrc="/images/studio_ui/instance_metrics_dark.png"
+  alt="Instance metrics pipeline graph"
+  className="rounded-lg border mt-2"
+/>
+
+## Home page
+
+Eventum Studio has a new Home page with action cards for common tasks and a recent projects section. The previous Overview content (the Monitoring dashboard) has moved to its own dedicated page — same functionality, cleaner navigation.
+
+<ThemedImage
+  lightSrc="/images/studio_ui/overview_page_light.png"
+  darkSrc="/images/studio_ui/overview_page_dark.png"
+  alt="New Home page in Eventum Studio"
+  className="rounded-lg border mt-2"
+/>
+
+## State management
+
+The project State tab now displays state as a key-value table instead of raw JSON. This makes it much easier to navigate and edit state, especially when it grows large.
+
+<ThemedImage
+  lightSrc="/images/studio_ui/project_page_event_plugin_state_tab_light.png"
+  darkSrc="/images/studio_ui/project_page_event_plugin_state_tab_dark.png"
+  alt="State management key-value table"
+  className="rounded-lg border mt-2"
+/>
+
+Read the full [changelog](/docs/changelog/2.4.0) for every detail.
