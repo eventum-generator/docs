@@ -1,0 +1,161 @@
+---
+title: Examples
+description: Complete template plugin configuration examples — vars reuse, samples, state, and cross-template correlation.
+---
+
+## Parameterized template reuse with vars
+
+Multiple template entries can point to the **same** `.jinja` file with different per-template variables. This eliminates duplication when events differ only by a few constants — such as protocol variants:
+
+```yaml title="generator.yml"
+event:
+  template:
+    mode: chance
+    params:
+      hostname: fw-01
+    templates:
+      - tcp_built:
+          template: templates/connection-built.json.jinja
+          chance: 220
+          vars:
+            protocol: tcp
+            iana_number: "6"
+      - udp_built:
+          template: templates/connection-built.json.jinja
+          chance: 75
+          vars:
+            protocol: udp
+            iana_number: "17"
+      - icmp_built:
+          template: templates/connection-built.json.jinja
+          chance: 15
+          vars:
+            protocol: icmp
+            iana_number: "1"
+```
+
+```jinja title="templates/connection-built.json.jinja"
+{%- set src_ip = module.rand.network.ip_v4_private_c() -%}
+{%- set dst_ip = module.rand.network.ip_v4_public() -%}
+{%- set src_port = module.rand.number.integer(1024, 65535) -%}
+{%- set dst_port = module.rand.number.integer(1, 1023) -%}
+{"timestamp": "{{ timestamp.isoformat() }}", "hostname": "{{ params.hostname }}", "protocol": "{{ vars.protocol }}", "iana_number": {{ vars.iana_number }}, "src": "{{ src_ip }}:{{ src_port }}", "dst": "{{ dst_ip }}:{{ dst_port }}"}
+```
+
+One template file, three config entries — instead of three nearly identical template files.
+
+## Access log with modules, params, and samples
+
+A generator that produces HTTP access log lines using random utilities, user-defined parameters, and sample data:
+
+```csv title="samples/users.csv"
+name,email,role
+John,john@example.com,admin
+Jane,jane@example.com,user
+```
+
+```yaml title="generator.yml"
+event:
+  template:
+    mode: chance
+    params:
+      app_name: my-service
+      server_port: 8080
+    samples:
+      users:
+        type: csv
+        source: samples/users.csv
+        header: true
+      paths:
+        type: items
+        source: ["/api/users", "/api/orders", "/api/products", "/health"]
+    templates:
+      - access:
+          template: templates/access.jinja
+          chance: 95
+      - error:
+          template: templates/error.jinja
+          chance: 5
+```
+
+```jinja title="templates/access.jinja"
+{%- set user = samples.users | random -%}
+{%- set path = module.rand.choice(samples.paths) -%}
+{%- set status = module.rand.weighted_choice([200, 301, 404], [85, 5, 10]) -%}
+{%- set bytes_sent = module.rand.number.integer(200, 15000) -%}
+{%- set request_id = module.rand.crypto.uuid4() -%}
+{{ timestamp.isoformat() }} [{{ params.app_name }}] {{ user.name }} ({{ user.email }}) GET {{ path }} {{ status }} {{ bytes_sent }} {{ request_id }}
+```
+
+## Monotonic counter with shared state
+
+All templates in a generator share a single incrementing counter via `shared`. The counter persists across renders regardless of which template is picked:
+
+```yaml title="generator.yml"
+event:
+  template:
+    mode: all
+    templates:
+      - event_a:
+          template: templates/event_a.jinja
+      - event_b:
+          template: templates/event_b.jinja
+```
+
+```jinja title="templates/event_a.jinja"
+{%- set id = shared.get('seq', 1) -%}
+{%- do shared.set('seq', id + 1) -%}
+{"id": {{ id }}, "type": "A", "timestamp": "{{ timestamp.isoformat() }}"}
+```
+
+```jinja title="templates/event_b.jinja"
+{%- set id = shared.get('seq', 1) -%}
+{%- do shared.set('seq', id + 1) -%}
+{"id": {{ id }}, "type": "B", "timestamp": "{{ timestamp.isoformat() }}"}
+```
+
+Since both templates use `shared`, the sequence is global to the generator. If `event_a` renders first and gets `id=1`, then `event_b` gets `id=2`.
+
+## Cross-template correlation
+
+Login events store session data in `shared` state that logout events consume — a common pattern for generating correlated event pairs:
+
+```jinja title="templates/login.jinja"
+{%- set session_id = module.rand.crypto.uuid4() -%}
+{%- set user = samples.users | random -%}
+{%- set sessions = shared.get('sessions', []) -%}
+{%- do sessions.append({"id": session_id, "user": user.name}) -%}
+{%- do shared.set('sessions', sessions) -%}
+{{ timestamp.isoformat() }} LOGIN user={{ user.name }} session={{ session_id }}
+```
+
+```jinja title="templates/logout.jinja"
+{%- set sessions = shared.get('sessions', []) -%}
+{%- if sessions -%}
+  {%- set session = sessions.pop(0) -%}
+  {%- do shared.set('sessions', sessions) -%}
+{{ timestamp.isoformat() }} LOGOUT user={{ session.user }} session={{ session.id }}
+{%- else -%}
+{{ timestamp.isoformat() }} LOGOUT user=anonymous session=none
+{%- endif -%}
+```
+
+## Filtering sample data
+
+Use Jinja2's `selectattr` filter to pick rows from samples that match specific criteria:
+
+```jinja
+{%- set admin_users = samples.users | selectattr("role", "equalto", "admin") | list -%}
+{%- set user = admin_users | random -%}
+{{ timestamp.isoformat() }} ADMIN_ACTION user={{ user.name }} action=config_change
+```
+
+You can also filter sample data in loops:
+
+```jinja
+{%- set category_urls = [] -%}
+{%- for u in samples.urls if u.category == "api" -%}
+  {%- do category_urls.append(u) -%}
+{%- endfor -%}
+{%- set url = category_urls | random -%}
+```

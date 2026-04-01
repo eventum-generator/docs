@@ -1,0 +1,99 @@
+---
+title: State & Subprocess
+description: Persistent state scopes (locals, shared, globals) and subprocess execution in Jinja2 templates.
+---
+
+## State
+
+Templates can store and retrieve values that persist across renders. State is organized into three scopes:
+
+| Scope | Variable | Visibility | Thread safety | Typical use |
+|-------|----------|------------|---------------|-------------|
+| Local | `locals` | Current template only | Single-threaded | Per-template counters, accumulators |
+| Shared | `shared` | All templates in one generator | Single-threaded | Cross-template coordination, session tracking |
+| Global | `globals` | All generators in the application | Thread-safe (RLock) | Global counters, inter-generator data |
+
+### State API
+
+All three scopes provide the same methods:
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `get` | `(key, default=None) → Any` | Get a value. Returns `default` if the key doesn't exist. |
+| `set` | `(key, value) → None` | Set a value. |
+| `pop` | `(key, default=None) → Any` | Remove a key and return its value. Returns `default` if the key doesn't exist. |
+| `update` | `(mapping) → None` | Set multiple values at once from a dict. |
+| `clear` | `() → None` | Remove all values. |
+| `as_dict` | `() → dict` | Get a shallow copy of the entire state. |
+| `[key]` | bracket access | Same as `get(key)`. |
+
+The `globals` scope has two additional methods for manual locking:
+
+| Method | Description |
+|--------|-------------|
+| `acquire()` | Acquire the state lock. |
+| `release()` | Release the state lock. |
+
+<Callout type="warn">
+Individual `globals` operations (`get`, `set`, etc.) are already thread-safe. Use `acquire()` / `release()` only when you need multiple operations to execute atomically — for example, reading a counter and incrementing it without another generator modifying it in between.
+</Callout>
+
+<Callout type="info">
+Use [Scenarios](/docs/studio/scenarios) in Eventum Studio to visualize which generators read and write global state keys, and to manage global state values at runtime.
+</Callout>
+
+### Examples
+
+**Per-template counter** with `locals`:
+
+```jinja
+{%- do locals.set('n', locals.get('n', 0) + 1) -%}
+Event #{{ locals.get('n') }} at {{ timestamp.isoformat() }}
+```
+
+**Monotonic record ID** with `shared` — a common pattern where all templates in a generator share a single incrementing counter:
+
+```jinja
+{%- set record_id = shared.get('record_id', 1) -%}
+... use record_id in the event body ...
+{%- do shared.set('record_id', record_id + 1) -%}
+```
+
+**Atomic compound operation** with `globals`:
+
+```jinja
+{%- do globals.acquire() -%}
+{%- set total = globals.get('total', 0) -%}
+{%- do globals.set('total', total + 1) -%}
+{%- do globals.release() -%}
+```
+
+---
+
+## Subprocess
+
+The `subprocess` variable lets you execute shell commands from templates.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `command` | string | — | Shell command to execute. |
+| `cwd` | string | `None` | Working directory. |
+| `env` | mapping | `None` | Environment variables. |
+| `timeout` | float | `None` | Timeout in seconds. |
+
+The `run` method returns a result object with three fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `stdout` | string | Standard output (decoded as UTF-8). |
+| `stderr` | string | Standard error (decoded as UTF-8). |
+| `exit_code` | int | Process exit code. |
+
+```jinja
+{%- set result = subprocess.run('hostname', timeout=5.0) -%}
+{{ result.stdout | trim }}
+```
+
+<Callout type="warn">
+Subprocess calls run synchronously and block event production. Use short timeouts to avoid stalling the pipeline.
+</Callout>
