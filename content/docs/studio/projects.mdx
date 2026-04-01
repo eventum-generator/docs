@@ -146,7 +146,7 @@ The State tab exposes the event plugin's internal state — useful for debugging
   className="rounded-lg border mt-2"
 />
 
-Three state scopes are displayed:
+Three state scopes are displayed, each as a key-value table:
 
 | Scope | Description |
 |-------|-------------|
@@ -154,14 +154,14 @@ Three state scopes are displayed:
 | **Shared state** | State shared across all templates in this generator. Accessible as `shared` in templates. |
 | **Global state** | State shared across all generators in the application. Accessible as `globals` in templates. |
 
-Each scope shows the current state as a JSON object and provides three buttons:
+Each table shows keys and their current values. Individual rows have edit and delete actions. The toolbar above each table provides:
 
 - **Sync** — refresh the state from the backend (useful when a running instance has modified it).
-- **Clear** — reset the state to an empty object.
-- **Add** — add specified keys-values to state.
+- **Clear** — remove all keys at once.
+- **Add** — add a new key-value pair. Values are entered as JSON.
 
 <Callout type="warn">
-Modifying **Global state** from the State tab affects all currently running generator instances, not just the one you're editing. Use with caution.
+Modifying **Global state** from the State tab affects all currently running generator instances, not just the one you're editing. Use [Scenarios](/docs/studio/scenarios) to see which generators depend on which global keys.
 </Callout>
 
 ### Editor

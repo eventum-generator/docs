@@ -196,7 +196,7 @@ User {{ user_id }} logged in
 User {{ shared.get('current_user') }} performed an action
 ```
 
-**`globals`** — shared across all generators in the application. Thread-safe. Useful for global counters or inter-generator coordination:
+**`globals`** — shared across all generators in the application. Thread-safe. Useful for global counters or inter-generator coordination. Use [Scenarios](/docs/studio/scenarios) in Studio to visualize and manage global state:
 
 ```jinja
 {% do globals.set('total', globals.get('total', 0) + 1) %}

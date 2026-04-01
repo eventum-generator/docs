@@ -1,0 +1,152 @@
+---
+title: Samples
+description: Named datasets (items, CSV, JSON) loaded at startup and accessible in Jinja2 templates.
+---
+
+Named datasets loaded once at startup and accessible in templates via `samples.<name>`. Three sample types are available:
+
+## items
+
+Inline list of values:
+
+| Parameter | Type | Constraints | Description |
+|-----------|------|-------------|-------------|
+| `type` | string | Must be `"items"`. | Sample type discriminator. |
+| `source` | list | At least one item. | Inline list of values. |
+
+```yaml
+samples:
+  status_codes:
+    type: items
+    source: [200, 201, 301, 404, 500]
+```
+
+## csv
+
+Load from a CSV file:
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `type` | string | — | Must be `"csv"`. | Sample type discriminator. |
+| `source` | path | — | Must end with `.csv`. | Path to the CSV file. |
+| `header` | boolean | `false` | — | Whether the first row is a header. |
+| `delimiter` | string | `","` | Non-empty. | Column delimiter. |
+| `quotechar` | string | `'"'` | Single character. | Character used to quote fields containing the delimiter or newlines ([RFC 4180](https://www.rfc-editor.org/rfc/rfc4180)). |
+
+```yaml
+samples:
+  users:
+    type: csv
+    source: samples/users.csv
+    header: true
+```
+
+## json
+
+Load from a JSON file (array of objects with consistent keys):
+
+| Parameter | Type | Constraints | Description |
+|-----------|------|-------------|-------------|
+| `type` | string | Must be `"json"`. | Sample type discriminator. |
+| `source` | path | Must end with `.json`. | Path to the JSON file. |
+
+```yaml
+samples:
+  endpoints:
+    type: json
+    source: samples/endpoints.json
+```
+
+<Callout>
+All objects in a JSON sample must have the **same set of keys**. If keys differ between objects, the sample will fail to load with an error.
+</Callout>
+
+## Accessing sample rows
+
+Each row in a sample is a tuple-like object. You can pick a random row and access its fields:
+
+```jinja
+{%- set user = samples.users | random -%}
+```
+
+**Named access** — CSV samples with `header: true` and JSON samples expose fields by name, matching CSV column headers or JSON object keys:
+
+```jinja
+{%- set user = samples.users | random -%}
+{{ user.name }}           {# "John" #}
+{{ user.email }}          {# "john@example.com" #}
+```
+
+This works with Jinja2 filters like `selectattr`:
+
+```jinja
+{%- set admins = samples.users | selectattr("role", "equalto", "admin") | list -%}
+```
+
+**Index access** — all sample types (including `items` and CSV without headers) support positional index access:
+
+```jinja
+{{ user[0] }}             {# first field #}
+{{ user[1] }}             {# second field #}
+```
+
+Both access styles work on the same row — named access is available whenever headers or keys are present, index access always works.
+
+## Picking sample rows
+
+Each sample provides methods for random row selection — both uniform and weighted.
+
+### Uniform picking
+
+Use `pick()` to select a single random row, or `pick_n(n)` to select multiple:
+
+```jinja
+{%- set user = samples.users.pick() -%}
+{{ user.name }}
+
+{%- set five_users = samples.users.pick_n(5) -%}
+{%- for u in five_users -%}
+  {{ u.name }}
+{%- endfor -%}
+```
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `pick` | `() → Row` | Pick a single random row (uniform distribution). |
+| `pick_n` | `(n: int) → list[Row]` | Pick `n` random rows with replacement. |
+
+<Callout>
+`pick()` is equivalent to `| random` but is also available as a method for consistency with the weighted API below.
+</Callout>
+
+### Weighted picking
+
+If your sample includes a numeric column for weights, you can pick rows with probability proportional to those weights:
+
+```csv title="samples/services.csv"
+name,port,protocol,weight
+HTTP,80,tcp,50
+HTTPS,443,tcp,30
+SSH,22,tcp,10
+DNS,53,udp,10
+```
+
+```jinja
+{%- set service = samples.services.weighted_pick('weight') -%}
+{{ service.name }}:{{ service.port }}
+
+{%- set batch = samples.services.weighted_pick_n('weight', 10) -%}
+```
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `weighted_pick` | `(weight: str) → Row` | Pick a single random row with probability proportional to the named weight column. |
+| `weighted_pick_n` | `(weight: str, n: int) → list[Row]` | Pick `n` random rows with replacement, weighted by the named column. |
+
+<Callout>
+The weight column must contain numeric values (integers or floats). Negative values and all-zero weights will produce an error. The weight column remains part of the returned row — you can simply ignore it in your template.
+</Callout>
+
+<Callout>
+Weights are extracted and cached on the first call. Repeated calls to `weighted_pick` with the same column are efficient even at high throughput.
+</Callout>

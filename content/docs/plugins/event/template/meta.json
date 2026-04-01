@@ -1,0 +1,15 @@
+{
+  "title": "template",
+  "pages": [
+    "---Overview---",
+    "index",
+    "---Reference---",
+    "modules",
+    "state",
+    "modes",
+    "fsm",
+    "samples",
+    "---Usage---",
+    "examples"
+  ]
+}

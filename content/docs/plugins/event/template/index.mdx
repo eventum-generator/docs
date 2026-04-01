@@ -1,0 +1,66 @@
+---
+title: template
+description: Event plugin that renders Jinja2 templates with Faker, Mimesis, random helpers, state management, and multiple picking modes.
+---
+
+Renders Jinja2 templates with a rich context — timestamps, data-generation modules, samples, and persistent state. This is the most commonly used event plugin and covers the vast majority of synthetic data generation scenarios.
+
+For a conceptual walkthrough of template features, see [Producing events](/docs/core/concepts/producing).
+
+## Common fields
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `mode` | string | — | Required. One of: `all`, `any`, `chance`, `spin`, `chain`, `fsm`. |
+| `templates` | list of template configs | — | Required. At least one template. |
+| `params` | mapping | `{}` | Extra parameters accessible in templates via `params`. |
+| `samples` | mapping of [sample configs](./samples) | `{}` | Named datasets accessible in templates via `samples`. |
+
+The `mode` field determines how templates are selected for each incoming timestamp.
+
+---
+
+## Template context
+
+Inside a `.jinja` template, the following variables are available:
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `timestamp` | `datetime` | Timezone-aware datetime of the current event. |
+| `tags` | `tuple[str, ...]` | Tags from the input plugin that produced this timestamp. |
+| `module` | module provider | Gateway to data-generation libraries and any Python module. See [Modules](./modules). |
+| `params` | `dict` | User-defined constant parameters from the `params` config field. |
+| `vars` | `dict` | Per-template variables from the `vars` config field. Each template entry can define its own `vars`, allowing the same `.jinja` file to be reused with different bindings. |
+| `samples` | sample reader | Named datasets from the `samples` config field. See [Samples](./samples). |
+| `locals` | state | Per-template state that persists across renders. See [State](./state). |
+| `shared` | state | State shared across all templates in the same generator. See [State](./state). |
+| `globals` | state | State shared across all generators, thread-safe. See [State](./state). |
+| `subprocess` | subprocess runner | Execute shell commands. See [Subprocess](./state#subprocess). |
+
+`timestamp` is a standard Python `datetime` object — all its methods work directly: `timestamp.isoformat()`, `timestamp.strftime('%Y-%m-%d')`, `timestamp.year`, `timestamp.hour`, etc.
+
+---
+
+## Jinja2 extensions
+
+The template environment loads two Jinja2 extensions automatically:
+
+| Extension | What it enables | Example |
+|-----------|-----------------|---------|
+| `jinja2.ext.do` | Expression statements via `{% do ... %}` — call methods that return nothing without producing output. | `{% do shared.set('count', 0) %}` |
+| `jinja2.ext.loopcontrols` | `{% break %}` and `{% continue %}` inside `{% for %}` loops. | `{% for u in users %}{% if u.skip %}{% continue %}{% endif %}{{ u.name }}{% endfor %}` |
+
+The `do` extension is essential for state management — without it, calling `shared.set(...)` (which returns `None`) would require workarounds like `{% set _ = shared.set(...) %}`.
+
+---
+
+## Template entry
+
+For `all`, `any`, `spin`, and `chain` modes:
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `template` | path | — | Required. Must end with `.jinja`. | Path to the Jinja2 template file. |
+| `vars` | mapping | `{}` | — | Per-template variables accessible in the template via `vars`. Allows the same template file to be reused with different bindings. |
+
+For `chance` mode, add the `chance` field. For `fsm` mode, add `initial` and `transitions`.

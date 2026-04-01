@@ -35,12 +35,15 @@ description: Eventum API reference
 <Card href="/docs/api/preview/name/event-plugin/template/state/local/alias/get" title="Get Template Event Plugin Local State" description="Get local state of template event plugin for the specified template by its alias" />
 <Card href="/docs/api/preview/name/event-plugin/template/state/local/alias/patch" title="Update Template Event Plugin Local State" description="Patch local state of template event plugin for the specified template by its alias" />
 <Card href="/docs/api/preview/name/event-plugin/template/state/local/alias/delete" title="Clear Template Event Plugin Local State" description="Clear local state of template event plugin for the specified template by its alias" />
+<Card href="/docs/api/preview/name/event-plugin/template/state/local/alias/key/delete" title="Delete Template Event Plugin Local State Key" description="Delete a key from local state of template event plugin for the specified template by its alias" />
 <Card href="/docs/api/preview/name/event-plugin/template/state/shared/get" title="Get Template Event Plugin Shared State" description="Get shared state of template event plugin" />
 <Card href="/docs/api/preview/name/event-plugin/template/state/shared/patch" title="Update Template Event Plugin Shared State" description="Patch shared state of template event plugin" />
 <Card href="/docs/api/preview/name/event-plugin/template/state/shared/delete" title="Clear Template Event Plugin Shared State" description="Clear shared state of template event plugin" />
+<Card href="/docs/api/preview/name/event-plugin/template/state/shared/key/delete" title="Delete Template Event Plugin Shared State Key" description="Delete a key from shared state of template event plugin" />
 <Card href="/docs/api/preview/name/event-plugin/template/state/global/get" title="Get Template Event Plugin Global State" description="Get global state of template event plugin" />
 <Card href="/docs/api/preview/name/event-plugin/template/state/global/patch" title="Update Template Event Plugin Global State" description="Patch global state of template event plugin" />
 <Card href="/docs/api/preview/name/event-plugin/template/state/global/delete" title="Clear Template Event Plugin Global State" description="Clear global state of template event plugin" />
+<Card href="/docs/api/preview/name/event-plugin/template/state/global/key/delete" title="Delete Template Event Plugin Global State Key" description="Delete a key from global state of template event plugin" />
 <Card href="/docs/api/preview/name/formatter/format/post" title="Format Events" description="Format events using specified formatter" />
 <Card href="/docs/api/preview/name/versatile-datetime/normalize/post" title="Normalize Versatile Datetime" description="Normalize versatile date time expression" />
 <Card href="/docs/api/generators/get" title="List Generators" description="List ids of all generators" />
@@ -62,6 +65,17 @@ description: Eventum API reference
 <Card href="/docs/api/startup/id/delete" title="Delete Generator From Startup" description="Delete generator definition from list in the startup file" />
 <Card href="/docs/api/startup/id/put" title="Update Generator In Startup" description="Update generator definition in list in the startup file" />
 <Card href="/docs/api/startup/group-actions/bulk-delete/post" title="Bulk Delete Generators From Startup" description="Bulk delete several generator definitions from list in the startup file" />
+<Card href="/docs/api/scenarios/get" title="List Scenarios" description="List all scenarios" />
+<Card href="/docs/api/scenarios/name/get" title="Get Scenario" description="Get scenario details" />
+<Card href="/docs/api/scenarios/name/delete" title="Delete Scenario" description="Delete scenario (remove tag from all generators)" />
+<Card href="/docs/api/scenarios/name/generators/generator_id/post" title="Add Generator To Scenario" description="Add generator to scenario" />
+<Card href="/docs/api/scenarios/name/generators/generator_id/delete" title="Remove Generator From Scenario" description="Remove generator from scenario" />
+<Card href="/docs/api/scenarios/name/generators/generator_name/globals-usage/get" title="Get globals usage for a generator in a scenario" description="Detect globals.set/get usage in Jinja2 templates via AST analysis." />
+<Card href="/docs/api/scenarios/name/globals/key/get" title="Get Scenario Global State Key" description="Get a specific global state key value" />
+<Card href="/docs/api/scenarios/name/globals/key/delete" title="Delete Scenario Global State Key" description="Delete a key from global state" />
+<Card href="/docs/api/scenarios/name/globals/get" title="Get Scenario Global State" description="Get global state shared across all template event plugins" />
+<Card href="/docs/api/scenarios/name/globals/patch" title="Update Scenario Global State" description="Update global state shared across all template event plugins" />
+<Card href="/docs/api/scenarios/name/globals/delete" title="Clear Scenario Global State" description="Clear global state shared across all template event plugins" />
 <Card href="/docs/api/secrets/name/get" title="Get Secret Value" description="Get secret with specified name from keyring" />
 <Card href="/docs/api/secrets/name/delete" title="Delete Secret Value" description="Delete secret with specified name to keyring" />
 <Card href="/docs/api/secrets/name/put" title="Set Secret Value" description="Put secret with specified name to keyring" />
