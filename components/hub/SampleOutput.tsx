@@ -104,25 +104,21 @@ export function SampleOutput({ samples }: SampleOutputProps) {
             key={sample.title}
             className="rounded-lg border border-fd-border/50 overflow-hidden"
           >
-            <button
-              type="button"
-              onClick={() => setOpenIndex(isOpen ? -1 : i)}
-              className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-fd-foreground transition-colors hover:bg-fd-muted/30"
-            >
-              <span className="flex items-center gap-2">
+            <div className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-fd-foreground transition-colors hover:bg-fd-muted/30">
+              <button
+                type="button"
+                onClick={() => setOpenIndex(isOpen ? -1 : i)}
+                className="flex items-center gap-2"
+              >
                 {isOpen ? (
                   <ChevronDown size={14} />
                 ) : (
                   <ChevronRight size={14} />
                 )}
                 {sample.title}
-              </span>
-              {isOpen && (
-                <span onClick={(e) => e.stopPropagation()}>
-                  <CopyButton text={sample.json} />
-                </span>
-              )}
-            </button>
+              </button>
+              {isOpen && <CopyButton text={sample.json} />}
+            </div>
             {isOpen && (
               <div className="border-t border-fd-border/30 bg-fd-muted/10 p-4">
                 <pre className="overflow-x-auto text-sm leading-relaxed text-fd-muted-foreground">
