@@ -1,0 +1,116 @@
+---
+title: Dispatch
+description: Control event flow from templates — drop events, restart picking, or signal exhaustion.
+---
+
+The `dispatch` variable gives templates control over the event production flow. Instead of always producing output, a template can decide at render time to drop the event, request a fresh pick, or signal that generation is complete.
+
+All dispatch methods use signal exceptions internally — they never return. Place them after any conditional checks and, ideally, before state mutations.
+
+## Methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `drop` | `() -> Never` | Drop all rendered output for this timestamp. |
+| `next` | `(max_repicks=64) -> Never` | Discard output and restart with a fresh pick. |
+| `exhaust` | `() -> Never` | Signal that generation is complete. |
+
+---
+
+## dispatch.drop()
+
+Drops all rendered output for the current timestamp. The `produce()` call returns an empty list and the dropped event is counted in the `dropped` metric.
+
+In `all` mode, if any template calls `drop()`, output from all templates (including those already rendered) is discarded. Remaining templates in the batch are not rendered.
+
+```jinja
+{%- set sessions = shared.get('sessions', []) -%}
+{%- if sessions | length == 0 -%}
+  {%- do dispatch.drop() -%}
+{%- endif -%}
+{%- set sess = sessions.pop(0) -%}
+{%- do shared.set('sessions', sessions) -%}
+{"session": "{{ sess.id }}", "timestamp": "{{ timestamp.isoformat() }}"}
+```
+
+When there are no sessions to consume, the event is silently dropped instead of producing an incomplete record.
+
+---
+
+## dispatch.next()
+
+Discards all rendered output and restarts the produce cycle with a fresh `pick()`. The picker decides what to render next based on its own logic:
+
+| Mode | Behavior on `next()` |
+|------|---------------------|
+| `all` | Re-renders all templates from scratch. |
+| `any` / `chance` | Performs a new random pick. |
+| `spin` / `chain` | Advances to the next position. |
+| `fsm` | Re-evaluates transitions from the current state. |
+
+### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `max_repicks` | int | `64` | Maximum number of re-pick iterations. If exceeded, raises `PluginProduceError` and the event fails. Must be >= 1. |
+
+```jinja
+{%- set pool = shared.get('pool', []) -%}
+{%- if pool | length == 0 -%}
+  {%- do dispatch.next(max_repicks=10) -%}
+{%- endif -%}
+{%- set item = pool.pop(0) -%}
+{%- do shared.set('pool', pool) -%}
+{"item": "{{ item }}"}
+```
+
+<Callout type="warn">
+If every possible pick calls `next()`, the repick limit will be reached and the event will fail with `PluginProduceError`. Make sure at least one reachable template can produce output.
+</Callout>
+
+---
+
+## dispatch.exhaust()
+
+Signals that generation is complete. The generator shuts down gracefully — no more events are produced.
+
+In `all` mode, if any template calls `exhaust()`, remaining templates in the batch are not rendered.
+
+```jinja
+{%- set remaining = shared.get('remaining', 100) -%}
+{%- if remaining <= 0 -%}
+  {%- do dispatch.exhaust() -%}
+{%- endif -%}
+{%- do shared.set('remaining', remaining - 1) -%}
+{"count": {{ remaining }}, "timestamp": "{{ timestamp.isoformat() }}"}
+```
+
+---
+
+## State semantics
+
+Dispatch calls do **not** roll back state. Any mutations made to `locals`, `shared`, or `globals` before a dispatch call are preserved.
+
+```jinja
+{%- do shared.set('marker', 'written') -%}
+{%- do dispatch.drop() -%}
+```
+
+After this template runs, `shared.get('marker')` returns `'written'` even though the event was dropped.
+
+<Callout type="info">
+**Best practice:** check preconditions _before_ mutating state. If you set state first and then drop, the state change is permanent even though no event was produced.
+</Callout>
+
+### Recommended pattern
+
+```jinja
+{%- set sessions = shared.get('sessions', []) -%}
+{# Check BEFORE mutating #}
+{%- if sessions | length == 0 -%}
+  {%- do dispatch.drop() -%}
+{%- endif -%}
+{# Safe to mutate -- we know sessions is non-empty #}
+{%- set sess = sessions.pop(0) -%}
+{%- do shared.set('sessions', sessions) -%}
+```
