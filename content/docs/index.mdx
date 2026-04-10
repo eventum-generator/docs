@@ -15,38 +15,38 @@ description: Learn how Eventum works and generate your first events in minutes.
 
 ---
 
-## ⚡ Why Eventum
+## Why Eventum
 
 Building and testing data-driven systems usually means waiting for real data to accumulate or writing throwaway scripts. Eventum gives you a declarative way to generate realistic data on demand.
 
 <div className="not-prose grid grid-cols-1 sm:grid-cols-2 gap-3 my-6">
   <div className="rounded-xl border border-fd-border bg-fd-card p-4">
-    <div className="text-lg mb-1">🎭 Realistic content</div>
+    <div className="text-lg mb-1">Realistic content</div>
     <div className="text-sm text-fd-muted-foreground">Templates powered by Faker and Mimesis produce believable names, IPs, timestamps, and domain-specific values.</div>
   </div>
   <div className="rounded-xl border border-fd-border bg-fd-card p-4">
-    <div className="text-lg mb-1">🕐 Precise timing</div>
+    <div className="text-lg mb-1">Precise timing</div>
     <div className="text-sm text-fd-muted-foreground">Cron schedules, fixed intervals, uniform ranges, or statistical patterns that mimic real-world traffic.</div>
   </div>
   <div className="rounded-xl border border-fd-border bg-fd-card p-4">
-    <div className="text-lg mb-1">🔀 Multiple destinations</div>
+    <div className="text-lg mb-1">Multiple destinations</div>
     <div className="text-sm text-fd-muted-foreground">stdout, files, ClickHouse, OpenSearch, or any HTTP endpoint — all at the same time.</div>
   </div>
   <div className="rounded-xl border border-fd-border bg-fd-card p-4">
-    <div className="text-lg mb-1">📤 Live and sample modes</div>
+    <div className="text-lg mb-1">Live and sample modes</div>
     <div className="text-sm text-fd-muted-foreground">Stream events at their actual timestamps, or generate an entire dataset as fast as possible.</div>
   </div>
 </div>
 
 ---
 
-## 🔧 How it works
+## How it works
 
 Every generator runs a three-stage pipeline. You describe each stage in YAML — no code required.
 
 <Mermaid chart={`graph LR
-    INPUT["🕐 Input"]:::stage --> EVENT["📄 Event"]:::stage
-    EVENT --> OUTPUT["📤 Output"]:::stage
+    INPUT["Input"]:::stage --> EVENT["Event"]:::stage
+    EVENT --> OUTPUT["Output"]:::stage
     classDef stage fill:#8282ef,color:#fff,stroke:#6b6bd4,stroke-width:2px`} />
 
 <div className="not-prose grid grid-cols-1 sm:grid-cols-3 gap-3 my-6">
@@ -68,7 +68,7 @@ Swap any part independently: change the schedule without touching the template, 
 
 ---
 
-## 🚀 Quick example
+## Quick example
 
 <Steps>
 <Step>
@@ -129,7 +129,7 @@ with a server, API, and web UI, see the [`eventum run`](/docs/core/cli/eventum-r
 
 ---
 
-## 📖 What's next
+## What's next
 
 <Cards>
   <Card
