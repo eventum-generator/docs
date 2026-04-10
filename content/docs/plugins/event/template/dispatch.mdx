@@ -1,27 +1,15 @@
 ---
 title: Dispatch
-description: Control event flow from templates — drop events, restart picking, or signal exhaustion.
+description: Control whether an event is produced, skipped, or generation is stopped.
 ---
 
-The `dispatch` variable gives templates control over the event production flow. Instead of always producing output, a template can decide at render time to drop the event, request a fresh pick, or signal that generation is complete.
-
-All dispatch methods use signal exceptions internally — they never return. Place them after any conditional checks and, ideally, before state mutations.
-
-## Methods
-
-| Method | Signature | Description |
-|--------|-----------|-------------|
-| `drop` | `() -> Never` | Drop all rendered output for this timestamp. |
-| `next` | `(max_repicks=64) -> Never` | Discard output and restart with a fresh pick. |
-| `exhaust` | `() -> Never` | Signal that generation is complete. |
-
----
+Sometimes a template should not produce an event — for example, when a session pool is empty or a finite dataset is exhausted. The `dispatch` object provides three actions that let templates control this behavior at render time.
 
 ## dispatch.drop()
 
-Drops all rendered output for the current timestamp. The `produce()` call returns an empty list and the dropped event is counted in the `dropped` metric.
+Skips the current event entirely. No output is produced for this timestamp, and the `dropped` counter is incremented in the monitoring panel.
 
-In `all` mode, if any template calls `drop()`, output from all templates (including those already rendered) is discarded. Remaining templates in the batch are not rendered.
+Picker state (spin index, FSM state, chain position) is **not** rolled back — the pick already happened, only the output is discarded.
 
 ```jinja
 {%- set sessions = shared.get('sessions', []) -%}
@@ -35,24 +23,32 @@ In `all` mode, if any template calls `drop()`, output from all templates (includ
 
 When there are no sessions to consume, the event is silently dropped instead of producing an incomplete record.
 
+<Callout type="info">
+In `all` mode, if any template calls `dispatch.drop()`, the output from all templates is discarded — including templates that already rendered successfully before the drop.
+</Callout>
+
 ---
 
 ## dispatch.next()
 
-Discards all rendered output and restarts the produce cycle with a fresh `pick()`. The picker decides what to render next based on its own logic:
+Discards the current output and asks the generator to pick templates again for the same timestamp. This is useful when the selected template cannot produce a meaningful event but another one might.
 
-| Mode | Behavior on `next()` |
-|------|---------------------|
-| `all` | Re-renders all templates from scratch. |
-| `any` / `chance` | Performs a new random pick. |
-| `spin` / `chain` | Advances to the next position. |
-| `fsm` | Re-evaluates transitions from the current state. |
+What happens on re-pick depends on the picking mode:
+
+| Mode | What happens |
+|------|-------------|
+| `all` | All templates are picked and rendered again from scratch. |
+| `any` / `chance` | A new random pick is made. |
+| `spin` / `chain` | The position advances to the next template. |
+| `fsm` | Transitions are re-evaluated with the updated state. |
 
 ### Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `max_repicks` | int | `64` | Maximum number of re-pick iterations. If exceeded, raises `PluginProduceError` and the event fails. Must be >= 1. |
+| `max_repicks` | `int` | `64` | Maximum number of re-pick attempts for one timestamp. Must be at least 1. |
+
+If the limit is reached, the event fails with an error.
 
 ```jinja
 {%- set pool = shared.get('pool', []) -%}
@@ -65,16 +61,16 @@ Discards all rendered output and restarts the produce cycle with a fresh `pick()
 ```
 
 <Callout type="warn">
-If every possible pick calls `next()`, the repick limit will be reached and the event will fail with `PluginProduceError`. Make sure at least one reachable template can produce output.
+If every possible template calls `dispatch.next()`, the re-pick limit will be reached and the event will fail. Make sure at least one reachable template can produce output.
 </Callout>
 
 ---
 
 ## dispatch.exhaust()
 
-Signals that generation is complete. The generator shuts down gracefully — no more events are produced.
+Signals that the generator has finished producing events. The generator shuts down gracefully and no more timestamps are processed.
 
-In `all` mode, if any template calls `exhaust()`, remaining templates in the batch are not rendered.
+This is useful for finite generation scenarios — for example, replaying a fixed dataset or generating an exact number of correlated sessions.
 
 ```jinja
 {%- set remaining = shared.get('remaining', 100) -%}
@@ -85,21 +81,25 @@ In `all` mode, if any template calls `exhaust()`, remaining templates in the bat
 {"count": {{ remaining }}, "timestamp": "{{ timestamp.isoformat() }}"}
 ```
 
+<Callout type="info">
+In `all` mode, if any template calls `dispatch.exhaust()`, remaining templates in the batch are not rendered.
+</Callout>
+
 ---
 
-## State semantics
+## State and dispatch
 
-Dispatch calls do **not** roll back state. Any mutations made to `locals`, `shared`, or `globals` before a dispatch call are preserved.
+Dispatch actions do **not** roll back state changes. Any values written to `locals`, `shared`, or `globals` before a dispatch call remain in effect.
 
 ```jinja
 {%- do shared.set('marker', 'written') -%}
 {%- do dispatch.drop() -%}
 ```
 
-After this template runs, `shared.get('marker')` returns `'written'` even though the event was dropped.
+After this template runs, `shared.get('marker')` returns `'written'` even though no event was produced.
 
-<Callout type="info">
-**Best practice:** check preconditions _before_ mutating state. If you set state first and then drop, the state change is permanent even though no event was produced.
+<Callout type="warn">
+**Best practice:** always check preconditions _before_ mutating state. If you modify state first and then drop, the change is permanent even though the event was discarded.
 </Callout>
 
 ### Recommended pattern
