@@ -110,7 +110,7 @@ After this template runs, `shared.get('marker')` returns `'written'` even though
 {%- if sessions | length == 0 -%}
   {%- do dispatch.drop() -%}
 {%- endif -%}
-{# Safe to mutate -- we know sessions is non-empty #}
+{# Safe to mutate - we know sessions is non-empty #}
 {%- set sess = sessions.pop(0) -%}
 {%- do shared.set('sessions', sessions) -%}
 ```
