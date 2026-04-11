@@ -85,11 +85,13 @@ Built-in random utilities organized into namespaces. This is the most commonly u
 | `ip_v4_private_a` | `() → str` | Random Class A private IPv4 (10.0.0.0/8). |
 | `ip_v4_private_b` | `() → str` | Random Class B private IPv4 (172.16.0.0/12). |
 | `ip_v4_private_c` | `() → str` | Random Class C private IPv4 (192.168.0.0/16). |
+| `ip_v4_in_subnet` | `(cidr: str) → str` | Random IPv4 host address within the given CIDR subnet. |
 | `mac` | `() → str` | Random MAC address (colon-separated, e.g. `a4:3b:00:ff:12:9e`). |
 
 ```jinja
 {%- set src_ip = module.rand.network.ip_v4_public() -%}
 {%- set dst_ip = module.rand.network.ip_v4_private_c() -%}
+{%- set client_ip = module.rand.network.ip_v4_in_subnet("10.0.1.0/24") -%}
 {%- set mac_addr = module.rand.network.mac() -%}
 ```
 
