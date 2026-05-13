@@ -1,0 +1,17 @@
+---
+title: 🚩 2.5.0
+description: Eventum 2.5.0 — Template dispatch API, random IPv4 in CIDR subnet.
+---
+
+Released **May 14, 2026**
+
+## 🚀 New features
+
+- **[Template dispatch API](/docs/plugins/event/template/dispatch)** — route each event across multiple sub-templates, end generation early, or drop unwanted events; dropped events are now visible in the [pipeline metrics](/docs/studio/instances#instance-metrics) and the monitoring panel
+- **[`rand.network.ip_v4_in_subnet`](/docs/plugins/event/template/modules)** — pick a random IPv4 host address inside a CIDR subnet
+
+---
+
+## 🐛 Bug fixes
+
+- Fix shutdown hang when a log-stream WebSocket stays open — termination no longer blocks on active streams

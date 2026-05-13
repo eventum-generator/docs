@@ -6,6 +6,8 @@
     "---Reference---",
     "modules",
     "state",
+    "subprocess",
+    "dispatch",
     "modes",
     "fsm",
     "samples",

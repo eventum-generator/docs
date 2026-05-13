@@ -1,9 +1,7 @@
 ---
-title: State & Subprocess
-description: Persistent state scopes (locals, shared, globals) and subprocess execution in Jinja2 templates.
+title: State
+description: Persistent state scopes (locals, shared, globals) in Jinja2 templates.
 ---
-
-## State
 
 Templates can store and retrieve values that persist across renders. State is organized into three scopes:
 
@@ -68,32 +66,3 @@ Event #{{ locals.get('n') }} at {{ timestamp.isoformat() }}
 {%- do globals.release() -%}
 ```
 
----
-
-## Subprocess
-
-The `subprocess` variable lets you execute shell commands from templates.
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `command` | string | — | Shell command to execute. |
-| `cwd` | string | `None` | Working directory. |
-| `env` | mapping | `None` | Environment variables. |
-| `timeout` | float | `None` | Timeout in seconds. |
-
-The `run` method returns a result object with three fields:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `stdout` | string | Standard output (decoded as UTF-8). |
-| `stderr` | string | Standard error (decoded as UTF-8). |
-| `exit_code` | int | Process exit code. |
-
-```jinja
-{%- set result = subprocess.run('hostname', timeout=5.0) -%}
-{{ result.stdout | trim }}
-```
-
-<Callout type="warn">
-Subprocess calls run synchronously and block event production. Use short timeouts to avoid stalling the pipeline.
-</Callout>

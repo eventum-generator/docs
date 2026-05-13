@@ -2,7 +2,16 @@ import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
 import { File, Files, Folder } from 'fumadocs-ui/components/files';
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 import defaultMdxComponents from 'fumadocs-ui/mdx';
-import { Eye, Pencil, Save, Trash2 } from 'lucide-react';
+import {
+  AppWindow,
+  Blocks,
+  Box,
+  Eye,
+  GraduationCap,
+  Pencil,
+  Save,
+  Trash2,
+} from 'lucide-react';
 import type { MDXComponents } from 'mdx/types';
 
 import ThemedImage from './components/ThemedImage';
@@ -15,6 +24,9 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     Accordion,
     Accordions,
     APIPage,
+    AppWindow,
+    Blocks,
+    Box,
     Steps,
     Step,
     Files,
@@ -23,6 +35,7 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     ThemedImage,
     Mermaid,
     Eye,
+    GraduationCap,
     Pencil,
     Save,
     Trash2,

@@ -35,6 +35,7 @@ Inside a `.jinja` template, the following variables are available:
 | `locals` | state | Per-template state that persists across renders. See [State](./state). |
 | `shared` | state | State shared across all templates in the same generator. See [State](./state). |
 | `globals` | state | State shared across all generators, thread-safe. See [State](./state). |
+| `dispatch` | dispatch API | Control event flow: drop events, restart picking, or signal exhaustion. See [Dispatch API](./dispatch). |
 | `subprocess` | subprocess runner | Execute shell commands. See [Subprocess](./state#subprocess). |
 
 `timestamp` is a standard Python `datetime` object — all its methods work directly: `timestamp.isoformat()`, `timestamp.strftime('%Y-%m-%d')`, `timestamp.year`, `timestamp.hour`, etc.

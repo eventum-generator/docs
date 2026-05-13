@@ -11,7 +11,7 @@
             "name": "Apache 2.0",
             "url": "https://github.com/eventum-generator/eventum/blob/master/LICENSE"
         },
-        "version": "2.3.1"
+        "version": "2.5.0"
     },
     "paths": {
         "/auth/login": {
@@ -2940,7 +2940,7 @@
                         }
                     },
                     "500": {
-                        "description": "Cannot read startup file due to OS error\n\nStartup file structure is invalid;"
+                        "description": "Startup file cannot be read, parsed, validated, or written"
                     }
                 }
             }
@@ -2961,10 +2961,10 @@
                         "schema": {
                             "type": "string",
                             "minLength": 1,
-                            "description": "ID of the generator",
+                            "description": "Generator id",
                             "title": "Id"
                         },
-                        "description": "ID of the generator"
+                        "description": "Generator id"
                     }
                 ],
                 "responses": {
@@ -2979,7 +2979,7 @@
                         }
                     },
                     "500": {
-                        "description": "Cannot read startup file due to OS error\n\nStartup file structure is invalid;"
+                        "description": "Startup file cannot be read, parsed, validated, or written"
                     },
                     "404": {
                         "description": "Generator with this ID is not defined"
@@ -3038,10 +3038,7 @@
                         }
                     },
                     "500": {
-                        "description": "Cannot read startup file due to OS error\n\nStartup file structure is invalid;\n\nCannot append updated content to startup file due to OS error;"
-                    },
-                    "400": {
-                        "description": "ID field in the body does not match ID path parameter"
+                        "description": "Startup file cannot be read, parsed, validated, or written"
                     },
                     "409": {
                         "description": "Generator with this ID is already defined"
@@ -3100,13 +3097,10 @@
                         }
                     },
                     "500": {
-                        "description": "Cannot read startup file due to OS error\n\nStartup file structure is invalid;\n\nCannot modify startup file due to OS error;"
+                        "description": "Startup file cannot be read, parsed, validated, or written"
                     },
                     "404": {
                         "description": "Generator with this ID is not defined"
-                    },
-                    "400": {
-                        "description": "ID field in the body does not match ID path parameter"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -3135,10 +3129,10 @@
                         "schema": {
                             "type": "string",
                             "minLength": 1,
-                            "description": "ID of the generator",
+                            "description": "Generator id",
                             "title": "Id"
                         },
-                        "description": "ID of the generator"
+                        "description": "Generator id"
                     }
                 ],
                 "responses": {
@@ -3151,7 +3145,7 @@
                         }
                     },
                     "500": {
-                        "description": "Cannot read startup file due to OS error\n\nStartup file structure is invalid;\n\nCannot modify startup file due to OS error;"
+                        "description": "Startup file cannot be read, parsed, validated, or written"
                     },
                     "404": {
                         "description": "Generator with this ID is not defined"
@@ -3209,7 +3203,7 @@
                         }
                     },
                     "500": {
-                        "description": "Cannot read startup file due to OS error\n\nStartup file structure is invalid;\n\nCannot modify startup file due to OS error;"
+                        "description": "Startup file cannot be read, parsed, validated, or written"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -5584,6 +5578,12 @@
                         "minimum": 0.0,
                         "title": "Produce Failed",
                         "description": "Number of unsuccessfully produced events"
+                    },
+                    "dropped": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Dropped",
+                        "description": "Number of intentionally dropped events"
                     }
                 },
                 "additionalProperties": false,
@@ -5592,7 +5592,8 @@
                     "plugin_name",
                     "plugin_id",
                     "produced",
-                    "produce_failed"
+                    "produce_failed",
+                    "dropped"
                 ],
                 "title": "EventPluginStats",
                 "description": "Event plugin statistics."
@@ -7180,7 +7181,7 @@
                         "type": "string",
                         "title": "App Version",
                         "description": "Application version",
-                        "default": "2.3.1"
+                        "default": "2.5.0"
                     },
                     "python_version": {
                         "type": "string",
@@ -7204,7 +7205,7 @@
                         "type": "string",
                         "title": "Platform",
                         "description": "Host platform",
-                        "default": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.35"
+                        "default": "Linux-6.6.114.1-microsoft-standard-WSL2-x86_64-with-glibc2.35"
                     },
                     "host_name": {
                         "type": "string",
@@ -7222,7 +7223,7 @@
                         "type": "number",
                         "title": "Boot Timestamp",
                         "description": "Timestamp of host boot up",
-                        "default": 1774783676.0
+                        "default": 1778671725.0
                     },
                     "cpu_count": {
                         "anyOf": [
@@ -13773,10 +13774,5 @@
     "externalDocs": {
         "description": "Eventum Documentation",
         "url": "https://eventum.run/"
-    },
-    "servers": [
-        {
-            "url": "/api"
-        }
-    ]
+    }
 }
