@@ -1,0 +1,44 @@
+---
+title: "Eventum 2.5.0: Template Dispatch API"
+description: "Eventum 2.5.0 adds a dispatch API that lets templates drop, re-pick, or end event generation at render time, plus a random IPv4 helper for CIDR subnets."
+date: "2026-05-14T12:00:00"
+author: "Eventum Team"
+tags:
+  - release
+---
+
+Eventum 2.5.0 is out. The headline is the **template dispatch API** — three new actions that let a template skip an event, ask the generator to pick templates again, or end generation altogether. This release also adds a random IPv4 helper for CIDR subnets.
+
+## Template dispatch API
+
+Until now, a template either produced an event or raised an error. There was no graceful way to skip a timestamp when the underlying data was missing, or to stop a finite dataset cleanly. The new `dispatch` object adds three actions any template can call at render time:
+
+- **`dispatch.drop()`** — discard the current event. Dropped events now appear in the [pipeline metrics](/docs/studio/instances#instance-metrics) and the monitoring panel, so drops are distinguishable from successful renders.
+- **`dispatch.next()`** — discard the current output and ask the generator to pick templates again for the same timestamp. Behavior depends on the picking mode (`all`, `any`, `chance`, `spin`, `chain`, `fsm`).
+- **`dispatch.exhaust()`** — signal that generation is finished. The generator shuts down gracefully and no more timestamps are processed.
+
+### Quick example: skip when the session pool is empty
+
+```jinja
+{%- set sessions = shared.get('sessions', []) -%}
+{%- if sessions | length == 0 -%}
+  {%- do dispatch.drop() -%}
+{%- endif -%}
+{%- set sess = sessions.pop(0) -%}
+{%- do shared.set('sessions', sessions) -%}
+{"session": "{{ sess.id }}", "timestamp": "{{ timestamp.isoformat() }}"}
+```
+
+One caveat worth knowing up front: dispatch actions do **not** roll back state. Anything already written to `locals`, `shared`, or `globals` stays in effect, so check preconditions before mutating state. See the [dispatch API docs](/docs/plugins/event/template/dispatch) for the full reference and per-mode behavior.
+
+## Random IPv4 in a CIDR subnet
+
+The `module.rand.network` namespace gains [`ip_v4_in_subnet`](/docs/plugins/event/template/modules) — pass a CIDR string and get a random host address from inside it.
+
+```jinja
+{%- set client_ip = module.rand.network.ip_v4_in_subnet("10.0.1.0/24") -%}
+```
+
+Handy when events should look like they originate from a specific subnet — an office network, a Kubernetes pod CIDR, a VPN range — instead of being scattered across the entire IPv4 space.
+
+Read the full [changelog](/docs/changelog/2.5.0) for every detail.
