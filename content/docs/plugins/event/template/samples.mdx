@@ -77,12 +77,6 @@ Each row in a sample is a tuple-like object. You can pick a random row and acces
 {{ user.email }}          {# "john@example.com" #}
 ```
 
-This works with Jinja2 filters like `selectattr`:
-
-```jinja
-{%- set admins = samples.users | selectattr("role", "equalto", "admin") | list -%}
-```
-
 **Index access** — all sample types (including `items` and CSV without headers) support positional index access:
 
 ```jinja
@@ -112,11 +106,15 @@ Use `pick()` to select a single random row, or `pick_n(n)` to select multiple:
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `pick` | `() → Row` | Pick a single random row (uniform distribution). |
+| `pick` | `(default: Any = ...) → Row` | Pick a single random row (uniform distribution). |
 | `pick_n` | `(n: int) → list[Row]` | Pick `n` random rows with replacement. |
 
 <Callout>
 `pick()` is equivalent to `| random` but is also available as a method for consistency with the weighted API below.
+</Callout>
+
+<Callout>
+Pass `default` to `pick()` to handle empty samples (for example after `where()` filtering): `samples.users.where(role="admin").pick(default=None)`. Without `default`, picking from an empty sample raises an error. `pick_n` returns an empty list on empty samples - no `default` needed.
 </Callout>
 
 ### Weighted picking
@@ -140,7 +138,7 @@ DNS,53,udp,10
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `weighted_pick` | `(weight: str) → Row` | Pick a single random row with probability proportional to the named weight column. |
+| `weighted_pick` | `(weight: str, default: Any = ...) → Row` | Pick a single random row with probability proportional to the named weight column. |
 | `weighted_pick_n` | `(weight: str, n: int) → list[Row]` | Pick `n` random rows with replacement, weighted by the named column. |
 
 <Callout>
@@ -148,5 +146,49 @@ The weight column must contain numeric values (integers or floats). Negative val
 </Callout>
 
 <Callout>
+`weighted_pick` accepts the same `default` parameter as `pick` to handle empty samples. `weighted_pick_n` returns an empty list on empty samples.
+</Callout>
+
+<Callout>
 Weights are extracted and cached on the first call. Repeated calls to `weighted_pick` with the same column are efficient even at high throughput.
+</Callout>
+
+## Filtering rows
+
+Use `where(**conditions)` to filter a sample by one or more equality conditions, then pick from the result:
+
+```jinja
+{%- set admin = samples.users.where(role="admin").pick() -%}
+{{ admin.name }}
+```
+
+Conditions are AND-combined. The example below picks a server in the `servers` subnet:
+
+```jinja
+{%- set host = samples.internal_hosts.where(role="server", subnet="servers").pick() -%}
+```
+
+`where()` returns a new sample, so all picking methods - `pick`, `pick_n`, `weighted_pick`, `weighted_pick_n` - chain naturally. Calls can also be chained:
+
+```jinja
+{%- set host = samples.internal_hosts.where(role="server").where(subnet="servers").pick() -%}
+```
+
+If no row matches, the filtered sample is empty. Use `pick(default=...)` to handle that case without an error:
+
+```jinja
+{%- set maybe_host = samples.internal_hosts.where(role="server").pick(default=None) -%}
+{%- if maybe_host -%}
+  {{ maybe_host.address }}
+{%- else -%}
+  (no server)
+{%- endif -%}
+```
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `where` | `(**conditions: Any) → Sample` | Return a new sample of rows matching all equality conditions. |
+
+<Callout>
+For non-equality predicates (substring match, ranges, etc.), use Jinja2's `selectattr` filter: `samples.users | selectattr("name", "search", "^a") | list`. `where()` covers the common equality case.
 </Callout>
