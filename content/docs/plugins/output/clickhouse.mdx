@@ -27,6 +27,7 @@ Inserts events into a ClickHouse table using the HTTP interface. Supports config
 | `server_host_name` | string or null | `null` | Non-empty if set. | Expected server hostname in the TLS certificate. |
 | `tls_mode` | string or null | `null` | `"proxy"`, `"strict"`, or `"mutual"` | TLS verification mode. |
 | `proxy_url` | URL or null | `null` | Valid HTTP/HTTPS URL. | Proxy address. |
+| `pool_maxsize` | integer | `32` | >= 1 | Maximum number of HTTP connections kept in the pool toward the ClickHouse host. Raise alongside `generation.max_concurrency` to avoid pool exhaustion under bursts of concurrent writes. |
 | `input_format` | string | `"JSONEachRow"` | Valid ClickHouse input format. | ClickHouse [input format](https://clickhouse.com/docs/en/interfaces/formats) for the INSERT query. |
 | `header` | string | `""` | — | String prepended before all events in each batch. |
 | `footer` | string | `""` | — | String appended after all events in each batch. |
