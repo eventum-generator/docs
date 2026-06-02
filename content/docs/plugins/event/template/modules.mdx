@@ -70,10 +70,34 @@ Built-in random utilities organized into namespaces. This is the most commonly u
 | `digits` | `(size) → str` | Random digit characters. |
 | `punctuation` | `(size) → str` | Random ASCII punctuation characters. |
 | `hex` | `(size) → str` | Random hex characters (0–9, a–f). |
+| `pattern` | `(format_string) → str` | Random string built from a printf-like pattern. See specifiers below. |
 
 ```jinja
 {%- set token = module.rand.string.hex(32) -%}
 {%- set code = module.rand.string.letters_uppercase(6) -%}
+```
+
+#### Pattern specifiers
+
+`pattern(format_string)` builds a random string by replacing format specifiers. Append `{N}` to a specifier to emit `N` random characters from its set instead of one. Everything else in the pattern is copied verbatim.
+
+| Specifier | Character set |
+|-----------|---------------|
+| `%a` | lowercase letter (a–z) |
+| `%A` | uppercase letter (A–Z) |
+| `%l` | any letter (a–zA–Z) |
+| `%d` | digit (0–9) |
+| `%n` | non-zero digit (1–9) |
+| `%h` | lowercase hex (0–9, a–f) |
+| `%H` | uppercase hex (0–9, A–F) |
+| `%p` | ASCII punctuation |
+| `%w` | word character (a–zA–Z0–9) |
+| `%%` | literal `%` |
+
+```jinja
+{%- set order_id = module.rand.string.pattern("ORD-%A{3}-%d{6}") -%}
+{%- set license_plate = module.rand.string.pattern("%A{2}%d{4}%A{2}") -%}
+{%- set ssn = module.rand.string.pattern("%n%d{2}-%d{2}-%d{4}") -%}
 ```
 
 ### `rand.network`
