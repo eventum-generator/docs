@@ -106,6 +106,7 @@ Built-in random utilities organized into namespaces. This is the most commonly u
 |----------|-----------|-------------|
 | `ip_v4` | `() → str` | Random IPv4 address (any range). |
 | `ip_v4_public` | `() → str` | Random public IPv4 (excludes private and reserved ranges). |
+| `ip_v4_private` | `() → str` | Random private IPv4 (RFC 1918, any class). |
 | `ip_v4_private_a` | `() → str` | Random Class A private IPv4 (10.0.0.0/8). |
 | `ip_v4_private_b` | `() → str` | Random Class B private IPv4 (172.16.0.0/12). |
 | `ip_v4_private_c` | `() → str` | Random Class C private IPv4 (192.168.0.0/16). |
@@ -130,6 +131,7 @@ Built-in random utilities organized into namespaces. This is the most commonly u
 |----------|-----------|-------------|
 | `uuid4` | `() → str` | Random UUID v4. |
 | `md5` | `() → str` | Random 32-character hex string (MD5-length). |
+| `sha1` | `() → str` | Random 40-character hex string (SHA-1-length). |
 | `sha256` | `() → str` | Random 64-character hex string (SHA-256-length). |
 
 ```jinja
