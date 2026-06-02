@@ -115,7 +115,9 @@ Built-in random utilities organized into namespaces. This is the most commonly u
 | `ip_v6_global` | `() → str` | Random global unicast IPv6 (`2000::/3`). |
 | `ip_v6_link_local` | `() → str` | Random link-local IPv6 (`fe80::/10`). |
 | `ip_v6_ula` | `() → str` | Random unique local IPv6 (`fc00::/7`). |
-| `mac` | `() → str` | Random MAC address (colon-separated, e.g. `a4:3b:00:ff:12:9e`). |
+| `mac` | `(*, oui: str = None, vendor: str = None) → str` | Random MAC address (colon-separated, e.g. `a4:3b:00:ff:12:9e`). With `oui` (`aa:bb:cc` or `aa-bb-cc`), the prefix stays fixed and only the last three bytes vary. With `vendor`, a prefix is picked at random from a built-in OUI table for that vendor (case-insensitive). The arguments are mutually exclusive. |
+
+Built-in vendor keys: `apple`, `aruba`, `broadcom`, `cisco`, `dell`, `fortinet`, `hp`, `huawei`, `ibm`, `intel`, `juniper`, `lenovo`, `microsoft`, `mikrotik`, `netgear`, `paloalto`, `samsung`, `tplink`, `ubiquiti`, `vmware`.
 
 ```jinja
 {%- set src_ip = module.rand.network.ip_v4_public() -%}
@@ -123,6 +125,8 @@ Built-in random utilities organized into namespaces. This is the most commonly u
 {%- set client_ip = module.rand.network.ip_v4_in_subnet("10.0.1.0/24") -%}
 {%- set src_ip_v6 = module.rand.network.ip_v6_global() -%}
 {%- set mac_addr = module.rand.network.mac() -%}
+{%- set vmware_mac = module.rand.network.mac(oui="00:50:56") -%}
+{%- set dell_mac = module.rand.network.mac(vendor="dell") -%}
 ```
 
 ### `rand.crypto`
