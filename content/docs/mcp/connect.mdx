@@ -1,6 +1,6 @@
 ---
 title: Connect your agent
-description: Step-by-step setup to connect Claude Code, Cursor, or Claude Desktop to Eventum over stdio or HTTP.
+description: Step-by-step setup to connect any MCP client to Eventum over stdio or HTTP.
 ---
 
 There are two ways to connect. Use **stdio** to author generators on your own machine; use **HTTP** to also manage generators on a running [Eventum server](/docs/core/cli/eventum-run).
@@ -33,38 +33,30 @@ mkdir -p /path/to/generators
 <Step>
 ### Register the server with your client
 
-<Tabs items={["Claude Code", "Cursor", "Claude Desktop"]}>
-<Tab value="Claude Code">
+Most clients use a shared config format; some also offer a command-line shortcut. Use whichever your client supports.
+
+<Tabs items={["Config file", "Command line"]}>
+<Tab value="Config file">
+Most MCP clients read the same `mcpServers` format — only the file location differs. Add an `eventum` entry:
+
+```json title="mcp.json"
+{
+  "mcpServers": {
+    "eventum": {
+      "command": "uv",
+      "args": ["run", "eventum", "mcp", "--generators-dir", "/path/to/generators"]
+    }
+  }
+}
+```
+
+Common locations: `.cursor/mcp.json` (Cursor), `claude_desktop_config.json` (Claude Desktop), `.vscode/mcp.json` (VS Code). Check your client's documentation for the exact path.
+</Tab>
+<Tab value="Command line">
+Some clients add servers from the command line. For example, with Claude Code:
+
 ```bash
 claude mcp add eventum -- uv run eventum mcp --generators-dir /path/to/generators
-```
-</Tab>
-<Tab value="Cursor">
-Add to your MCP config (`~/.cursor/mcp.json` or the project `.cursor/mcp.json`):
-
-```json title=".cursor/mcp.json"
-{
-  "mcpServers": {
-    "eventum": {
-      "command": "uv",
-      "args": ["run", "eventum", "mcp", "--generators-dir", "/path/to/generators"]
-    }
-  }
-}
-```
-</Tab>
-<Tab value="Claude Desktop">
-Add to `claude_desktop_config.json` (Settings → Developer → Edit Config):
-
-```json title="claude_desktop_config.json"
-{
-  "mcpServers": {
-    "eventum": {
-      "command": "uv",
-      "args": ["run", "eventum", "mcp", "--generators-dir", "/path/to/generators"]
-    }
-  }
-}
 ```
 </Tab>
 </Tabs>
@@ -74,7 +66,7 @@ Use an **absolute** path for the generators directory.
 <Step>
 ### Start authoring
 
-Restart the client (Cursor / Claude Desktop) or confirm the server is connected (`claude mcp list`). Then ask the agent to build a generator — for example: *"List the input plugins, then build a generator that emits one JSON web access-log event per second."* See [Usage scenarios](/docs/mcp/scenarios) for more.
+Restart your client (or reload its MCP config), then ask the agent to build a generator — for example: *"List the input plugins, then build a generator that emits one JSON web access-log event per second."* See [Usage scenarios](/docs/mcp/scenarios) for more.
 </Step>
 </Steps>
 
@@ -112,17 +104,11 @@ The endpoint is served at `http://<host>:<port><path>` — for the defaults, `ht
 
 The client connects over the streamable-HTTP transport and must send the basic-auth credentials.
 
-<Tabs items={["Claude Code", "JSON config"]}>
-<Tab value="Claude Code">
-```bash
-claude mcp add --transport http eventum http://localhost:9474/mcp/ \
-  --header "Authorization: Basic $(printf 'eventum:eventum' | base64)"
-```
-</Tab>
-<Tab value="JSON config">
-Point your client's MCP config at the URL and supply the basic-auth header (exact field names vary by client):
+<Tabs items={["Config file", "Command line"]}>
+<Tab value="Config file">
+Point your client's MCP config at the URL and supply the basic-auth header (field names vary by client):
 
-```json
+```json title="mcp.json"
 {
   "mcpServers": {
     "eventum": {
@@ -136,6 +122,14 @@ Point your client's MCP config at the URL and supply the basic-auth header (exac
 ```
 
 The header value is `Basic ` followed by the base64 of `user:password`.
+</Tab>
+<Tab value="Command line">
+Some clients accept an HTTP server with a header from the command line. For example, with Claude Code:
+
+```bash
+claude mcp add --transport http eventum http://localhost:9474/mcp/ \
+  --header "Authorization: Basic $(printf 'eventum:eventum' | base64)"
+```
 </Tab>
 </Tabs>
 </Step>
