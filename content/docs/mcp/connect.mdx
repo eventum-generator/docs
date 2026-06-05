@@ -1,0 +1,161 @@
+---
+title: Connect your agent
+description: Step-by-step setup to connect Claude Code, Cursor, or Claude Desktop to Eventum over stdio or HTTP.
+---
+
+There are two ways to connect. Use **stdio** to author generators on your own machine; use **HTTP** to also manage generators on a running [Eventum server](/docs/core/cli/eventum-run).
+
+## Prerequisites
+
+- Eventum installed (see [Installation](/docs/core/introduction/installation)). The examples below run it with `uv run`; if Eventum is on your `PATH`, drop the `uv run` prefix.
+- A **generators directory** — the folder that holds your generator subdirectories. This is the only required setting for stdio.
+
+## Local authoring over stdio
+
+The `eventum mcp` command runs the server over standard input/output — the transport every MCP client supports out of the box. Point it at your generators directory:
+
+```bash
+eventum mcp --generators-dir /path/to/generators
+```
+
+`stdout` carries the protocol; logs go to `stderr`. See the [`eventum mcp`](/docs/core/cli/eventum-mcp) reference for all options.
+
+<Steps>
+<Step>
+### Choose a generators directory
+
+Use an existing one, or create an empty folder — the agent will populate it:
+
+```bash
+mkdir -p /path/to/generators
+```
+</Step>
+<Step>
+### Register the server with your client
+
+<Tabs items={["Claude Code", "Cursor", "Claude Desktop"]}>
+<Tab value="Claude Code">
+```bash
+claude mcp add eventum -- uv run eventum mcp --generators-dir /path/to/generators
+```
+</Tab>
+<Tab value="Cursor">
+Add to your MCP config (`~/.cursor/mcp.json` or the project `.cursor/mcp.json`):
+
+```json title=".cursor/mcp.json"
+{
+  "mcpServers": {
+    "eventum": {
+      "command": "uv",
+      "args": ["run", "eventum", "mcp", "--generators-dir", "/path/to/generators"]
+    }
+  }
+}
+```
+</Tab>
+<Tab value="Claude Desktop">
+Add to `claude_desktop_config.json` (Settings → Developer → Edit Config):
+
+```json title="claude_desktop_config.json"
+{
+  "mcpServers": {
+    "eventum": {
+      "command": "uv",
+      "args": ["run", "eventum", "mcp", "--generators-dir", "/path/to/generators"]
+    }
+  }
+}
+```
+</Tab>
+</Tabs>
+
+Use an **absolute** path for the generators directory.
+</Step>
+<Step>
+### Start authoring
+
+Restart the client (Cursor / Claude Desktop) or confirm the server is connected (`claude mcp list`). Then ask the agent to build a generator — for example: *"List the input plugins, then build a generator that emits one JSON web access-log event per second."* See [Usage scenarios](/docs/mcp/scenarios) for more.
+</Step>
+</Steps>
+
+<Callout type="info">
+Over stdio the agent can read and **write** files under the generators directory. Add `--read-only` to allow discovery, validation, and preview while blocking any writes.
+</Callout>
+
+## Live management over HTTP
+
+Mounting the MCP server into a running server adds the [live-management tools](/docs/mcp/tools#live-management-tools) — listing, status, start, stop, and register — and puts the endpoint behind the server's authentication.
+
+<Steps>
+<Step>
+### Enable it in `eventum.yml`
+
+```yaml title="eventum.yml"
+server.mcp.enabled: true
+server.mcp.allow_write: true   # enables start/stop/register and file writes
+server.mcp.path: "/mcp"
+```
+
+Live management needs `allow_write: true`. For read-only HTTP access — discovery, validation, and preview only — leave it `false` (the default). See [Configuration](/docs/core/config/eventum-yml#server-mcp) for all keys.
+</Step>
+<Step>
+### Run the server
+
+```bash
+eventum run -c eventum.yml
+```
+
+The endpoint is served at `http://<host>:<port><path>` — for the defaults, `http://localhost:9474/mcp/` (note the trailing slash). It is protected by the [`server.auth`](/docs/core/config/eventum-yml#server-auth) credentials.
+</Step>
+<Step>
+### Register the server with your client
+
+The client connects over the streamable-HTTP transport and must send the basic-auth credentials.
+
+<Tabs items={["Claude Code", "JSON config"]}>
+<Tab value="Claude Code">
+```bash
+claude mcp add --transport http eventum http://localhost:9474/mcp/ \
+  --header "Authorization: Basic $(printf 'eventum:eventum' | base64)"
+```
+</Tab>
+<Tab value="JSON config">
+Point your client's MCP config at the URL and supply the basic-auth header (exact field names vary by client):
+
+```json
+{
+  "mcpServers": {
+    "eventum": {
+      "url": "http://localhost:9474/mcp/",
+      "headers": {
+        "Authorization": "Basic ZXZlbnR1bTpldmVudHVt"
+      }
+    }
+  }
+}
+```
+
+The header value is `Basic ` followed by the base64 of `user:password`.
+</Tab>
+</Tabs>
+</Step>
+</Steps>
+
+<Callout type="warn">
+Change the default `server.auth` credentials before exposing the server on a network, and keep `server.mcp.allow_write` off unless the agent needs to change files or control generators.
+</Callout>
+
+## Next
+
+<Cards>
+  <Card
+    title="Tools & resources"
+    description="Everything the agent can call and read."
+    href="/docs/mcp/tools"
+  />
+  <Card
+    title="Usage scenarios"
+    description="Put it to work — build, simulate, and operate."
+    href="/docs/mcp/scenarios"
+  />
+</Cards>

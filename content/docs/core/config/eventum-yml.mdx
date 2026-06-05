@@ -82,6 +82,28 @@ HTTP basic authentication credentials for the UI and API.
 Change the default credentials before exposing Eventum on a network.
 </Callout>
 
+### server.mcp
+
+Mounts the [MCP server](/docs/mcp) into the running server so an AI agent can build, validate, preview, and manage generators over HTTP. Disabled by default. The endpoint is served at `<host>:<port><path>` and protected by the [`server.auth`](#server-auth) credentials.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `server.mcp.enabled` | boolean | `false` | — | Mount the MCP server over HTTP. |
+| `server.mcp.allow_write` | boolean | `false` | — | Allow write tools — file writes and starting, stopping, and registering generators. When `false`, the endpoint is read-only: discovery, validation, and preview only. |
+| `server.mcp.path` | string | `"/mcp"` | Non-empty. | Mount path for the MCP endpoint. |
+
+```yaml
+server:
+  mcp:
+    enabled: true
+    allow_write: false
+    path: /mcp
+```
+
+<Callout type="info">
+Local authoring doesn't need the server — run [`eventum mcp`](/docs/core/cli/eventum-mcp) for a stdio server next to your agent. See [Connect your agent](/docs/mcp/connect).
+</Callout>
+
 ---
 
 ## path

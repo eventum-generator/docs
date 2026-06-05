@@ -1,0 +1,57 @@
+---
+title: How it works
+description: The author–validate–preview loop, the two transports, and the safety model behind the Eventum MCP server.
+---
+
+The MCP server gives an agent three kinds of capability: **tools** it calls, **resources** it reads for grounding, and **prompts** — reusable task templates it can invoke. Together they drive one loop: build a generator, check it against the real engine, look at the output, and fix it.
+
+## The authoring loop
+
+A generator in Eventum is not a single file — it's a **directory**: a [`generator.yml`](/docs/core/config/generator-yml) plus the template and sample files it references. The agent works on that directory the same way you would.
+
+<Mermaid chart={`graph LR
+    DISCOVER["Discover<br/>plugins & schemas"]:::step --> WRITE["Write files<br/>config, templates, samples"]:::step
+    WRITE --> VALIDATE["Validate<br/>real engine"]:::step
+    VALIDATE --> PREVIEW["Preview<br/>timestamps & events"]:::step
+    PREVIEW --> FIX["Fix"]:::step
+    FIX --> WRITE
+    PREVIEW --> DONE["Save / run"]:::done
+    classDef step fill:#8282ef,color:#fff,stroke:#6b6bd4,stroke-width:2px
+    classDef done fill:#22c55e,color:#fff,stroke:#16a34a,stroke-width:2px`} />
+
+1. **Discover.** The agent lists the available input, event, and output plugins and reads the exact schema of each one — so it knows every field, default, and constraint before writing anything. It can also read the [template helper reference](/docs/mcp/tools#resources) and a set of worked examples.
+2. **Write.** It writes the template files, any sample data, and the `generator.yml` that ties them together — each referenced by a path relative to the generator directory.
+3. **Validate.** `validate_generator` loads the generator and initialises every plugin against the real engine. The agent gets the same field-level errors the engine would raise — not a guess.
+4. **Preview.** `preview_timestamps` shows the shape of the schedule (how many events, when), and `preview_events` renders real example events through the template and formatter. The agent sees the actual output.
+5. **Fix and repeat** until validation passes and the preview looks right.
+
+Because validation and preview run the real pipeline, parameter substitution, sample loading, and template rendering all behave exactly as they will when the generator runs for real.
+
+## Two transports, one definition
+
+The same tools, resources, and prompts are served over two transports. You choose the one that fits how you work.
+
+| | Local authoring (stdio) | Live management (HTTP) |
+|---|---|---|
+| How it runs | `eventum mcp` as a local process next to your agent | Mounted into a running [Eventum server](/docs/core/cli/eventum-run) |
+| Best for | Building and previewing generators on your machine | Operating generators on a shared or remote instance |
+| Authoring tools | Yes | Yes |
+| Live management | — | Yes — list, status, start, stop, register |
+| Access control | Local file access | HTTP **basic auth**; read-only unless writes are enabled |
+
+The live-management tools (starting, stopping, and registering generators) exist **only** over the HTTP transport, because only a running server has generators to manage.
+
+See [Connect your agent](/docs/mcp/connect) for setup and [Tools & resources](/docs/mcp/tools) for the full list.
+
+## Safety
+
+- **No model, no keys, no cost.** Eventum runs no language model and stores no provider credentials. Your agent supplies the model.
+- **Writes are gated.** Over HTTP the server is **read-only by default**: the agent can discover, validate, and preview, but cannot change files or control generators until you enable writes (`server.mcp.allow_write`). Over stdio, writing is on by default because it operates on your local files — a `--read-only` flag turns it off.
+- **Authentication.** The HTTP endpoint sits behind the same basic-auth credentials as the rest of the server.
+- **No secrets leak to the agent.** When a validation or preview fails, Eventum scrubs the error before sending it: absolute file paths are reduced to names, and any resolved secret values (from [secrets](/docs/core/config/secrets)) are redacted. The agent sees what went wrong, not where your files live or what your secrets are.
+- **No network access from the server.** The MCP server itself never makes outbound calls. Example generators are bundled in the package; links to larger example sets are just URLs your agent can choose to fetch with its own tools.
+
+## What it does not do
+
+- It does not replace [Eventum Studio](/docs/studio) — Studio is the visual editor; MCP is the programmatic, agent-facing interface.
+- It does not generate data by itself — it builds and runs **generators**, which produce the data through the normal [pipeline](/docs/core/concepts/generator).

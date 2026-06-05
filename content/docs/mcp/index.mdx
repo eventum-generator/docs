@@ -1,0 +1,68 @@
+---
+title: Overview
+description: Connect an AI agent to Eventum over the Model Context Protocol — let it build, validate, preview, and run synthetic-data generators using its own model.
+---
+
+<div className="not-prose my-6 rounded-2xl border border-fd-border bg-linear-to-br from-fd-card via-fd-card to-fd-accent/20 p-8 text-center">
+  <div className="flex justify-center mb-4 text-fd-muted-foreground"><Bot size={40} strokeWidth={1.5} /></div>
+  <div className="text-2xl font-semibold mb-2">Eventum MCP server</div>
+  <div className="text-fd-muted-foreground max-w-xl mx-auto">
+    Describe the data you need in plain language — your AI agent assembles
+    the generator, checks it against the real engine, and runs it.
+  </div>
+</div>
+
+The Eventum **MCP server** lets an AI agent — [Claude Code](https://www.anthropic.com/claude-code), Cursor, Claude Desktop, or any [Model Context Protocol](https://modelcontextprotocol.io) client — build and run Eventum generators directly, grounded on the real engine instead of guesswork.
+
+You stay in your editor or chat. You say *"give me a week of Apache access logs with a traffic spike at noon, mostly 200s but a burst of 500s during the spike"*, and the agent writes the files, validates and previews them against the real pipeline, and fixes them until the output is right. See [how it works](/docs/mcp/how-it-works) for the full loop.
+
+## No model required
+
+Eventum embeds **no language model**, no API keys, and no per-token cost. Your agent already has a model; the MCP server gives that model an exact, structured view of Eventum:
+
+- the **schema** of every input, event, and output plugin,
+- the **template helpers** available inside events (always current — generated from the live code),
+- **worked examples** it can copy from,
+- and **real-engine feedback** — `validate` and `preview` run the actual pipeline, so the agent sees the same errors and the same output you would.
+
+## Two ways to connect
+
+<Cards>
+  <Card
+    title="Local authoring (stdio)"
+    description="Run `eventum mcp` next to your agent. Best for building and previewing generators on your machine."
+    href="/docs/mcp/connect#local-authoring-over-stdio"
+  />
+  <Card
+    title="Live management (HTTP)"
+    description="Mount the MCP server into a running Eventum server. Adds starting, stopping, and registering generators — behind authentication."
+    href="/docs/mcp/connect#live-management-over-http"
+  />
+</Cards>
+
+Both expose the same authoring tools; the HTTP transport adds live generator management on top.
+
+## Read next
+
+<Cards>
+  <Card
+    title="How it works"
+    description="The author → validate → preview loop, the two transports, and the safety model."
+    href="/docs/mcp/how-it-works"
+  />
+  <Card
+    title="Connect your agent"
+    description="Step-by-step setup for Claude Code, Cursor, and Claude Desktop."
+    href="/docs/mcp/connect"
+  />
+  <Card
+    title="Tools & resources"
+    description="The full surface: every tool, resource, and prompt the agent can use."
+    href="/docs/mcp/tools"
+  />
+  <Card
+    title="Usage scenarios"
+    description="Worked examples — build from a description, simulate an incident, manage live generators."
+    href="/docs/mcp/scenarios"
+  />
+</Cards>

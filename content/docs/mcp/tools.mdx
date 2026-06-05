@@ -1,0 +1,69 @@
+---
+title: Tools & resources
+description: The full Eventum MCP surface — every tool the agent can call, every resource it can read, and the guided prompts.
+---
+
+This is the complete surface the agent sees. **Tools** are actions it calls; **resources** are documents it reads for grounding; **prompts** are ready-made task guides.
+
+Tools marked **W** (write) change files or control generators. They are gated: over HTTP they require `server.mcp.allow_write`; over stdio they are on unless you pass `--read-only`. Tools marked **HTTP** exist only over the [HTTP transport](/docs/mcp/connect#live-management-over-http).
+
+## Discovery tools
+
+Read-only. Available on both transports. These let the agent learn the exact shape of everything before writing a config.
+
+| Tool | Description |
+|---|---|
+| `list_plugins` | List the available input, event, and output plugin names. |
+| `get_plugin_schema` | Return the full configuration schema for one plugin — every field, type, default, and constraint. |
+| `list_formatters` | List the output [formatters](/docs/plugins/formatters) (`json`, `template`, `plain`, and others). |
+| `get_formatter_schema` | Return the configuration schema for one formatter. |
+| `describe_sample` | Describe a CSV or JSON [sample](/docs/plugins/event/template/samples) file in a generator — its detected type, column names, and a few example rows. |
+
+## Workspace & authoring tools
+
+Operate on the generator directories under the configured generators directory. Available on both transports.
+
+| Tool | | Description |
+|---|---|---|
+| `list_generators` | | List the saved generator directories. |
+| `list_generator_files` | | List the files inside one generator (config, templates, samples). |
+| `read_generator_file` | | Read the contents of a file in a generator. |
+| `write_generator_file` | **W** | Create or overwrite a file in a generator (config, template, or sample). |
+| `validate_generator` | | Load a generator and initialise every plugin against the real engine, returning field-level errors. |
+| `preview_timestamps` | | Generate the schedule for a generator and return its shape — total count, first and last moments, and a histogram. |
+| `preview_events` | | Render real example events through the template and formatter, returning the output and any per-event errors. |
+
+<Callout type="info">
+`validate_generator` and `preview_*` run the **real** pipeline — including secret and parameter substitution — so the agent sees exactly what the engine produces. See [how it works](/docs/mcp/how-it-works#the-authoring-loop).
+</Callout>
+
+## Live-management tools
+
+Control generators on a running server. Available **only over HTTP**.
+
+| Tool | | Description |
+|---|---|---|
+| `list_generators_live` | **HTTP** | List the generators the server is managing, with each one's status. |
+| `get_generator_status` | **HTTP** | Return the status of one running generator. |
+| `start_generator` | **HTTP** · **W** | Start a managed generator (no-op if already running). |
+| `stop_generator` | **HTTP** · **W** | Stop a managed generator. |
+| `register_generator` | **HTTP** · **W** | Take a generator the agent authored, add it to the running server, and persist it to [startup.yml](/docs/core/config/startup-yml) so it survives a restart. |
+
+## Resources
+
+Documents the agent reads to ground itself. Read-only, both transports.
+
+| Resource | Description |
+|---|---|
+| `eventum://templating/reference` | Every helper available inside event [templates](/docs/plugins/event/template) — the `module.rand.*` generators, `samples.*`, `dispatch`, and the event fields, with signatures. **Generated from the live code**, so it never goes stale. |
+| `eventum://examples/generators` | A bundled, validated worked example (full file set), plus links to the public [content-packs](https://github.com/eventum-generator/content-packs) repository and the [generator hub](https://eventum.run/hub) for more. |
+| `eventum://workspace/configs` | The generators currently saved under the generators directory, with their files. |
+
+## Prompts
+
+Ready-made task guides the agent can invoke.
+
+| Prompt | Description |
+|---|---|
+| `create_generator` | Walks the full [authoring loop](/docs/mcp/how-it-works#the-authoring-loop) — discover schemas, write the file set, validate, preview, fix. |
+| `simulate_incident` | One worked pattern for composing an "incident" generator: a baseline rate that rises to a peak over a window, with a weighted error mix. Takes the incident type, target generator, rates, and error ratio. |

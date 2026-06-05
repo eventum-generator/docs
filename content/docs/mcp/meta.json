@@ -1,0 +1,11 @@
+{
+  "root": true,
+  "icon": "Bot",
+  "pages": [
+    "index",
+    "how-it-works",
+    "connect",
+    "tools",
+    "scenarios"
+  ]
+}

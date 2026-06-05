@@ -1,0 +1,68 @@
+---
+title: Usage scenarios
+description: Worked examples of using the Eventum MCP server — build a generator from a description, simulate an incident, manage live generators, and author offline.
+---
+
+Each scenario below is a task you can hand the agent once it's [connected](/docs/mcp/connect). The prompts are examples — phrase them however you like.
+
+## Build a generator from a description
+
+The core use: you describe the data, the agent assembles a working generator.
+
+> "Build a generator that emits one JSON web access-log event per second: a random client IP, an HTTP method, a request path drawn from a small sample, a status code, and a response size. Then preview ten events."
+
+What the agent does:
+
+1. Calls `list_plugins` and `get_plugin_schema` to learn the `cron` input, the `template` event plugin, and the `file` output with the `json` formatter.
+2. Reads `eventum://templating/reference` to find the right helpers (`module.rand.network.ip_v4`, `module.rand.choice`, `samples.<name>.pick`).
+3. Writes the template, a small sample file, and `generator.yml` with `write_generator_file`.
+4. Calls `validate_generator` — and fixes anything it flags.
+5. Calls `preview_events` and shows you ten real events.
+
+You end up with a saved, validated generator directory you can run with [`eventum run`](/docs/core/cli/eventum-run) or [`eventum generate`](/docs/core/cli/eventum-generate). The built-in `create_generator` prompt walks the agent through exactly this loop.
+
+<Callout type="info">
+Ask to see a preview before anything is saved: `preview_timestamps` for the schedule shape, `preview_events` for the rendered events.
+</Callout>
+
+## Simulate an incident
+
+Shape a burst, not just steady traffic — useful for testing alerting, dashboards, and detection rules.
+
+> "Take my `web-access-log` generator and make a variant that simulates a traffic spike: baseline 10 requests/min rising to 800/min for a 15-minute window, with about 40% 5xx errors during the spike."
+
+The `simulate_incident` prompt gives the agent a worked pattern: shape the rate on the input side (a [`time_patterns`](/docs/plugins/input/time-patterns) schedule, or layered [`cron`](/docs/core/concepts/scheduling)), weight an error variant against a normal one in the [`template`](/docs/plugins/event/template) event plugin, and confirm the burst with `preview_timestamps` before looking at events. You review the previewed shape and adjust the numbers conversationally.
+
+## Manage live generators over HTTP
+
+With the [HTTP transport](/docs/mcp/connect#live-management-over-http) enabled and `allow_write` on, the agent can operate a running server.
+
+> "What's running right now? Start the `web-access-log` generator and tell me when it's producing events."
+
+The agent calls `list_generators_live` and `get_generator_status` to report state, and `start_generator` to start one — all behind your server's authentication. With `register_generator` it can also take a generator it just authored, add it to the running server, and persist it to [startup.yml](/docs/core/config/startup-yml) so it survives a restart.
+
+## Author offline / air-gapped
+
+Synthetic data is often generated where production data can't go — an isolated network with no internet. The MCP server suits that: it makes [no outbound network calls](/docs/mcp/how-it-works#safety), and the plugin schemas, template reference, and a worked example all ship in the package — so the full author–validate–preview loop works with no connectivity.
+
+When the agent wants richer examples, the `eventum://examples/generators` resource also lists external URLs it can fetch with its *own* tools, if it has access. The Eventum server never reaches out on its own.
+
+## Where to go next
+
+<Cards>
+  <Card
+    title="Tools & resources"
+    description="The full reference for everything used above."
+    href="/docs/mcp/tools"
+  />
+  <Card
+    title="Connect your agent"
+    description="Set up stdio or HTTP."
+    href="/docs/mcp/connect"
+  />
+  <Card
+    title="Generator configuration"
+    description="The generator.yml schema the agent writes."
+    href="/docs/core/config/generator-yml"
+  />
+</Cards>

@@ -1,0 +1,48 @@
+---
+title: "$ eventum mcp"
+description: Run Eventum as a Model Context Protocol server over stdio so an AI agent can build, validate, and preview generators.
+---
+
+Runs Eventum as an [MCP server](/docs/mcp) over standard input/output — the transport every MCP client supports. An agent connected to it can discover plugins, write and read generator files, and validate and preview generators against the real engine. For live generator management (start/stop/register), mount the server over HTTP instead — see [Connect your agent](/docs/mcp/connect#live-management-over-http).
+
+```bash
+eventum mcp --generators-dir <path> [OPTIONS]
+```
+
+`stdout` is reserved for the protocol stream; all logs go to `stderr`, and no splash screen is printed — so the channel stays clean for the client.
+
+## Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--generators-dir` | path | — | **Required.** Directory holding generator subdirectories. The agent reads and writes generators here. Must be an existing directory. |
+| `--read-only` | flag | `false` | Block all writes. The agent can discover, validate, and preview, but cannot create or modify files. |
+| `--log-level` | choice | `WARNING` | Log verbosity on `stderr`: `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL`. |
+
+## Examples
+
+Author generators in a local directory:
+
+```bash
+eventum mcp --generators-dir ./generators
+```
+
+Expose generators read-only — discovery, validation, and preview, but no changes:
+
+```bash
+eventum mcp --generators-dir ./generators --read-only
+```
+
+Register the server with [Claude Code](https://www.anthropic.com/claude-code):
+
+```bash
+claude mcp add eventum -- uv run eventum mcp --generators-dir ./generators
+```
+
+See [Connect your agent](/docs/mcp/connect) for Cursor and Claude Desktop configuration.
+
+## See also
+
+- [MCP overview](/docs/mcp) — what the server is and what it's for.
+- [Tools & resources](/docs/mcp/tools) — everything the agent can call.
+- [`server.mcp`](/docs/core/config/eventum-yml#server-mcp) — enabling the HTTP transport on a running server.
