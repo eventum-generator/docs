@@ -51,6 +51,10 @@ See [Connect your agent](/docs/mcp/connect) for setup and [Tools & resources](/d
 - **No secrets leak to the agent.** When a validation or preview fails, Eventum scrubs the error before sending it: absolute file paths are reduced to names, and any resolved secret values (from [secrets](/docs/core/config/secrets)) are redacted. The agent sees what went wrong, not where your files live or what your secrets are.
 - **No network access from the server.** The MCP server itself never makes outbound calls. Example generators are bundled in the package; links to larger example sets are just URLs your agent can choose to fetch with its own tools.
 
+<Callout type="warn">
+Enabling writes over HTTP (`server.mcp.allow_write`) is more than file access: a connected agent can write a template and preview it, and **templates execute code on the host** (they can run subprocesses and arbitrary Python — by design). Treat an HTTP server with writes enabled as granting code execution to anyone holding the credentials, and turn it on only for a trusted network and a trusted agent. The defaults — HTTP off, writes off — avoid this entirely.
+</Callout>
+
 ## What it does not do
 
 - It does not replace [Eventum Studio](/docs/studio) — Studio is the visual editor; MCP is the programmatic, agent-facing interface.
