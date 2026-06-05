@@ -3,6 +3,7 @@ import {
   AppWindow,
   Blocks,
   BookOpen,
+  Bot,
   Box,
   CodeXml,
   GraduationCap,
@@ -48,6 +49,12 @@ export default function Layout({ children }: LayoutProps<'/docs'>) {
             description: 'API reference',
             url: '/docs/api',
             icon: <CodeXml size={16} />,
+          },
+          {
+            title: 'MCP',
+            description: 'Connect an AI agent',
+            url: '/docs/mcp',
+            icon: <Bot size={16} />,
           },
           {
             title: 'Tutorials',
