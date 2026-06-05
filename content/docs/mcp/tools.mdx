@@ -18,6 +18,7 @@ Read-only. Available on both transports. These let the agent learn the exact sha
 | `list_formatters` | List the output [formatters](/docs/plugins/formatters) (`json`, `template`, `plain`, and others). |
 | `get_formatter_schema` | Return the configuration schema for one formatter. |
 | `describe_sample` | Describe a CSV or JSON [sample](/docs/plugins/event/template/samples) file in a generator — its detected type, column names, and a few example rows. |
+| `list_secrets` | List the names of [secrets](/docs/core/config/secrets) in the keyring — names only, never values — so a config can reference them as `${secrets.<name>}`. |
 
 ## Workspace & authoring tools
 
@@ -29,6 +30,8 @@ Operate on the generator directories under the configured generators directory. 
 | `list_generator_files` | | List the files inside one generator (config, templates, samples). |
 | `read_generator_file` | | Read the contents of a file in a generator. |
 | `write_generator_file` | **W** | Create or overwrite a file in a generator (config, template, or sample). |
+| `delete_generator_file` | **W** | Delete a file from a generator. |
+| `delete_generator` | **W** | Delete a whole generator directory and its files. |
 | `validate_generator` | | Load a generator and initialise every plugin against the real engine, returning field-level errors. |
 | `preview_timestamps` | | Generate the schedule for a generator and return its shape — total count, first and last moments, and a histogram. |
 | `preview_events` | | Render real example events through the template and formatter, returning the output and any per-event errors. |
@@ -48,6 +51,8 @@ Control generators on a running server. Available **only over HTTP**.
 | `start_generator` | **HTTP** · **W** | Start a managed generator (no-op if already running). |
 | `stop_generator` | **HTTP** · **W** | Stop a managed generator. |
 | `register_generator` | **HTTP** · **W** | Take a generator the agent authored, add it to the running server, and persist it to [startup.yml](/docs/core/config/startup-yml) so it survives a restart. |
+| `unregister_generator` | **HTTP** · **W** | Remove a generator from the running server and from [startup.yml](/docs/core/config/startup-yml) — the inverse of `register_generator`. |
+| `get_generator_logs` | **HTTP** | Return the recent log lines for a managed generator, to diagnose a run. Absolute paths and secret values are scrubbed before they reach the agent. |
 
 ## Resources
 
@@ -56,7 +61,8 @@ Documents the agent reads to ground itself. Read-only, both transports.
 | Resource | Description |
 |---|---|
 | `eventum://templating/reference` | Every helper available inside event [templates](/docs/plugins/event/template) — the `module.rand.*` generators, `samples.*`, `dispatch`, and the event fields, with signatures. **Generated from the live code**, so it never goes stale. |
-| `eventum://examples/generators` | A bundled, validated worked example (full file set), plus links to the public [content-packs](https://github.com/eventum-generator/content-packs) repository and the [generator hub](https://eventum.run/hub) for more. |
+| `eventum://schema/generator` | The JSON Schema of the top-level [generator.yml](/docs/core/config/generator-yml) document — the input/event/output envelope that ties the per-plugin configs together. |
+| `eventum://examples/generators` | Several bundled, validated worked examples (full file sets) covering different inputs, samples, and formatters, plus links to the public [content-packs](https://github.com/eventum-generator/content-packs) repository and the [generator hub](https://eventum.run/hub) for more. |
 | `eventum://workspace/configs` | The generators currently saved under the generators directory, with their files. |
 
 ## Prompts
@@ -66,4 +72,6 @@ Ready-made task guides the agent can invoke.
 | Prompt | Description |
 |---|---|
 | `create_generator` | Walks the full [authoring loop](/docs/mcp/how-it-works#the-authoring-loop) — discover schemas, write the file set, validate, preview, fix. |
-| `simulate_incident` | One worked pattern for composing an "incident" generator: a baseline rate that rises to a peak over a window, with a weighted error mix. Takes the incident type, target generator, rates, and error ratio. |
+| `simulate_incident` | Compose a generator that simulates an incident or anomaly: shape the timing on the input side (burst, ramp, gap, or steady) and the content on the event side. Takes the incident description and target generator. |
+| `historical_backfill` | Compose a generator that backfills a fixed past time range — a finite, replayable batch rather than a live stream. Takes the target generator and the start and end of the range. |
+| `live_ops` | Operate generators on a running server: survey, register, start, monitor with logs, stop, and retire. **HTTP only.** |

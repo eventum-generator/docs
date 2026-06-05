@@ -17,6 +17,7 @@ eventum mcp --generators-dir <path> [OPTIONS]
 |--------|------|---------|-------------|
 | `--generators-dir` | path | — | **Required.** Directory holding generator subdirectories. The agent reads and writes generators here. Must be an existing directory. |
 | `--read-only` | flag | `false` | Block all writes. The agent can discover, validate, and preview, but cannot create or modify files. |
+| `--keyring-cryptfile` | path | — | Path to the [keyring](/docs/core/config/secrets) cryptfile. When set, `list_secrets` reports the **names** of stored secrets (never their values); without it, `list_secrets` returns nothing. |
 | `--log-level` | choice | `WARNING` | Log verbosity on `stderr`: `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL`. |
 
 ## Examples
@@ -31,6 +32,12 @@ Expose generators read-only — discovery, validation, and preview, but no chang
 
 ```bash
 eventum mcp --generators-dir ./generators --read-only
+```
+
+Point at a keyring so the agent can list the names of stored secrets:
+
+```bash
+eventum mcp --generators-dir ./generators --keyring-cryptfile ./cryptfile.cfg
 ```
 
 Register it from a client's command line (for example, with Claude Code):
