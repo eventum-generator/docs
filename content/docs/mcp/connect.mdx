@@ -74,9 +74,13 @@ Restart your client (or reload its MCP config), then ask the agent to build a ge
 Over stdio the agent can read and **write** files under the generators directory. Add `--read-only` to allow discovery, validation, and preview while blocking any writes.
 </Callout>
 
+<Callout type="info">
+If your generators reference [secrets](/docs/core/config/secrets), add `--keyring-cryptfile <path>` so the agent can call `list_secrets` and see which names exist — names only, never values.
+</Callout>
+
 ## Live management over HTTP
 
-Mounting the MCP server into a running server adds the [live-management tools](/docs/mcp/tools#live-management-tools) — listing, status, start, stop, and register — and puts the endpoint behind the server's authentication.
+Mounting the MCP server into a running server adds the [live-management tools](/docs/mcp/tools#live-management-tools) — listing, status, start, stop, register, unregister, and reading logs — and puts the endpoint behind the server's authentication.
 
 <Steps>
 <Step>
@@ -84,7 +88,7 @@ Mounting the MCP server into a running server adds the [live-management tools](/
 
 ```yaml title="eventum.yml"
 server.mcp.enabled: true
-server.mcp.allow_write: true   # enables start/stop/register and file writes
+server.mcp.allow_write: true   # enables start/stop/register/unregister/delete + file writes
 server.mcp.path: "/mcp"
 ```
 

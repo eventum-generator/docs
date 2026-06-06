@@ -41,9 +41,17 @@ With the [HTTP transport](/docs/mcp/connect#live-management-over-http) enabled a
 
 The agent calls `list_generators_live` and `get_generator_status` to report state, and `start_generator` to start one — all behind your server's authentication. With `register_generator` it can also take a generator it just authored, add it to the running server, and persist it to [startup.yml](/docs/core/config/startup-yml) so it survives a restart. If a run misbehaves, `get_generator_logs` returns the recent log tail (with paths and secrets scrubbed) so the agent can diagnose it; `unregister_generator` retires a generator from the server and startup when you're done. The `live_ops` prompt walks this whole loop.
 
+## Diagnose a failing generator
+
+When a live run fails, the agent finds out *why* — without you opening a log file.
+
+> "The `payments-stream` generator stopped — what went wrong?"
+
+The agent calls `get_generator_status`, sees the run ended unsuccessfully, then `get_generator_logs` to read the recent log tail. Eventum scrubs that tail before it leaves the server — absolute paths are reduced to names and secret values are redacted — so the agent sees the cause (a malformed template expression, an unreachable output) without your filesystem layout or credentials. It then proposes a fix, rewrites the file, re-validates, and restarts.
+
 ## Author offline / air-gapped
 
-Synthetic data is often generated where production data can't go — an isolated network with no internet. The MCP server suits that: it makes [no outbound network calls](/docs/mcp/how-it-works#safety), and the plugin schemas, template reference, the config schema, and several worked examples all ship in the package — so the full author–validate–preview loop works with no connectivity.
+Synthetic data is often generated where production data can't go — an isolated network with no internet. The MCP server suits that: it makes [no outbound network calls](/docs/mcp/how-it-works#safety), and the plugin schemas, template reference, the config schema, and several worked examples all ship in the package — so the full author–validate–preview loop works with no connectivity. The bundled examples span the common shapes — a web access log (cron input, JSON sample), user signups (CSV sample), latency metrics (linspace input, template formatter), and a historical audit backfill (explicit timestamps) — giving the agent a correct, validated starting point for most generators offline.
 
 When the agent wants richer examples, the `eventum://examples/generators` resource also lists external URLs it can fetch with its *own* tools, if it has access. The Eventum server never reaches out on its own.
 
