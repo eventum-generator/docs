@@ -103,7 +103,7 @@ server:
 ```
 
 <Callout type="warn">
-`allow_write` over HTTP grants code execution: a connected agent can write a generator template and preview it, and templates execute code on the host. Enable it only on a trusted network with a trusted agent, and change the default `server.auth` credentials first.
+`allow_write` over HTTP grants code execution: a connected agent can write a generator and preview it, and some plugins execute code on the host by design (the `template` plugin runs arbitrary Python; a `script` plugin runs a script you provide). Enable it only on a trusted network with a trusted agent, and change the default `server.auth` credentials first.
 </Callout>
 
 <Callout type="info">

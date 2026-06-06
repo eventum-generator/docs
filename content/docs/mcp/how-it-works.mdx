@@ -7,7 +7,7 @@ The MCP server gives an agent three kinds of capability: **tools** it calls, **r
 
 ## The authoring loop
 
-A generator in Eventum is not a single file — it's a **directory**: a [`generator.yml`](/docs/core/config/generator-yml) plus any files its plugins reference — templates and sample data for a `template` event plugin, say, or other files for other plugins, or nothing beyond the config. The agent works on that directory the same way you would.
+A generator in Eventum is not a single file — it's a **directory**: a [`generator.yml`](/docs/core/config/generator-yml) plus any files its plugins reference — or nothing beyond the config. What those files are depends on the plugins you pick: a `template` event plugin renders Jinja templates and reads samples, a `replay` plugin replays a captured log, a `script` plugin runs a `.py` file. The agent works on that directory the same way you would.
 
 <Mermaid chart={`graph LR
     DISCOVER["Discover<br/>plugins & schemas"]:::step --> WRITE["Write files<br/>config + referenced files"]:::step
@@ -19,8 +19,8 @@ A generator in Eventum is not a single file — it's a **directory**: a [`genera
     classDef step fill:#8282ef,color:#fff,stroke:#6b6bd4,stroke-width:2px
     classDef done fill:#22c55e,color:#fff,stroke:#16a34a,stroke-width:2px`} />
 
-1. **Discover.** The agent lists the available input, event, and output plugins and reads the exact schema of each one — so it knows every field, default, and constraint before writing anything. It can also read the [in-template API reference](/docs/mcp/tools#resources) — what the `template` plugin exposes inside templates — and a set of worked examples.
-2. **Write.** It writes the `generator.yml` and any files its plugins reference — templates and sample data for a `template` event plugin, other files for other plugins — each by a path relative to the generator directory.
+1. **Discover.** The agent lists the available input, event, and output plugins and reads the exact schema of each one — so it knows every field, default, and constraint before writing anything. It can also read worked examples, plus the `template` plugin's [in-template API reference](/docs/mcp/tools#resources) when a generator will use templates.
+2. **Write.** It writes the `generator.yml` and any files its plugins reference — a template, a sample, a script, a captured log — each by a path relative to the generator directory.
 3. **Validate.** `validate_generator` loads the generator and initialises every plugin against the real engine. The agent gets the same field-level errors the engine would raise — not a guess.
 4. **Preview.** `preview_timestamps` shows the shape of the schedule (how many events, when), and `preview_events` produces real example events through the configured event and output plugins. The agent sees the actual output.
 5. **Fix and repeat** until validation passes and the preview looks right.
@@ -52,7 +52,7 @@ See [Connect your agent](/docs/mcp/connect) for setup and [Tools & resources](/d
 - **No network access from the server.** The MCP server itself never makes outbound calls. Example generators are bundled in the package; links to larger example sets are just URLs your agent can choose to fetch with its own tools.
 
 <Callout type="warn">
-Enabling writes over HTTP (`server.mcp.allow_write`) is more than file access: a connected agent can write a template and preview it, and **templates execute code on the host** (they can run subprocesses and arbitrary Python — by design). Treat an HTTP server with writes enabled as granting code execution to anyone holding the credentials, and turn it on only for a trusted network and a trusted agent. The defaults — HTTP off, writes off — avoid this entirely.
+Enabling writes over HTTP (`server.mcp.allow_write`) is more than file access: a connected agent can write a generator and preview it, and **some plugins execute code on the host by design** — the `template` plugin runs arbitrary Python (and subprocesses) in its expressions, and a `script` plugin runs a `.py` file you provide. Treat an HTTP server with writes enabled as granting code execution to anyone holding the credentials, and turn it on only for a trusted network and a trusted agent. The defaults — HTTP off, writes off — avoid this entirely.
 </Callout>
 
 ## What it does not do
