@@ -18,12 +18,12 @@ You stay in your editor or chat. You say *"give me a week of Apache access logs 
 
 ## No model required
 
-Eventum embeds **no language model**, no API keys, and no per-token cost. Your agent already has a model; the MCP server gives that model an exact, structured view of Eventum:
+Eventum embeds **no language model**, no API keys, and no per-token cost. Your agent already has a model; the MCP server gives that model a structured interface to Eventum — to discover, author, validate, and operate generators:
 
-- the **schema** of every input, event, and output plugin — and of the `generator.yml` document that ties them together,
-- the **template helpers** available inside events (always current — generated from the live code),
-- **worked examples** it can copy from,
-- and **real-engine feedback** — `validate` and `preview` run the actual pipeline, so the agent sees the same errors and the same output you would.
+- **Discover & ground** — the exact schema of every input, event, and output plugin and of the `generator.yml` envelope, an always-current reference of what the `template` plugin exposes inside templates (generated from the live code), and worked examples to copy from.
+- **Author** — read, write, and delete a generator's files; `list_secrets` reports which secret names a config may reference (names only, never values).
+- **Validate & preview on the real engine** — `validate` and `preview` run the actual pipeline, so the agent sees the same errors and the same output you would.
+- **Operate, over HTTP** — list managed generators and their status, start and stop them, register and unregister them, and read their scrubbed logs to diagnose a run.
 
 ## Two ways to connect
 

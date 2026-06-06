@@ -18,7 +18,7 @@ Read-only. Available on both transports. These let the agent learn the exact sha
 | `list_formatters` | List the output [formatters](/docs/plugins/formatters) (`json`, `template`, `plain`, and others). |
 | `get_formatter_schema` | Return the configuration schema for one formatter. |
 | `describe_sample` | Describe a CSV or JSON [sample](/docs/plugins/event/template/samples) file in a generator — its detected type, column names, and a few example rows. |
-| `list_secrets` | List the names of [secrets](/docs/core/config/secrets) in the keyring — names only, never values — so a config can reference them as `${secrets.<name>}`. |
+| `list_secrets` | List the names of [secrets](/docs/core/config/secrets) in the keyring — names only, never values — so a config can reference them as `${secrets.<name>}`. Adding or reading values is intentionally not exposed; that's done with [`eventum-keyring`](/docs/core/cli/eventum-keyring), not the agent. |
 
 ## Workspace & authoring tools
 
@@ -60,7 +60,7 @@ Documents the agent reads to ground itself. Read-only, both transports.
 
 | Resource | Description |
 |---|---|
-| `eventum://templating/reference` | Every helper available inside event [templates](/docs/plugins/event/template) — the `module.rand.*` generators, `samples.*`, `dispatch`, `state`, and the event fields, with signatures. **Generated from the live code**, so it never goes stale. |
+| `eventum://templating/reference` | The API the [`template`](/docs/plugins/event/template) plugin exposes inside event templates — `module.rand.*`, `samples.*`, `dispatch`, `state`, and the event fields, with signatures. **Generated from the live code**, so it never goes stale. |
 | `eventum://schema/generator` | The JSON Schema of the top-level [generator.yml](/docs/core/config/generator-yml) document — the input/event/output envelope that ties the per-plugin configs together. |
 | `eventum://examples/generators` | Several bundled, validated worked examples (full file sets) covering different inputs, samples, and formatters, plus links to the public [content-packs](https://github.com/eventum-generator/content-packs) repository and the [generator hub](https://eventum.run/hub) for more. |
 | `eventum://workspace/configs` | The generators currently saved under the generators directory, with their files. |
