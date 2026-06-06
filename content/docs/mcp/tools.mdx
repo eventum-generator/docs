@@ -27,14 +27,14 @@ Operate on the generator directories under the configured generators directory. 
 | Tool | | Description |
 |---|---|---|
 | `list_generators` | | List the saved generator directories. |
-| `list_generator_files` | | List the files inside one generator (config, templates, samples). |
+| `list_generator_files` | | List the files inside one generator — its config and any referenced files. |
 | `read_generator_file` | | Read the contents of a file in a generator. |
-| `write_generator_file` | **W** | Create or overwrite a file in a generator (config, template, or sample). |
+| `write_generator_file` | **W** | Create or overwrite a file in a generator — its config or any referenced file. |
 | `delete_generator_file` | **W** | Delete a file from a generator. |
 | `delete_generator` | **W** | Delete a whole generator directory and its files. |
 | `validate_generator` | | Load a generator and initialise every plugin against the real engine, returning field-level errors. |
 | `preview_timestamps` | | Generate the schedule for a generator and return its shape — total count, first and last moments, and a histogram. |
-| `preview_events` | | Render real example events through the template and formatter, returning the output and any per-event errors. |
+| `preview_events` | | Produce real example events through the configured event and output plugins, returning the output and any per-event errors. |
 
 <Callout type="info">
 `validate_generator` and `preview_*` run the **real** pipeline — including secret and parameter substitution — so the agent sees exactly what the engine produces. See [how it works](/docs/mcp/how-it-works#the-authoring-loop).
@@ -62,7 +62,7 @@ Documents the agent reads to ground itself. Read-only, both transports.
 |---|---|
 | `eventum://templating/reference` | The API the [`template`](/docs/plugins/event/template) plugin exposes inside event templates — `module.rand.*`, `samples.*`, `dispatch`, `state`, and the event fields, with signatures. **Generated from the live code**, so it never goes stale. |
 | `eventum://schema/generator` | The JSON Schema of the top-level [generator.yml](/docs/core/config/generator-yml) document — the input/event/output envelope that ties the per-plugin configs together. |
-| `eventum://examples/generators` | Several bundled, validated worked examples (full file sets) covering different inputs, samples, and formatters, plus links to the public [content-packs](https://github.com/eventum-generator/content-packs) repository and the [generator hub](https://eventum.run/hub) for more. |
+| `eventum://examples/generators` | Several bundled, validated worked examples (full file sets) covering different input, event, and output plugins, plus links to the public [content-packs](https://github.com/eventum-generator/content-packs) repository and the [generator hub](https://eventum.run/hub) for more. |
 | `eventum://workspace/configs` | The generators currently saved under the generators directory, with their files. |
 
 ## Prompts

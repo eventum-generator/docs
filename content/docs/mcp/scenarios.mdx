@@ -13,11 +13,11 @@ The core use: you describe the data, the agent assembles a working generator.
 
 What the agent does:
 
-1. Calls `list_plugins` and `get_plugin_schema` to learn the `cron` input, the `template` event plugin, and the `file` output with the `json` formatter.
-2. Reads `eventum://templating/reference` to find the right helpers (`module.rand.network.ip_v4`, `module.rand.choice`, `samples.<name>.pick`).
-3. Writes the template, a small sample file, and `generator.yml` with `write_generator_file`.
-4. Calls `validate_generator` — and fixes anything it flags.
-5. Calls `preview_events` and shows you ten real events.
+1. Discovers the pieces — `list_plugins` and `get_plugin_schema` surface the `cron` input, the `template` event plugin, and the `file` output with its `json` formatter.
+2. Pulls the [in-template API](/docs/mcp/tools#resources) (`eventum://templating/reference`) for the right calls — `module.rand.network.ip_v4`, `module.rand.choice`, `samples.<name>.pick`.
+3. Writes the file set — the template, a small sample, and the `generator.yml` that ties them together — with `write_generator_file`.
+4. Validates, and fixes whatever the engine flags.
+5. Previews ten real events for you.
 
 You end up with a saved, validated generator directory you can run with [`eventum run`](/docs/core/cli/eventum-run) or [`eventum generate`](/docs/core/cli/eventum-generate). The built-in `create_generator` prompt walks the agent through exactly this loop.
 
@@ -51,7 +51,7 @@ With the [HTTP transport](/docs/mcp/connect#live-management-over-http) enabled a
 
 > "What's running right now? Start the `web-access-log` generator and tell me when it's producing events."
 
-The agent calls `list_generators_live` and `get_generator_status` to report state, and `start_generator` to start one — all behind your server's authentication. With `register_generator` it can also take a generator it just authored, add it to the running server, and persist it to [startup.yml](/docs/core/config/startup-yml) so it survives a restart. If a run misbehaves, `get_generator_logs` returns the recent log tail (with paths and secrets scrubbed) so the agent can diagnose it; `unregister_generator` retires a generator from the server and startup when you're done. The `live_ops` prompt walks this whole loop.
+It reports state from `list_generators_live` and `get_generator_status`, and starts one with `start_generator` — all behind your server's authentication. `register_generator` goes further: it takes a generator the agent just authored, adds it to the running server, and persists it to [startup.yml](/docs/core/config/startup-yml) so it survives a restart. If a run misbehaves, `get_generator_logs` returns the recent tail (paths and secrets scrubbed) for diagnosis, and `unregister_generator` retires it when you're done. The `live_ops` prompt walks this whole loop.
 
 ## Diagnose a failing generator
 
@@ -59,7 +59,7 @@ When a live run fails, the agent finds out *why* — without you opening a log f
 
 > "The `payments-stream` generator stopped — what went wrong?"
 
-The agent calls `get_generator_status`, sees the run ended unsuccessfully, then `get_generator_logs` to read the recent log tail. Eventum scrubs that tail before it leaves the server — absolute paths are reduced to names and secret values are redacted — so the agent sees the cause (a malformed template expression, an unreachable output) without your filesystem layout or credentials. It then proposes a fix, rewrites the file, re-validates, and restarts.
+The agent checks `get_generator_status`, finds the run ended in failure, and pulls the recent log tail with `get_generator_logs`. Eventum scrubs that tail before it leaves the server — absolute paths are reduced to names and secret values are redacted — so the agent sees the cause (a bad config value, an unreachable output) without your filesystem layout or credentials. It then proposes a fix, rewrites the file, re-validates, and restarts.
 
 ## Author offline / air-gapped
 
