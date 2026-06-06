@@ -89,7 +89,7 @@ Mounts the [MCP server](/docs/mcp) into the running server so an AI agent can bu
 | Parameter | Type | Default | Constraints | Description |
 |-----------|------|---------|-------------|-------------|
 | `server.mcp.enabled` | boolean | `false` | — | Mount the MCP server over HTTP. |
-| `server.mcp.allow_write` | boolean | `false` | — | Allow write tools — file writes and starting, stopping, and registering generators. When `false`, the endpoint is read-only: discovery, validation, and preview only. Enabling writes grants code execution on the host (see the warning below). |
+| `server.mcp.allow_write` | boolean | `false` | — | Allow write tools — file writes and deletes, and starting, stopping, registering, and unregistering generators. When `false`, the endpoint is read-only: discovery, validation, preview, and live status/log reads, but no changes. Enabling writes grants code execution on the host (see the warning below). |
 | `server.mcp.path` | string | `"/mcp"` | Leading `/`, no trailing `/`. | Mount path for the MCP endpoint. |
 | `server.mcp.allowed_hosts` | list of strings | `[]` | — | Allowed `Host` header values (DNS-rebinding protection). Empty disables the check — suitable behind a trusted reverse proxy; a non-empty list enables it and rejects other hosts. |
 

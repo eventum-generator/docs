@@ -33,6 +33,18 @@ Shape a burst, not just steady traffic — useful for testing alerting, dashboar
 
 The `simulate_incident` prompt gives the agent a worked pattern: shape the rate on the input side (a [`time_patterns`](/docs/plugins/input/time-patterns) schedule, or layered [`cron`](/docs/core/concepts/scheduling)), weight an error variant against a normal one in the [`template`](/docs/plugins/event/template) event plugin, and confirm the burst with `preview_timestamps` before looking at events. You review the previewed shape and adjust the numbers conversationally.
 
+## Backfill a past time range
+
+Generate a finite batch of historical data — to seed a dashboard, replay a window, or test a detector against known input.
+
+> "Build a generator that backfills last week's checkout events — one every few minutes from Monday to Sunday — and let me preview a few."
+
+The `historical_backfill` prompt steers the agent: bound the input to the range with a [`timestamps`](/docs/plugins/input/timestamps) plugin (explicit moments) or a range-limited [`cron`](/docs/core/concepts/scheduling), build the event with a [`template`](/docs/plugins/event/template), then validate and preview. You get a replayable batch, not a live stream.
+
+<Callout type="info">
+Previewing a **past** range needs `skip_past=false` on `preview_timestamps` / `preview_events` — by default they skip past timestamps, so a historical generator otherwise previews empty.
+</Callout>
+
 ## Manage live generators over HTTP
 
 With the [HTTP transport](/docs/mcp/connect#live-management-over-http) enabled and `allow_write` on, the agent can operate a running server.

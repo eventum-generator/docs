@@ -3,7 +3,7 @@ title: "$ eventum mcp"
 description: Run Eventum as a Model Context Protocol server over stdio so an AI agent can build, validate, and preview generators.
 ---
 
-Runs Eventum as an [MCP server](/docs/mcp) over standard input/output — the transport every MCP client supports. An agent connected to it can discover plugins, write and read generator files, and validate and preview generators against the real engine. For live generator management (start/stop/register), mount the server over HTTP instead — see [Connect your agent](/docs/mcp/connect#live-management-over-http).
+Runs Eventum as an [MCP server](/docs/mcp) over standard input/output — the transport every MCP client supports. An agent connected to it can discover plugins, write and read generator files, and validate and preview generators against the real engine. For live generator management — start, stop, register, unregister, and read logs — mount the server over HTTP instead; see [Connect your agent](/docs/mcp/connect#live-management-over-http).
 
 ```bash
 eventum mcp --generators-dir <path> [OPTIONS]
