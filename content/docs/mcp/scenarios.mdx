@@ -1,71 +1,37 @@
 ---
 title: Usage scenarios
-description: Worked examples of using the Eventum MCP server — build a generator from a description, simulate an incident, manage live generators, and author offline.
+description: Worked examples of using the Eventum MCP server — build a generator from a description, manage live generators, and diagnose a failing run.
 ---
 
-Each scenario below is a task you can hand the agent once it's [connected](/docs/mcp/connect). The prompts are examples — phrase them however you like.
+Each scenario below is a task for an agent you have [connected](/docs/mcp/connect), ordered from the everyday case to more specialized ones. The prompts are illustrative — phrase your own however you like.
 
 ## Build a generator from a description
 
-The core use: you describe the data, the agent assembles a working generator.
+The core use. You describe the data you want, and the agent assembles a generator that produces it.
 
-> "Build a generator that emits one JSON web access-log event per second: a random client IP, an HTTP method, a request path drawn from a small sample, a status code, and a response size. Then preview ten events."
+> Build a generator that emits one JSON web access-log event per second: a random client IP, an HTTP method, a request path drawn from a small sample, a status code, and a response size. Then preview ten events.
 
-What the agent does:
-
-1. Discovers the pieces — `list_plugins` and `get_plugin_schema` surface the `cron` input, the `template` event plugin, and the `file` output with its `json` formatter.
-2. Pulls the [in-template API](/docs/mcp/tools#resources) (`eventum://templating/reference`) for the right calls — `module.rand.network.ip_v4`, `module.rand.choice`, `samples.<name>.pick`.
-3. Writes the file set — the template, a small sample, and the `generator.yml` that ties them together — with `write_generator_file`.
-4. Validates, and fixes whatever the engine flags.
-5. Previews ten real events for you.
-
-You end up with a saved, validated generator directory you can run with [`eventum run`](/docs/core/cli/eventum-run) or [`eventum generate`](/docs/core/cli/eventum-generate). The built-in `create_generator` prompt walks the agent through exactly this loop.
+The agent discovers the right plugins, drafts the files, and [checks each step against Eventum](/docs/mcp/how-it-works) until the generator loads cleanly and the preview matches your request. You end up with a saved, validated generator you can run with [`eventum run`](/docs/core/cli/eventum-run) or [`eventum generate`](/docs/core/cli/eventum-generate). The `create_generator` prompt guides the agent through this.
 
 <Callout type="info">
-Ask to see a preview before anything is saved: `preview_timestamps` for the schedule shape, `preview_events` for the rendered events.
-</Callout>
-
-## Simulate an incident
-
-Shape a burst, not just steady traffic — useful for testing alerting, dashboards, and detection rules.
-
-> "Take my `web-access-log` generator and make a variant that simulates a traffic spike: baseline 10 requests/min rising to 800/min for a 15-minute window, with about 40% 5xx errors during the spike."
-
-The `simulate_incident` prompt gives the agent a worked pattern: shape the rate on the input side (a [`time_patterns`](/docs/plugins/input/time-patterns) schedule, or layered [`cron`](/docs/core/concepts/scheduling)), weight an error variant against a normal one in the [`template`](/docs/plugins/event/template) event plugin, and confirm the burst with `preview_timestamps` before looking at events. You review the previewed shape and adjust the numbers conversationally.
-
-## Backfill a past time range
-
-Generate a finite batch of historical data — to seed a dashboard, replay a window, or test a detector against known input.
-
-> "Build a generator that backfills last week's checkout events — one every few minutes from Monday to Sunday — and let me preview a few."
-
-The `historical_backfill` prompt steers the agent: bound the input to the range with a [`timestamps`](/docs/plugins/input/timestamps) plugin (explicit moments) or a range-limited [`cron`](/docs/core/concepts/scheduling), build the event with a [`template`](/docs/plugins/event/template), then validate and preview. You get a replayable batch, not a live stream.
-
-<Callout type="info">
-Previewing a **past** range needs `skip_past=false` on `preview_timestamps` / `preview_events` — by default they skip past timestamps, so a historical generator otherwise previews empty.
+Ask to preview at any point before saving — the schedule first, then the rendered events. Nothing is written or started until you approve it.
 </Callout>
 
 ## Manage live generators over HTTP
 
-With the [HTTP transport](/docs/mcp/connect#live-management-over-http) enabled and `allow_write` on, the agent can operate a running server.
+With the [HTTP transport](/docs/mcp/connect#live-management-over-http) enabled and writes allowed, the agent can operate the generators on a running server, not just author them.
 
-> "What's running right now? Start the `web-access-log` generator and tell me when it's producing events."
+> What's running right now? Start the `web-access-log` generator and tell me when it's producing events.
 
-It reports state from `list_generators_live` and `get_generator_status`, and starts one with `start_generator` — all behind your server's authentication. `register_generator` goes further: it takes a generator the agent just authored, adds it to the running server, and persists it to [startup.yml](/docs/core/config/startup-yml) so it survives a restart. If a run misbehaves, `get_generator_logs` returns the recent tail (paths and secrets scrubbed) for diagnosis, and `unregister_generator` retires it when you're done. The `live_ops` prompt walks this whole loop.
+The agent can list the running generators and start or stop them. It can also register one it just authored, then start it — and the server restores it after a restart. All of it stays behind your server's authentication. The `live_ops` prompt walks through these operations.
 
 ## Diagnose a failing generator
 
-When a live run fails, the agent finds out *why* — without you opening a log file.
+When a live run fails, the agent can find the cause without you opening a log file.
 
-> "The `payments-stream` generator stopped — what went wrong?"
+> The `payments-stream` generator stopped — what went wrong?
 
-The agent checks `get_generator_status`, finds the run ended in failure, and pulls the recent log tail with `get_generator_logs`. Eventum scrubs that tail before it leaves the server — absolute paths are reduced to names and secret values are redacted — so the agent sees the cause (a bad config value, an unreachable output) without your filesystem layout or credentials. It then proposes a fix, rewrites the file, re-validates, and restarts.
-
-## Author offline / air-gapped
-
-Synthetic data is often generated where production data can't go — an isolated network with no internet. The MCP server suits that: it makes [no outbound network calls](/docs/mcp/how-it-works#safety), and the plugin schemas, template reference, the config schema, and several worked examples all ship in the package — so the full author–validate–preview loop works with no connectivity. The bundled examples span the common shapes — a web access log (cron input, JSON sample), user signups (CSV sample), latency metrics (linspace input, template formatter), and a historical audit backfill (explicit timestamps) — giving the agent a correct, validated starting point for most generators offline.
-
-When the agent wants richer examples, the `eventum://examples/generators` resource also lists external URLs it can fetch with its *own* tools, if it has access. The Eventum server never reaches out on its own.
+The agent checks the generator's status, sees that the run ended in failure, and reads its recent logs to find the cause — a bad configuration value, an unreachable output. It then proposes a fix, rewrites the file, and restarts.
 
 ## Where to go next
 

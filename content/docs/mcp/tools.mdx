@@ -1,69 +1,72 @@
 ---
 title: Tools & resources
-description: The full Eventum MCP surface — every tool the agent can call, every resource it can read, and the guided prompts.
+description: Every tool the agent can call, every resource it can read, and the guided prompts it can run.
 ---
 
-This is the complete surface the agent sees. **Tools** are actions it calls; **resources** are documents it reads for grounding; **prompts** are ready-made task guides.
+This page lists everything the agent can use: the **tools** it calls to take action, the **resources** it reads to ground itself, and the **prompts** that guide it through common tasks.
 
-Tools marked **W** (write) change files or control generators. They are gated: over HTTP they require `server.mcp.allow_write`; over stdio they are on unless you pass `--read-only`. Tools marked **HTTP** exist only over the [HTTP transport](/docs/mcp/connect#live-management-over-http).
+In the tool tables, the **Access** column marks each tool **Read** or **Write**. Write tools change files or control generators, and are gated: they require `server.mcp.allow_write` over HTTP, and over stdio are available unless you pass `--read-only`.
 
 ## Discovery tools
 
-Read-only. Available on both transports. These let the agent learn the exact shape of everything before writing a config.
+Read-only, and available on both transports. They let the agent learn what Eventum offers before it writes a config.
 
 | Tool | Description |
 |---|---|
-| `list_plugins` | List the available input, event, and output plugin names. |
-| `get_plugin_schema` | Return the full configuration schema for one plugin — every field, type, default, and constraint. |
-| `list_formatters` | List the output [formatters](/docs/plugins/formatters) (`json`, `template`, `plain`, and others). |
+| `list_plugins` | List the available input, event, and output plugins. |
+| `get_plugin_schema` | Return the configuration schema for one plugin. |
+| `list_formatters` | List the available output [formatters](/docs/plugins/formatters). |
 | `get_formatter_schema` | Return the configuration schema for one formatter. |
-| `describe_sample` | Describe a CSV or JSON [sample](/docs/plugins/event/template/samples) file in a generator — its detected type, column names, and a few example rows. |
-| `list_secrets` | List the names of [secrets](/docs/core/config/secrets) in the keyring — names only, never values — so a config can reference them as `${secrets.<name>}`. Adding or reading values is intentionally not exposed; that's done with [`eventum-keyring`](/docs/core/cli/eventum-keyring), not the agent. |
+| `describe_sample` | Describe a CSV or JSON [sample](/docs/plugins/event/template/samples) file used by a generator. |
+| `list_secret_names` | List the secret names in the keyring, so a config can reference them. The agent cannot read or change their values — that is done with [`eventum-keyring`](/docs/core/cli/eventum-keyring). |
 
 ## Workspace & authoring tools
 
-Operate on the generator directories under the configured generators directory. Available on both transports.
+Available on both transports. They operate on the generators in your generators directory.
 
-| Tool | | Description |
+| Tool | Access | Description |
 |---|---|---|
-| `list_generators` | | List the saved generator directories. |
-| `list_generator_files` | | List the files inside one generator — its config and any referenced files. |
-| `read_generator_file` | | Read the contents of a file in a generator. |
-| `write_generator_file` | **W** | Create or overwrite a file in a generator — its config or any referenced file. |
-| `delete_generator_file` | **W** | Delete a file from a generator. |
-| `delete_generator` | **W** | Delete a whole generator directory and its files. |
-| `validate_generator` | | Load a generator and initialise every plugin against the real engine, returning field-level errors. |
-| `preview_timestamps` | | Generate the schedule for a generator and return its shape — total count, first and last moments, and a histogram. |
-| `preview_events` | | Produce real example events through the configured event and output plugins, returning the output and any per-event errors. |
+| `list_generators` | Read | List the saved generators. |
+| `list_generator_files` | Read | List the files in one generator. |
+| `read_generator_file` | Read | Read a file in a generator. |
+| `write_generator_file` | Write | Create or overwrite a file in a generator. |
+| `delete_generator_file` | Write | Delete a file from a generator. |
+| `delete_generator` | Write | Delete a whole generator and its files. |
+| `validate_generator` | Read | Validate a generator and return any errors. |
+| `preview_timestamps` | Read | Preview the timestamps a generator would produce. |
+| `preview_events` | Read | Preview the events a generator would produce. |
+| `run_generator` | Write | Run a saved generator once to its configured outputs, stopping when it finishes or hits a time or event limit. |
 
 <Callout type="info">
-`validate_generator` and `preview_*` run the **real** pipeline — including secret and parameter substitution — so the agent sees exactly what the engine produces. See [how it works](/docs/mcp/how-it-works#the-authoring-loop).
+`validate_generator` and the `preview_*` tools run against the real Eventum pipeline, so the agent sees exactly what a real run would produce. See [how it works](/docs/mcp/how-it-works#the-loop).
 </Callout>
 
 ## Live-management tools
 
-Control generators on a running server. Available **only over HTTP**.
+Available only over HTTP. They control the generators the server manages.
 
-| Tool | | Description |
+| Tool | Access | Description |
 |---|---|---|
-| `list_generators_live` | **HTTP** | List the generators the server is managing, with each one's status. |
-| `get_generator_status` | **HTTP** | Return the status of one running generator. |
-| `start_generator` | **HTTP** · **W** | Start a managed generator (no-op if already running). |
-| `stop_generator` | **HTTP** · **W** | Stop a managed generator. |
-| `register_generator` | **HTTP** · **W** | Take a generator the agent authored, add it to the running server, and persist it to [startup.yml](/docs/core/config/startup-yml) so it survives a restart. |
-| `unregister_generator` | **HTTP** · **W** | Remove a generator from the running server and from [startup.yml](/docs/core/config/startup-yml) — the inverse of `register_generator`. |
-| `get_generator_logs` | **HTTP** | Return the recent log lines for a managed generator, to diagnose a run. Absolute paths and secret values are scrubbed before they reach the agent. |
+| `list_generators_live` | Read | List the generators the server manages, with their status. |
+| `get_generator_status` | Read | Return the current status of one managed generator. |
+| `get_generator_stats` | Read | Return runtime statistics for one running generator. |
+| `start_generator` | Write | Start a managed generator. |
+| `stop_generator` | Write | Stop a managed generator. |
+| `register_generator` | Write | Register a generator the agent authored with the running server, so it can be started and is restored after a restart. |
+| `unregister_generator` | Write | Remove a generator from the running server, and stop restoring it on restart. |
+| `get_generator_logs` | Read | Return the recent log lines for a managed generator, to diagnose a run. |
+| `list_startup_generators` | Read | List the generators configured to start with the server. |
 
 ## Resources
 
-Documents the agent reads to ground itself. Read-only, both transports.
+Documents the agent reads to ground itself. Read-only, on both transports.
 
 | Resource | Description |
 |---|---|
-| `eventum://templating/reference` | The API the [`template`](/docs/plugins/event/template) plugin exposes inside event templates — `module.rand.*`, `samples.*`, `dispatch`, `state`, and the event fields, with signatures. **Generated from the live code**, so it never goes stale. |
-| `eventum://schema/generator` | The JSON Schema of the top-level [generator.yml](/docs/core/config/generator-yml) document — the input/event/output envelope that ties the per-plugin configs together. |
-| `eventum://examples/generators` | Several bundled, validated worked examples (full file sets) covering different input, event, and output plugins, plus links to the public [content-packs](https://github.com/eventum-generator/content-packs) repository and the [generator hub](https://eventum.run/hub) for more. |
-| `eventum://workspace/configs` | The generators currently saved under the generators directory, with their files. |
+| `eventum://templating/reference` | The in-template API the [`template`](/docs/plugins/event/template) plugin exposes, always current with the installed version. |
+| `eventum://schema/generator` | The JSON Schema of the top-level [generator.yml](/docs/core/config/generator-yml) document. |
+| `eventum://examples/generators` | Bundled, validated worked examples to start from, plus links to the public [content-packs](https://github.com/eventum-generator/content-packs) repository and the [generator hub](https://eventum.run/hub). |
+| `eventum://workspace/configs` | The generators currently saved in your generators directory. |
 
 ## Prompts
 
@@ -71,7 +74,5 @@ Ready-made task guides the agent can invoke.
 
 | Prompt | Description |
 |---|---|
-| `create_generator` | Walks the full [authoring loop](/docs/mcp/how-it-works#the-authoring-loop) — discover schemas, write the file set, validate, preview, fix. |
-| `simulate_incident` | Compose a generator that simulates an incident or anomaly: shape the timing on the input side (burst, ramp, gap, or steady) and the content on the event side. Takes the incident description and target generator. |
-| `historical_backfill` | Compose a generator that backfills a fixed past time range — a finite, replayable batch rather than a live stream. Takes the target generator and the start and end of the range. |
-| `live_ops` | Operate generators on a running server: survey, register, start, monitor with logs, stop, and retire. **HTTP only.** |
+| `create_generator` | Guide the agent through the full [authoring loop](/docs/mcp/how-it-works#the-loop). |
+| `live_ops` | Operate the generators on a running server. **HTTP only.** |

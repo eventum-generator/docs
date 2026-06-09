@@ -1,43 +1,37 @@
 ---
 title: Connect your agent
-description: Step-by-step setup to connect any MCP client to Eventum over stdio or HTTP.
+description: How to connect any MCP client to Eventum, for local authoring or live management.
 ---
 
-There are two ways to connect. Use **stdio** to author generators on your own machine; use **HTTP** to also manage generators on a running [Eventum server](/docs/core/cli/eventum-run).
+There are two ways to connect your agent to Eventum:
+
+- **stdio** — your MCP client runs Eventum locally. Best for building, previewing, and running generators on your own machine.
+- **HTTP** — your client connects to a running [Eventum server](/docs/core/cli/eventum-run), and can also manage the generators running there.
+
+Start with stdio. Move to HTTP once you need to manage a live server.
 
 ## Prerequisites
 
-- Eventum installed (see [Installation](/docs/core/introduction/installation)). The examples below run it with `uv run`; if Eventum is on your `PATH`, drop the `uv run` prefix.
-- A **generators directory** — the folder that holds your generator subdirectories. This is the only required setting for stdio.
-
-## Local authoring over stdio
-
-The `eventum mcp` command runs the server over standard input/output — the transport every MCP client supports out of the box. Point it at your generators directory:
-
-```bash
-eventum mcp --generators-dir /path/to/generators
-```
-
-`stdout` carries the protocol; logs go to `stderr`. See the [`eventum mcp`](/docs/core/cli/eventum-mcp) reference for all options.
-
-<Steps>
-<Step>
-### Choose a generators directory
-
-Use an existing one, or create an empty folder — the agent will populate it:
+- **Eventum installed.** See [Installation](/docs/core/introduction/installation).
+- **A generators directory** — the folder Eventum reads your generators from. Use an existing one, or create an empty folder for the agent to populate:
 
 ```bash
 mkdir -p /path/to/generators
 ```
-</Step>
+
+<Callout type="info">
+The commands below run Eventum with `uv run`. If Eventum is already on your `PATH`, omit the `uv run` prefix.
+</Callout>
+
+## Local authoring over stdio
+
+Over stdio your client launches Eventum itself. There is no server to run, and every MCP client supports it.
+
+<Steps>
 <Step>
-### Register the server with your client
+### Add Eventum to your client
 
-Most clients use a shared config format; some also offer a command-line shortcut. Use whichever your client supports.
-
-<Tabs items={["Config file", "Command line"]}>
-<Tab value="Config file">
-Most MCP clients read the same `mcpServers` format — only the file location differs. Add an `eventum` entry:
+Add an `eventum` entry to your client's MCP configuration, using an **absolute** path to your generators directory:
 
 ```json title="mcp.json"
 {
@@ -50,67 +44,57 @@ Most MCP clients read the same `mcpServers` format — only the file location di
 }
 ```
 
-Common locations: `.cursor/mcp.json` (Cursor), `claude_desktop_config.json` (Claude Desktop), `.vscode/mcp.json` (VS Code). Check your client's documentation for the exact path.
-</Tab>
-<Tab value="Command line">
-Some clients add servers from the command line. For example, with Claude Code:
-
-```bash
-claude mcp add eventum -- uv run eventum mcp --generators-dir /path/to/generators
-```
-</Tab>
-</Tabs>
-
-Use an **absolute** path for the generators directory.
+Most clients accept this same `mcpServers` format. The file's location varies between clients, so check your client's documentation for the exact path.
 </Step>
 <Step>
-### Start authoring
+### Reload your client
 
-Restart your client (or reload its MCP config), then ask the agent to build a generator — for example: *"List the input plugins, then build a generator that emits one JSON web access-log event per second."* See [Usage scenarios](/docs/mcp/scenarios) for more.
+Restart your client, or reload its MCP configuration. Eventum should appear among its connected MCP servers, with its tools available to the agent.
+</Step>
+<Step>
+### Start building
+
+Describe the data you want — for example:
+
+> build a generator that emits one JSON web access-log event per second, then preview ten events
+
+The [usage scenarios](/docs/mcp/scenarios) cover more of what you can ask for.
 </Step>
 </Steps>
 
 <Callout type="info">
-Over stdio the agent can read and **write** files under the generators directory. Add `--read-only` to allow discovery, validation, and preview while blocking any writes.
-</Callout>
-
-<Callout type="info">
-If your generators reference [secrets](/docs/core/config/secrets), add `--keyring-cryptfile <path>` so the agent can call `list_secrets` and see which names exist — names only, never values.
+By default the agent can read and write files in your generators directory. Add `--read-only` to let it explore and preview without changing anything. See the [`eventum mcp`](/docs/core/cli/eventum-mcp) reference for all options.
 </Callout>
 
 ## Live management over HTTP
 
-Mounting the MCP server into a running server adds the [live-management tools](/docs/mcp/tools#live-management-tools) — listing, status, start, stop, register, unregister, and reading logs — and puts the endpoint behind the server's authentication.
+Over HTTP your client connects to a running Eventum server. The agent can do everything it does over stdio, and also manage the generators running on that server. Access is protected by the server's credentials.
 
 <Steps>
 <Step>
-### Enable it in `eventum.yml`
+### Enable the MCP server in `eventum.yml`
 
 ```yaml title="eventum.yml"
 server.mcp.enabled: true
-server.mcp.allow_write: true   # enables start/stop/register/unregister/delete + file writes
+server.mcp.allow_write: true
 server.mcp.path: "/mcp"
 ```
 
-Live management needs `allow_write: true`. For read-only HTTP access — discovery, validation, and preview only — leave it `false` (the default). See [Configuration](/docs/core/config/eventum-yml#server-mcp) for all keys.
+Managing live generators requires `allow_write: true`. Leave it `false` — the default — to let the agent only explore and preview. See the [configuration reference](/docs/core/config/eventum-yml#server-mcp) for every option.
 </Step>
 <Step>
-### Run the server
+### Start the server
 
 ```bash
 eventum run -c eventum.yml
 ```
 
-The endpoint is served at `http://<host>:<port><path>` — for the defaults, `http://localhost:9474/mcp/` (note the trailing slash). It is protected by the [`server.auth`](/docs/core/config/eventum-yml#server-auth) credentials.
+With the defaults, the MCP endpoint is available at `http://localhost:9474/mcp/`.
 </Step>
 <Step>
-### Register the server with your client
+### Point your client at the server
 
-The client connects over the streamable-HTTP transport and must send the basic-auth credentials.
-
-<Tabs items={["Config file", "Command line"]}>
-<Tab value="Config file">
-Point your client's MCP config at the URL and supply the basic-auth header (field names vary by client):
+Add the endpoint and the server's credentials to your `mcpServers` file:
 
 ```json title="mcp.json"
 {
@@ -125,22 +109,12 @@ Point your client's MCP config at the URL and supply the basic-auth header (fiel
 }
 ```
 
-The header value is `Basic ` followed by the base64 of `user:password`.
-</Tab>
-<Tab value="Command line">
-Some clients accept an HTTP server with a header from the command line. For example, with Claude Code:
-
-```bash
-claude mcp add --transport http eventum http://localhost:9474/mcp/ \
-  --header "Authorization: Basic $(printf 'eventum:eventum' | base64)"
-```
-</Tab>
-</Tabs>
+The `Authorization` value is `Basic ` followed by `username:password` in base64. The example encodes the default `eventum:eventum`. Reload the client to enable the live-management tools alongside the authoring ones.
 </Step>
 </Steps>
 
 <Callout type="warn">
-Change the default `server.auth` credentials before exposing the server on a network, and keep `server.mcp.allow_write` off unless the agent needs to change files or control generators.
+Change the default `eventum:eventum` credentials before exposing the server on a network, and leave `allow_write` off unless the agent needs to write files or control generators.
 </Callout>
 
 ## Next
@@ -153,7 +127,7 @@ Change the default `server.auth` credentials before exposing the server on a net
   />
   <Card
     title="Usage scenarios"
-    description="Put it to work — build, simulate, and operate."
+    description="Worked examples — build, operate, and diagnose generators."
     href="/docs/mcp/scenarios"
   />
 </Cards>

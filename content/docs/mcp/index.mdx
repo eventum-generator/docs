@@ -1,53 +1,60 @@
 ---
 title: Overview
-description: Connect an AI agent to Eventum over the Model Context Protocol — let it build, validate, preview, and run synthetic-data generators using its own model.
+description: Connect an AI agent to Eventum over the Model Context Protocol, and have it build and run synthetic-data generators from a plain-language description.
 ---
 
 <div className="not-prose my-6 rounded-2xl border border-fd-border bg-linear-to-br from-fd-card via-fd-card to-fd-accent/20 p-8 text-center">
   <div className="flex justify-center mb-4 text-fd-muted-foreground"><Bot size={40} strokeWidth={1.5} /></div>
   <div className="text-2xl font-semibold mb-2">Eventum MCP server</div>
   <div className="text-fd-muted-foreground max-w-xl mx-auto">
-    Describe the data you need in plain language — your AI agent assembles
-    the generator, checks it against the real engine, and runs it.
+    Describe the data you need in plain language, and your agent builds
+    the Eventum generator that produces it.
   </div>
 </div>
 
-The Eventum **MCP server** lets an AI agent — Claude Code, Cursor, GitHub Copilot, or any other [Model Context Protocol](https://modelcontextprotocol.io) client — build and run Eventum generators directly, grounded on the real engine instead of guesswork.
+AI agents like Claude Code, Cursor, and Codex can do more than answer questions — connected to the right tools, they take action on your behalf. The [**Model Context Protocol (MCP)**](https://modelcontextprotocol.io) is the open standard for those connections: an MCP server offers a set of capabilities, and any MCP-compatible agent can connect to it and use them.
 
-You stay in your editor or chat. You say *"give me a week of Apache access logs with a traffic spike at noon, mostly 200s but a burst of 500s during the spike"*, and the agent writes the files, validates and previews them against the real pipeline, and fixes them until the output is right. See [how it works](/docs/mcp/how-it-works) for the full loop.
+The Eventum **MCP server** is one of these. It gives your agent everything it needs to work with Eventum — so instead of learning Eventum's configuration and writing generators by hand, you describe the data you want and let the agent build it.
+
+For example, you might ask for:
+
+> a week of Apache access logs with a traffic spike at noon, mostly 200s but a burst of 500s during the spike
+
+The result is a working generator that produces exactly that. See [how it works](/docs/mcp/how-it-works) for the loop that builds and checks it.
 
 ## No model required
 
-Eventum embeds **no language model**, no API keys, and no per-token cost. Your agent already has a model; the MCP server gives that model a structured interface to Eventum — to discover, author, validate, and operate generators:
+Eventum has **no language model** of its own, no API keys, no per-token cost — your agent already brings the model. The MCP server adds the tools to discover, build, check, run, and operate generators:
 
-- **Discover & ground** — the exact schema of every input, event, and output plugin and of the `generator.yml` envelope, an always-current reference of what the `template` plugin exposes inside templates (generated from the live code), and worked examples to copy from.
-- **Author** — read, write, and delete a generator's files; `list_secrets` reports which secret names a config may reference (names only, never values).
-- **Validate & preview on the real engine** — `validate` and `preview` run the actual pipeline, so the agent sees the same errors and the same output you would.
-- **Operate, over HTTP** — list managed generators and their status, start and stop them, register and unregister them, and read their scrubbed logs to diagnose a run.
+- **Discover** — what Eventum can do and how to configure it, with worked examples to start from.
+- **Build** — create, edit, and remove generators.
+- **Check** — confirm a generator works, by validating it and previewing its output.
+- **Run** — run a generator to its configured outputs.
+- **Operate** — start, stop, and manage generators on a live server.
 
 ## Two ways to connect
 
 <Cards>
   <Card
     title="Local authoring (stdio)"
-    description="Run `eventum mcp` next to your agent. Best for building and previewing generators on your machine."
+    description="Run `eventum mcp` next to your agent. Best for building, previewing, and running generators on your machine."
     href="/docs/mcp/connect#local-authoring-over-stdio"
   />
   <Card
     title="Live management (HTTP)"
-    description="Mount the MCP server into a running Eventum server. Adds live management — start, stop, register, unregister, and read logs — behind authentication."
+    description="Mount the MCP server into a running Eventum server to start, stop, and manage live generators."
     href="/docs/mcp/connect#live-management-over-http"
   />
 </Cards>
 
-Both expose the same authoring tools; the HTTP transport adds live generator management on top.
+Both give your agent the same tools to build, check, and run generators. HTTP adds management of the generators running on a server.
 
 ## Read next
 
 <Cards>
   <Card
     title="How it works"
-    description="The author → validate → preview loop, the two transports, and the safety model."
+    description="The build–check–preview loop, where it runs, and what keeps it safe."
     href="/docs/mcp/how-it-works"
   />
   <Card
@@ -62,7 +69,7 @@ Both expose the same authoring tools; the HTTP transport adds live generator man
   />
   <Card
     title="Usage scenarios"
-    description="Worked examples — build from a description, simulate an incident, manage live generators."
+    description="Worked examples — build from a description, manage live generators, and diagnose failures."
     href="/docs/mcp/scenarios"
   />
 </Cards>
