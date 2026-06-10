@@ -3,7 +3,7 @@ title: How it works
 description: How the agent builds a generator and checks it works on Eventum, where the server runs, and what keeps it safe.
 ---
 
-The agent turns your request into a working generator over a few passes. What makes the result trustworthy is that it never leans on a guess about how Eventum behaves — an agent can easily write a configuration that reads correctly but doesn't run, or runs and produces the wrong data. So at each step it checks against Eventum itself: it builds the generator and sees the actual output, rather than predicting what Eventum would do.
+The agent turns your request into a working generator over a few passes. An agent working alone can easily produce a configuration that reads correctly but does not run, or runs and produces the wrong data. What makes the result trustworthy is that the agent never relies on its own prediction of how Eventum behaves: at every step it loads its work into Eventum and inspects the actual output.
 
 ## The loop
 
@@ -33,16 +33,16 @@ The loop is the same over either transport. What differs is whether the agent ca
 | Best for | Building, previewing, and running on your machine | Operating the generators on a shared or remote instance |
 | Build, preview, and run | Yes | Yes |
 | Manage running generators | — | Yes — register, start, stop, and monitor them |
-| Access | Your local files | The server's [authentication](/docs/mcp/connect#live-management-over-http). Read-only unless you allow writes |
+| Access | Your local files | Gated by the server's [authentication](/docs/mcp/connect#live-management-over-http); read-only unless you enable writes |
 
-Building, previewing, and running a generator work the same over either transport. Managing the generators on a running server — starting, stopping, and persisting them — needs that server, so it is HTTP-only. See [Connect your agent](/docs/mcp/connect) to set up either one.
+Managing the generators on a running server — registering, starting, and stopping them — requires that server, so it is available only over HTTP. See [Connect your agent](/docs/mcp/connect) to set up either transport.
 
 ## Safety
 
 Letting an agent write files and start processes deserves care, so Eventum draws the boundaries tightly by default:
 
 - **No model, no credentials.** Eventum runs no language model and stores no keys of its own — your agent brings the model, so there are no API keys here and no per-token cost.
-- **Writes stay under your control.** Over HTTP the agent can discover, validate, and preview freely, but it cannot change a file or touch a running generator until you enable writes. Over a local connection it can read and write your files directly, and a single flag makes it read-only.
+- **Writes stay under your control.** Over HTTP the agent can discover, validate, and preview freely, but it cannot change a file or affect a running generator until you enable writes. Over stdio it reads and writes your generators directory directly; pass `--read-only` to prevent all changes.
 - **Your filesystem and secrets stay hidden.** Eventum strips file paths and secret values out of every error and log before the agent sees them, so a failing run reveals its cause without exposing your filesystem or your credentials. The agent can see which secret names a generator refers to, but never their values, and it can neither add nor change them.
 
 <Callout type="warn">

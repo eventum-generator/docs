@@ -3,15 +3,15 @@ title: Usage scenarios
 description: Worked examples of using the Eventum MCP server — build a generator from a description, manage live generators, and diagnose a failing run.
 ---
 
-Each scenario below is a task for an agent you have [connected](/docs/mcp/connect), ordered from the everyday case to more specialized ones. The prompts are illustrative — phrase your own however you like.
+Each scenario below is a task for an agent you have [connected](/docs/mcp/connect), ordered from the most common to the more specialized. The prompts are illustrative; phrase your own requests freely.
 
 ## Build a generator from a description
 
-The core use. You describe the data you want, and the agent assembles a generator that produces it.
+The primary use case: you describe the data you want, and the agent assembles a generator that produces it.
 
 > Build a generator that emits one JSON web access-log event per second: a random client IP, an HTTP method, a request path drawn from a small sample, a status code, and a response size. Then preview ten events.
 
-The agent discovers the right plugins, drafts the files, and [checks each step against Eventum](/docs/mcp/how-it-works) until the generator loads cleanly and the preview matches your request. You end up with a saved, validated generator you can run with [`eventum run`](/docs/core/cli/eventum-run) or [`eventum generate`](/docs/core/cli/eventum-generate). The `create_generator` prompt guides the agent through this.
+The agent discovers the right plugins, drafts the files, and [checks each step against Eventum](/docs/mcp/how-it-works) until the generator loads cleanly and the preview matches your request. The result is a saved, validated generator you can run with [`eventum run`](/docs/core/cli/eventum-run) or [`eventum generate`](/docs/core/cli/eventum-generate). The `create_generator` prompt guides the agent through this.
 
 <Callout type="info">
 Ask to preview at any point before saving — the schedule first, then the rendered events. Nothing is written or started until you approve it.
@@ -23,7 +23,7 @@ With the [HTTP transport](/docs/mcp/connect#live-management-over-http) enabled a
 
 > What's running right now? Start the `web-access-log` generator and tell me when it's producing events.
 
-The agent can list the running generators and start or stop them. It can also register one it just authored, then start it — and the server restores it after a restart. All of it stays behind your server's authentication. The `live_ops` prompt walks through these operations.
+The agent can list the running generators and start or stop them. It can also register one it just authored, then start it — and the server restores it after a restart. Every operation is protected by your server's authentication. The `live_ops` prompt walks through these operations.
 
 ## Diagnose a failing generator
 
@@ -31,7 +31,7 @@ When a live run fails, the agent can find the cause without you opening a log fi
 
 > The `payments-stream` generator stopped — what went wrong?
 
-The agent checks the generator's status, sees that the run ended in failure, and reads its recent logs to find the cause — a bad configuration value, an unreachable output. It then proposes a fix, rewrites the file, and restarts.
+The agent checks the generator's status, sees that the run ended in failure, and reads its recent logs to find the cause — a bad configuration value, an unreachable output. It then proposes a fix, rewrites the file, and restarts the generator.
 
 ## Where to go next
 

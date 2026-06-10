@@ -5,7 +5,7 @@ description: Every tool the agent can call, every resource it can read, and the 
 
 This page lists everything the agent can use: the **tools** it calls to take action, the **resources** it reads to ground itself, and the **prompts** that guide it through common tasks.
 
-In the tool tables, the **Access** column marks each tool **Read** or **Write**. Write tools change files or control generators, and are gated: they require `server.mcp.allow_write` over HTTP, and over stdio are available unless you pass `--read-only`.
+In the tool tables, the **Access** column marks each tool **Read** or **Write**. Write tools change files or control generators, and are gated: over HTTP they require `server.mcp.allow_write`, and over stdio they are available unless you pass `--read-only`.
 
 ## Discovery tools
 
@@ -35,10 +35,10 @@ Available on both transports. They operate on the generators in your generators 
 | `validate_generator` | Read | Validate a generator and return any errors. |
 | `preview_timestamps` | Read | Preview the timestamps a generator would produce. |
 | `preview_events` | Read | Preview the events a generator would produce. |
-| `run_generator` | Write | Run a saved generator once to its configured outputs, stopping when it finishes or hits a time or event limit. |
+| `run_generator` | Write | Run a saved generator once to its configured outputs, stopping when it finishes or reaches a time or event limit. |
 
 <Callout type="info">
-`validate_generator` and the `preview_*` tools run against the real Eventum pipeline, so the agent sees exactly what a real run would produce. See [how it works](/docs/mcp/how-it-works#the-loop).
+`validate_generator` and the `preview_*` tools load the generator into the same pipeline a real run uses, so the agent sees exactly what a run would produce. See [how it works](/docs/mcp/how-it-works#the-loop).
 </Callout>
 
 ## Live-management tools
@@ -52,7 +52,7 @@ Available only over HTTP. They control the generators the server manages.
 | `get_generator_stats` | Read | Return runtime statistics for one running generator. |
 | `start_generator` | Write | Start a managed generator. |
 | `stop_generator` | Write | Stop a managed generator. |
-| `register_generator` | Write | Register a generator the agent authored with the running server, so it can be started and is restored after a restart. |
+| `register_generator` | Write | Register an authored generator with the running server, so it can be started and is restored after a server restart. |
 | `unregister_generator` | Write | Remove a generator from the running server, and stop restoring it on restart. |
 | `get_generator_logs` | Read | Return the recent log lines for a managed generator, to diagnose a run. |
 | `list_startup_generators` | Read | List the generators configured to start with the server. |

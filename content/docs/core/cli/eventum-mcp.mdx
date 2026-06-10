@@ -9,15 +9,16 @@ Runs Eventum as an [MCP server](/docs/mcp) over standard input/output — the tr
 eventum mcp --generators-dir <path> [OPTIONS]
 ```
 
-`stdout` is reserved for the protocol stream; all logs go to `stderr`, and no splash screen is printed — so the channel stays clean for the client.
+`stdout` is reserved for the protocol stream: all logs go to `stderr`, and no startup banner is printed, so the channel stays clean for the client.
 
 ## Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `--generators-dir` | path | — | **Required.** Directory holding generator subdirectories. The agent reads and writes generators here. Must be an existing directory. |
+| `--config-filename` | string | `generator.yml` | Name of the config file inside each generator directory. Set it when your generators use a non-default filename. |
 | `--read-only` | flag | `false` | Block all writes. The agent can discover, validate, and preview, but cannot create or modify files. |
-| `--keyring-cryptfile` | path | — | Path to the [keyring](/docs/core/config/secrets) cryptfile. When set, `list_secrets` reports the **names** of stored secrets (never their values); without it, `list_secrets` returns nothing. |
+| `--keyring-cryptfile` | path | — | Path to the [keyring](/docs/core/config/secrets) cryptfile. When set, `list_secret_names` reports the **names** of stored secrets (never their values); without it, `list_secret_names` returns nothing. |
 | `--log-level` | choice | `WARNING` | Log verbosity on `stderr`: `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL`. |
 
 ## Examples
