@@ -1,0 +1,54 @@
+---
+title: How it works
+description: How the agent builds a generator and checks it works on Eventum, where the server runs, and what keeps it safe.
+---
+
+The agent turns your request into a working generator over a few passes. An agent working alone can easily produce a configuration that reads correctly but does not run, or runs and produces the wrong data. What makes the result trustworthy is that the agent never relies on its own prediction of how Eventum behaves: at every step it loads its work into Eventum and inspects the actual output.
+
+## The loop
+
+Those passes form a loop, each one grounded in what Eventum reports back.
+
+<Mermaid chart={`graph LR
+    DISCOVER["Discover<br/>what Eventum offers"]:::step --> DRAFT["Draft<br/>the files"]:::step
+    DRAFT --> VALIDATE["Validate<br/>on Eventum"]:::step
+    VALIDATE --> PREVIEW["Preview<br/>events & timing"]:::step
+    PREVIEW --> FIX["Fix"]:::step
+    FIX --> DRAFT
+    PREVIEW --> DONE["Save or run"]:::done
+    classDef step fill:#8282ef,color:#fff,stroke:#6b6bd4,stroke-width:2px
+    classDef done fill:#22c55e,color:#fff,stroke:#16a34a,stroke-width:2px`} />
+
+It begins by asking Eventum what's available — every plugin and the exact settings each one takes — so it builds on current facts rather than training data that may be out of date. Then it writes the generator's files and loads them into Eventum. Anything wrong comes back as Eventum's own error, exact rather than approximate, and the agent fixes it and loads it again. Once the generator loads cleanly, Eventum generates a small sample of events, and the agent shows you those events and their timing — before anything is saved or started.
+
+Because Eventum generated that sample itself, it is exactly what the generator will produce when you run it — nothing is simulated. The agent repeats the cycle until the generator loads cleanly and the sample looks right. The tools behind each step are listed in [Tools & resources](/docs/mcp/tools).
+
+## Two ways to run it
+
+The loop is the same over either transport. What differs is whether the agent can manage long-lived generators on a server, and what you let it change.
+
+| | Local (stdio) | Live (HTTP) |
+|---|---|---|
+| How it runs | A local process beside your agent | Mounted into a running [Eventum server](/docs/core/cli/eventum-run) |
+| Best for | Building, previewing, and running on your machine | Operating the generators on a shared or remote instance |
+| Build, preview, and run | Yes | Yes |
+| Manage running generators | — | Yes — register, start, stop, and monitor them |
+| Access | Your local files | Gated by the server's [authentication](/docs/mcp/connect#live-management-over-http); read-only unless you enable writes |
+
+Managing the generators on a running server — registering, starting, and stopping them — requires that server, so it is available only over HTTP. See [Connect your agent](/docs/mcp/connect) to set up either transport.
+
+## Safety
+
+Letting an agent write files and start processes deserves care, so Eventum draws the boundaries tightly by default:
+
+- **No model, no credentials.** Eventum runs no language model and stores no keys of its own — your agent brings the model, so there are no API keys here and no per-token cost.
+- **Writes stay under your control.** Over HTTP the agent can discover, validate, and preview freely, but it cannot change a file or affect a running generator until you enable writes. Over stdio it reads and writes your generators directory directly; pass `--read-only` to prevent all changes.
+- **Your filesystem and secrets stay hidden.** Eventum strips file paths and secret values out of every error and log before the agent sees them, so a failing run reveals its cause without exposing your filesystem or your credentials. The agent can see which secret names a generator refers to, but never their values, and it can neither add nor change them.
+
+<Callout type="warn">
+Writes over HTTP include code execution, not just file access — generators run code by design: a `template` plugin executes Python, a `script` plugin runs a file you provide. Anyone with the server's credentials could run code on your host, so turn writes on only for a trusted network and a trusted agent.
+</Callout>
+
+## What it does not do
+
+It is the entry point for an agent, not a replacement for [Eventum Studio](/docs/studio) and its visual editor. Nor does it generate data itself: it builds and runs generators, and the data is produced by the normal [pipeline](/docs/core/concepts/generator) — the same output you would get had you written the generator by hand.

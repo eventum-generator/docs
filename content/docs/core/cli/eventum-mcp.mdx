@@ -1,0 +1,56 @@
+---
+title: "$ eventum mcp"
+description: Run Eventum as a Model Context Protocol server over stdio so an AI agent can build, validate, and preview generators.
+---
+
+Runs Eventum as an [MCP server](/docs/mcp) over standard input/output — the transport every MCP client supports. An agent connected to it can discover plugins, write and read generator files, and validate and preview generators against the real engine. For live generator management — start, stop, register, unregister, and read logs — mount the server over HTTP instead; see [Connect your agent](/docs/mcp/connect#live-management-over-http).
+
+```bash
+eventum mcp --generators-dir <path> [OPTIONS]
+```
+
+`stdout` is reserved for the protocol stream: all logs go to `stderr`, and no startup banner is printed, so the channel stays clean for the client.
+
+## Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--generators-dir` | path | — | **Required.** Directory holding generator subdirectories. The agent reads and writes generators here. Must be an existing directory. |
+| `--config-filename` | string | `generator.yml` | Name of the config file inside each generator directory. Set it when your generators use a non-default filename. |
+| `--read-only` | flag | `false` | Block all writes. The agent can discover, validate, and preview, but cannot create or modify files. |
+| `--keyring-cryptfile` | path | — | Path to the [keyring](/docs/core/config/secrets) cryptfile. When set, `list_secret_names` reports the **names** of stored secrets (never their values); without it, `list_secret_names` returns nothing. |
+| `--log-level` | choice | `WARNING` | Log verbosity on `stderr`: `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL`. |
+
+## Examples
+
+Author generators in a local directory:
+
+```bash
+eventum mcp --generators-dir ./generators
+```
+
+Expose generators read-only — discovery, validation, and preview, but no changes:
+
+```bash
+eventum mcp --generators-dir ./generators --read-only
+```
+
+Point at a keyring so the agent can list the names of stored secrets:
+
+```bash
+eventum mcp --generators-dir ./generators --keyring-cryptfile ./cryptfile.cfg
+```
+
+Register it from a client's command line (for example, with Claude Code):
+
+```bash
+claude mcp add eventum -- uv run eventum mcp --generators-dir ./generators
+```
+
+See [Connect your agent](/docs/mcp/connect) for the config-file format used by most clients.
+
+## See also
+
+- [MCP overview](/docs/mcp) — what the server is and what it's for.
+- [Tools & resources](/docs/mcp/tools) — everything the agent can call.
+- [`server.mcp`](/docs/core/config/eventum-yml#server-mcp) — enabling the HTTP transport on a running server.

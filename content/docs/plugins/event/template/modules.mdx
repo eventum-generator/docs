@@ -70,10 +70,34 @@ Built-in random utilities organized into namespaces. This is the most commonly u
 | `digits` | `(size) → str` | Random digit characters. |
 | `punctuation` | `(size) → str` | Random ASCII punctuation characters. |
 | `hex` | `(size) → str` | Random hex characters (0–9, a–f). |
+| `pattern` | `(format_string) → str` | Random string built from a printf-like pattern. See specifiers below. |
 
 ```jinja
 {%- set token = module.rand.string.hex(32) -%}
 {%- set code = module.rand.string.letters_uppercase(6) -%}
+```
+
+#### Pattern specifiers
+
+`pattern(format_string)` builds a random string by replacing format specifiers. Append `{N}` to a specifier to emit `N` random characters from its set instead of one. Everything else in the pattern is copied verbatim.
+
+| Specifier | Character set |
+|-----------|---------------|
+| `%a` | lowercase letter (a–z) |
+| `%A` | uppercase letter (A–Z) |
+| `%l` | any letter (a–zA–Z) |
+| `%d` | digit (0–9) |
+| `%n` | non-zero digit (1–9) |
+| `%h` | lowercase hex (0–9, a–f) |
+| `%H` | uppercase hex (0–9, A–F) |
+| `%p` | ASCII punctuation |
+| `%w` | word character (a–zA–Z0–9) |
+| `%%` | literal `%` |
+
+```jinja
+{%- set order_id = module.rand.string.pattern("ORD-%A{3}-%d{6}") -%}
+{%- set license_plate = module.rand.string.pattern("%A{2}%d{4}%A{2}") -%}
+{%- set ssn = module.rand.string.pattern("%n%d{2}-%d{2}-%d{4}") -%}
 ```
 
 ### `rand.network`
@@ -82,17 +106,27 @@ Built-in random utilities organized into namespaces. This is the most commonly u
 |----------|-----------|-------------|
 | `ip_v4` | `() → str` | Random IPv4 address (any range). |
 | `ip_v4_public` | `() → str` | Random public IPv4 (excludes private and reserved ranges). |
+| `ip_v4_private` | `() → str` | Random private IPv4 (RFC 1918, any class). |
 | `ip_v4_private_a` | `() → str` | Random Class A private IPv4 (10.0.0.0/8). |
 | `ip_v4_private_b` | `() → str` | Random Class B private IPv4 (172.16.0.0/12). |
 | `ip_v4_private_c` | `() → str` | Random Class C private IPv4 (192.168.0.0/16). |
 | `ip_v4_in_subnet` | `(cidr: str) → str` | Random IPv4 host address within the given CIDR subnet. |
-| `mac` | `() → str` | Random MAC address (colon-separated, e.g. `a4:3b:00:ff:12:9e`). |
+| `ip_v6` | `() → str` | Random IPv6 address (any range). |
+| `ip_v6_global` | `() → str` | Random global unicast IPv6 (`2000::/3`). |
+| `ip_v6_link_local` | `() → str` | Random link-local IPv6 (`fe80::/10`). |
+| `ip_v6_ula` | `() → str` | Random unique local IPv6 (`fc00::/7`). |
+| `mac` | `(*, oui: str = None, vendor: str = None) → str` | Random MAC address (colon-separated, e.g. `a4:3b:00:ff:12:9e`). With `oui` (`aa:bb:cc` or `aa-bb-cc`), the prefix stays fixed and only the last three bytes vary. With `vendor`, a prefix is picked at random from a built-in OUI table for that vendor (case-insensitive). The arguments are mutually exclusive. |
+
+Built-in vendor keys: `apple`, `aruba`, `broadcom`, `cisco`, `dell`, `fortinet`, `hp`, `huawei`, `ibm`, `intel`, `juniper`, `lenovo`, `microsoft`, `mikrotik`, `netgear`, `paloalto`, `samsung`, `tplink`, `ubiquiti`, `vmware`.
 
 ```jinja
 {%- set src_ip = module.rand.network.ip_v4_public() -%}
 {%- set dst_ip = module.rand.network.ip_v4_private_c() -%}
 {%- set client_ip = module.rand.network.ip_v4_in_subnet("10.0.1.0/24") -%}
+{%- set src_ip_v6 = module.rand.network.ip_v6_global() -%}
 {%- set mac_addr = module.rand.network.mac() -%}
+{%- set vmware_mac = module.rand.network.mac(oui="00:50:56") -%}
+{%- set dell_mac = module.rand.network.mac(vendor="dell") -%}
 ```
 
 ### `rand.crypto`
@@ -101,6 +135,7 @@ Built-in random utilities organized into namespaces. This is the most commonly u
 |----------|-----------|-------------|
 | `uuid4` | `() → str` | Random UUID v4. |
 | `md5` | `() → str` | Random 32-character hex string (MD5-length). |
+| `sha1` | `() → str` | Random 40-character hex string (SHA-1-length). |
 | `sha256` | `() → str` | Random 64-character hex string (SHA-256-length). |
 
 ```jinja

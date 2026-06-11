@@ -82,6 +82,34 @@ HTTP basic authentication credentials for the UI and API.
 Change the default credentials before exposing Eventum on a network.
 </Callout>
 
+### server.mcp
+
+Mounts the [MCP server](/docs/mcp) into the running server so an AI agent can build, validate, preview, and manage generators over HTTP. Disabled by default. The endpoint is served at `<host>:<port><path>` and protected by the [`server.auth`](#server-auth) credentials.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `server.mcp.enabled` | boolean | `false` | — | Mount the MCP server over HTTP. |
+| `server.mcp.allow_write` | boolean | `false` | — | Allow write tools — file writes and deletes, one-shot runs, and starting, stopping, registering, and unregistering generators. When `false`, the endpoint is read-only: discovery, validation, preview, and live status/log reads, but no changes. Enabling writes grants code execution on the host (see the warning below). |
+| `server.mcp.path` | string | `"/mcp"` | Leading `/`, no trailing `/`. | Mount path for the MCP endpoint. |
+| `server.mcp.allowed_hosts` | list of strings | `[]` | — | Allowed `Host` header values (DNS-rebinding protection). Empty disables the check — suitable behind a trusted reverse proxy; a non-empty list enables it and rejects other hosts. Allowed `Origin` values are derived from this list, so browser-based clients on a listed host pass while foreign origins are rejected. |
+
+```yaml
+server:
+  mcp:
+    enabled: true
+    allow_write: false
+    path: /mcp
+    allowed_hosts: []
+```
+
+<Callout type="warn">
+`allow_write` over HTTP grants code execution: a connected agent can write a generator and preview it, and some plugins execute code on the host by design (the `template` plugin runs arbitrary Python; a `script` plugin runs a script you provide). Enable it only on a trusted network with a trusted agent, and change the default `server.auth` credentials first.
+</Callout>
+
+<Callout type="info">
+Local authoring doesn't need the server — run [`eventum mcp`](/docs/core/cli/eventum-mcp) for a stdio server next to your agent. See [Connect your agent](/docs/mcp/connect).
+</Callout>
+
 ---
 
 ## path

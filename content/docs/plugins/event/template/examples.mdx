@@ -142,19 +142,33 @@ Login events store session data in `shared` state that logout events consume —
 
 ## Filtering sample data
 
-Use Jinja2's `selectattr` filter to pick rows from samples that match specific criteria:
+Use `where(**conditions)` to pick rows that match one or more equality conditions in a single call:
 
 ```jinja
-{%- set admin_users = samples.users | selectattr("role", "equalto", "admin") | list -%}
-{%- set user = admin_users | random -%}
-{{ timestamp.isoformat() }} ADMIN_ACTION user={{ user.name }} action=config_change
+{%- set admin = samples.users.where(role="admin").pick() -%}
+{{ timestamp.isoformat() }} ADMIN_ACTION user={{ admin.name }} action=config_change
 ```
 
-You can also filter sample data in loops:
+Multiple conditions are AND-combined - useful for picking from a narrowed slice of the sample:
+
+```jinja
+{%- set host = samples.internal_hosts.where(role="server", subnet="servers").pick() -%}
+```
+
+If no row matches, supply a `default` to avoid an error on an empty result:
+
+```jinja
+{%- set maybe_admin = samples.users.where(role="admin").pick(default=None) -%}
+{%- if maybe_admin -%}
+  {{ maybe_admin.name }}
+{%- endif -%}
+```
+
+For non-equality predicates, fall back to Jinja2's `selectattr` filter or inline `for ... if` loops:
 
 ```jinja
 {%- set category_urls = [] -%}
-{%- for u in samples.urls if u.category == "api" -%}
+{%- for u in samples.urls if u.category.startswith("api") -%}
   {%- do category_urls.append(u) -%}
 {%- endfor -%}
 {%- set url = category_urls | random -%}
