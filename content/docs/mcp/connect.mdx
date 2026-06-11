@@ -33,6 +33,9 @@ Over stdio your client launches Eventum itself. There is no server to run, and e
 
 Add an `eventum` entry to your client's MCP configuration, using an **absolute** path to your generators directory:
 
+<Tabs items={["mcp.json", "Claude Code", "Codex", "Cursor", "Gemini CLI", "VS Code"]}>
+<Tab value="mcp.json">
+
 ```json title="mcp.json"
 {
   "mcpServers": {
@@ -44,7 +47,71 @@ Add an `eventum` entry to your client's MCP configuration, using an **absolute**
 }
 ```
 
-Most clients accept this same `mcpServers` format. The file's location varies between clients, so check your client's documentation for the exact path.
+Most clients — including Claude Desktop and Windsurf — accept this same `mcpServers` format. The file's location varies between clients, so check your client's documentation for the exact path.
+
+</Tab>
+<Tab value="Claude Code">
+
+```bash
+claude mcp add eventum -- uv run eventum mcp --generators-dir /path/to/generators
+```
+
+By default the server is registered only for the project directory you run the command from. Add `-s user` to make it available in all your projects.
+
+</Tab>
+<Tab value="Codex">
+
+```bash
+codex mcp add eventum -- uv run eventum mcp --generators-dir /path/to/generators
+```
+
+</Tab>
+<Tab value="Cursor">
+
+```json title="~/.cursor/mcp.json"
+{
+  "mcpServers": {
+    "eventum": {
+      "command": "uv",
+      "args": ["run", "eventum", "mcp", "--generators-dir", "/path/to/generators"]
+    }
+  }
+}
+```
+
+Use `.cursor/mcp.json` inside a repository to register the server for that project only.
+
+</Tab>
+<Tab value="Gemini CLI">
+
+```json title="~/.gemini/settings.json"
+{
+  "mcpServers": {
+    "eventum": {
+      "command": "uv",
+      "args": ["run", "eventum", "mcp", "--generators-dir", "/path/to/generators"]
+    }
+  }
+}
+```
+
+</Tab>
+<Tab value="VS Code">
+
+```json title=".vscode/mcp.json"
+{
+  "servers": {
+    "eventum": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "eventum", "mcp", "--generators-dir", "/path/to/generators"]
+    }
+  }
+}
+```
+
+</Tab>
+</Tabs>
 </Step>
 <Step>
 ### Reload your client
@@ -94,7 +161,10 @@ With the defaults, the MCP endpoint is available at `http://localhost:9474/mcp/`
 <Step>
 ### Point your client at the server
 
-Add the endpoint and the server's credentials to your `mcpServers` file:
+Add the endpoint and the server's credentials to your client. The `Authorization` value is `Basic ` followed by `username:password` in base64; the examples below encode the default `eventum:eventum`.
+
+<Tabs items={["mcp.json", "Claude Code", "Codex", "Cursor", "Gemini CLI", "VS Code"]}>
+<Tab value="mcp.json">
 
 ```json title="mcp.json"
 {
@@ -109,7 +179,70 @@ Add the endpoint and the server's credentials to your `mcpServers` file:
 }
 ```
 
-The `Authorization` value is `Basic ` followed by `username:password` in base64. The example encodes the default `eventum:eventum`. Reload the client to enable the live-management tools alongside the authoring ones.
+Most clients accept this same `mcpServers` format. The file's location varies between clients, so check your client's documentation for the exact path.
+
+</Tab>
+<Tab value="Claude Code">
+
+```bash
+claude mcp add --transport http eventum http://localhost:9474/mcp/ --header "Authorization: Basic ZXZlbnR1bTpldmVudHVt"
+```
+
+By default the server is registered only for the project directory you run the command from. Add `-s user` to make it available in all your projects.
+
+</Tab>
+<Tab value="Codex">
+
+```toml title="~/.codex/config.toml"
+[mcp_servers.eventum]
+url = "http://localhost:9474/mcp/"
+http_headers = { "Authorization" = "Basic ZXZlbnR1bTpldmVudHVt" }
+```
+
+</Tab>
+<Tab value="Cursor">
+
+```json title="~/.cursor/mcp.json"
+{
+  "mcpServers": {
+    "eventum": {
+      "url": "http://localhost:9474/mcp/",
+      "headers": {
+        "Authorization": "Basic ZXZlbnR1bTpldmVudHVt"
+      }
+    }
+  }
+}
+```
+
+</Tab>
+<Tab value="Gemini CLI">
+
+```bash
+gemini mcp add --transport http --header "Authorization: Basic ZXZlbnR1bTpldmVudHVt" eventum http://localhost:9474/mcp/
+```
+
+</Tab>
+<Tab value="VS Code">
+
+```json title=".vscode/mcp.json"
+{
+  "servers": {
+    "eventum": {
+      "type": "http",
+      "url": "http://localhost:9474/mcp/",
+      "headers": {
+        "Authorization": "Basic ZXZlbnR1bTpldmVudHVt"
+      }
+    }
+  }
+}
+```
+
+</Tab>
+</Tabs>
+
+Reload the client to enable the live-management tools alongside the authoring ones.
 </Step>
 </Steps>
 
