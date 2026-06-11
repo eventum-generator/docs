@@ -7,33 +7,29 @@ tags:
   - announcement
 ---
 
-There has always been a gap in synthetic data work. Describing a dataset takes one sentence — *a week of Apache access logs with a traffic spike at noon, mostly 200s with a burst of 500s during the spike*. Producing it takes knowledge that has nothing to do with the case itself: which plugin shapes time, how templates pick values, what the configuration expects where. The person who owns the scenario — a security engineer rehearsing a detection, a developer preparing a demo, a tester sizing a load profile — is rarely the person who enjoys closing that gap by hand.
+Describing a dataset takes one sentence — *a week of Apache access logs with a traffic spike at noon, mostly 200s with a burst of 500s during the spike*. Producing it takes plugin names, template syntax, and configuration schemas — knowledge that has nothing to do with the case itself. The person who owns the scenario — a security engineer rehearsing a detection, a developer preparing a demo — is rarely the person fluent in all of that.
 
-Eventum 2.6 closes it differently. With the [MCP server](/docs/mcp), the case is described the way you just read it — in plain language — and the platform stays underneath as the controlled foundation that decides what actually runs.
+Eventum 2.6 connects the two sides. Through the [MCP server](/docs/mcp), the case is described the way you just read it — in plain language — while the platform underneath keeps deciding what actually runs.
 
-## Why now
+## Plausible is not working
 
-Two things matured at the same time. AI agents became genuinely good at multi-step technical work: they read documentation, write files, react to errors, try again. And the [Model Context Protocol](https://modelcontextprotocol.io) gave that ability a standard socket — one server, any agent: Claude Code, Cursor, Codex, and whatever arrives next.
+The tempting shortcut has been around for a while: paste the docs into a chat and ask for a config. The model obliges, and the result looks right — that is exactly the problem. A configuration that reads well but does not run costs you a debugging session; one that runs and produces *slightly wrong* data costs more, because nothing visibly fails. In synthetic data this is the expensive failure: a detection rehearsed on almost-right logs is a rehearsal of the wrong thing.
 
-What did not change is the failure mode. An agent working from memory produces configurations that *look* right. A config that reads well but does not run — or worse, runs and quietly produces the wrong data — costs more than writing it yourself, because now the review is the work. Plausibility is not correctness, and in synthetic data the difference is the whole point: a detection rehearsed on slightly-wrong logs is a rehearsal of the wrong thing.
+## The agent proposes, the engine disposes
 
-## Trust nothing, check everything
+The MCP server is built against that failure. The agent never works from memory: it asks Eventum what is installed and what settings exist, and it writes only inside the folder you point it at. Every draft then has to pass through the engine itself — the same engine that will run the generator tomorrow loads it today, answers with its own exact errors, and renders a sample of real events with real timing. The agent fixes and retries until the generator runs, and the sample reaches you before anything is saved or started.
 
-The MCP server is built around one decision: the agent describes and drafts, Eventum verifies and executes. Nothing the agent believes is taken on faith.
+## You keep the machine
 
-The agent does not guess what Eventum can do — it asks, and gets the facts of your installed version. It writes only inside the folder you point it at. And every draft must survive the test that matters: Eventum loads it for real. Not a simulation — the same engine that will run the generator tomorrow loads it today, produces a sample of events, and answers with its own exact errors when something is off. The agent fixes and tries again, and you see the result — real events with real timing — before anything is saved or started.
+The outcome of the conversation is not a pile of generated rows. It is a generator — a plain set of files you can commit, review, and run like any hand-written one, producing data deterministically at any volume with no model in the loop and no per-token bill. The agent was scaffolding, not the building.
 
-## The artifact is still a generator
+## The bottleneck moves
 
-Here is the part we consider the real step forward. The outcome of the conversation is not a pile of generated rows — it is a generator: a plain set of files you can commit, review, and run like any hand-written one. It produces data deterministically, at any volume, on any day, with no model in the loop and no per-token bill. The agent was scaffolding, not the building.
-
-That is the division of labor that makes the approach strong: natural language owns the *intent*, the platform owns the *behavior*. Cases get described the way people actually think about them — and reproducibility, performance, and control stay where they belong, in an engine that does the same thing every time.
-
-It reaches past authoring, too. Connect the same server to a running Eventum instance, and the agent can operate what is already there: start and stop generators, read their logs when something misbehaves, and propose the fix. All of it behind the server's credentials — and nothing on the server changes until you allow changes.
+This changes who does the work. The security engineer describes the attack and rehearses against it the same hour, instead of filing a ticket for "realistic logs by Friday". The developer gets demo data without ever learning the template syntax. On a running server, the same conversation also operates what is already deployed — start, stop, read the logs, propose the fix. Platform expertise stops being the queue everyone waits in and becomes the rails everyone rides.
 
 ## Honest edges
 
-The boundaries are explicit because the risks are real. Generators run code — that is what makes them flexible — so the agent's permission to write files and control generators stays off until you switch it on, and switching it on is a decision about trust, not a default. Agents differ, too: the loop guarantees the generator runs and shows you what it produces; whether the data matches what you meant is still your call. The platform draws the lines — the checkpoints are yours.
+Generators run code — that is what makes them flexible — so the agent's permission to write files and control generators stays off until you switch it on, and switching it on is a decision about trust. The loop guarantees the generator runs and shows you what it produces; whether the data matches what you meant is still your call.
 
 ## Try it
 
