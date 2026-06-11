@@ -1,0 +1,64 @@
+---
+title: "Eventum 2.6.0: MCP Server for AI Agents"
+description: "Connect Claude Code, Cursor, or Codex to Eventum and describe the data you need — the agent builds, validates, and runs the generator. Plus sample filtering and seven new randomization helpers."
+date: "2026-06-11T18:00:00"
+author: "Eventum Team"
+tags:
+  - release
+pinned: true
+---
+
+Eventum 2.6.0 is out. The headline is the **MCP server** — Eventum is now agent-ready: connect an AI agent over the Model Context Protocol, describe the data you need in plain language, and the agent builds the generator for you. This release also adds sample filtering with `where()`, fallback values for empty picks, and seven new randomization helpers.
+
+## MCP server: describe the data, get a generator
+
+Writing a generator means knowing the plugins, their settings, and the template API. The [MCP server](/docs/mcp) moves that knowledge to your agent: Claude Code, Cursor, Codex, and any other MCP-compatible client can now discover what Eventum offers, write the generator files, and check every step against Eventum itself — validation and previews run on the real pipeline, so the result is a working generator, not a guess.
+
+> a week of Apache access logs with a traffic spike at noon, mostly 200s but a burst of 500s during the spike
+
+A request like this comes back as a saved, validated generator with a preview of its events and timing — nothing is simulated, and nothing starts until you approve it.
+
+It runs two ways:
+
+- **stdio** — your client launches Eventum next to your agent for local authoring. One command to register it, for example in Claude Code:
+
+```bash
+claude mcp add eventum -- uv run eventum mcp --generators-dir /path/to/generators
+```
+
+- **HTTP** — mount the server into a running Eventum instance (`server.mcp.enabled`) and the agent can also manage live generators: register, start, stop, and read scrubbed logs, behind the server's authentication.
+
+Write access is off by default over HTTP and gated by a single flag on both transports. File paths and secret values are stripped from every error and log line before the agent sees them. The full surface — 25 tools, 4 resources, 2 guided prompts — is in the [tool reference](/docs/mcp/tools), and [Connect your agent](/docs/mcp/connect) has setup steps for every popular client.
+
+## Filter samples with where()
+
+Picking a row that matches several fields used to mean chained `selectattr` filters. Samples now expose `where()` with equality conditions, and the result is a sample too — `where`, `pick`, and `weighted_pick` chain freely:
+
+```jinja
+{%- set host = samples.hosts.where(dc='eu-west', role='db').pick() -%}
+```
+
+Picks also accept a fallback for empty selections — `pick(default=...)` and `weighted_pick(weight, default=...)` return the fallback instead of failing the event, and `pick_n`/`weighted_pick_n` return `[]` on empty samples.
+
+## Seven new randomization helpers
+
+The `rand` module grows a family for realistic infrastructure data:
+
+- `rand.network.ip_v6()`, `ip_v6_global()`, `ip_v6_link_local()`, `ip_v6_ula()` — IPv6 across the full space or a specific scope
+- `rand.network.mac(oui="00:50:56")` or `mac(vendor="dell")` — MAC addresses with a fixed prefix or a vendor-realistic one from a built-in table of 20 vendors
+- `rand.network.ip_v4_private()` — RFC 1918 addresses with realistic class weights
+- `rand.string.pattern("ORD-%A{3}-%d{6}")` — random strings from a printf-like pattern
+- `rand.crypto.sha1()` — SHA-1-length hex strings
+
+The full list with signatures is in the [template modules reference](/docs/plugins/event/template/modules).
+
+## ClickHouse output: pool_maxsize
+
+The [ClickHouse output](/docs/plugins/output/clickhouse) now exposes `pool_maxsize` (default `32`). Raise it together with `generation.max_concurrency` when bursts of concurrent writes exhaust the HTTP connection pool.
+
+## Fixes worth knowing
+
+- Dot-separated config keys now work at any depth in every YAML file — `server: {mcp.enabled: true}` is valid, mixed spellings deep-merge, and defining the same key twice fails with the exact conflicting path.
+- A failed server startup — a port already in use, for example — now stops the app with a clear error instead of hanging until interrupted.
+
+The complete list is in the [changelog](/docs/changelog/2.6.0). Upgrade with `pip install -U eventum-generator` or pull the fresh Docker image.
