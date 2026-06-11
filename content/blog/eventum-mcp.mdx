@@ -1,0 +1,38 @@
+---
+title: "Describe the Data, Keep the Engine: Why Eventum Now Speaks MCP"
+description: "AI agents can now author Eventum generators from a plain-language description — while validation, previews, and execution stay on the deterministic engine. Why that split matters."
+date: "2026-06-11T19:30:00"
+author: "Eventum Team"
+tags:
+  - announcement
+---
+
+Describing a dataset takes one sentence — *a week of Apache access logs with a traffic spike at noon, mostly 200s with a burst of 500s during the spike*. Producing it takes plugin names, template syntax, and configuration schemas — knowledge that has nothing to do with the case itself. The person who owns the scenario — a security engineer rehearsing a detection, a developer preparing a demo — is rarely the person fluent in all of that.
+
+Eventum 2.6 connects the two sides. Through the [MCP server](/docs/mcp), the case is described the way you just read it — in plain language — while the platform underneath keeps deciding what actually runs.
+
+## Plausible is not working
+
+The tempting shortcut has been around for a while: paste the docs into a chat and ask for a config. The model obliges, and the result looks right — that is exactly the problem. A configuration that reads well but does not run costs you a debugging session; one that runs and produces *slightly wrong* data costs more, because nothing visibly fails. In synthetic data this is the expensive failure: a detection rehearsed on almost-right logs is a rehearsal of the wrong thing.
+
+## The agent proposes, the engine disposes
+
+The MCP server is built against that failure. The agent never works from memory: it asks Eventum what is installed and what settings exist, and it writes only inside the folder you point it at. Every draft then has to pass through the engine itself — the same engine that will run the generator tomorrow loads it today, answers with its own exact errors, and renders a sample of real events with real timing. The agent fixes and retries until the generator runs, and the sample reaches you before anything is saved or started.
+
+## You keep the machine
+
+The outcome of the conversation is not a pile of generated rows. It is a generator — a plain set of files you can commit, review, and run like any hand-written one, producing data deterministically at any volume with no model in the loop and no per-token bill. The agent was scaffolding, not the building.
+
+## The bottleneck moves
+
+This changes who does the work. The security engineer describes the attack and rehearses against it the same hour, instead of filing a ticket for "realistic logs by Friday". The developer gets demo data without ever learning the template syntax. On a running server, the same conversation also operates what is already deployed — start, stop, read the logs, propose the fix. Platform expertise stops being the queue everyone waits in and becomes the rails everyone rides.
+
+## Try it
+
+Point your agent at Eventum and describe the dataset you have been postponing:
+
+- [What the MCP server is](/docs/mcp) — the overview
+- [How it works](/docs/mcp/how-it-works) — the loop, the transports, the safety model
+- [Connect your agent](/docs/mcp/connect) — setup for Claude Code, Codex, Cursor, Gemini CLI, VS Code, and any mcp.json client
+- [Tools & resources](/docs/mcp/tools) — the full surface the agent gets
+- [Usage scenarios](/docs/mcp/scenarios) — worked examples, from authoring to live ops
