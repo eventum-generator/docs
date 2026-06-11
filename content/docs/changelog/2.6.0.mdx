@@ -1,0 +1,23 @@
+---
+title: 🚩 2.6.0
+description: Eventum 2.6.0 — MCP server for AI agents, new template randomization helpers, sample filtering.
+---
+
+Released **June 11, 2026**
+
+## 🚀 New features
+
+- **[MCP server](/docs/mcp)** — connect an AI agent (Claude Code, Cursor, Codex, and others) to Eventum and have it build, validate, preview, and run generators from a plain-language description. Runs over stdio for [local authoring](/docs/mcp/connect#local-authoring-over-stdio) and as an HTTP service on a running server for [live generator management](/docs/mcp/connect#live-management-over-http) behind authentication. The agent checks every step against Eventum itself, so the result is a working generator, not a guess — see [how it works](/docs/mcp/how-it-works) and the full [tool reference](/docs/mcp/tools)
+- **[`samples.<name>.where(**conditions)`](/docs/plugins/event/template/samples)** — filter sample rows by several equality conditions in one call, replacing verbose `selectattr` chains; the result supports further `where` and `pick` calls
+- **[`pick(default=...)` and `weighted_pick(weight, default=...)`](/docs/plugins/event/template/samples)** — return a fallback value when a sample selection is empty instead of failing the event
+- **[`rand.network.ip_v6` family](/docs/plugins/event/template/modules)** — random IPv6 addresses: the full space, global unicast, link-local, or unique local
+- **[`rand.network.mac(oui=..., vendor=...)`](/docs/plugins/event/template/modules)** — fix the MAC prefix to a specific OUI or pick one from a built-in table of 20 vendors (Apple, Cisco, Dell, Intel, VMware, and others)
+- **[`rand.network.ip_v4_private()`](/docs/plugins/event/template/modules)** — random RFC 1918 private IPv4 addresses with realistic class weights
+- **[`rand.string.pattern(format_string)`](/docs/plugins/event/template/modules)** — random strings from a printf-like pattern, e.g. `pattern("ORD-%A{3}-%d{6}")`
+- **[`rand.crypto.sha1()`](/docs/plugins/event/template/modules)** — random SHA-1-length hex strings
+- **[ClickHouse output: `pool_maxsize`](/docs/plugins/output/clickhouse)** — size the connection pool toward ClickHouse to avoid pool-exhaustion warnings under bursts of concurrent writes
+
+## 🐛 Bug fixes
+
+- Dot-separated config keys now work at any depth in every YAML file — `eventum.yml`, generator configs, `startup.yml`, and time patterns accept `server: {mcp.enabled: true}`-style spellings, mixed freely with nested blocks; defining the same key twice fails with the exact conflicting path
+- A failed server startup (for example, when the port is already in use) now stops the app with a clear error instead of hanging until interrupted
