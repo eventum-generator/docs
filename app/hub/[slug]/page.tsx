@@ -3,12 +3,14 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 
+import { JsonLd } from '@/components/JsonLd';
 import { EventTypesTable } from '@/components/hub/EventTypesTable';
 import { QuickStartTabs } from '@/components/hub/QuickStartTabs';
 import { RelatedGenerators } from '@/components/hub/RelatedGenerators';
 import { SampleOutput } from '@/components/hub/SampleOutput';
 import { CATEGORY_MAP } from '@/lib/hub-categories';
 import { generators } from '@/lib/hub-data';
+import { breadcrumbSchema, canonicalPath } from '@/lib/seo';
 
 function getGenerator(slug: string) {
   return generators.find((g) => g.slug === slug);
@@ -29,6 +31,13 @@ export default async function GeneratorDetailPage(props: {
       role="main"
       className="mx-auto w-full max-w-4xl px-6 py-10 sm:py-14 overflow-y-auto"
     >
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: 'Home', path: '/' },
+          { name: 'Eventum Hub', path: '/hub' },
+          { name: generator.displayName, path: `/hub/${slug}` },
+        ])}
+      />
       {/* Back link */}
       <Link
         href="/hub"
@@ -194,6 +203,7 @@ export async function generateMetadata(props: {
   return {
     title: `${generator.displayName} | Eventum Hub`,
     description: generator.description,
+    alternates: { canonical: canonicalPath(`/hub/${slug}`) },
     openGraph: {
       title: `${generator.displayName} | Eventum Hub`,
       description: generator.description,

@@ -3,8 +3,14 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
+import { JsonLd } from '@/components/JsonLd';
 import { getBlogPost, getBlogSlugs } from '@/lib/blog-source';
 import { getTagClassName } from '@/lib/blog-tags';
+import {
+  blogPostingSchema,
+  breadcrumbSchema,
+  canonicalPath,
+} from '@/lib/seo';
 import { getMDXComponents } from '@/mdx-components';
 
 function formatDate(dateString: string): string {
@@ -29,6 +35,22 @@ export default async function BlogPostPage(props: {
 
   return (
     <div role="main" className="mx-auto w-full max-w-3xl px-6 py-10 sm:py-14 overflow-y-auto">
+      <JsonLd
+        data={[
+          blogPostingSchema({
+            slug,
+            title: post.title,
+            description: post.description,
+            date: post.date,
+            author: post.author,
+          }),
+          breadcrumbSchema([
+            { name: 'Home', path: '/' },
+            { name: 'Blog', path: '/blog' },
+            { name: post.title, path: `/blog/${slug}` },
+          ]),
+        ]}
+      />
       <Link
         href="/blog"
         className="group inline-flex items-center gap-1.5 text-sm font-medium text-fd-muted-foreground/60 hover:text-fd-foreground transition-colors duration-200 mb-8"
@@ -99,6 +121,7 @@ export async function generateMetadata(props: {
   return {
     title: post.title,
     description: post.description,
+    alternates: { canonical: canonicalPath(`/blog/${slug}`) },
     openGraph: {
       title: post.title,
       description: post.description,
