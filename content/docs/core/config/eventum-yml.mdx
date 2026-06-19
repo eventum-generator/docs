@@ -46,7 +46,7 @@ Controls the built-in web server that exposes the UI and REST API.
 | `server.port` | integer | `9474` | >= 1 | Port the server binds to. |
 
 <Callout type="info">
-The flat `server.ui_enabled` and `server.api_enabled` keys are deprecated aliases for `server.ui.enabled` and `server.api.enabled`. They still work but print a deprecation notice at startup; setting a flat key together with its nested counterpart is an error.
+The flat `server.ui_enabled` and `server.api_enabled` keys are deprecated aliases for `server.ui.enabled` and `server.api.enabled` and will be removed in version 2.8. They still work but print a deprecation notice at startup; setting a flat key together with its nested counterpart is an error.
 </Callout>
 
 ### server.ssl
