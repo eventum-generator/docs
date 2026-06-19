@@ -3,11 +3,13 @@ import type { Metadata } from 'next';
 
 import HubContent from './hub-content';
 import { generators } from '@/lib/hub-data';
+import { canonicalPath } from '@/lib/seo';
 
 export const metadata: Metadata = {
   title: 'Eventum Hub',
   description:
     'Synthetic data for testing, development, and training. Browse ready-to-use event generators across multiple categories.',
+  alternates: { canonical: canonicalPath('/hub') },
 };
 
 const categoryCount = new Set(generators.map((g) => g.category)).size;
