@@ -121,6 +121,7 @@ export function getCategoryForSlug(slug: string): CategoryId {
     'web-nginx': 'web-access',
     'web-apache': 'web-access',
     'proxy-zscaler': 'web-access',
+    'proxy-traefik': 'web-access',
     'vpn-cisco-anyconnect': 'web-access',
     'vpn-citrix-netscaler': 'web-access',
     'vpn-paloalto-globalprotect': 'web-access',
