@@ -41,11 +41,13 @@ Studio is controlled by two settings in [eventum.yml](/docs/core/config/eventum-
 
 ```yaml title="eventum.yml"
 server:
-  ui_enabled: true    # enables the web UI
-  api_enabled: true   # enables the REST API (required for Studio to function)
+  ui:
+    enabled: true   # enables the web UI
+  api:
+    enabled: true   # enables the REST API (required for Studio to function)
 ```
 
-Setting `ui_enabled: false` disables the web interface while keeping the REST API available. Setting `api_enabled: false` disables both — Studio needs the API to communicate with the backend.
+Setting `ui.enabled: false` disables the web interface while keeping the REST API available. Setting `api.enabled: false` disables both — Studio needs the API to communicate with the backend.
 
 ## Authentication
 
