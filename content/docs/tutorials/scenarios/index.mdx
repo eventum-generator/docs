@@ -1,0 +1,15 @@
+---
+title: Synthetic data for SIEM and detection testing
+description: Generate realistic security telemetry — Windows, Sysmon, network, endpoint — to build and test SIEM detections without touching production or running live attacks.
+---
+
+Building a detection means proving it fires on the right events and stays quiet on the wrong ones. That needs data: attack-like telemetry, benign noise, and enough volume to be realistic. Live attacks need a lab; static sample sets are frozen and quickly stale. Eventum generates fresh, parameterized security telemetry on demand, in the format your SIEM ingests.
+
+<Cards>
+  <Card title="SIEM: Windows Security → OpenSearch" description="A complete stateful generator: Windows Security events indexed into OpenSearch." href="/docs/tutorials/siem-events" />
+</Cards>
+
+## Related
+
+- Formats used in SIEM data: [Windows Event Log](/docs/tutorials/formats/windows-event-log), [CEF](/docs/tutorials/formats/cef), [syslog](/docs/tutorials/formats/syslog)
+- Ready-made security generators in the [Eventum Hub](/hub)
