@@ -33,6 +33,14 @@ When a live run fails, the agent can find the cause without you opening a log fi
 
 The agent checks the generator's status, sees that the run ended in failure, and reads its recent logs to find the cause — a bad configuration value, an unreachable output. It then proposes a fix, rewrites the file, and restarts the generator.
 
+## Coordinate a fleet with scenarios and shared state
+
+Beyond single generators, the agent can organize the whole fleet on a running server: group related generators into named [scenarios](/docs/core/config/startup-yml) and inspect the [`globals`](/docs/plugins/event/template/state) state they share at runtime.
+
+> Group `web-access-log` and `payments-stream` into a `storefront` scenario, then show me the shared global state.
+
+The agent tags both generators into the scenario, lists what the scenario contains, and reads or edits the shared global state generators use to coordinate. Over the same HTTP connection it can also read the running settings and host metrics, patch the settings file, and restart the instance to apply a change — each write behind your server's authentication and `allow_write` gate.
+
 ## Where to go next
 
 <Cards>
