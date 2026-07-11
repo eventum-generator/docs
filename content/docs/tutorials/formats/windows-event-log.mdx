@@ -1,0 +1,234 @@
+---
+title: "Windows Event Log & Sysmon: generate realistic events"
+description: Channels, EventID, and the XML event model behind Windows Event Log and Sysmon — and how to generate realistic Security and Sysmon events with Eventum.
+---
+
+Testing a detection rule, a log parser, or a SIEM pipeline against Windows telemetry usually means one of two options: point the tool at a production domain controller, or pull a static EVTX sample from a public forensics repository. The first risks the environment the tool is meant to protect. The second is frozen at capture time, rarely matches your naming conventions or host inventory, and is the same file every other team already downloaded from the same repository.
+
+Eventum generates fresh Windows Event Log and Sysmon events on demand — parameterized, reproducible, and shaped to the traffic curve you expect — without installing anything on a Windows machine.
+
+## What Windows Event Log looks like
+
+Windows Event Log is the logging subsystem built into Windows since Windows Vista. Every event is stored in the binary [EVTX](https://forensics.wiki/windows_xml_event_log_(evtx)/) format and organized by channel: a named stream of events with one publisher and one audience. Event Viewer groups the built-in channels under Windows Logs — Application, Security, Setup, System, and Forwarded Events — while individual products get their own channel under Applications and Services Logs, as Sysmon does.
+
+Three of those channels account for most of what a pipeline ingests. Application carries events from user-mode software that is not part of the operating system itself. System carries events from OS components — drivers, services, the kernel. Security is the audit log, written exclusively by the Local Security Authority: logons and logoffs, privilege use, object access, account and group changes. It is also the channel most Windows-focused SIEM detections are built against, and the one the example below generates.
+
+<Mermaid chart={`graph LR
+    P["Provider or Sysmon driver"] -->|writes to| C["Channel"]
+    C -->|stored as| E["EVTX file (binary)"]
+    E -->|rendered as| X["System + EventData XML"]`} />
+
+Every event carries the same envelope, whatever channel or provider produced it. A `System` block identifies where the event came from: Provider (name and GUID — older tooling and the pre-Vista `.evt` format called this the Source), EventID, Version, Level (severity), Task and Opcode (sub-classification within the provider), Keywords (bit flags such as Audit Success or Audit Failure), TimeCreated, a per-channel EventRecordID, the Computer, and the Channel itself. An `EventData` block carries the payload specific to that EventID as a flat list of `Data` elements, each named by a `Name` attribute — name/value pairs, not deeply nested XML. Here is a trimmed version of a real Security-channel event, [4624 — An account was successfully logged on](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4624):
+
+```xml
+<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <System>
+    <Provider Name="Microsoft-Windows-Security-Auditing" Guid="{54849625-5478-4994-A5BA-3E3B0328C30D}"/>
+    <EventID>4624</EventID>
+    <Version>2</Version>
+    <Level>0</Level>
+    <Task>12544</Task>
+    <Opcode>0</Opcode>
+    <Keywords>0x8020000000000000</Keywords>
+    <TimeCreated SystemTime="2015-11-12T00:24:35.079785200Z"/>
+    <EventRecordID>211</EventRecordID>
+    <Correlation ActivityID="{00D66690-1CDF-0000-AC66-D600DF1CD101}"/>
+    <Execution ProcessID="716" ThreadID="760"/>
+    <Channel>Security</Channel>
+    <Computer>WIN-GG82ULGC9GO</Computer>
+    <Security/>
+  </System>
+  <EventData>
+    <Data Name="SubjectUserSid">S-1-5-18</Data>
+    <Data Name="SubjectUserName">WIN-GG82ULGC9GO$</Data>
+    <Data Name="SubjectDomainName">WORKGROUP</Data>
+    <Data Name="TargetUserSid">S-1-5-21-1377283216-344919071-3415362939-500</Data>
+    <Data Name="TargetUserName">Administrator</Data>
+    <Data Name="TargetDomainName">WIN-GG82ULGC9GO</Data>
+    <Data Name="LogonType">2</Data>
+    <Data Name="AuthenticationPackageName">Negotiate</Data>
+    <Data Name="WorkstationName">WIN-GG82ULGC9GO</Data>
+    <Data Name="IpAddress">127.0.0.1</Data>
+    <!-- additional Data elements omitted -->
+  </EventData>
+</Event>
+```
+
+[Sysmon](https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon) (System Monitor) is a free Sysinternals tool — a Windows system service paired with a kernel driver — that watches process, network, file, and registry activity beyond what Security auditing covers. It writes to its own channel, `Applications and Services Logs/Microsoft/Windows/Sysmon/Operational`, and is configured through an XML rule file that decides which of its roughly thirty event types to record and for which processes. The event IDs referenced most often: 1 (Process Create), 3 (Network Connection), 5 (Process Terminated), 11 (FileCreate), 13 (Registry Value Set), and 22 (DNS Query). Every process-related event carries a ProcessGuid that survives PID reuse, so a process's full lifecycle — creation, network connections, file writes, termination — stays correlated even after Windows recycles its process ID.
+
+## Generate it with Eventum
+
+A generator that produces Windows Security events needs three pieces: an input that shapes when events happen, a [template](/docs/plugins/event/template) event plugin that renders one of several Windows-shaped Jinja templates per timestamp, and an output. The example below produces `4624` (logon success) and `4625` (logon failure) events on a daily curve that ramps up through the morning, peaks around midday, and tapers off overnight.
+
+### The traffic pattern
+
+[time-patterns](/docs/plugins/input/time-patterns) builds a curve from four stages: an oscillator that defines a repeating period, a multiplier that sets a baseline count per period, a randomizer that adds period-to-period variance, and a spreader that places events within each period using a statistical distribution. A triangular spreader with its peak (`mode`) at the middle of the day approximates a business-hours-like shape:
+
+```yaml title="generators/winlog/patterns/business-hours.yml"
+label: business-hours-logons
+oscillator:
+  start: "00:00:00"
+  end: "never"
+  period: 1
+  unit: days
+multiplier:
+  ratio: 2000
+randomizer:
+  deviation: 0.25
+  direction: mixed
+spreader:
+  distribution: triangular
+  parameters:
+    left: 0.15
+    mode: 0.5
+    right: 0.9
+```
+
+With `start` anchored to midnight and a one-day period, `mode: 0.5` lands at noon; `left: 0.15` and `right: 0.9` concentrate activity between 03:36 and 21:36, tapering sharply outside that window. `ratio: 2000` sets about 2,000 logon-family events per day before the randomizer's ±25% variance is applied.
+
+### The event templates
+
+[`mode: chance`](/docs/plugins/event/template/modes#chance) picks one template per timestamp with weighted probability — a higher `chance` value makes a template more frequent. Logon success and logon failure share a small inline [sample](/docs/plugins/event/template/samples) of usernames and a `domain` parameter:
+
+```jinja title="generators/winlog/templates/logon-success.jinja"
+{%- set username = samples.usernames | random -%}
+{%- set src_ip = module.rand.network.ip_v4_private_c() -%}
+{%- set logon = module.rand.weighted_choice([["Network", "3"], ["Service", "5"], ["RemoteInteractive", "10"], ["Interactive", "2"]], [55, 20, 8, 5]) -%}
+{%- set record_id = shared.get('record_id', 1) -%}
+{
+  "@timestamp": "{{ timestamp.isoformat() }}",
+  "event": { "code": "4624", "action": "logged-in", "outcome": "success" },
+  "user": { "name": "{{ username }}", "domain": "{{ params.domain }}" },
+  "source": { "ip": "{{ src_ip }}" },
+  "winlog": {
+    "channel": "Security",
+    "provider_name": "Microsoft-Windows-Security-Auditing",
+    "event_id": "4624",
+    "record_id": "{{ record_id }}",
+    "logon": { "type": "{{ logon[0] }}" },
+    "event_data": {
+      "TargetUserName": "{{ username }}",
+      "TargetDomainName": "{{ params.domain }}",
+      "LogonType": "{{ logon[1] }}",
+      "IpAddress": "{{ src_ip }}"
+    }
+  }
+}
+{%- do shared.set('record_id', record_id + 1) -%}
+```
+
+Logon failure follows the same shape, using the `Status` field Windows itself sets on failed attempts — `0xC000006A` (bad password) and `0xC0000064` (bad username) account for most real-world failures, and `0xC0000072` (account disabled) covers the remainder:
+
+```jinja title="generators/winlog/templates/logon-failure.jinja"
+{%- set username = samples.usernames | random -%}
+{%- set src_ip = module.rand.network.ip_v4_public() -%}
+{%- set status = module.rand.weighted_choice(["0xC000006A", "0xC0000064", "0xC0000072"], [70, 20, 10]) -%}
+{%- set record_id = shared.get('record_id', 1) -%}
+{
+  "@timestamp": "{{ timestamp.isoformat() }}",
+  "event": { "code": "4625", "action": "logon-failed", "outcome": "failure" },
+  "user": { "name": "{{ username }}", "domain": "{{ params.domain }}" },
+  "source": { "ip": "{{ src_ip }}" },
+  "winlog": {
+    "channel": "Security",
+    "provider_name": "Microsoft-Windows-Security-Auditing",
+    "event_id": "4625",
+    "record_id": "{{ record_id }}",
+    "event_data": {
+      "TargetUserName": "{{ username }}",
+      "TargetDomainName": "{{ params.domain }}",
+      "Status": "{{ status }}",
+      "IpAddress": "{{ src_ip }}"
+    }
+  }
+}
+{%- do shared.set('record_id', record_id + 1) -%}
+```
+
+### The generator config
+
+Wiring the pieces together: the pattern feeds [`time_patterns`](/docs/plugins/input/time-patterns), the two templates are weighted the same 3:1 ratio the Hub's own `windows-security` generator uses, and events are appended to a [file](/docs/plugins/output/file) as they are produced:
+
+```yaml title="generators/winlog/generator.yml"
+input:
+  - time_patterns:
+      patterns:
+        - patterns/business-hours.yml
+
+event:
+  template:
+    mode: chance
+    params:
+      domain: CONTOSO
+    samples:
+      usernames:
+        type: items
+        source: [jsmith, ajohnson, mwilliams, kbrown, tpatel]
+    templates:
+      - logon_success:
+          template: templates/logon-success.jinja
+          chance: 150
+      - logon_failure:
+          template: templates/logon-failure.jinja
+          chance: 50
+
+output:
+  - file:
+      path: output/security.jsonl
+      formatter:
+        format: json
+```
+
+<Callout type="info">
+To inspect events without writing to disk, replace the `file` output with [`stdout: {}`](/docs/plugins/output/stdout).
+</Callout>
+
+For a constant rate instead of a daily curve, a [cron](/docs/plugins/input/cron) input is simpler — it is what the Hub's own generators use. To emit Sysmon telemetry instead of Security events, keep the same input and output and swap in Sysmon-shaped templates: set `winlog.channel` to `Microsoft-Windows-Sysmon/Operational`, use Sysmon's own EventIDs, and add a `ProcessGuid` to correlate related events. The [Eventum Hub](/hub) ships both as ready-made, production-tuned generators: [windows-security](/hub/windows-security) covers 12 correlated event types across a 120-host Active Directory fleet, and [windows-sysmon](/hub/windows-sysmon) covers 15 Sysmon event types with process-lifecycle correlation across the same fleet.
+
+## The result
+
+Running the generator above produces one JSON object per event, with the fields that matter for detection and correlation preserved from the original schema:
+
+```json
+{
+  "@timestamp": "2026-03-04T09:41:07.203112+00:00",
+  "event": { "code": "4624", "action": "logged-in", "outcome": "success" },
+  "user": { "name": "ajohnson", "domain": "CONTOSO" },
+  "source": { "ip": "192.168.14.203" },
+  "winlog": {
+    "channel": "Security",
+    "provider_name": "Microsoft-Windows-Security-Auditing",
+    "event_id": "4624",
+    "record_id": "482",
+    "logon": { "type": "Network" },
+    "event_data": {
+      "TargetUserName": "ajohnson",
+      "TargetDomainName": "CONTOSO",
+      "LogonType": "3",
+      "IpAddress": "192.168.14.203"
+    }
+  }
+}
+```
+
+`winlog.event_id` (mirrored in `event.code`) carries the EventID, `@timestamp` is the rendered TimeCreated, `winlog.provider_name` is the Provider, and `winlog.event_data` holds the same Data Name/value pairs — `TargetUserName`, `LogonType`, `IpAddress` — that the real EventData block would carry.
+
+## FAQ
+
+<Accordions>
+<Accordion title="Do I need a Windows host?">
+No. The templates produce the same fields a Windows host would log, using ordinary sample data and randomization. Nothing here calls a Windows API or requires Sysmon, Active Directory, or a Windows machine of any kind — Eventum runs the same way on Linux, macOS, or in a container.
+</Accordion>
+<Accordion title="EVTX binary vs XML/JSON?">
+EVTX is the binary container Windows actually writes to `C:\Windows\System32\winevt\Logs` — event records encoded as binary XML and grouped into 64 KB chunks alongside the XML templates they reference, not human-readable text. The XML shown in Event Viewer, in Microsoft's own event documentation, and in the example above is a rendering of that binary data, not the storage format itself. Most non-Windows destinations — SIEMs, Elastic Agent, Eventum — skip the binary layer entirely and work with the rendered fields as JSON, which is what the templates above produce directly; no EVTX file is created or parsed at any point.
+</Accordion>
+<Accordion title="How do I feed this into a SIEM?">
+Point the output plugin at your SIEM's ingestion path instead of a file: [opensearch](/docs/plugins/output/opensearch) or [http](/docs/plugins/output/http) for Elastic or OpenSearch, [kafka](/docs/plugins/output/kafka) for a streaming pipeline, [tcp](/docs/plugins/output/tcp) or [udp](/docs/plugins/output/udp) for a syslog-style collector. The input, templates, and sample data stay the same — only the `output` block changes. For a complete, stateful build that indexes correlated Windows Security sessions into OpenSearch, see the [SIEM scenario track](/docs/tutorials/scenarios).
+</Accordion>
+</Accordions>
+
+## Related
+
+- The full [formats field guide](/docs/tutorials/formats) covering CEF, LEEF, and syslog
+- The [SIEM scenario track](/docs/tutorials/scenarios) for a complete detection-testing pipeline
+- The [Windows Security Event Log generator](/hub/windows-security) in the Eventum Hub
