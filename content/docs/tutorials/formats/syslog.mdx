@@ -52,7 +52,7 @@ Facilities 4 and 10, and 9 and 15, share the same description in the specificati
 
 A failed SSH login is worth flagging but nowhere near an emergency: facility `4` (security/authorization messages) and severity `4` (Warning) give `PRI = 4 * 8 + 4 = 36`, written `<36>`. Both examples below reuse this exact combination.
 
-RFC 3164 documents what's commonly called BSD syslog: the format nearly every router, firewall, and long-lived Unix daemon still emits by default. A message has three parts — PRI, then a HEADER carrying just a timestamp and a hostname, then a MSG that carries everything else as free text:
+RFC 3164 documents what's commonly called BSD syslog: the format nearly every router, firewall, and long-lived Unix daemon still emits by default. A message has three parts — PRI, then a HEADER carrying just a timestamp and a hostname, then a MSG that carries everything else as free text, conventionally shaped as a TAG followed by CONTENT:
 
 ```text
 <PRI>Mmm dd hh:mm:ss HOSTNAME TAG: CONTENT
