@@ -1,0 +1,176 @@
+---
+title: "Simulate traffic patterns: peaks, bursts, and quiet periods"
+description: How to simulate traffic patterns that rise and fall in a recurring rhythm, spike around a specific trigger, and stay quiet the rest of the time — using Eventum's time-pattern input instead of a flat cron or timer schedule.
+---
+
+A generator wired to a [cron](/docs/plugins/input/cron) expression or a [timer](/docs/plugins/input/timer) interval produces exactly the same number of events every tick, for as long as it runs. That flat rate is enough to check that a pipeline moves data from one end to the other, but it is also the easiest kind of synthetic stream to spot: a load test built on it never has to absorb a real peak, and a detection rule tuned against it never sees a baseline it can deviate from, because every window of the stream looks exactly like the last one.
+
+Eventum's [time_patterns](/docs/plugins/input/time-patterns) input plugin replaces that flat tick with a distribution: a repeating window, a baseline volume for that window, and a statistical shape that decides where inside the window each timestamp lands. The same mechanism builds a rhythm that rises and falls through a cycle and, layered a second time, a short and sharp spike on top of it — two techniques for the same goal: simulating traffic patterns instead of a flat, mechanical tick.
+
+## Why real traffic isn't flat
+
+Production traffic follows the rhythm of whoever or whatever drives it. A consumer-facing API rises through business hours and falls back overnight; a batch pipeline sits quiet all day and then bursts the moment a scheduled job starts; a marketing email or an incident can push a spike through a system at a moment that has nothing to do with the time of day. None of this is noise to average away — it is the shape of the thing being tested.
+
+That shape matters for two different reasons, depending on what the generated data stands in for. A load or capacity test exists to find out whether infrastructure survives the worst few minutes of a day, not the average minute — autoscalers, connection pools, and queues are only meaningfully exercised by an actual swing from quiet to busy, not by a rate that never changes. A detection rule or an anomaly score, on the other hand, is usually calibrated against a baseline it expects to deviate from — a flat stream gives it nothing to calibrate against, so either nothing ever looks anomalous or every small random fluctuation does, and neither result says anything real about the rule.
+
+The same rhythm often repeats on a longer cycle too, since a weekday's traffic rarely matches a weekend's, though the techniques below focus on the daily cycle most systems feel first.
+
+## Simulate a diurnal pattern
+
+[time_patterns](/docs/plugins/input/time-patterns) builds a distribution from four stages, each configured in a pattern file separate from the generator itself: an oscillator divides time into a repeating window, a multiplier sets a baseline number of timestamps per window, a randomizer adds variance so no two windows produce exactly the same count, and a spreader places each window's timestamps inside it according to a statistical distribution.
+
+<Mermaid chart={`graph LR
+    A["Oscillator<br/>repeating window"] --> B["Multiplier<br/>baseline count per window"]
+    B --> C["Randomizer<br/>± variance per window"]
+    C --> D["Spreader<br/>places timestamps inside the window"]`} />
+
+A beta spreader with equal shape parameters concentrates timestamps around the middle of the window and thins them out toward both edges — a symmetric bell centered on the window, which is exactly the shape a business-hours peak traces across a day. The pattern file below models a day-long window this way: a baseline of 2,400 requests, up to 15% more or less from one day to the next, clustered toward the middle of each day and quiet at the edges.
+
+```yaml title="generators/api-traffic/patterns/daily-traffic.yml"
+label: daily-traffic
+oscillator:
+  start: "now"
+  end: "+3d"
+  period: 1
+  unit: days
+multiplier:
+  ratio: 2400
+randomizer:
+  deviation: 0.15
+  direction: mixed
+spreader:
+  distribution: beta
+  parameters:
+    a: 4
+    b: 4
+```
+
+- **oscillator** — a one-day window, repeated for three days from the moment the generator starts.
+- **multiplier** — 2,400 requests as the baseline count for each day.
+- **randomizer** — up to ±15% variance, so no two days produce an identical total.
+- **spreader** — a beta distribution with equal shape parameters (`a: 4`, `b: 4`), a symmetric bell that peaks at the middle of each day and tapers off at both edges.
+
+That is how to simulate peak traffic without discarding the quiet hours around it — one distribution produces both from a single configuration.
+
+## Layer a bursty traffic spike on top
+
+A single pattern file models one rhythm. `time_patterns` accepts more than one, and merges every pattern's timestamps into the same chronological stream — which is how a short, high-volume trigger sits on top of the daily rhythm above instead of replacing it. The pattern file below adds a ten-minute spike unrelated to the time of day, the kind a marketing blast or a scheduled batch job produces:
+
+```yaml title="generators/api-traffic/patterns/traffic-spike.yml"
+label: traffic-spike
+oscillator:
+  start: "+1d3h"
+  end: "+10m"
+  period: 10
+  unit: minutes
+multiplier:
+  ratio: 900
+randomizer:
+  deviation: 0.0
+  direction: mixed
+spreader:
+  distribution: uniform
+  parameters:
+    low: 0.0
+    high: 1.0
+```
+
+`start` places the spike a day and three hours into the run, inside the quiet overnight stretch of the second day's cycle — one of the hours where the daily pattern alone produces its lowest counts. `end` is relative to this pattern's own `start`, not to the current time, so `+10m` is always a ten-minute window regardless of when the generator actually starts — see [date ranges and versatile datetime](/docs/core/concepts/scheduling#date-ranges-and-versatile-datetime) for how every relative expression resolves. A uniform spreader with no randomizer deviation packs exactly 900 requests evenly across those ten minutes, with no bell shape softening the edges — a spike is meant to look abrupt.
+
+### The generator config
+
+Both pattern files feed the same `time_patterns` input; a [template](/docs/plugins/event/template) renders each timestamp as one API request line using [module.rand](/docs/plugins/event/template/modules), and a [file](/docs/plugins/output/file) output writes the result through the `json` formatter:
+
+```jinja title="generators/api-traffic/templates/request.jinja"
+{%- set path = module.rand.choice(["/api/v1/products", "/api/v1/cart", "/api/v1/checkout", "/api/v1/search"]) -%}
+{%- set status = module.rand.weighted_choice({200: 92, 404: 5, 500: 3}) -%}
+{"timestamp": "{{ timestamp.isoformat() }}", "path": "{{ path }}", "status": {{ status }}}
+```
+
+```yaml title="generators/api-traffic/generator.yml"
+input:
+  - time_patterns:
+      patterns:
+        - patterns/daily-traffic.yml
+        - patterns/traffic-spike.yml
+
+event:
+  template:
+    mode: all
+    templates:
+      - request:
+          template: templates/request.jinja
+
+output:
+  - file:
+      path: output/events.jsonl
+      write_mode: overwrite
+      formatter:
+        format: json
+```
+
+<Callout type="info">
+Sample mode (`--live-mode false`) generates all three simulated days at once for inspection, which is how the result below was produced. A generator left running normally uses [live mode](/docs/core/concepts/generator#live-mode-default) instead, pacing the same distribution against the real clock, with the oscillator's `end` set to `never` rather than `+3d` to keep repeating the daily cycle indefinitely.
+</Callout>
+
+## The result
+
+Running the generator above for three simulated days produced 7,346 requests in total — 2,138 on Day 1, 3,103 on Day 2, and 2,105 on Day 3. Counting how many land in each three-hour slice of each day shows the shape the configuration describes rather than just asserts it:
+
+| Hours into the day | Day 1 | Day 2 | Day 3 |
+|---|---|---|---|
+| 0-3 | 16 | 12 | 12 |
+| 3-6 | 142 | 1,045 | 128 |
+| 6-9 | 356 | 381 | 360 |
+| 9-12 | 521 | 513 | 533 |
+| 12-15 | 556 | 575 | 560 |
+| 15-18 | 389 | 402 | 385 |
+| 18-21 | 137 | 160 | 116 |
+| 21-24 | 21 | 15 | 11 |
+
+Day 1 and Day 3 carry the daily pattern alone: quiet in the first and last few hours of the cycle, rising through the following slices, peaking around the middle of the day, and falling back — the same shape twice, from two independent draws of the same configuration. Day 2 repeats that shape in every slice except one: the 3-to-6-hour slice jumps to 1,045, seven to eight times its counterpart on the other two days, because the ten-minute burst window falls inside exactly that slice.
+
+Zooming into that ten-minute window itself, 903 of the slice's 1,045 requests land inside it — 900 from the burst pattern, plus a handful the daily pattern would have produced there on its own. Three consecutive lines from the quiet edge of Day 1, minutes apart:
+
+```json title="Quiet edge of Day 1 — output/events.jsonl"
+{"timestamp": "2026-07-11T20:58:01.041093+00:00", "path": "/api/v1/search", "status": 200}
+{"timestamp": "2026-07-11T21:04:36.927569+00:00", "path": "/api/v1/search", "status": 200}
+{"timestamp": "2026-07-11T21:10:03.832763+00:00", "path": "/api/v1/cart", "status": 200}
+```
+
+Three consecutive lines from inside the Day 2 burst, a second or a fraction of a second apart:
+
+```json title="Inside the Day 2 burst — output/events.jsonl"
+{"timestamp": "2026-07-12T22:25:21.399336+00:00", "path": "/api/v1/products", "status": 200}
+{"timestamp": "2026-07-12T22:25:22.440915+00:00", "path": "/api/v1/products", "status": 200}
+{"timestamp": "2026-07-12T22:25:22.591498+00:00", "path": "/api/v1/cart", "status": 200}
+```
+
+## FAQ
+
+<Accordions>
+<Accordion title="Can time_patterns run alongside cron or timer in the same generator?">
+Yes. A generator accepts any number of input plugins, and their timestamps are merged into a single chronological stream before reaching the event stage — a steady [cron](/docs/plugins/input/cron) baseline and a `time_patterns` layer can run side by side exactly as the two pattern files above do. See [combining multiple inputs](/docs/core/concepts/scheduling#combining-multiple-inputs) for how the merge works.
+</Accordion>
+<Accordion title="Does this run in live mode as well as sample mode?">
+Yes, and [live mode](/docs/core/concepts/generator#live-mode-default) is the more common setting for `time_patterns` in practice: the generator paces each timestamp against the real clock instead of releasing all of them at once, which is what turns the distribution above into an ongoing traffic shape rather than a one-time file. [Sample mode](/docs/core/concepts/generator#sample-mode), used to produce the result above, is the faster way to inspect a pattern's shape before leaving it running.
+</Accordion>
+<Accordion title="How do I make a pattern repeat indefinitely instead of stopping after a fixed number of days?">
+Set the oscillator's `end` to `never` instead of a bounded value such as `+3d`. Reserve that setting for live mode: sample mode ignores wall-clock pacing entirely, so an unbounded pattern there tries to produce its whole infinite range at once instead of spreading it out over real time.
+</Accordion>
+<Accordion title="How do I add a weekday-versus-weekend rhythm on top of the daily one?">
+A single pattern file applies the same oscillator, multiplier, and spreader to every window in its range, so one file cannot make Saturday quieter than Wednesday on its own. Layer a second pattern file scoped to the weekend dates with a lower `multiplier.ratio`, the same way the burst pattern above layers on top of the daily one — every pattern feeding the same `time_patterns` input merges into one stream regardless of how many there are.
+</Accordion>
+<Accordion title="Which spreader distribution should I use?">
+`uniform` spreads timestamps flat across the window, useful for a burst with no shape of its own, as above. `triangular` gives a single peak at a chosen point with straight, adjustable slopes on either side. `beta` is the most flexible: equal `a` and `b` values center a symmetric bell like the daily pattern above, while unequal values skew it earlier or later in the window. See the [time_patterns reference](/docs/plugins/input/time-patterns#spreader) for every parameter.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [Realism](/docs/tutorials/realism) pillar for the other two axes that make synthetic data behave like production traffic
+- The [Modeling sessions](/docs/tutorials/realism/sessions) lesson for turning these timestamps into a connected sequence of actions instead of independent events
+- The [Realistic values](/docs/tutorials/realism/values) lesson for shaping what each event contains, not just when it happens
+- The [Stream synthetic data to your stack](/docs/tutorials/delivery) pillar for what a realistic arrival rate means for the backend receiving it
+- The [time_patterns](/docs/plugins/input/time-patterns) reference for every oscillator, multiplier, randomizer, and spreader parameter
+- Ready-made generators in the [Eventum Hub](/hub) — every one currently ticks on a flat `cron` schedule, each a candidate for the same `time_patterns` treatment shown here
