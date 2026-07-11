@@ -1,0 +1,138 @@
+---
+title: "Structured logging: from plain text to JSON, and how to generate it"
+description: How structured logging differs from plain-text logs, the key-value and JSON conventions it uses, and how to generate structured JSON events with Eventum.
+---
+
+A service that logs a single sentence per event is simple to write and easy to read on a terminal, until someone has to answer a real question with that log: how many payment failures affected a specific customer in the last hour, or which requests exceeded a set duration. Answering that from a sentence means writing a pattern that matches its exact wording, and that pattern breaks the moment the sentence is reworded, a field moves, or a new one is added, because the only contract between the writer and the reader is prose, and nothing enforces it.
+
+Structured logging replaces that contract with one a program can rely on: each piece of data is emitted as its own named field, in a consistent shape, instead of folded into a sentence. Eventum generates events this way directly from a template — every field rendered on its own — and its JSON formatter validates the result before delivery, so a parser, a search query, or a detection rule can be exercised against realistic structured data without a live service producing it.
+
+## Structured logging vs plain text
+
+Plain-text logging composes a human-readable sentence and interpolates the event's data directly into it. The line below and the structured event after it carry the same information — the same order, the same customer, the same failure reason:
+
+```text
+2026-07-11 17:44:01 ERROR order 39402 failed for user bob: payment declined
+```
+
+```json
+{"timestamp": "2026-07-11T17:44:01+00:00", "level": "ERROR", "service": "orders", "message": "order failed", "order_id": 39402, "user": "bob", "reason": "payment declined"}
+```
+
+Reading the order ID back out of the first line means matching digits that happen to follow the word "order" — a pattern tied to that exact sentence. Reading it out of the second means reading the `order_id` field directly, regardless of where other data sits in the line or how the message text happens to be worded. That difference is the entire point of structured logging: a field sits at the same name every time, so software queries it directly instead of reverse-engineering it from a sentence written for a person to read.
+
+## Structured logging formats: key-value and JSON
+
+A key-value line keeps the flat, single-line feel of plain text but separates each piece of data into its own `key=value` pair. JSON goes further and nests and types the data as a real object instead of flat text, so a number stays a number and a list stays a list rather than everything being a string that happens to look like one:
+
+| Shape | Example | Typical use |
+|-------|---------|-------------|
+| Plain text | `order 39402 failed for user bob: payment declined` | Read by a person; matched by a pattern tuned to this exact wording |
+| Key-value | `level=ERROR order_id=39402 user=bob reason="payment declined"` | Application logs read by tools that split on whitespace and `=` |
+| JSON | `{"level":"ERROR","order_id":39402,"user":"bob","reason":"payment declined"}` | Log shippers, search backends, and SIEMs that parse a JSON object natively |
+
+Fixing the shape of a log line does not fix what each field is called: two structured loggers can both emit JSON and still name the same piece of data differently — `user`, `username`, `actor.name` — so a query written against one does not match the other. A schema convention closes that gap by standardizing field names across every source that adopts it, so one query or detection rule matches all of them. [ECS](/docs/tutorials/formats/ecs) and OCSF are the two most widely adopted schemas built this way: structured logging is the mechanism, a schema is the shared vocabulary layered on top of it.
+
+<Mermaid chart={`graph LR
+    A["Plain text<br/>one sentence per event"] --> B["Structured<br/>named fields (key-value or JSON)"]
+    B --> C["Structured + schema<br/>shared field names (ECS, OCSF)"]`} />
+
+## Structured logging best practices
+
+A structured log is only as useful as the discipline behind it:
+
+- **Pick one format per service, and default to JSON** — most log shippers, search backends, and SIEMs already parse it, so nothing extra needs configuring downstream.
+- **Keep a field's name and type stable** — a field that is a string in one event and a number in the next breaks any query or detection rule written against it.
+- **Keep variable data out of the message text** — a `message` field should read the same regardless of which order or customer triggered the event; the order ID, the customer, and the failure reason belong in their own fields.
+- **Attach the fields that make one event usable on its own** — a timestamp, a severity level, and whatever identifies the source, such as a service name or host.
+- **Adopt a field-naming schema, such as ECS or OCSF, instead of inventing names per service** — the payoff is a query or detection rule that already works across every source that follows the same schema.
+
+## Generate structured logs with Eventum
+
+The generator below simulates an order-processing service logging both outcomes as structured JSON: a common success case and a rarer failure, rendered from two separate templates, each carrying only the fields its event needs.
+
+### The templates
+
+Fields are filled with [module.rand](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module. `templates/order-processed.jinja` renders the common case, level `INFO`:
+
+```jinja title="generators/orders-service/templates/order-processed.jinja"
+{%- set order_id = module.rand.number.integer(10000, 99999) -%}
+{%- set user = module.rand.choice(["alice", "bob", "carol", "dave"]) -%}
+{%- set duration_ms = module.rand.number.integer(80, 400) -%}
+{"timestamp": "{{ timestamp.isoformat() }}", "level": "INFO", "service": "orders", "message": "order processed", "order_id": {{ order_id }}, "user": "{{ user }}", "duration_ms": {{ duration_ms }}}
+```
+
+`templates/order-failed.jinja` renders the rarer failure, level `ERROR`, with a `reason` field in place of `duration_ms` — a failure and a success do not describe themselves with the same data, so each template only carries the fields it needs:
+
+```jinja title="generators/orders-service/templates/order-failed.jinja"
+{%- set order_id = module.rand.number.integer(10000, 99999) -%}
+{%- set user = module.rand.choice(["alice", "bob", "carol", "dave"]) -%}
+{%- set reason = module.rand.choice(["payment declined", "inventory unavailable", "address validation failed"]) -%}
+{"timestamp": "{{ timestamp.isoformat() }}", "level": "ERROR", "service": "orders", "message": "order failed", "order_id": {{ order_id }}, "user": "{{ user }}", "reason": "{{ reason }}"}
+```
+
+### The generator config
+
+[mode: chance](/docs/plugins/event/template/modes#chance) picks one of the two templates per timestamp, weighted so successes dominate and failures stay rare. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [file](/docs/plugins/output/file) output writes each rendered event to a local file through the [json](/docs/plugins/formatters#json) formatter, which validates every line as JSON before it is written:
+
+```yaml title="generators/orders-service/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: chance
+    templates:
+      - order_processed:
+          template: templates/order-processed.jinja
+          chance: 90
+      - order_failed:
+          template: templates/order-failed.jinja
+          chance: 10
+
+output:
+  - file:
+      path: output/events.jsonl
+      formatter:
+        format: json
+```
+
+<Callout type="info">
+To deliver these events to a real backend instead of a local file, replace `file` with [opensearch](/docs/plugins/output/opensearch) or [kafka](/docs/plugins/output/kafka) and keep the same `json` formatter.
+</Callout>
+
+## The result
+
+Running the generator above produces one structured event per second, mostly `order_processed` and, at the configured 10% chance, an occasional `order_failed` — three consecutive lines from an actual run:
+
+```json title="output/events.jsonl"
+{"timestamp": "2026-07-11T17:44:00+00:00", "level": "INFO", "service": "orders", "message": "order processed", "order_id": 74824, "user": "carol", "duration_ms": 205}
+{"timestamp": "2026-07-11T17:44:01+00:00", "level": "ERROR", "service": "orders", "message": "order failed", "order_id": 39402, "user": "bob", "reason": "payment declined"}
+{"timestamp": "2026-07-11T17:44:02+00:00", "level": "INFO", "service": "orders", "message": "order processed", "order_id": 91759, "user": "dave", "duration_ms": 148}
+```
+
+Every line is a complete, independently valid JSON object — the `json` formatter checked each one before writing it, so a malformed line would have been dropped rather than corrupt the file. Filtering this file for `"level":"ERROR"` or `"user":"bob"` is a direct field match, the same query a search backend or a detection rule runs once the data is ingested, with no pattern tuned to a particular sentence's wording required.
+
+## FAQ
+
+<Accordions>
+<Accordion title="Is JSON structured logging?">
+JSON is one common structured logging format, not the only one. What makes logging "structured" is that each piece of data is its own named field rather than text folded into a sentence; JSON expresses that as a nested, typed object, and a key-value line (`level=ERROR order_id=39402 user=bob`) expresses the same idea as flat text. JSON is the more common choice today because most log shippers, search backends, and SIEMs parse a JSON object directly, without a separate line grammar configured for it first.
+</Accordion>
+<Accordion title="What's the difference between structured and unstructured logging?">
+Unstructured (plain-text) logging composes a sentence and interpolates variable data into it, so reading that data back means matching the sentence's exact wording. Structured logging emits the same data as named fields in a consistent shape, so a program reads a field by name regardless of anything else in the line. The two can carry identical information — what changes is whether a machine queries it directly or has to reverse-engineer it from prose.
+</Accordion>
+<Accordion title="Do I need a schema like ECS to have structured logs?">
+No. Structured logging only requires a consistent shape, such as JSON — a service that logs `{"level": "ERROR", "order_id": 39402}` is already structured. A schema such as ECS or OCSF adds a second layer on top: a shared set of field names, so events from different sources use the same name for the same kind of data. That layer matters once more than one source needs to be queried the same way.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [Foundations](/docs/tutorials/foundations) pillar for the broader path from synthetic event data to a working pipeline
+- The [ECS](/docs/tutorials/formats/ecs) lesson for a schema built on top of structured logging that standardizes field names across sources
+- The [log and event formats field guide](/docs/tutorials/formats) for the formats structured events are wrapped in on the wire
+- The [template](/docs/plugins/event/template) event plugin and [formatters](/docs/plugins/formatters) reference for every field and format used above
+- Ready-made generators that already emit structured JSON events in the [Eventum Hub](/hub)
