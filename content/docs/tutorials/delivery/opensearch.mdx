@@ -56,11 +56,11 @@ Each event is one HTTP request: a method and path, a status code weighted toward
 }
 ```
 
-`@timestamp` is the field OpenSearch Dashboards looks for by default when it suggests a time field for a new index pattern, so keeping that name avoids a manual remap later.
+`@timestamp` is the field name OpenSearch Dashboards expects for the time field when creating an index pattern, so keeping it avoids remapping the field later.
 
 ### The generator config
 
-A [cron](/docs/plugins/input/cron) input ticks once a second and emits four timestamps per tick, so the single `access_log` template renders four events per batch — enough for one bulk request to carry more than one document at a time. The [opensearch](/docs/plugins/output/opensearch) output indexes them:
+A [cron](/docs/plugins/input/cron) input ticks once a second and emits four timestamps per tick, so the single `access_log` template renders four events every second. The [opensearch](/docs/plugins/output/opensearch) output indexes them:
 
 ```yaml title="generators/web-logs/generator.yml"
 input:
@@ -112,7 +112,7 @@ If the secret is missing from the keyring, Eventum reports it and refuses to sta
 
 ## The result
 
-Running the generator above produces a steady stream of bulk requests, four documents each, matching the four events emitted by every cron tick. Two events from an actual run, before indexing:
+Running the generator above sends a steady stream of bulk requests to the cluster — Eventum groups events into batches before handing them to output plugins, so a single request typically carries more than one document. Two events from an actual run, before indexing:
 
 ```json
 {"@timestamp": "2026-07-11T14:29:42+00:00", "client_ip": "200.227.2.140", "method": "GET", "path": "/products/wireless-mouse", "status": 200, "bytes_sent": 16482, "response_time_ms": 100, "user_agent": "Mozilla/5.0 (Windows NT 4.0) AppleWebKit/531.1 (KHTML, like Gecko) Chrome/19.0.817.0 Safari/531.1", "referrer": "-"}
@@ -148,7 +148,7 @@ The operation line carries no `_id`, so OpenSearch assigns one. Fetching that do
 }
 ```
 
-`_source` is exactly the document the template rendered. OpenSearch stores it unchanged and layers `_index`, the assigned `_id`, and a `_version` around it for retrieval — the same three fields any client gets back from a search hit against `web-access-logs`.
+`_source` is exactly the document the template rendered. OpenSearch stores it unchanged and layers `_index`, the assigned `_id`, and a `_version` around it whenever a client fetches that document back directly.
 
 ## FAQ
 
