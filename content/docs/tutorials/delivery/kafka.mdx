@@ -3,7 +3,7 @@ title: Generate test data for Kafka
 description: Produce a continuous, realistic stream of test data to a Kafka topic — a modeled arrival rate, a stable message key, and any format, not a fixed demo schema.
 ---
 
-A consumer, a stream-processing job, and a dashboard tracking consumer lag all need the same raw material: messages actually landing on a topic, at a pace that behaves like production traffic instead of a burst or a trickle. Wiring up a real producer just to get there is disproportionate for a test, and pointing a consumer at a mirror of the production topic carries every customer record and payment detail production carries into an environment built for testing, not for holding it. Searching for a shortcut mostly turns up a demo connector that replays a handful of canned Avro records at a fixed interval, indefinitely, or a short script publishing some JSON in a loop — useful for one message, silent on a rate that looks like anything real.
+A consumer, a stream-processing job, and a dashboard tracking consumer lag all need the same raw material: messages actually landing on a topic, at a pace that behaves like production traffic instead of a burst or a trickle. Wiring up a real producer just to get there is disproportionate for a test, and pointing a consumer at a mirror of the production topic means carrying every customer record and payment detail it holds into an environment built for testing, not for holding it. Searching for a shortcut mostly turns up a demo connector that replays a handful of canned Avro records at a fixed interval, indefinitely, or a short script publishing some JSON in a loop — useful for one message, silent on a rate that looks like anything real.
 
 Eventum closes that gap with a native `kafka` output plugin: point it at a broker, describe a message in a template, and it produces every generated event to the topic as it's created — continuously, in whatever format the template renders, at a rate shaped to look like real traffic rather than a metronome.
 
@@ -11,7 +11,7 @@ Eventum closes that gap with a native `kafka` output plugin: point it at a broke
 
 A Kafka **topic** is a named, append-only log — the category a producer publishes to and a consumer subscribes to, conceptually similar to a queue that several readers can replay independently. A topic is split into one or more **partitions**, each an ordered, immutable sequence of messages. Partitions are what let a topic scale, since different partitions can sit on different brokers and be written or read in parallel, and what let a consumer group parallelize reads, since each partition is owned by exactly one consumer in the group at a time.
 
-Every message can carry a **key**. The producer hashes the key to pick a partition deterministically, so messages sharing a key always land on the same partition and keep their relative order there — the mechanism behind per-entity ordering guarantees, such as every update for one order arriving in the sequence it was produced. A message with no key is spread across partitions to balance load, with no ordering guarantee across the topic as a whole.
+Every message can carry a **key**. The producer hashes the key to pick a partition deterministically, so messages sharing a key always land on the same partition and keep their relative order there — the mechanism behind per-entity ordering guarantees, such as every update for one order arriving on the consumer side in the sequence it was produced. A message with no key is spread across partitions to balance load, with no ordering guarantee across the topic as a whole.
 
 The **message value** is the payload itself, and Kafka treats it as an opaque byte string — JSON, Avro, Protobuf, CSV, or plain text are all valid, and nothing about the broker enforces one over another. The format is an agreement between producer and consumer; Eventum's [formatter](/docs/plugins/formatters) is what decides it on the producing side.
 
@@ -74,7 +74,7 @@ spreader:
     b: 5
 ```
 
-This window covers one day of traffic; set `end` to `"never"` instead to repeat the same hourly shape indefinitely for a generator meant to run continuously. Keep that to live mode — sample mode ignores wall-clock pacing entirely, so an unbounded pattern there tries to produce its whole infinite range at once instead of spreading it out over real time.
+This window covers one day of traffic; set `end` to `"never"` instead to repeat the same hourly shape indefinitely for a generator meant to run continuously. Reserve that setting for live mode: sample mode ignores wall-clock pacing entirely, so an unbounded pattern there tries to produce its whole infinite range at once instead of spreading it out over real time.
 
 ### The generator config
 
@@ -133,7 +133,7 @@ Because every message from this generator carries that same key, all of them has
 <Accordion title="How is this different from Kafka Connect Datagen?">
 [Kafka Connect Datagen](https://github.com/confluentinc/kafka-connect-datagen) is what most searches for Kafka test data turn up first: a Kafka Connect source connector that replays one of a handful of bundled, Avro-defined schemas — orders, users, pageviews, and a few others — at a fixed interval into a Kafka topic, for as long as the connector keeps running. It needs a Kafka Connect worker, and for Avro, a schema registry, running alongside the broker.
 
-Eventum is a single process, not a connector. The order rate above comes from time-patterns — an oscillator, multiplier, randomizer, and spreader — so the topic carries something that rises and falls like real traffic instead of one fixed gap between messages, forever. The message is whatever a Jinja2 template renders, in whatever format the formatter is set to, not a fixed schema. And the same generated stream can reach Kafka alongside OpenSearch, ClickHouse, a file, or an HTTP endpoint in the same run, which a Kafka-only connector cannot do.
+Eventum is a single process, not a connector. The order rate above comes from time-patterns — an oscillator, multiplier, randomizer, and spreader — so the topic carries something that rises and falls like real traffic instead of one fixed gap between messages repeating forever. The message is whatever a Jinja2 template renders, in whatever format the formatter is set to, not a fixed schema. And the same generated stream can reach Kafka alongside OpenSearch, ClickHouse, a file, or an HTTP endpoint in the same run, which a Kafka-only connector cannot do.
 </Accordion>
 <Accordion title="SASL / SSL?">
 The `kafka` output supports it directly. `security_protocol` selects `SSL`, `SASL_PLAINTEXT`, or `SASL_SSL` in place of the default `PLAINTEXT`; `sasl_mechanism` (`PLAIN`, `SCRAM-SHA-256`, or `SCRAM-SHA-512`) together with `sasl_plain_username` and `sasl_plain_password` cover SASL, and `ssl_cafile`, `ssl_certfile`, and `ssl_keyfile` cover TLS, including mutual TLS once a client certificate and key are both set. Keep the password in the keyring rather than in the config:
