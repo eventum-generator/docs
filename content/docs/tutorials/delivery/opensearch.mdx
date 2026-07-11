@@ -1,0 +1,172 @@
+---
+title: Generating logs for OpenSearch
+description: Generate a realistic log stream and index it into OpenSearch over the bulk API, authenticated with encrypted secrets — no real traffic or production data required.
+---
+
+A dashboard, a detection rule, or an ingestion benchmark all need the same raw material: a realistic stream of log documents already sitting in an OpenSearch index. Waiting for production traffic to accumulate takes time most projects don't have, and copying real logs into a test cluster means carrying whatever they contain — IP addresses, session tokens, request bodies — into an environment built for testing, not for holding production data. Searching for a way around this mostly turns up ingestion tutorials that assume the logs already exist somewhere, or a Python script that fakes Apache access-log lines into a file — useful for the lines themselves, silent on how they're supposed to reach an index.
+
+Eventum closes that gap with a native `opensearch` output plugin: point it at a cluster, describe a document's shape in a template, and it sends every generated event to the index over the bulk API as it's produced — continuously in real time, or as a single finite batch for a one-off test dataset.
+
+## How log ingestion into OpenSearch works
+
+An OpenSearch **index** is where related documents live — the rough equivalent of a table, holding every log line that belongs together, typically because it came from the same source or shares a retention policy. A cluster usually holds many indices at once, one per application, log type, or day, and a client picks the index it wants by name whenever it writes or searches.
+
+Indexing one document at a time over HTTP works, but a request round trip per log line does not scale to a real log volume. The **bulk API** collects any number of index, update, or delete operations into a single HTTP request: the body is newline-delimited JSON, an action line naming the target index followed by the document itself, repeated for every operation and terminated with a trailing newline:
+
+```text
+{"index": {"_index": "<index-name>"}}
+{ <document 1> }
+{"index": {"_index": "<index-name>"}}
+{ <document 2> }
+```
+
+One HTTP call carries any number of documents — the reason nearly every log shipper that talks to OpenSearch indexes through this endpoint rather than one request per event.
+
+Every index also has a **mapping** — the schema that says what fields a document may carry and how each one is stored: a full-text `text` field, an exact-match `keyword`, a `date`, a number. Without one, OpenSearch infers a mapping from the first documents it sees, a convenience that also means a field can silently end up the wrong type — most often a timestamp read as `text` instead of `date`, which quietly breaks range queries and time-based dashboards. Production setups usually create the index with an explicit mapping before sending it any data; for evaluation or a dashboard prototype, the inferred mapping is normally enough to start from.
+
+The `opensearch` output plugin issues the bulk requests itself and lets OpenSearch create the index on first write. What's left for a generator config to decide is just which index to target and what a document looks like.
+
+## Generate and index with Eventum
+
+The generator below simulates a web server's access log — a realistic, non-security data source that exercises the same delivery path a SIEM stream would, with none of the session state a security scenario needs.
+
+### The template
+
+Each event is one HTTP request: a method and path, a status code weighted toward success, a response size and latency, the client's address, and its user agent. All of it comes from [`module.rand`](/docs/plugins/event/template/modules) and [`module.faker`](/docs/plugins/event/template/modules#modulefaker), so every run produces different but structurally consistent requests.
+
+```jinja title="generators/web-logs/templates/access_log.jinja"
+{%- set method = module.rand.weighted_choice({"GET": 75, "POST": 15, "PUT": 6, "DELETE": 4}) -%}
+{%- set path = module.rand.choice(["/", "/products", "/products/wireless-mouse", "/cart", "/checkout", "/api/search", "/login", "/static/app.css"]) -%}
+{%- set status = module.rand.weighted_choice({200: 82, 301: 3, 404: 9, 500: 6}) -%}
+{%- set bytes_sent = module.rand.number.integer(180, 24000) -%}
+{%- set response_time_ms = module.rand.number.integer(4, 620) -%}
+{%- set client_ip = module.rand.network.ip_v4_public() -%}
+{%- set user_agent = module.faker.locale['en_US'].user_agent() -%}
+{%- set referrer = module.rand.choice(["-", "https://google.com", "https://bing.com", "https://duckduckgo.com"]) -%}
+{
+  "@timestamp": "{{ timestamp.isoformat() }}",
+  "client_ip": "{{ client_ip }}",
+  "method": "{{ method }}",
+  "path": "{{ path }}",
+  "status": {{ status }},
+  "bytes_sent": {{ bytes_sent }},
+  "response_time_ms": {{ response_time_ms }},
+  "user_agent": "{{ user_agent }}",
+  "referrer": "{{ referrer }}"
+}
+```
+
+`@timestamp` is the field OpenSearch Dashboards looks for by default when it suggests a time field for a new index pattern, so keeping that name avoids a manual remap later.
+
+### The generator config
+
+A [cron](/docs/plugins/input/cron) input ticks once a second and emits four timestamps per tick, so the single `access_log` template renders four events per batch — enough for one bulk request to carry more than one document at a time. The [opensearch](/docs/plugins/output/opensearch) output indexes them:
+
+```yaml title="generators/web-logs/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 4
+
+event:
+  template:
+    mode: all
+    templates:
+      - access_log:
+          template: templates/access_log.jinja
+
+output:
+  - stdout:
+      formatter:
+        format: json
+  - opensearch:
+      hosts:
+        - https://opensearch:9200
+      username: admin
+      password: ${secrets.opensearch_password}
+      index: web-access-logs
+```
+
+`hosts` takes a list, so listing more than one node lets the plugin round-robin requests across them for load balancing. `index` is the only thing naming where documents land — `web-access-logs` here, created automatically on the first write if it doesn't already exist. `formatter` is left unset, so the plugin falls back to its default: one compact JSON document per line, exactly what the bulk API expects on each source line (see the [formatter reference](/docs/plugins/formatters)).
+
+<Callout type="info">
+No OpenSearch cluster within reach yet? The `stdout` output above renders the same documents `opensearch` would index — every output plugin gets an identical copy of each event, only the destination differs. Point `hosts` at a real cluster's address once one exists; nothing else in the config changes.
+</Callout>
+
+### Store the password in the keyring
+
+`password` above is a `${secrets.*}` reference, not a plaintext value. Set it once in the encrypted keyring before running the generator:
+
+```bash
+eventum-keyring set opensearch_password
+# Enter password of `opensearch_password`: ********
+```
+
+Then run the generator, pointing at the same cryptfile:
+
+```bash
+eventum generate --path generator.yml --id web-logs --cryptfile ./cryptfile.cfg
+```
+
+If the secret is missing from the keyring, Eventum reports it and refuses to start rather than connecting with an empty password. See [Secrets](/docs/core/config/secrets) for how the keyring and `${secrets.*}` substitution work.
+
+## The result
+
+Running the generator above produces a steady stream of bulk requests, four documents each, matching the four events emitted by every cron tick. Two events from an actual run, before indexing:
+
+```json
+{"@timestamp": "2026-07-11T14:29:42+00:00", "client_ip": "200.227.2.140", "method": "GET", "path": "/products/wireless-mouse", "status": 200, "bytes_sent": 16482, "response_time_ms": 100, "user_agent": "Mozilla/5.0 (Windows NT 4.0) AppleWebKit/531.1 (KHTML, like Gecko) Chrome/19.0.817.0 Safari/531.1", "referrer": "-"}
+{"@timestamp": "2026-07-11T14:29:49+00:00", "client_ip": "192.69.61.124", "method": "GET", "path": "/products/wireless-mouse", "status": 404, "bytes_sent": 1095, "response_time_ms": 524, "user_agent": "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_8_8 rv:6.0; id-ID) AppleWebKit/534.19.6 (KHTML, like Gecko) Version/5.1 Safari/534.19.6", "referrer": "https://google.com"}
+```
+
+The `opensearch` output wraps each one in a bulk operation line and posts the pair to `/_bulk`:
+
+```text
+{"index": {"_index": "web-access-logs"}}
+{"@timestamp": "2026-07-11T14:29:42+00:00", "client_ip": "200.227.2.140", "method": "GET", "path": "/products/wireless-mouse", "status": 200, "bytes_sent": 16482, "response_time_ms": 100, "user_agent": "Mozilla/5.0 (Windows NT 4.0) AppleWebKit/531.1 (KHTML, like Gecko) Chrome/19.0.817.0 Safari/531.1", "referrer": "-"}
+```
+
+The operation line carries no `_id`, so OpenSearch assigns one. Fetching that document back returns it wrapped in the usual envelope:
+
+```json
+{
+  "_index": "web-access-logs",
+  "_id": "V1ZUB5oB8x4Qa2n3k7dR",
+  "_version": 1,
+  "found": true,
+  "_source": {
+    "@timestamp": "2026-07-11T14:29:42+00:00",
+    "client_ip": "200.227.2.140",
+    "method": "GET",
+    "path": "/products/wireless-mouse",
+    "status": 200,
+    "bytes_sent": 16482,
+    "response_time_ms": 100,
+    "user_agent": "Mozilla/5.0 (Windows NT 4.0) AppleWebKit/531.1 (KHTML, like Gecko) Chrome/19.0.817.0 Safari/531.1",
+    "referrer": "-"
+  }
+}
+```
+
+`_source` is exactly the document the template rendered. OpenSearch stores it unchanged and layers `_index`, the assigned `_id`, and a `_version` around it for retrieval — the same three fields any client gets back from a search hit against `web-access-logs`.
+
+## FAQ
+
+<Accordions>
+<Accordion title="Does this work with Elasticsearch too?">
+Yes. OpenSearch began as a fork of Elasticsearch 7.10.2 and remains compatible on the core document APIs, including bulk indexing — the [plugin reference](/docs/plugins/output/opensearch) itself describes the target as "an OpenSearch (or Elasticsearch-compatible) cluster." Point `hosts` at an Elasticsearch cluster's HTTP endpoint, adjust `username`/`password` to match its auth setup, and the same config indexes into it the same way.
+</Accordion>
+<Accordion title="How do I handle TLS and authentication?">
+`username` and `password` are required on every request and sent as HTTP basic auth — keep the password in the keyring as shown above, never inline in the config. For TLS, `verify` controls whether the cluster's certificate is checked and defaults to `false`; set it to `true` and point `ca_cert` at your CA bundle once the cluster has a certificate from an internal or public CA. `client_cert` and `client_cert_key` add mutual TLS on top and must be set together. All of these, plus `proxy_url` for routing through an HTTP(S) proxy, are documented on the [plugin reference](/docs/plugins/output/opensearch#parameters).
+</Accordion>
+<Accordion title="What kind of data can I generate?">
+Anything a Jinja2 template can render as JSON — the access log above is one shape among many. The [formats field guide](/docs/tutorials/formats) covers Windows Event Log, CEF, LEEF, and syslog, and the [scenarios track](/docs/tutorials/scenarios) builds a complete stateful Windows Security event stream on top of the same `opensearch` output. Either can swap in for the template and input used here.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [delivery track](/docs/tutorials/delivery) for streaming synthetic data to Kafka, ClickHouse, and HTTP alongside OpenSearch
+- The [SIEM scenario track](/docs/tutorials/scenarios) for a complete stateful generator indexing Windows Security events into OpenSearch
+- The [opensearch output reference](/docs/plugins/output/opensearch) for every connection, authentication, and TLS parameter
+- The [formats field guide](/docs/tutorials/formats) for generating other log shapes — Windows Event Log, CEF, LEEF, syslog — headed to the same or a different destination
