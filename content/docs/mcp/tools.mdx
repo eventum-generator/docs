@@ -57,6 +57,44 @@ Available only over HTTP. They control the generators the server manages.
 | `get_generator_logs` | Read | Return the recent log lines for a managed generator, to diagnose a run. |
 | `list_startup_generators` | Read | List the generators configured to start with the server. |
 
+## Scenario tools
+
+Available only over HTTP. A **scenario** is a named group of generators — a tag on their [startup](/docs/core/config/startup-yml) entries — used to operate related generators together.
+
+| Tool | Access | Description |
+|---|---|---|
+| `list_scenarios` | Read | List the defined scenarios. |
+| `get_scenario` | Read | Return a scenario and the ids of the generators in it. |
+| `add_generator_to_scenario` | Write | Add a generator to a scenario. |
+| `remove_generator_from_scenario` | Write | Remove a generator from a scenario. |
+| `delete_scenario` | Write | Delete a scenario, untagging every generator in it. |
+
+## Global-state tools
+
+Available only over HTTP. Generators coordinate at runtime through a shared **global state**; these tools read and edit it. The values are runtime data written by templates and are returned as-is.
+
+| Tool | Access | Description |
+|---|---|---|
+| `get_global_state` | Read | Return the whole shared global state. |
+| `get_global_state_key` | Read | Return one value from the global state. |
+| `set_global_state` | Write | Set one or more keys in the global state. |
+| `delete_global_state_key` | Write | Remove one key from the global state. |
+| `clear_global_state` | Write | Remove every key from the global state. |
+
+## Instance tools
+
+Available only over HTTP. They read and control the running instance itself.
+
+| Tool | Access | Description |
+|---|---|---|
+| `update_settings` | Write | Patch the instance [settings](/docs/core/config/eventum-yml) file. Auth credentials cannot be changed, and the change applies on the next restart. |
+| `stop_instance` | Write | Stop the instance. |
+| `restart_instance` | Write | Restart the instance, applying any pending settings change. |
+
+<Callout type="warn">
+The MCP server runs inside the instance, so `stop_instance` and `restart_instance` end the agent's own connection — the call returns as the server goes down.
+</Callout>
+
 ## Resources
 
 Documents the agent reads to ground itself. Read-only, on both transports.
@@ -67,6 +105,8 @@ Documents the agent reads to ground itself. Read-only, on both transports.
 | `eventum://schema/generator` | The JSON Schema of the top-level [generator.yml](/docs/core/config/generator-yml) document. |
 | `eventum://examples/generators` | Bundled, validated worked examples to start from, plus links to the public [content-packs](https://github.com/eventum-generator/content-packs) repository and the [generator hub](https://eventum.run/hub). |
 | `eventum://workspace/configs` | The generators currently saved in your generators directory. |
+| `eventum://instance/info` | Version, runtime, and host metrics of the running instance. **HTTP only.** |
+| `eventum://instance/settings` | The running instance settings, with auth credentials redacted and absolute paths reduced to file names. **HTTP only.** |
 
 ## Prompts
 
