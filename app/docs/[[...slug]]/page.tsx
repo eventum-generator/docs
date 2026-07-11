@@ -16,10 +16,12 @@ import { getPageImage, source } from '@/lib/source';
 import { getMDXComponents } from '@/mdx-components';
 
 // Course JSON-LD belongs on course pillars only (overview + track
-// indexes), not on individual lessons. Phase 2 adds foundations/realism.
+// indexes), not on individual lessons.
 const COURSE_PILLARS = new Set([
   '/docs/tutorials',
+  '/docs/tutorials/foundations',
   '/docs/tutorials/formats',
+  '/docs/tutorials/realism',
   '/docs/tutorials/delivery',
   '/docs/tutorials/scenarios',
 ]);

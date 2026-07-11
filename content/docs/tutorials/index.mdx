@@ -12,16 +12,22 @@ description: A hands-on course on generating realistic synthetic event and log d
 </div>
 
 <Mermaid chart={`graph LR
-    FND["Foundations"]:::upcoming --> FMT["Formats"]:::section
-    FMT --> RLS["Realism"]:::upcoming
+    FND["Foundations"]:::section --> FMT["Formats"]:::section
+    FMT --> RLS["Realism"]:::section
     RLS --> DLV["Delivery"]:::section
     DLV --> SCN["Scenarios"]:::section
     classDef section fill:#8282ef,color:#fff,stroke:#6b6bd4,stroke-width:2px
     classDef upcoming fill:#9ca3af,color:#fff,stroke:#6b7280,stroke-width:2px,stroke-dasharray:5 5`} />
 
-_Foundations and Realism tracks are on the way._
-
 ---
+
+## Foundations
+
+Start here: what synthetic event and log data is, and why structure matters.
+
+<Cards>
+  <Card title="Synthetic data for event and log pipelines" description="What it is, how it differs from a flat Faker or Mockaroo dump, and where it fits." href="/docs/tutorials/foundations" />
+</Cards>
 
 ## Formats & schemas
 
@@ -29,6 +35,14 @@ Understand the shape of your data — syslog, CEF, LEEF, Windows events — and 
 
 <Cards>
   <Card title="Log & event formats" description="A field guide to the formats your pipeline speaks, and how to generate each." href="/docs/tutorials/formats" />
+</Cards>
+
+## Realism
+
+Techniques that turn a flat stream into data that behaves like production.
+
+<Cards>
+  <Card title="Making synthetic data realistic" description="Timing, sessions, and value distributions that mimic production traffic." href="/docs/tutorials/realism" />
 </Cards>
 
 ## Delivery

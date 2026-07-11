@@ -3,8 +3,12 @@
   "icon": "GraduationCap",
   "pages": [
     "index",
+    "---Foundations---",
+    "foundations",
     "---Formats---",
     "formats",
+    "---Realism---",
+    "realism",
     "---Delivery---",
     "delivery",
     "---Scenarios---",
