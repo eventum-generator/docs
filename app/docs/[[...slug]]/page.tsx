@@ -11,7 +11,7 @@ import { notFound } from 'next/navigation';
 import { JsonLd } from '@/components/JsonLd';
 import { LLMCopyButton, ViewOptions } from '@/components/ai/page-actions';
 import { docsGitConfig } from '@/lib/layout.shared';
-import { breadcrumbSchema, canonicalPath } from '@/lib/seo';
+import { breadcrumbSchema, canonicalPath, courseSchema } from '@/lib/seo';
 import { getPageImage, source } from '@/lib/source';
 import { getMDXComponents } from '@/mdx-components';
 
@@ -34,6 +34,15 @@ export default async function Page(props: {
           { name: page.data.title, path: page.url },
         ])}
       />
+      {page.url.startsWith('/docs/tutorials') && (
+        <JsonLd
+          data={courseSchema({
+            name: page.data.title,
+            description: page.data.description ?? '',
+            path: page.url,
+          })}
+        />
+      )}
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription className="mb-0">
         {page.data.description}
