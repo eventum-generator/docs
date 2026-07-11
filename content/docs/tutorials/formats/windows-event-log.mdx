@@ -9,7 +9,7 @@ Eventum generates fresh Windows Event Log and Sysmon events on demand — parame
 
 ## What Windows Event Log looks like
 
-Windows Event Log is the logging subsystem built into Windows since Windows Vista. Every event is stored in the binary [EVTX](https://forensics.wiki/windows_xml_event_log_(evtx)/) format and organized by channel: a named stream of events with one publisher and one audience. Event Viewer groups the built-in channels under Windows Logs — Application, Security, Setup, System, and Forwarded Events — while individual products get their own channel under Applications and Services Logs, as Sysmon does.
+Windows Event Log is the logging subsystem built into Windows since Windows Vista. Every event is stored in the binary [EVTX](https://forensics.wiki/windows_xml_event_log_(evtx)/) format and organized by channel: a named stream of events for a given audience. Event Viewer groups the built-in channels under Windows Logs — Application, Security, Setup, System, and Forwarded Events — while individual products get their own channel under Applications and Services Logs, as Sysmon does.
 
 Three of those channels account for most of what a pipeline ingests. Application carries events from user-mode software that is not part of the operating system itself. System carries events from OS components — drivers, services, the kernel. Security is the audit log, written exclusively by the Local Security Authority: logons and logoffs, privilege use, object access, account and group changes. It is also the channel most Windows-focused SIEM detections are built against, and the one the example below generates.
 
@@ -54,7 +54,7 @@ Every event carries the same envelope, whatever channel or provider produced it.
 </Event>
 ```
 
-[Sysmon](https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon) (System Monitor) is a free Sysinternals tool — a Windows system service paired with a kernel driver — that watches process, network, file, and registry activity beyond what Security auditing covers. It writes to its own channel, `Applications and Services Logs/Microsoft/Windows/Sysmon/Operational`, and is configured through an XML rule file that decides which of its roughly thirty event types to record and for which processes. The event IDs referenced most often: 1 (Process Create), 3 (Network Connection), 5 (Process Terminated), 11 (FileCreate), 13 (Registry Value Set), and 22 (DNS Query). Every process-related event carries a ProcessGuid that survives PID reuse, so a process's full lifecycle — creation, network connections, file writes, termination — stays correlated even after Windows recycles its process ID.
+[Sysmon](https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon) (System Monitor) is a free Sysinternals tool — a Windows system service paired with a kernel driver — that watches process, network, file, and registry activity beyond what Security auditing covers. It writes to its own channel, `Applications and Services Logs/Microsoft/Windows/Sysmon/Operational`, and is configured through an XML rule file that decides which of its roughly thirty event types to record and for which processes. The event IDs referenced most often: 1 (Process Create), 3 (Network Connection), 5 (Process Terminated), 11 (FileCreate), 13 (Registry Value Set), and 22 (DNS Query). Every process-related event carries a ProcessGuid that survives PID reuse, so a process's full lifecycle — creation, network connections, file creation, termination — stays correlated even after Windows recycles its process ID.
 
 ## Generate it with Eventum
 
@@ -84,7 +84,7 @@ spreader:
     right: 0.9
 ```
 
-With `start` anchored to midnight and a one-day period, `mode: 0.5` lands at noon; `left: 0.15` and `right: 0.9` concentrate activity between 03:36 and 21:36, tapering sharply outside that window. `ratio: 2000` sets about 2,000 logon-family events per day before the randomizer's ±25% variance is applied.
+With `start` anchored to midnight and a one-day period, `mode: 0.5` lands at noon; `left: 0.15` and `right: 0.9` confine every event to between 03:36 and 21:36, with density tapering linearly toward each edge of that window. `ratio: 2000` sets about 2,000 logon-family events per day before the randomizer's ±25% variance is applied.
 
 ### The event templates
 
