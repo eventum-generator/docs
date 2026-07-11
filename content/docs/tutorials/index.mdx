@@ -12,11 +12,14 @@ description: A hands-on course on generating realistic synthetic event and log d
 </div>
 
 <Mermaid chart={`graph LR
-    FND["Foundations"]:::section --> FMT["Formats"]:::section
-    FMT --> RLS["Realism"]:::section
+    FND["Foundations"]:::upcoming --> FMT["Formats"]:::section
+    FMT --> RLS["Realism"]:::upcoming
     RLS --> DLV["Delivery"]:::section
     DLV --> SCN["Scenarios"]:::section
-    classDef section fill:#8282ef,color:#fff,stroke:#6b6bd4,stroke-width:2px`} />
+    classDef section fill:#8282ef,color:#fff,stroke:#6b6bd4,stroke-width:2px
+    classDef upcoming fill:#9ca3af,color:#fff,stroke:#6b7280,stroke-width:2px,stroke-dasharray:5 5`} />
+
+_Foundations and Realism tracks are on the way._
 
 ---
 
@@ -42,7 +45,7 @@ End-to-end projects that prove a use case from an empty directory to working out
 
 <Cards>
   <Card title="Synthetic data for SIEM" description="Explore SIEM detection scenarios across Windows, Sysmon, network, and endpoint telemetry sources." href="/docs/tutorials/scenarios" />
-  <Card title="SIEM: Windows Security → OpenSearch" description="Build a stateful Windows Security Event Log generator and index it into OpenSearch." href="/docs/tutorials/siem-events" />
+  <Card title="SIEM test data: Windows → OpenSearch" description="Build a stateful Windows Security Event Log generator and index it into OpenSearch." href="/docs/tutorials/siem-events" />
   <Card title="E-Commerce Transactions → CSV" description="Produce a shaped CSV dataset of purchases, refunds, and chargebacks." href="/docs/tutorials/csv-dataset" />
   <Card title="Scheduled Telegram Alerts" description="Simulate a monitoring system that sends alerts to Telegram on a cron schedule." href="/docs/tutorials/telegram-alerts" />
   <Card title="Web Clickstream → ClickHouse" description="Model browsing sessions with a state machine and stream page views into ClickHouse." href="/docs/tutorials/web-clickstream" />

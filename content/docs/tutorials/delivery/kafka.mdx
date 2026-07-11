@@ -48,7 +48,7 @@ Each event is one placed order: an ID, the customer, a product category, a quant
 
 ### A realistic arrival rate
 
-A fixed gap between messages is the tell that data is synthetic — real checkout traffic rises and falls even within a single hour. The [time-patterns](/docs/plugins/input/time-patterns) input models that shape instead of a flat rate, combining four stages:
+A fixed gap between messages is the giveaway that data is synthetic — real checkout traffic rises and falls even within a single hour. The [time-patterns](/docs/plugins/input/time-patterns) input models that shape instead of a flat rate, combining four stages:
 
 - **Oscillator** — a repeating one-hour window.
 - **Multiplier** — around 1,200 orders per hour (roughly 20 a minute on average).
@@ -170,4 +170,4 @@ To spread several logical sources across one topic's partitions while keeping ea
 - The [delivery track](/docs/tutorials/delivery) for streaming synthetic data to OpenSearch, ClickHouse, and HTTP alongside Kafka
 - The [OpenSearch delivery lesson](/docs/tutorials/delivery/opensearch) for indexing the same kind of stream into a search cluster instead of a topic
 - The [kafka output reference](/docs/plugins/output/kafka) for every connection, security, and performance parameter
-- The [scenarios track](/docs/tutorials/scenarios) for a complete stateful generator — the same finite-state, multi-template approach used there drops onto a `kafka` output exactly as it does OpenSearch
+- The [scenarios track](/docs/tutorials/scenarios) for a complete stateful generator — the same finite-state, multi-template approach used there applies to a `kafka` output exactly as it does OpenSearch

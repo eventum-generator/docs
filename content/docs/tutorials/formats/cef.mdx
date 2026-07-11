@@ -57,7 +57,7 @@ Severity accepts either form, and a numeric value maps to a string band:
 
 `Unknown` is also valid as a string, with no corresponding integer.
 
-The Extension carries the event's data as `key=value` pairs, space-separated, in any order. Keys come from ArcSight's own Extension Dictionary — several hundred predefined names — of which a handful account for most events:
+The Extension carries the event's data as `key=value` pairs, space-separated, in any order. Keys come from ArcSight's own Extension Dictionary — more than a hundred predefined names — of which a handful account for most events:
 
 | Key | Full name | Meaning |
 |-----|-----------|---------|
@@ -169,7 +169,7 @@ Both lines are valid CEF: seven pipe-delimited header fields followed by space-s
 Both are pipe-delimited, vendor-neutral security event formats with a header followed by key-value data, but the header shapes differ. CEF's header carries seven fields, including `Name` and `Severity`; LEEF's carries five — `Version`, `Vendor`, `Product`, `Version`, `EventID` — with no `Name` or `Severity` field at all. The extension delimiter differs too: CEF pairs are space-separated, LEEF pairs are tab-separated by default. CEF is what ArcSight and most SIEMs other than IBM QRadar expect; QRadar uses LEEF. See the [LEEF lesson](/docs/tutorials/formats/leef) for the full structure and how to generate it with Eventum.
 </Accordion>
 <Accordion title="How do I ship CEF over syslog?">
-CEF has no transport of its own — it rides inside a syslog message. Prepend a syslog header (an RFC 3164 `<priority>timestamp hostname` header, or an RFC 5424 header) to the `CEF:Version|...` line inside the same template, then send the result over [tcp](/docs/plugins/output/tcp) or [udp](/docs/plugins/output/udp) to the collector's syslog port — `514` for plain text, `6514` if the collector requires TLS. Some collectors accept the bare `CEF:Version|...` line directly, without any syslog header, which is the form the generator above produces. See the [syslog lesson](/docs/tutorials/formats/syslog) for both header formats.
+CEF is a message format, not a transport — it is usually carried inside a syslog message, though many collectors also accept the bare CEF line over TCP or UDP. Prepend a syslog header (an RFC 3164 `<priority>timestamp hostname` header, or an RFC 5424 header) to the `CEF:Version|...` line inside the same template, then send the result over [tcp](/docs/plugins/output/tcp) or [udp](/docs/plugins/output/udp) to the collector's syslog port — `514` for plain text, `6514` if the collector requires TLS. Some collectors accept the bare `CEF:Version|...` line directly, without any syslog header, which is the form the generator above produces. See the [syslog lesson](/docs/tutorials/formats/syslog) for both header formats.
 </Accordion>
 <Accordion title="What severity values are valid?">
 Either an integer from 0 to 10, or one of five strings: `Unknown`, `Low`, `Medium`, `High`, `Very-High`. When a number maps to a string, 0–3 is `Low`, 4–6 is `Medium`, 7–8 is `High`, and 9–10 is `Very-High`; nothing outside that range or set is valid.
