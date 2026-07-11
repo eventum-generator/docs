@@ -1,0 +1,35 @@
+---
+title: "Synthetic data for event and log pipelines"
+description: "What synthetic event and log data is, how it differs from a flat Faker or Mockaroo dump, and where it fits before you build a pipeline."
+---
+
+Testing a pipeline, tuning a detection, or demonstrating a dashboard all depend on the same thing: event and log data that behaves like production traffic. The real thing is rarely available — production systems are off-limits to test against, a dataset exported once goes stale as soon as traffic patterns shift, and a set of fake rows from a general-purpose data generator does not arrive the way a live system delivers events, continuously and over time. Synthetic event and log data closes that gap: generated records that describe something happening at a point in time, produced on demand, in the format a real pipeline expects.
+
+## What synthetic event and log data is
+
+Synthetic event and log data is generated records that describe something happening at a specific point in time — a login, an HTTP request, a sensor reading, a security alert — rather than a fixed table of unrelated sample rows. Three traits set it apart from a flat export out of a general-purpose data generator such as Faker or Mockaroo:
+
+- **Time-aware** — each record carries a timestamp that reflects when it occurred, and the sequence of timestamps follows a pattern, such as a steady rate or a realistic daily curve, instead of being stamped all at once when a file is written.
+- **Continuous** — a generator keeps producing new records for as long as it runs, at a pace you control, rather than producing one export and stopping.
+- **Parameterizable** — the format, volume, and content of the data are configured to match a specific schema and rate, rather than fixed to a generic table of sample values.
+
+A synthetic event or log feed can stand in for a live source; a static export can only stand in for a data structure.
+
+## Where it is used
+
+Different teams use synthetic event and log data for different reasons, though the underlying data is the same kind of thing. A data engineer needs realistic traffic to test a pipeline before real data exists. An SRE needs sustained load to see how ingestion and storage behave under pressure. A detection engineer needs telemetry shaped like an attack to tune a detection without running one against a live system. A backend developer needs a believable set of records to seed a development or staging database. What changes across these cases is the format, the destination, and the volume — not the underlying idea of generating event and log records as they would occur over time.
+
+## How Eventum generates it
+
+Eventum generates event and log data through a [three-stage pipeline](/docs/core/concepts/generator#the-three-stage-pipeline): an input stage decides when each record occurs, an event stage decides what it contains, and an output stage delivers it to a destination — a file, a database, a message queue, or any HTTP endpoint you configure.
+
+<Cards>
+  <Card title="Structured logging" description="Plain text vs structured logs, why structure matters, and how to generate structured events." href="/docs/tutorials/foundations/structured-logging" />
+</Cards>
+
+## Related
+
+- Continue to [log and event formats](/docs/tutorials/formats) — the shape a record takes on the wire.
+- Then [making synthetic data realistic](/docs/tutorials/realism) — timing, sessions, and value distributions that mimic production traffic.
+- [Getting started](/docs) — install Eventum and generate your first events.
+- Ready-made generators for common data sources in the [Eventum Hub](/hub).
