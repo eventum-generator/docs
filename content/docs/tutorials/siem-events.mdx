@@ -1,7 +1,9 @@
 ---
-title: "SIEM: Windows Security Events → OpenSearch"
-description: Generate realistic Windows Security Event Log data and index it into OpenSearch for SIEM rule development and detection testing.
+title: "SIEM Test Data: Windows Security Events → OpenSearch"
+description: Generate SIEM test data — realistic Windows Security Event Log sessions indexed into OpenSearch — for detection development, parser validation, and analyst training without touching production.
 ---
+
+SIEM test data is synthetic security telemetry — logons, privilege use, process activity, and similar events — shaped to resemble what a real environment produces, without exposing production systems or capturing genuine user activity. Teams generate it to develop and tune detection rules against realistic event sequences, to validate that a SIEM's parsers and ingestion pipeline handle a given log source correctly, and to train analysts on realistic alert volume and structure — none of it requires running a live attack or touching a production system.
 
 Build a generator that produces Windows Security Event Log sessions — logon, privilege assignment, process creation, and logoff — with realistic timing and user behavior. Events are indexed into OpenSearch, ready for dashboards and detection rules.
 
@@ -98,7 +100,7 @@ This produces roughly 7 timestamps every 10 seconds — enough to complete one u
 <Step>
 ### Create sample data
 
-The user pool is a JSON file loaded as a [sample](/docs/plugins/event/template#samples). Each session randomly picks a user from this list. JSON sample rows support named access via object keys — `user.name`, `user.domain`.
+The user pool is a JSON file loaded as a [sample](/docs/plugins/event/template/samples). Each session randomly picks a user from this list. JSON sample rows support named access via object keys — `user.name`, `user.domain`.
 
 ```json title="generators/winevents/data/users.json"
 [
@@ -117,7 +119,7 @@ The user pool is a JSON file loaded as a [sample](/docs/plugins/event/template#s
 
 Each template produces one JSON event following [Elastic Common Schema](https://www.elastic.co/guide/en/ecs/current/index.html) field naming — a widely used format for SIEM ingestion.
 
-**Logon** — initializes the session. Picks a random user, generates a session ID, and stores everything in [`shared`](/docs/core/concepts/producing#state) state so subsequent templates can access it.
+**Logon** — initializes the session. Picks a random user, generates a session ID, and stores everything in [`shared`](/docs/plugins/event/template/state) state so subsequent templates can access it.
 
 ```jinja title="generators/winevents/templates/logon.jinja"
 {% set user = module.rand.choice(samples.users) %}
@@ -385,3 +387,27 @@ A complete session: logon → privilege → 4 processes → logoff. Then a new s
     href="/docs/plugins/output/opensearch"
   />
 </Cards>
+
+## FAQ
+
+<Accordions>
+<Accordion title="Do I need a live SIEM or real attacks to use this?">
+No. The generator produces ordinary logon, privilege-use, process-creation, and logoff activity shaped like what a real Windows environment logs — nothing here simulates an exploit, a malicious payload, or an attacker technique. Point the output at any OpenSearch-compatible index, or swap it for `stdout: {}` to inspect events locally without a running cluster at all.
+</Accordion>
+<Accordion title="Which log sources can I generate for SIEM besides Windows Security?">
+This walkthrough builds a Windows Security generator, but the same input-template-output pattern applies to other sources. The [formats field guide](/docs/tutorials/formats) covers the Windows Event Log, CEF, LEEF, and syslog shapes structurally, and the [Eventum Hub](/hub) ships ready-made generators for network, endpoint, identity, and cloud security telemetry alongside [windows-security](/hub/windows-security) and [windows-sysmon](/hub/windows-sysmon).
+</Accordion>
+<Accordion title="Can I index into Elasticsearch or another backend instead of OpenSearch?">
+Yes. OpenSearch is API-compatible with Elasticsearch on bulk indexing, so pointing `hosts` at an Elasticsearch cluster and adjusting credentials indexes the same events the same way — see the [OpenSearch delivery lesson](/docs/tutorials/delivery/opensearch) for TLS and authentication details. For a different backend entirely, replace the `opensearch` block in `generator.yml` with another output plugin and keep the input and templates unchanged.
+</Accordion>
+<Accordion title="How do I add more event types?">
+Add a new Jinja template and wire it into the FSM as an additional state or transition branch. The Going further section above sketches one example — a `logon_failed.jinja` template for Event ID 4625, added as a probability-weighted branch off the logon state. The `shared` values this generator's templates already set are what any new event type would read to stay consistent with the rest of the session.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [SIEM scenarios pillar](/docs/tutorials/scenarios) for the broader detection-testing picture and other security telemetry sources
+- The [Windows Event Log & Sysmon format lesson](/docs/tutorials/formats/windows-event-log) for the EVTX event model and EventID structure behind these templates
+- The [OpenSearch delivery lesson](/docs/tutorials/delivery/opensearch) for indexing, the bulk API, and TLS/authentication in depth
+- The [windows-security generator](/hub/windows-security) in the Eventum Hub for a production-tuned, ready-made version of this build
