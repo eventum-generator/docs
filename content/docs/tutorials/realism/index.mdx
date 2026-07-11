@@ -1,0 +1,32 @@
+---
+title: "Realistic test data: what makes synthetic events behave like production"
+description: Why uniform random output looks synthetic, and the three techniques — timing, sessions, and value distributions — that make it behave like production traffic.
+---
+
+A generator that fires events at a perfectly steady rate and picks each value uniformly at random is simple to build, and it is also the easiest kind of synthetic data to spot. Production traffic rises and falls through the day instead of arriving at a constant rate, a user's actions form a session with a beginning and an end instead of a set of unrelated events, and measurements such as file sizes or request durations cluster around a common case with a long tail of outliers instead of spreading evenly across a range. Data that ignores all three still fills a schema, but it does not behave like the traffic it is meant to stand in for.
+
+## What makes synthetic data realistic
+
+Three properties separate data that behaves like production from data that only fills a schema, and each is independent of the others:
+
+- **Timing** — real traffic is not a flat stream. It rises during business hours, bursts around specific triggers, and goes quiet at night or on weekends, following a rhythm instead of a constant rate.
+- **Sessions and state** — real activity is rarely a set of independent events. A login precedes a stretch of activity and ends with a logout, and each step depends on what happened earlier in the same sequence, not on a fresh random draw.
+- **Values** — real measurements are rarely spread evenly across a range. Most fall near a common case with a long tail of larger outliers, and categorical values such as status codes or protocols skew toward the common ones rather than splitting evenly.
+
+Getting one axis right without the others still produces a giveaway — perfectly even timing paired with skewed values reads as a load-test script, not production traffic.
+
+## How Eventum generates it
+
+Eventum exposes each axis as something you configure, not a fixed default. The [time_patterns](/docs/plugins/input/time-patterns) input plugin replaces a flat cron or timer schedule with a repeating time window, a baseline volume, and a distribution that places timestamps inside each window, so the timing itself carries a daily or weekly rhythm. The [template](/docs/plugins/event/template) event plugin's [mode: fsm](/docs/plugins/event/template/modes#fsm) turns a set of templates into states connected by transitions, paired with [state](/docs/plugins/event/template/state) that carries a session id or counter across the sequence. The same plugin fills in values with [module.rand](/docs/plugins/event/template/modules)'s skewed distributions — log-normal for byte sizes, exponential for durations, Gaussian for metrics — plus weighted choice for categories, Faker- and Mimesis-backed fields, and pre-built [sample](/docs/plugins/event/template/samples) datasets.
+
+<Cards>
+  <Card title="Realistic timing" description="Why a steady cron tick looks fake, and how to shape peaks, bursts, and quiet periods with time patterns." href="/docs/tutorials/realism/timing" />
+  <Card title="Modeling sessions" description="Turn independent events into a login-to-logout sequence with a state machine and shared state." href="/docs/tutorials/realism/sessions" />
+  <Card title="Realistic values" description="Skewed distributions, weighted choice, and Faker- or Mimesis-backed data instead of uniform noise." href="/docs/tutorials/realism/values" />
+</Cards>
+
+## Related
+
+- The [log and event formats](/docs/tutorials/formats) field guide for the record shapes these techniques bring to life.
+- Continue to [stream synthetic data to your stack](/docs/tutorials/delivery) — once the data behaves like production, deliver it to the backend you use.
+- Ready-made generators that already combine these techniques in the [Eventum Hub](/hub).
