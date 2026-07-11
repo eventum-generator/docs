@@ -9,7 +9,7 @@ Eventum generates CEF lines directly from a template — a correctly delimited h
 
 ## What CEF looks like
 
-CEF (Common Event Format) is a text-based log format defined by ArcSight — now part of OpenText — so that security products from any vendor could feed a single, predictable event shape into its SIEM. Firewalls, intrusion detection systems, endpoint agents, and other security appliances now emit it natively or through a mapping layer, and most SIEMs and log collectors other than IBM QRadar, which expects LEEF instead, parse it directly.
+CEF (Common Event Format) is a text-based log format [defined by ArcSight](https://www.microfocus.com/documentation/arcsight/arcsight-smartconnectors-8.3/pdfdoc/cef-implementation-standard/cef-implementation-standard.pdf) — now part of OpenText — so that security products from any vendor could feed a single, predictable event shape into its SIEM. Firewalls, intrusion detection systems, endpoint agents, and other security appliances now emit it natively or through a mapping layer, and most SIEMs and log collectors other than IBM QRadar, which expects LEEF instead, parse it directly.
 
 A CEF message is a header followed by an extension, both riding inside a single line of text:
 
@@ -26,7 +26,7 @@ Every field up to `Severity` is mandatory and positional, delimited by unescaped
 | Device Product | Identifies the product. |
 | Device Version | The product's version string. |
 | Device Event Class ID | A unique identifier per event or signature type — commonly called the Signature ID. |
-| Name | A short, human-readable description. It should not repeat information already carried by another field: "Port scan", not "Port scan from 10.0.0.1 targeting 20.1.1.1". |
+| Name | A short, human-readable description. It should not repeat information already carried by another field: "Connection blocked", not "Connection from 198.51.100.7 blocked on port 22". |
 | Severity | The event's importance: 0–10, or one of `Unknown`, `Low`, `Medium`, `High`, `Very-High`. |
 
 ArcSight's own reference example ties every field to a value:
@@ -78,7 +78,7 @@ The header and the extension enforce different escaping rules, and mixing them u
 
 - **Pipe (`|`)** must be escaped as `\|` when it appears inside a header value; the seven delimiter pipes themselves are never escaped. A pipe inside an extension value needs no escaping at all.
 - **Backslash (`\`)** must be escaped as `\\` wherever it appears — in the header and in the extension.
-- **Equals sign (`=`)** must be escaped as `\=` inside an extension value; equals signs in the header need no escaping.
+- **Equals sign (`=`)** must be escaped as `\=` inside an extension value; a literal `=` inside a header field needs no such treatment.
 - **Newline** inside an extension value is encoded as a literal `\n` or `\r`; only extension values may span multiple lines this way, never header fields.
 
 A Windows file path exercises the backslash rule in both halves of the message at once, and a literal `=` inside an argument exercises the extension-only rule:
