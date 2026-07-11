@@ -52,6 +52,7 @@ import { proxyKasperskyKwts } from './generators/proxy-kaspersky-kwts';
 import { securityPtNad } from './generators/security-pt-nad';
 import { monitoringZabbix } from './generators/monitoring-zabbix';
 import { databaseMysqlAudit } from './generators/database-mysql-audit';
+import { proxyTraefik } from './generators/proxy-traefik';
 
 export const generators: GeneratorMeta[] = [
   windowsSecurity,
@@ -106,4 +107,5 @@ export const generators: GeneratorMeta[] = [
   proxyKasperskyKwts,
   securityPtNad,
   monitoringZabbix,
+  proxyTraefik,
 ];

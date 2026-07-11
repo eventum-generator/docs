@@ -1,8 +1,9 @@
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import { Poppins } from 'next/font/google';
-import { Metadata } from 'next/types';
+import { Metadata, Viewport } from 'next/types';
 
 import { RouteValidator } from '@/components/RouteValidator';
+import { SITE_DESCRIPTION } from '@/lib/seo';
 import './global.css';
 
 const poppins = Poppins({ subsets: ['latin'], weight: '500' });
@@ -13,8 +14,7 @@ export const metadata: Metadata = {
     default: 'Eventum',
     template: '%s | Eventum',
   },
-  description:
-    'Data generation platform',
+  description: SITE_DESCRIPTION,
   icons: {
     icon: '/logo.svg',
   },
@@ -26,6 +26,10 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#8282ef',
 };
 
 export default function Layout({ children }: LayoutProps<'/'>) {

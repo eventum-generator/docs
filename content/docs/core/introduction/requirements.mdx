@@ -1,0 +1,57 @@
+---
+title: Requirements
+description: Supported platforms, Python version, and resource usage for running Eventum.
+---
+
+Eventum runs natively on Linux and in Docker on any host. Before [installing](/docs/core/introduction/installation), check the supported platforms, the required Python version, and the resources a running instance consumes.
+
+## Supported platforms
+
+| Platform | Support | Notes |
+|----------|---------|-------|
+| Linux | Native | Full support — install from PyPI, from source, or run with Docker. |
+| WSL2 (Windows) | Native | Runs exactly as on Linux — the recommended way to run on a Windows host. [Set up WSL2](https://learn.microsoft.com/windows/wsl/install). |
+| Docker (any OS) | Full | Official images run on Windows, macOS, and Linux hosts. |
+| Windows / macOS (native) | Not supported | Use Docker, or WSL2 on Windows. |
+
+## Python
+
+Eventum requires **Python 3.14** or later. This applies to native installations (PyPI or source) — the Docker image already bundles Python.
+
+<Callout type="info">
+For best performance, use the **free-threaded build** (Python 3.14t). It disables the GIL, allowing multiple generators to run truly in parallel across CPU cores. Install it with `uv python install 3.14t`.
+</Callout>
+
+## Resource usage
+
+Resource use depends on the run mode and your workload. The figures below are a baseline to size from.
+
+| Scenario | CPU | RAM | Notes |
+|----------|-----|-----|-------|
+| Minimal | 1 vCPU | 1 GB | Can run a single generator with [`eventum generate`](/docs/core/cli/eventum-generate). |
+| Recommended | 2 vCPU | 4 GB | Can run the full application with [`eventum run`](/docs/core/cli/eventum-run) — multiple generators plus the API and Studio. |
+| Optimal | 4 vCPU | 8 GB | Can run many generators at high throughput, with room to spare. |
+
+- **CPU** — Driven mainly by the event stage, which is CPU-bound; how much it needs depends on the event plugin you choose, how you configure it, and your target throughput. Each generator runs three pipeline stages — input, event, and output — in parallel on the free-threaded build, so throughput scales with available cores.
+- **RAM** — Scales with the number of generators and their batching. Each generator buffers timestamp and event batches sized by `batch.size` and `queue.*`, so larger batches or more generators raise memory use.
+- **Disk** — Allow around 5 GB for the application, its caches, and logs.
+- **Network** — Used only when output plugins deliver over the network (Kafka, HTTP, OpenSearch, ClickHouse).
+
+<Callout type="info">
+Batching, queue depth, and concurrency are configurable — tune them in [eventum.yml](/docs/core/config/eventum-yml) to trade memory for throughput.
+</Callout>
+
+## What's next
+
+<Cards>
+  <Card
+    title="Installation"
+    description="Install from PyPI, run with Docker, or build from source."
+    href="/docs/core/introduction/installation"
+  />
+  <Card
+    title="eventum.yml reference"
+    description="Tune batching, queues, and concurrency for your workload."
+    href="/docs/core/config/eventum-yml"
+  />
+</Cards>

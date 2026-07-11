@@ -4,19 +4,36 @@ import Link from 'next/link';
 import { Metadata } from 'next/types';
 
 import { GridPattern } from '@/components/GridPattern';
+import { JsonLd } from '@/components/JsonLd';
 import LightRays from '@/components/LightRays';
 import { Features } from '@/components/pages/home/Features';
 import { RotatingPhrases } from '@/components/pages/home/RotatingPhrases';
 import { cn } from '@/lib/cn';
+import {
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  canonicalPath,
+  organizationSchema,
+  softwareApplicationSchema,
+  webSiteSchema,
+} from '@/lib/seo';
 
 export const metadata: Metadata = {
-  title: 'Eventum',
-  description: 'Welcome to Eventum',
+  title: { absolute: `${SITE_NAME} - Synthetic Data Generation Platform` },
+  description: SITE_DESCRIPTION,
+  alternates: { canonical: canonicalPath('/') },
 };
 
 export default function HomePage() {
   return (
     <main className="relative min-h-dvh w-full overflow-hidden flex flex-col items-center justify-center">
+      <JsonLd
+        data={[
+          organizationSchema(),
+          webSiteSchema(),
+          softwareApplicationSchema(),
+        ]}
+      />
       <GridPattern
         width={50}
         height={50}

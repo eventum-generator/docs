@@ -2,11 +2,13 @@ import type { Metadata } from 'next';
 
 import BlogContent from './blog-content';
 import { getAllTags, getBlogPostsMeta } from '@/lib/blog-source';
+import { canonicalPath } from '@/lib/seo';
 
 export const metadata: Metadata = {
   title: 'Blog',
   description:
     'Product updates, use cases, and engineering insights from the Eventum team.',
+  alternates: { canonical: canonicalPath('/blog') },
 };
 
 export default function BlogPage() {
