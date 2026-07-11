@@ -305,9 +305,16 @@ export function courseSchema(course: {
 
 - [ ] **Step 2: Рендерить Course JSON-LD на pillar'ах курса**
 
-В `app/docs/[[...slug]]/page.tsx`, в теле `Page`, рядом с существующим breadcrumb `JsonLd`, добавить (для страниц курса — обзор и pillar'ы треков):
+В `app/docs/[[...slug]]/page.tsx`, в теле `Page`, рядом с существующим breadcrumb `JsonLd`, добавить Course JSON-LD ТОЛЬКО для pillar-страниц курса (обзор + индексы треков), не для отдельных уроков (по spec §8: Course на pillar'ах, Article на уроках). Задать явный набор pillar-путей на уровне модуля и проверять по нему:
 ```tsx
-{page.url.startsWith('/docs/tutorials') && (
+const COURSE_PILLARS = new Set([
+  '/docs/tutorials',
+  '/docs/tutorials/formats',
+  '/docs/tutorials/delivery',
+  '/docs/tutorials/scenarios',
+]);
+// ...в теле Page:
+{COURSE_PILLARS.has(page.url) && (
   <JsonLd
     data={courseSchema({
       name: page.data.title,
