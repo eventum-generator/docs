@@ -209,10 +209,7 @@ title: Stream synthetic data to your stack
 description: Deliver generated events to the backend you actually use — OpenSearch, Kafka, ClickHouse, HTTP — with the right format per destination.
 ---
 
-Generating events is half the job; getting them into your backend is the
-other half. Eventum fans out the same stream to one or more destinations in
-parallel, formatting per destination. This track shows how to deliver
-synthetic data to the systems you run.
+Generating events is half the job; getting them into your backend is the other half. Eventum fans out the same stream to one or more destinations in parallel, formatting per destination. This track shows how to deliver synthetic data to the systems you run.
 
 <Cards>
   <Card title="Generating logs for OpenSearch" description="Index a realistic log stream into OpenSearch with the bulk API." href="/docs/tutorials/delivery/opensearch" />
@@ -255,11 +252,7 @@ title: Synthetic data for SIEM and detection testing
 description: Generate realistic security telemetry — Windows, Sysmon, network, endpoint — to build and test SIEM detections without touching production or running live attacks.
 ---
 
-Building a detection means proving it fires on the right events and stays
-quiet on the wrong ones. That needs data: attack-like telemetry, benign
-noise, and enough volume to be realistic. Live attacks need a lab; static
-sample sets are frozen and quickly stale. Eventum generates fresh,
-parameterized security telemetry on demand, in the format your SIEM ingests.
+Building a detection means proving it fires on the right events and stays quiet on the wrong ones. That needs data: attack-like telemetry, benign noise, and enough volume to be realistic. Live attacks need a lab; static sample sets are frozen and quickly stale. Eventum generates fresh, parameterized security telemetry on demand, in the format your SIEM ingests.
 
 <Cards>
   <Card title="SIEM: Windows Security → OpenSearch" description="A complete stateful generator: Windows Security events indexed into OpenSearch." href="/docs/tutorials/siem-events" />
