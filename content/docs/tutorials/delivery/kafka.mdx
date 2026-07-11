@@ -1,0 +1,173 @@
+---
+title: Generate test data for Kafka
+description: Produce a continuous, realistic stream of test data to a Kafka topic — a modeled arrival rate, a stable message key, and any format, not a fixed demo schema.
+---
+
+A consumer, a stream-processing job, and a dashboard tracking consumer lag all need the same raw material: messages actually landing on a topic, at a pace that behaves like production traffic instead of a burst or a trickle. Wiring up a real producer just to get there is disproportionate for a test, and pointing a consumer at a mirror of the production topic carries every customer record and payment detail production carries into an environment built for testing, not for holding it. Searching for a shortcut mostly turns up a demo connector that replays a handful of canned Avro records at a fixed interval, indefinitely, or a short script publishing some JSON in a loop — useful for one message, silent on a rate that looks like anything real.
+
+Eventum closes that gap with a native `kafka` output plugin: point it at a broker, describe a message in a template, and it produces every generated event to the topic as it's created — continuously, in whatever format the template renders, at a rate shaped to look like real traffic rather than a metronome.
+
+## Producing to a Kafka topic
+
+A Kafka **topic** is a named, append-only log — the category a producer publishes to and a consumer subscribes to, conceptually similar to a queue that several readers can replay independently. A topic is split into one or more **partitions**, each an ordered, immutable sequence of messages. Partitions are what let a topic scale, since different partitions can sit on different brokers and be written or read in parallel, and what let a consumer group parallelize reads, since each partition is owned by exactly one consumer in the group at a time.
+
+Every message can carry a **key**. The producer hashes the key to pick a partition deterministically, so messages sharing a key always land on the same partition and keep their relative order there — the mechanism behind per-entity ordering guarantees, such as every update for one order arriving in the sequence it was produced. A message with no key is spread across partitions to balance load, with no ordering guarantee across the topic as a whole.
+
+The **message value** is the payload itself, and Kafka treats it as an opaque byte string — JSON, Avro, Protobuf, CSV, or plain text are all valid, and nothing about the broker enforces one over another. The format is an agreement between producer and consumer; Eventum's [formatter](/docs/plugins/formatters) is what decides it on the producing side.
+
+## Generate a stream with Eventum
+
+The generator below produces order-placed events for an online store's checkout service — a high-volume, non-security data source that exercises the same delivery path a clickstream or payment topic would, at a rate shaped to look like real traffic instead of a flat one.
+
+### The template
+
+Each event is one placed order: an ID, the customer, a product category, a quantity and price, and a payment method. All of it comes from [module.rand](/docs/plugins/event/template/modules) and [module.faker](/docs/plugins/event/template/modules#modulefaker), so every run produces different but structurally consistent orders.
+
+```jinja title="generators/orders/templates/order_placed.jinja"
+{%- set order_id = module.rand.string.pattern("ORD-%A{3}-%d{6}") -%}
+{%- set customer_name = module.faker.locale['en_US'].name() -%}
+{%- set customer_email = module.faker.locale['en_US'].email() -%}
+{%- set category = module.rand.choice(["electronics", "home", "apparel", "sporting-goods", "books"]) -%}
+{%- set quantity = module.rand.number.integer(1, 5) -%}
+{%- set unit_price = module.rand.number.floating(4.99, 249.99) | round(2) -%}
+{%- set payment_method = module.rand.weighted_choice({"card": 70, "paypal": 20, "gift-card": 10}) -%}
+{
+  "order_id": "{{ order_id }}",
+  "placed_at": "{{ timestamp.isoformat() }}",
+  "customer": {
+    "name": "{{ customer_name }}",
+    "email": "{{ customer_email }}"
+  },
+  "category": "{{ category }}",
+  "quantity": {{ quantity }},
+  "unit_price": {{ "%.2f" | format(unit_price) }},
+  "total": {{ "%.2f" | format(quantity * unit_price) }},
+  "payment_method": "{{ payment_method }}"
+}
+```
+
+### A realistic arrival rate
+
+A fixed gap between messages is the tell that data is synthetic — real checkout traffic rises and falls even within a single hour. The [time-patterns](/docs/plugins/input/time-patterns) input models that shape instead of a flat rate, combining four stages:
+
+- **Oscillator** — a repeating one-hour window.
+- **Multiplier** — around 1,200 orders per hour (roughly 20 a minute on average).
+- **Randomizer** — ±20% variation, so no two hours look identical.
+- **Spreader** — a beta distribution clustering orders toward the middle of each hour and thinning out at the edges.
+
+```yaml title="generators/orders/patterns/checkout-traffic.yml"
+label: checkout-traffic
+oscillator:
+  start: "now"
+  end: "+24h"
+  period: 1
+  unit: hours
+multiplier:
+  ratio: 1200
+randomizer:
+  deviation: 0.2
+  direction: mixed
+spreader:
+  distribution: beta
+  parameters:
+    a: 5
+    b: 5
+```
+
+This window covers one day of traffic; set `end` to `"never"` instead to repeat the same hourly shape indefinitely for a generator meant to run continuously. Keep that to live mode — sample mode ignores wall-clock pacing entirely, so an unbounded pattern there tries to produce its whole infinite range at once instead of spreading it out over real time.
+
+### The generator config
+
+The [kafka](/docs/plugins/output/kafka) output produces each rendered order to the `orders` topic:
+
+```yaml title="generators/orders/generator.yml"
+input:
+  - time_patterns:
+      patterns:
+        - patterns/checkout-traffic.yml
+
+event:
+  template:
+    mode: all
+    templates:
+      - order_placed:
+          template: templates/order_placed.jinja
+
+output:
+  - kafka:
+      bootstrap_servers:
+        - kafka:9092
+      topic: orders
+      key: checkout-service
+      formatter:
+        format: json
+```
+
+`bootstrap_servers` takes a list, so naming more than one broker lets the plugin discover the rest of the cluster even if the first address it tries is down. `topic` is the only thing naming where messages land — `orders` here, which needs to already exist on the cluster unless the broker is configured to create topics automatically on first use. `key` is a single value applied to every message this output plugin produces, not a per-event expression: set it to whatever identifies this generator's own stream, such as the service or shard it represents. Running several generators against the same topic, each with its own `key` — a store ID, a region, a service name — spreads those sources across the topic's partitions while keeping every source's own messages in the order they were produced. `formatter` is set to `json` explicitly here, which is also the plugin's default: one compact JSON string per event, encoded to bytes with `encoding` (`utf-8` unless set otherwise).
+
+<Callout type="info">
+No Kafka broker within reach yet? Eventum opens every configured output plugin before a generator starts producing, so one that cannot reach its broker fails the whole run rather than skipping itself. Swap the `kafka` block for `stdout` while checking a template and pattern — it renders the identical formatted string `kafka` would have sent as the message value. Point `bootstrap_servers` at a real cluster once one exists; nothing else in the config changes.
+</Callout>
+
+## The result
+
+A full run needs a broker to actually receive these messages. The config and event shape above were validated by pointing the same template and pattern at `stdout` instead of `kafka`, since no cluster was reachable while writing this lesson. Two events from an actual run:
+
+```json title="Events from an actual run"
+{"order_id": "ORD-FWX-826496", "placed_at": "2026-07-11T15:12:14.578246+00:00", "customer": {"name": "Karen Lopez", "email": "christopherortiz@example.org"}, "category": "sporting-goods", "quantity": 5, "unit_price": 161.76, "total": 808.80, "payment_method": "card"}
+{"order_id": "ORD-NZZ-582985", "placed_at": "2026-07-11T15:15:43.649283+00:00", "customer": {"name": "George Stevenson", "email": "fishersarah@example.net"}, "category": "books", "quantity": 5, "unit_price": 204.37, "total": 1021.85, "payment_method": "paypal"}
+```
+
+The `kafka` output turns each line into one message on the `orders` topic: the JSON string becomes the value, and `checkout-service` — the static `key` configured on the plugin — travels alongside every one of them:
+
+```text title="Message as it lands on the orders topic"
+Key:   checkout-service
+Value: {"order_id": "ORD-FWX-826496", "placed_at": "2026-07-11T15:12:14.578246+00:00", "customer": {"name": "Karen Lopez", "email": "christopherortiz@example.org"}, "category": "sporting-goods", "quantity": 5, "unit_price": 161.76, "total": 808.80, "payment_method": "card"}
+```
+
+Because every message from this generator carries that same key, all of them hash to the same partition and keep the order they were produced in — exactly the guarantee a consumer processing this stream in arrival order depends on.
+
+## FAQ
+
+<Accordions>
+<Accordion title="How is this different from Kafka Connect Datagen?">
+[Kafka Connect Datagen](https://github.com/confluentinc/kafka-connect-datagen) is what most searches for Kafka test data turn up first: a Kafka Connect source connector that replays one of a handful of bundled, Avro-defined schemas — orders, users, pageviews, and a few others — at a fixed interval into a Kafka topic, for as long as the connector keeps running. It needs a Kafka Connect worker, and for Avro, a schema registry, running alongside the broker.
+
+Eventum is a single process, not a connector. The order rate above comes from time-patterns — an oscillator, multiplier, randomizer, and spreader — so the topic carries something that rises and falls like real traffic instead of one fixed gap between messages, forever. The message is whatever a Jinja2 template renders, in whatever format the formatter is set to, not a fixed schema. And the same generated stream can reach Kafka alongside OpenSearch, ClickHouse, a file, or an HTTP endpoint in the same run, which a Kafka-only connector cannot do.
+</Accordion>
+<Accordion title="SASL / SSL?">
+The `kafka` output supports it directly. `security_protocol` selects `SSL`, `SASL_PLAINTEXT`, or `SASL_SSL` in place of the default `PLAINTEXT`; `sasl_mechanism` (`PLAIN`, `SCRAM-SHA-256`, or `SCRAM-SHA-512`) together with `sasl_plain_username` and `sasl_plain_password` cover SASL, and `ssl_cafile`, `ssl_certfile`, and `ssl_keyfile` cover TLS, including mutual TLS once a client certificate and key are both set. Keep the password in the keyring rather than in the config:
+
+```bash
+eventum-keyring set kafka_password
+# Enter password of `kafka_password`: ********
+```
+
+```yaml
+output:
+  - kafka:
+      bootstrap_servers:
+        - kafka.prod:9093
+      topic: orders
+      security_protocol: SASL_SSL
+      sasl_mechanism: SCRAM-SHA-256
+      sasl_plain_username: checkout-service
+      sasl_plain_password: ${secrets.kafka_password}
+      ssl_cafile: certs/ca.pem
+```
+
+See [Secrets](/docs/core/config/secrets) for how `${secrets.*}` and the keyring work, and the [plugin reference](/docs/plugins/output/kafka#parameters) for every connection and security parameter.
+</Accordion>
+<Accordion title="Multiple topics or fan-out?">
+Two different things, both straightforward. For more than one topic from the same event stream, add another `kafka` block to `output` with a different `topic` — every output plugin in the list receives an identical copy of each generated event, whatever the destination. For fan-out to other systems, add an `opensearch`, `http`, `file`, or any other output alongside `kafka` the same way; each formats and delivers the same stream independently.
+
+To spread several logical sources across one topic's partitions while keeping each source's own messages in order, run one generator per source with its own `key` — a store ID, a region, a device fleet — using [parameters](/docs/core/config/parameters) to keep a single generator directory reusable across all of them.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [delivery track](/docs/tutorials/delivery) for streaming synthetic data to OpenSearch, ClickHouse, and HTTP alongside Kafka
+- The [OpenSearch delivery lesson](/docs/tutorials/delivery/opensearch) for indexing the same kind of stream into a search cluster instead of a topic
+- The [kafka output reference](/docs/plugins/output/kafka) for every connection, security, and performance parameter
+- The [scenarios track](/docs/tutorials/scenarios) for a complete stateful generator — the same finite-state, multi-template approach used there drops onto a `kafka` output exactly as it does OpenSearch
