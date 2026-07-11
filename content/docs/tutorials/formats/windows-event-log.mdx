@@ -91,7 +91,7 @@ With `start` anchored to midnight and a one-day period, `mode: 0.5` lands at noo
 [`mode: chance`](/docs/plugins/event/template/modes#chance) picks one template per timestamp with weighted probability — a higher `chance` value makes a template more frequent. Logon success and logon failure share a small inline [sample](/docs/plugins/event/template/samples) of usernames and a `domain` parameter:
 
 ```jinja title="generators/winlog/templates/logon-success.jinja"
-{%- set username = samples.usernames | random -%}
+{%- set username = (samples.usernames | random)[0] -%}
 {%- set src_ip = module.rand.network.ip_v4_private_c() -%}
 {%- set logon = module.rand.weighted_choice([["Network", "3"], ["Service", "5"], ["RemoteInteractive", "10"], ["Interactive", "2"]], [55, 20, 8, 5]) -%}
 {%- set record_id = shared.get('record_id', 1) -%}
@@ -120,7 +120,7 @@ With `start` anchored to midnight and a one-day period, `mode: 0.5` lands at noo
 Logon failure follows the same shape, using the `Status` field Windows itself sets on failed attempts — `0xC000006A` (bad password) and `0xC0000064` (bad username) account for most real-world failures, and `0xC0000072` (account disabled) covers the remainder:
 
 ```jinja title="generators/winlog/templates/logon-failure.jinja"
-{%- set username = samples.usernames | random -%}
+{%- set username = (samples.usernames | random)[0] -%}
 {%- set src_ip = module.rand.network.ip_v4_public() -%}
 {%- set status = module.rand.weighted_choice(["0xC000006A", "0xC0000064", "0xC0000072"], [70, 20, 10]) -%}
 {%- set record_id = shared.get('record_id', 1) -%}
