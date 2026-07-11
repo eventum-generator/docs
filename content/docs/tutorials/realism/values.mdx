@@ -1,5 +1,5 @@
 ---
-title: "Generate realistic values: skewed numbers and weighted choice"
+title: "Generate realistic fake data: skewed numbers and weighted choice"
 description: How to generate realistic fake data in Eventum — log-normal and exponential distributions for skewed numbers, weighted random choice for categories, and Faker- or Mimesis-backed values instead of flat uniform noise.
 ---
 
@@ -13,7 +13,7 @@ Three kinds of field give away a generator that only picks uniformly. A size or 
 
 The generator built later in this lesson makes the difference concrete. Its `bytes_sent` field is drawn with `module.rand.number.lognormal(6.9, 0.6)` and clamped to a realistic floor and ceiling; across 200 generated checkouts, half landed under 1,031 bytes, the busiest tenth reached 2,187, and only one touched the 3,326-byte ceiling of that run. A `module.rand.number.integer(250, 3326)` field over the same 200 checkouts would spread just as many values near 3,000 as near 500 — flat where the real shape clusters low with a thinning tail toward the top.
 
-## Skewed distributions for realistic numbers
+## Skewed distribution test data for realistic numbers
 
 Three distributions in [module.rand.number](/docs/plugins/event/template/modules) cover most skewed fields:
 
@@ -25,7 +25,7 @@ Three distributions in [module.rand.number](/docs/plugins/event/template/modules
 
 `lambd` is a rate, not a mean — pass `1 / <target average>` to center the distribution where you want it. Every one of these can, in theory, return a value past any realistic bound, so pair it with `clamp(value, min, max)` to enforce a floor or a ceiling the field can't cross: a byte count can't go negative, a fraud score can't exceed 100. Two more distributions in the same namespace cover shapes these three don't: `pareto(alpha, xmin)` for a heavier tail than `lognormal` gives, and `triangular(low, high, mode)` for a bounded value with a known typical case. The [modules reference](/docs/plugins/event/template/modules) has the full signature for each.
 
-## Weighted choice for realistic categories
+## Weighted random data for realistic categories
 
 `module.rand.weighted_choice(items, weights)` picks one item with the odds you assign it, taking either two parallel sequences or a single dict of `{item: weight}` pairs. A status code that succeeds 90% of the time, fails outright rarely, and gets rejected occasionally reads as `module.rand.weighted_choice({200: 90, 402: 7, 500: 3})` — the same function fits any skewed category: a protocol mix mostly `tcp` with a trickle of `udp`, an HTTP method mostly `GET` with occasional `POST` and rare `DELETE`, a log level mostly `INFO` with `WARN` and `ERROR` further down. `weighted_choices(items, weights, n)` returns several picks at once when a template needs more than one. Base the weights on whatever the real source actually shows — vendor documentation, a sample of production traffic, an existing dataset for the same kind of system — rather than a round number picked for convenience; the point of weighting is to match odds that exist somewhere, not just to move away from uniform.
 
@@ -33,7 +33,7 @@ Three distributions in [module.rand.number](/docs/plugins/event/template/modules
 
 [module.rand.string](/docs/plugins/event/template/modules) generates literal random characters — letters, digits, hex — which is exactly right for a token or an identifier and exactly wrong for a name or an address, where the field needs to look like a real one, not like noise. `module.faker` and `module.mimesis` fill that gap: `module.faker.locale['en_US'].name()` and `module.mimesis.locale['en'].address.city()` draw a fresh, realistic-looking value on every render, across hundreds of provider methods covering names, addresses, companies, products, and more.
 
-A [sample](/docs/plugins/event/template/samples) is the other option, for a smaller, fixed vocabulary instead of an unbounded stream of fresh values: a `csv` or `json` file loaded once at startup, picked from with `pick()` or, weighted the same way a category is, with `weighted_pick(weight_column)` — a services sample where `HTTP` outweighs `SSH` combines domain data and weighted choice in a single pick. Reach for a sample instead of `faker`/`mimesis` when a field should repeat a bounded, realistic set of values — the same fifty hostnames across a run — rather than a new one every time, or when picking from a pre-built list should cost less per event than generating a fresh value.
+A [sample](/docs/plugins/event/template/samples) is the other option, for a smaller, fixed vocabulary instead of an unbounded stream of fresh values: a `csv` or `json` file loaded once at startup, picked from with `pick()` or, weighted the same way a category is, with `weighted_pick(weight)` — a services sample where `HTTP` outweighs `SSH` combines domain data and weighted choice in a single pick. Reach for a sample instead of `faker`/`mimesis` when a field should repeat a bounded, realistic set of values — the same fifty hostnames across a run — rather than a new one every time, or when picking from a pre-built list should cost less per event than generating a fresh value.
 
 None of these three techniques compute anything from data already produced. A distribution draws a fresh value shaped like the real thing on every render; there's no running total or aggregate behind it, and no analysis to perform on output that's synthetic to begin with — generating the next believable value is the whole job.
 
