@@ -13,7 +13,7 @@ The generator uses:
 
 - [**timer**](/docs/plugins/input/timer) input — emits a timestamp every 5 seconds.
 - [**spin**](/docs/core/concepts/producing#picking-modes) picking mode — cycles through three sensor templates round-robin.
-- [**locals state**](/docs/core/concepts/producing#state) — per-sensor value drift that persists across readings.
+- [**locals state**](/docs/core/concepts/producing#state-management) — per-sensor value drift that persists across readings.
 - [**stdout output**](/docs/plugins/output/stdout) with `json` formatter — validates each event and outputs compact NDJSON.
 
 ## Prerequisites
@@ -206,7 +206,7 @@ For a finite dataset, use the `timer` plugin's `repeat` parameter. Set `repeat: 
   <Card
     title="State management"
     description="Locals, shared, and globals — persistent state in templates."
-    href="/docs/core/concepts/producing#state"
+    href="/docs/core/concepts/producing#state-management"
   />
   <Card
     title="eventum generate"

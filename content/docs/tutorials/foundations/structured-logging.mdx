@@ -31,7 +31,7 @@ A key-value line keeps the flat, single-line feel of plain text but separates ea
 | Key-value | `level=ERROR order_id=39402 user=bob reason="payment declined"` | Application logs read by tools that split on whitespace and `=` |
 | JSON | `{"level":"ERROR","order_id":39402,"user":"bob","reason":"payment declined"}` | Log shippers, search backends, and SIEMs that parse a JSON object natively |
 
-Fixing the shape of a log line does not fix what each field is called: two structured loggers can both emit JSON and still name the same piece of data differently — `user`, `username`, `actor.name` — so a query written against one does not match the other. A schema convention closes that gap by standardizing field names across every source that adopts it, so one query or detection rule matches all of them. [ECS](/docs/tutorials/formats/ecs) and OCSF are the two most widely adopted schemas built this way: structured logging is the mechanism, a schema is the shared vocabulary layered on top of it.
+Fixing the shape of a log line does not fix what each field is called: two structured loggers can both emit JSON and still name the same piece of data differently — `user`, `username`, `actor.name` — so a query written against one does not match the other. A schema convention closes that gap by standardizing field names across every source that adopts it, so one query or detection rule matches all of them. [ECS](/docs/tutorials/formats/ecs) and [OCSF](/docs/tutorials/formats/ocsf) are the two most widely adopted schemas built this way: structured logging is the mechanism, a schema is the shared vocabulary layered on top of it.
 
 <Mermaid chart={`graph LR
     A["Plain text<br/>one sentence per event"] --> B["Structured<br/>named fields (key-value or JSON)"]

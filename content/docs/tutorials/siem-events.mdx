@@ -395,7 +395,7 @@ A complete session: logon → privilege → 4 processes → logoff. Then a new s
 No. The generator produces ordinary logon, privilege-use, process-creation, and logoff activity shaped like what a real Windows environment logs — nothing here simulates an exploit, a malicious payload, or an attacker technique. Point the output at any OpenSearch-compatible index, or swap it for `stdout: {}` to inspect events locally without a running cluster at all.
 </Accordion>
 <Accordion title="Which log sources can I generate for SIEM besides Windows Security?">
-This walkthrough builds a Windows Security generator, but the same input-template-output pattern applies to other sources. The [formats field guide](/docs/tutorials/formats) covers the Windows Event Log, CEF, LEEF, and syslog shapes structurally, and the [Eventum Hub](/hub) ships ready-made generators for network, endpoint, identity, and cloud security telemetry alongside [windows-security](/hub/windows-security) and [windows-sysmon](/hub/windows-sysmon).
+This walkthrough builds a Windows Security generator, but the same input-template-output pattern applies to other sources. The [formats field guide](/docs/tutorials/formats) covers the Windows Event Log, CEF, syslog, and other shapes structurally, and the [Eventum Hub](/hub) ships ready-made generators for network, endpoint, identity, and cloud security telemetry alongside [windows-security](/hub/windows-security) and [windows-sysmon](/hub/windows-sysmon).
 </Accordion>
 <Accordion title="Can I index into Elasticsearch or another backend instead of OpenSearch?">
 Yes. OpenSearch is API-compatible with Elasticsearch on bulk indexing, so pointing `hosts` at an Elasticsearch cluster and adjusting credentials indexes the same events the same way — see the [OpenSearch delivery lesson](/docs/tutorials/delivery/opensearch) for TLS and authentication details. For a different backend entirely, replace the `opensearch` block in `generator.yml` with another output plugin and keep the input and templates unchanged.
@@ -407,7 +407,8 @@ Add a new Jinja template and wire it into the FSM as an additional state or tran
 
 ## Related
 
-- The [SIEM scenarios pillar](/docs/tutorials/scenarios) for the broader detection-testing picture and other security telemetry sources
+- The [scenarios track](/docs/tutorials/scenarios) for the wider applied picture of synthetic test data
+- The [detection testing lesson](/docs/tutorials/detection-testing) for turning telemetry like this into Sigma-rule tests
 - The [Windows Event Log & Sysmon format lesson](/docs/tutorials/formats/windows-event-log) for the EVTX event model and EventID structure behind these templates
 - The [OpenSearch delivery lesson](/docs/tutorials/delivery/opensearch) for indexing, the bulk API, and TLS/authentication in depth
 - The [windows-security generator](/hub/windows-security) in the Eventum Hub for a production-tuned, ready-made version of this build

@@ -223,12 +223,12 @@ No. The templates produce the same fields a Windows host would log, using ordina
 EVTX is the binary container Windows actually writes to `C:\Windows\System32\winevt\Logs` — event records encoded as binary XML and grouped into 64 KB chunks alongside the XML templates they reference, not human-readable text. The XML shown in Event Viewer, in Microsoft's own event documentation, and in the example above is a rendering of that binary data, not the storage format itself. Most non-Windows destinations — SIEMs, Elastic Agent, Eventum — skip the binary layer entirely and work with the rendered fields as JSON, which is what the templates above produce directly; no EVTX file is created or parsed at any point.
 </Accordion>
 <Accordion title="How do I feed this into a SIEM?">
-Point the output plugin at your SIEM's ingestion path instead of a file: [opensearch](/docs/plugins/output/opensearch) or [http](/docs/plugins/output/http) for Elastic or OpenSearch, [kafka](/docs/plugins/output/kafka) for a streaming pipeline, [tcp](/docs/plugins/output/tcp) or [udp](/docs/plugins/output/udp) for a syslog-style collector. The input, templates, and sample data stay the same — only the `output` block changes. For a complete, stateful build that indexes correlated Windows Security sessions into OpenSearch, see the [SIEM scenario track](/docs/tutorials/scenarios).
+Point the output plugin at your SIEM's ingestion path instead of a file: [opensearch](/docs/plugins/output/opensearch) or [http](/docs/plugins/output/http) for Elastic or OpenSearch, [kafka](/docs/plugins/output/kafka) for a streaming pipeline, [tcp](/docs/plugins/output/tcp) or [udp](/docs/plugins/output/udp) for a syslog-style collector. The input, templates, and sample data stay the same — only the `output` block changes. For a complete, stateful build that indexes correlated Windows Security sessions into OpenSearch, see the [SIEM test data lesson](/docs/tutorials/siem-events).
 </Accordion>
 </Accordions>
 
 ## Related
 
-- The full [formats field guide](/docs/tutorials/formats) covering CEF, LEEF, and syslog
-- The [SIEM scenario track](/docs/tutorials/scenarios) for a complete detection-testing pipeline
+- The full [formats field guide](/docs/tutorials/formats) covering every supported log and event shape
+- The [detection testing lesson](/docs/tutorials/detection-testing) for exercising Sigma rules with this telemetry
 - The [Windows Security Event Log generator](/hub/windows-security) in the Eventum Hub
