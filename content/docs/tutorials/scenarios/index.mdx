@@ -1,15 +1,22 @@
 ---
-title: Synthetic data for SIEM and detection testing
-description: Generate realistic security telemetry — Windows, Sysmon, network, endpoint — to build and test SIEM detections without touching production or running live attacks.
+title: "Synthetic test data: use cases"
+description: A complete project for every use of synthetic test data — pipeline testing, detection, load testing, database seeding — from an empty directory to working output.
 ---
 
-Building a detection means proving it fires on the right events and stays quiet on the wrong ones. That needs data: attack-like telemetry, benign noise, and enough volume to be realistic. Live attacks need a lab; static sample sets are frozen and quickly stale. Eventum generates fresh, parameterized security telemetry on demand, in the format your SIEM ingests.
+Foundations, formats, realism, and delivery cover the pieces of synthetic event and log data — what it is, what shape it takes, how to make it realistic, where it goes. A scenario puts them together into one complete project that solves a real job, from an empty directory to working output. This track covers the situations synthetic test data gets built for most often — proving a pipeline delivers data correctly, generating telemetry for SIEM and detection work, load-testing an API, seeding a database, tracking clickstream and IoT traffic, and firing scheduled alerts. Start with the end-to-end walkthrough below, then jump to whichever scenario matches your job.
 
 <Cards>
-  <Card title="SIEM test data: Windows → OpenSearch" description="A complete stateful generator: Windows Security events indexed into OpenSearch." href="/docs/tutorials/siem-events" />
+  <Card title="Test data pipeline end to end" description="Generate a realistic event stream, deliver it the way production does, and confirm the backend actually received it." href="/docs/tutorials/test-data-pipeline" />
+  <Card title="SIEM test data: Windows → OpenSearch" description="Index Windows Security Event Log sessions into OpenSearch — for detection development, parser validation, and analyst training." href="/docs/tutorials/siem-events" />
+  <Card title="Test Sigma rules with synthetic attack telemetry" description="Generate benign and attack-shaped telemetry to test Sigma rules and ATT&CK-mapped detections." href="/docs/tutorials/detection-testing" />
+  <Card title="Seed a database with realistic test data" description="Generate a shaped e-commerce dataset of purchases, refunds, and chargebacks as CSV, ready to load into a dev or staging database." href="/docs/tutorials/csv-dataset" />
+  <Card title="API load testing" description="Generate realistic load test data — a weighted mix of request payloads — and fire it at a REST API to benchmark throughput and find its breaking point." href="/docs/tutorials/load-testing" />
+  <Card title="Web clickstream → ClickHouse" description="Model user browsing sessions with a finite state machine and stream page views into ClickHouse for funnel analysis." href="/docs/tutorials/web-clickstream" />
+  <Card title="IoT sensor telemetry" description="Stream continuous sensor readings with realistic drift and noise as NDJSON." href="/docs/tutorials/iot-telemetry" />
+  <Card title="Scheduled Telegram alerts" description="Simulate a monitoring system that sends alert notifications to a Telegram chat on a cron schedule." href="/docs/tutorials/telegram-alerts" />
 </Cards>
 
 ## Related
 
-- Formats used in SIEM data: [Windows Event Log](/docs/tutorials/formats/windows-event-log), [CEF](/docs/tutorials/formats/cef), [syslog](/docs/tutorials/formats/syslog)
-- Ready-made security generators in the [Eventum Hub](/hub)
+- The [log and event formats](/docs/tutorials/formats) field guide for the formats each scenario generates.
+- Ready-made generators for common data sources in the [Eventum Hub](/hub).
