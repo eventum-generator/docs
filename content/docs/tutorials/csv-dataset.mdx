@@ -27,7 +27,7 @@ The generator uses:
 - [**chance**](/docs/plugins/event/template/modes#chance) picking mode — weighted random selection between three transaction types.
 - [**file**](/docs/plugins/output/file) output with the default [`plain` formatter](/docs/plugins/formatters#plain) — each template already renders a complete CSV row, so nothing needs reshaping before it's written.
 - [**JSON samples**](/docs/plugins/event/template/samples) — product catalog loaded from a file.
-- [**shared state**](/docs/core/concepts/producing#state) — running revenue counter across all events.
+- [**shared state**](/docs/core/concepts/producing#state-management) — running revenue counter across all events.
 
 The entire dataset is generated in one burst using [sample mode](/docs/core/concepts/generator#sample-mode) (`live_mode: false`), so 10,000 rows complete in seconds.
 
