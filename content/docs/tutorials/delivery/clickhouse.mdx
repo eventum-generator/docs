@@ -1,0 +1,200 @@
+---
+title: Generate test data for ClickHouse
+description: Insert a continuous, time-aware stream of test data into ClickHouse over its HTTP interface — realistic distributions, not a one-shot flat sample from generateRandom.
+---
+
+A dashboard, a materialized view, and a query tuned for a specific partitioning scheme all need the same raw material: rows already sitting in a ClickHouse table, arriving the way a real source would instead of appearing all at once. Copying production data into a test table carries every customer record and payment detail it holds into an environment built for testing, not for holding it. ClickHouse's own shortcuts for manufacturing rows don't close that gap either: `generateRandom()` fills a table with a fixed batch of independently random values in one shot, and `INSERT ... SELECT` just copies rows that already exist somewhere — production's, usually, which is the very table this is meant to avoid touching — so neither produces a table that fills the way a real source would, over time, with values shaped like the real thing. That's enough to confirm a column accepts the right type, but not to see whether a materialized view keeps up with a real arrival rate, a `TTL` clause expires the right rows, or a monthly partition holds what a dashboard actually expects to query.
+
+Eventum closes that gap with a native `clickhouse` output plugin: point it at a table, describe a row's shape in a template, and it inserts every generated event over ClickHouse's HTTP interface as it's produced — continuously, at a rate shaped to look like real traffic, with values drawn from statistical distributions instead of a single uniform random draw.
+
+## Inserting test data into ClickHouse over HTTP
+
+ClickHouse is a columnar analytical database: it stores each column's values together on disk rather than each row, a layout built for scanning and aggregating billions of rows over a handful of columns — exactly the kind of query a dashboard, a rollup, or a monthly report runs. Two interfaces reach it: a native TCP protocol on port 9000, and an HTTP interface on port 8123 that accepts a query string and a request body over plain HTTP or HTTPS. Eventum's `clickhouse` output uses the HTTP interface exclusively, so nothing beyond an HTTP(S) endpoint needs to be reachable.
+
+An `INSERT` sent over HTTP names the target table and an **input format** that describes how the request body maps to rows — ClickHouse supports dozens of them, from `CSV` to `Avro` to `Parquet`. The plugin defaults to `JSONEachRow`: one JSON object per line, its keys matched against column names, which is also exactly what Eventum's own `json` [formatter](/docs/plugins/formatters) renders for each event. The two defaults are already paired to work together, so a batch of events becomes a batch of newline-delimited JSON objects, sent as the body of one insert request:
+
+```text
+POST /?query=INSERT INTO <database>.<table> FORMAT JSONEachRow HTTP/1.1
+
+{ <event 1> }
+{ <event 2> }
+```
+
+## generateRandom vs Eventum
+
+ClickHouse ships its own way to manufacture rows without an external tool: the [`generateRandom`](https://clickhouse.com/docs/sql-reference/table-functions/generate) table function produces a fixed number of rows matching a column structure, each value drawn independently at random.
+
+```sql
+INSERT INTO observability.request_metrics
+SELECT * FROM generateRandom(
+    'timestamp DateTime64(6), service String, host String, endpoint String, status UInt16, latency_ms Float32, host_cpu_percent Float32, bytes_out UInt32',
+    1, 10, 5
+)
+LIMIT 1000;
+```
+
+That statement fills the table with 1,000 rows in one shot and stops — a genuinely useful way to confirm the table's column types accept the shape of data a real `INSERT` would send, which is exactly the smoke test it's built for. What it doesn't produce is anything resembling a real source: `timestamp` lands on a uniformly random instant across the column's entire representable range instead of clustering near the present, `status` is a uniformly random 16-bit integer rather than the mostly-`200` mix a real API returns, `service`, `host`, and `endpoint` are random strings instead of values drawn from a fixed, meaningful set, and every row is independent, so nothing about one row's `endpoint` says anything about the next row sharing it. None of that matters for a type check. All of it matters for a materialized view that aggregates by `service` over time, a `TTL` policy, or a query that prunes by partition — which is what a continuous, time-aware stream is for.
+
+## Generate a stream with Eventum
+
+The generator below produces request-level performance metrics for an internal API — latency, a response size, and the host's CPU load alongside each request's outcome — the kind of observability data a team pushes into ClickHouse to back a latency dashboard or an SLO query, at a rate shaped to look like real traffic instead of a flat one.
+
+### The template
+
+Each event is one API request's outcome: the service and host that handled it, the endpoint and status code, and three measurements drawn from a distribution shaped like the real thing instead of a flat range. [`module.rand`](/docs/plugins/event/template/modules) covers all of it.
+
+```jinja title="generators/api-metrics/templates/request_metric.jinja"
+{%- set service = module.rand.choice(["checkout", "catalog", "auth", "search"]) -%}
+{%- set host = "api-" ~ module.rand.number.integer(1, 6) ~ ".prod.local" -%}
+{%- set endpoint = module.rand.choice(["/v1/orders", "/v1/products", "/v1/session", "/v1/search"]) -%}
+{%- set status = module.rand.weighted_choice({200: 90, 400: 4, 404: 3, 500: 3}) -%}
+{%- set latency_ms = module.rand.number.exponential(0.02) | round(2) -%}
+{%- set host_cpu_percent = module.rand.number.clamp(module.rand.number.gauss(42, 12), 0, 100) | round(1) -%}
+{%- set bytes_out = module.rand.number.lognormal(8.2, 0.9) | round | int -%}
+{
+  "timestamp": "{{ timestamp.strftime('%Y-%m-%d %H:%M:%S.%f') }}",
+  "service": "{{ service }}",
+  "host": "{{ host }}",
+  "endpoint": "{{ endpoint }}",
+  "status": {{ status }},
+  "latency_ms": {{ latency_ms }},
+  "host_cpu_percent": {{ host_cpu_percent }},
+  "bytes_out": {{ bytes_out }}
+}
+```
+
+`status` is weighted toward `200` rather than spread evenly across four codes, `latency_ms` comes from an exponential distribution so most requests are fast with an occasional long one, `host_cpu_percent` comes from a Gaussian clamped to `[0, 100]` so it clusters around a mid-range load instead of spanning the full scale evenly, and `bytes_out` comes from a log-normal distribution so most responses are a modest size with an occasional much larger one — four different shapes for four different kinds of measurement, real distributions instead of the single uniform draw `generateRandom` uses for every column. `timestamp` renders with `strftime`, not `isoformat()`: ClickHouse's default text parsing for a `DateTime`/`DateTime64` column expects `YYYY-MM-DD HH:MM:SS[.ffffff]`, not the `T`-separated, offset-suffixed shape `isoformat()` produces, so matching ClickHouse's own format here avoids a parsing mismatch at insert time.
+
+### A realistic arrival rate
+
+A flat tick is the giveaway that traffic is synthetic — real API load rises and falls even within an hour. The [time-patterns](/docs/plugins/input/time-patterns) input models that shape instead of a flat rate, combining four stages:
+
+- **Oscillator** — a repeating one-hour window.
+- **Multiplier** — around 3,600 requests per hour (roughly one a second on average).
+- **Randomizer** — ±25% variation, so no two hours carry an identical count.
+- **Spreader** — a beta distribution clustering requests toward the middle of each hour and thinning out at the edges.
+
+```yaml title="generators/api-metrics/patterns/request-rate.yml"
+label: request-rate
+oscillator:
+  start: "now"
+  end: "+24h"
+  period: 1
+  unit: hours
+multiplier:
+  ratio: 3600
+randomizer:
+  deviation: 0.25
+  direction: mixed
+spreader:
+  distribution: beta
+  parameters:
+    a: 5
+    b: 5
+```
+
+This window covers one day of traffic; set `end` to `"never"` instead to repeat the same hourly shape indefinitely for a generator meant to run continuously. Reserve that setting for live mode: sample mode ignores wall-clock pacing entirely, so an unbounded pattern there tries to produce its whole infinite range at once instead of spreading it out over real time.
+
+### The generator config
+
+The [clickhouse](/docs/plugins/output/clickhouse) output inserts each rendered event into the `request_metrics` table:
+
+```yaml title="generators/api-metrics/generator.yml"
+input:
+  - time_patterns:
+      patterns:
+        - patterns/request-rate.yml
+
+event:
+  template:
+    mode: all
+    templates:
+      - request_metric:
+          template: templates/request_metric.jinja
+
+output:
+  - clickhouse:
+      host: clickhouse
+      database: observability
+      table: request_metrics
+      username: ${params.ch_user}
+      password: ${secrets.ch_password}
+      formatter:
+        format: json
+```
+
+`host`, `database`, and `table` name the destination — `database` falls back to `default` and `table` has no default, so it always needs setting explicitly. `formatter` is set to `json` here, which is also the plugin's default, paired with `input_format`, left unset here to keep its own default of `JSONEachRow` — the pairing described above. Every write from this output goes through a connection pool capped at `pool_maxsize` (default `32`) toward the ClickHouse host; raise it alongside [`generation.max_concurrency`](/docs/core/config/eventum-yml#concurrency-and-ordering) — which itself defaults to `100`, already above `pool_maxsize`'s default — once a generator's actual concurrent write volume is enough to matter, so the pool holds enough connections to keep up rather than discarding them under a burst it wasn't sized for.
+
+<Callout type="info">
+No ClickHouse server within reach yet? Eventum opens every configured output plugin before a generator starts producing, so one that cannot reach its target fails the whole run rather than skipping itself. Swap the `clickhouse` block for `stdout` while checking a template and pattern — it renders the identical formatted string `clickhouse` would have sent as one row's JSON body. Point `host` at a real server once one exists; nothing else in the config changes.
+</Callout>
+
+### Store the password in the keyring
+
+`password` above is a `${secrets.*}` reference, not a plaintext value. Set it once in the encrypted keyring before running the generator:
+
+```bash
+eventum-keyring set ch_password
+# Enter password of `ch_password`: ********
+```
+
+Then run the generator, pointing at the same cryptfile:
+
+```bash
+eventum generate --path generator.yml --id api-metrics --cryptfile ./cryptfile.cfg
+```
+
+If the secret is missing from the keyring, Eventum reports it and refuses to start rather than connecting with an empty password. See [Secrets](/docs/core/config/secrets) for how the keyring and `${secrets.*}` substitution work.
+
+## ClickHouse sample data
+
+A full run needs a reachable ClickHouse server to actually receive these rows. The config and template above were validated by pointing the same generator at `stdout` instead of `clickhouse`, since no server was reachable while writing this lesson. Three consecutive rows from an actual run:
+
+```json title="Rows from an actual run"
+{"timestamp": "2026-07-12 12:15:56.568696", "service": "auth", "host": "api-6.prod.local", "endpoint": "/v1/session", "status": 500, "latency_ms": 63.59, "host_cpu_percent": 50.1, "bytes_out": 11813}
+{"timestamp": "2026-07-12 12:15:56.576664", "service": "auth", "host": "api-1.prod.local", "endpoint": "/v1/session", "status": 200, "latency_ms": 48.22, "host_cpu_percent": 8.7, "bytes_out": 5016}
+{"timestamp": "2026-07-12 12:15:56.849137", "service": "checkout", "host": "api-6.prod.local", "endpoint": "/v1/search", "status": 200, "latency_ms": 102.68, "host_cpu_percent": 54.2, "bytes_out": 5330}
+```
+
+The `clickhouse` output sends these same lines as the body of one `INSERT INTO observability.request_metrics FORMAT JSONEachRow` request, one line per row, matching a table shaped like this:
+
+```sql title="Matching table shape"
+CREATE TABLE IF NOT EXISTS request_metrics (
+    timestamp DateTime64(6),
+    service LowCardinality(String),
+    host String,
+    endpoint LowCardinality(String),
+    status UInt16,
+    latency_ms Float32,
+    host_cpu_percent Float32,
+    bytes_out UInt32
+) ENGINE = MergeTree()
+PARTITION BY toYYYYMM(timestamp)
+ORDER BY (service, timestamp)
+TTL timestamp + INTERVAL 30 DAY;
+```
+
+`PARTITION BY toYYYYMM(timestamp)` and the `TTL` clause are exactly the mechanics a one-shot `generateRandom()` sample can't exercise honestly: partitioning only groups rows sensibly when timestamps actually cluster near the present the way this stream's do, and a 30-day `TTL` only proves anything against rows that keep arriving past that window.
+
+## FAQ
+
+<Accordions>
+<Accordion title="generateRandom vs Eventum: which one should I use?">
+Reach for `generateRandom()` to confirm a table's column types accept the shape of data a real `INSERT` would send — it fills a table in one statement and needs nothing beyond a running ClickHouse server. Reach for Eventum when the test needs the table to behave like it does in production: rows arriving continuously rather than all at once, a realistic mix of values instead of a uniform random draw across each column's full range, and timestamps clustered near the present instead of scattered across the column's entire range — the difference that actually matters for a materialized view, a `TTL` policy, or a partition-pruning query.
+</Accordion>
+<Accordion title="How do pool_maxsize and generation.max_concurrency interact under a burst of writes?">
+`pool_maxsize` (default `32`) caps how many HTTP connections the `clickhouse` output keeps open toward the server; `generation.max_concurrency` (default `100`, set at the top level of [eventum.yml](/docs/core/config/eventum-yml#concurrency-and-ordering)) caps how many write operations across all output plugins run at once. Because the second number is already larger than the first by default, a generator that actually reaches meaningful concurrency — several output plugins, or a `clickhouse` output receiving large batches — can exceed `pool_maxsize` before it exceeds `max_concurrency`, and the pool starts discarding connections instead of reusing them under that load. Raise `pool_maxsize` to match or exceed `max_concurrency` once real concurrent volume is a possibility; the default pairing is fine for the modest, single-output rate shown above.
+</Accordion>
+<Accordion title="Which input_format should I use, and does the table schema matter?">
+`JSONEachRow` — the default — is the right choice whenever `formatter` is `json`, since the two already agree on shape: one JSON object per line, matched against column names by key. Column order in the `CREATE TABLE` statement doesn't need to match the JSON key order; ClickHouse matches by name. For a non-JSON destination format — `CSV`, `TabSeparated`, and the rest of [ClickHouse's input formats](https://clickhouse.com/docs/en/interfaces/formats) — pair the matching `input_format` with the `plain` [formatter](/docs/plugins/formatters) and use `header`, `footer`, and `separator` to control how rows are wrapped, exactly as the [clickhouse reference](/docs/plugins/output/clickhouse#examples) shows for CSV. Either way, the target table's column types decide what a value needs to look like — a `DateTime64` column expects `YYYY-MM-DD HH:MM:SS[.ffffff]`, not an ISO 8601 string with a `T` and a UTC offset, which is why the template above renders `timestamp` with `strftime` instead of `isoformat()`.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [delivery track](/docs/tutorials/delivery) for streaming synthetic data to OpenSearch, Kafka, and HTTP alongside ClickHouse
+- The [Kafka delivery lesson](/docs/tutorials/delivery/kafka) for producing the same kind of stream to a topic instead of a table
+- The [OpenSearch delivery lesson](/docs/tutorials/delivery/opensearch) for indexing it into a search cluster instead
+- The [Web clickstream scenario](/docs/tutorials/web-clickstream) for a stateful, session-based generator that streams into ClickHouse using an FSM instead of a flat `mode: all` template
+- The [Realistic timing](/docs/tutorials/realism/timing) lesson for shaping the arrival rate beyond a single beta spread
+- The [clickhouse output reference](/docs/plugins/output/clickhouse) for every connection, TLS, and performance parameter
