@@ -196,7 +196,7 @@ Running the generator above produces one Authentication event per second, mostly
 }
 ```
 
-In the raw output the JSON formatter escapes the ampersand in `category_name` as `\u0026` (a standard JSON escape that decodes back to `&`), which is why it reads `Identity \u0026 Access Management` above rather than a literal `&`.
+The `tojson` filter that serializes each event escapes `&` (along with other HTML-significant characters such as `<` and `>`) for safe embedding, so `category_name` reads `Identity \u0026 Access Management` in the output — a standard JSON escape that any parser decodes back to `&`.
 
 A failed logon from the same run:
 
