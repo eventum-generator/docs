@@ -1,0 +1,268 @@
+---
+title: "OCSF format: categories, classes, and how to generate a compliant event"
+description: How OCSF (Open Cybersecurity Schema Framework) organizes categories, event classes, and activities into one vendor-neutral schema, and how to generate OCSF events with Eventum.
+---
+
+Every security vendor has historically defined its own event shape: a firewall's own field names, an identity provider's own JSON structure, an EDR agent's own log lines. A detection rule or a query written against one source rarely works against another describing the exact same kind of event — a successful logon, in every case — because nothing forces the two vendors to agree on what that logon's fields should be called, or what values a status field is allowed to hold.
+
+OCSF (Open Cybersecurity Schema Framework) exists to remove that disagreement: one vendor-neutral definition per kind of security event, adopted directly by the platforms and products that choose to speak it, instead of translated after the fact. Eventum generates events shaped to OCSF's real class definitions directly from a template — the same field names, enum values, and required structure the current schema publishes — so a SIEM mapping, a detection rule, or a security data lake's ingestion pipeline can be exercised against compliant OCSF data without a live identity provider or security product anywhere in the loop.
+
+## What is OCSF?
+
+[OCSF](https://ocsf.io/) was initiated by AWS and Splunk in 2022 and is developed today as a Linux Foundation project by a broader group of contributors. It defines a single schema that any security product can adopt to describe the events it produces, so that a query or detection rule written against one adopter's data works against another's without a translation layer in between. This lesson matches **OCSF schema version 1.8.0**, the current stable release published at the framework's schema browser, [schema.ocsf.io](https://schema.ocsf.io/).
+
+The schema organizes events into a fixed hierarchy. Eight top-level **categories** — Identity & Access Management, Network Activity, System Activity, and five others — each group a set of **event classes**, and every class defines its own set of possible **activities**:
+
+<Mermaid chart={`graph TD
+    R["OCSF categories"] --> IAM["Identity & Access Management<br/>category_uid: 3"]
+    R --> NET["Network Activity<br/>category_uid: 4"]
+    R --> SYS["System Activity<br/>category_uid: 1"]
+    IAM --> AUTH["Authentication<br/>class_uid: 3002"]
+    IAM --> ACC["Account Change<br/>class_uid: 3001"]
+    AUTH --> LOGON["Logon<br/>activity_id: 1"]
+    AUTH --> LOGOFF["Logoff<br/>activity_id: 2"]
+    LOGON --> TYPE["type_uid: 300201"]`} />
+
+A class's `class_uid` is built from its category: category `3` (Identity & Access Management) contributes the leading digit, so its classes number `3001`, `3002`, and onward — Authentication is `3002`. Within a class, `activity_id` enumerates the specific stages it recognizes: for Authentication, that means Logon and Logoff plus several Kerberos-specific stages such as ticket requests and renewals. Combining the two produces `type_uid`, calculated as `class_uid × 100 + activity_id` — `300201` names the exact combination "Authentication: Logon" — which is why a consumer can filter on one integer instead of two.
+
+Every OCSF event, regardless of class, carries the same mandatory envelope: `time` (milliseconds since the Unix epoch), `metadata` (which itself requires a `product` object and a schema `version` string), `class_uid`, `category_uid`, `activity_id`, `severity_id`, and the derived `type_uid`. A specific class then promotes further fields to required on top of that envelope — Authentication also requires a `user` object, since an authentication event is meaningless without naming who it's about.
+
+Most of these identifiers pair with an optional human-readable sibling: `activity_id` with `activity_name`, `severity_id` with `severity`, `status_id` with `status`, and so on. A consumer that only recognizes the numeric taxonomy still gets a working event; a human reading the same event, or a source that has to fall back to `99` ("Other"), gets the sibling field's plain-text label instead of a bare number.
+
+Because OCSF is vendor-neutral by design, several platforms have adopted it as their normalization target rather than inventing another schema of their own. Amazon Security Lake automatically converts logs from its natively supported AWS services to OCSF before storing them — CloudTrail management events, for instance, land as API Activity, Account Change, or the Authentication class covered below, depending on what each event actually describes. Splunk, one of the framework's co-founders, supports OCSF-formatted sources in its security products, and Datadog Cloud SIEM ships an OCSF processor that normalizes incoming security logs to the same schema.
+
+## Generate an OCSF Authentication event with Eventum
+
+The generator below models a corporate identity provider issuing Authentication events for network logons: a common successful logon and a rarer failed attempt, both matching OCSF's real Authentication class (`class_uid` `3002`).
+
+### The templates
+
+Because an OCSF event nests several objects inside one another — `user`, `src_endpoint`, `dst_endpoint`, `metadata.product` — each template below builds the event as a single Jinja mapping and serializes the whole structure at once with the built-in `tojson` filter, instead of typing nested JSON braces by hand as the flatter examples elsewhere in this course do. Fields are filled with [`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module.
+
+`templates/logon-success.jinja` renders the common case — a successful network logon over Kerberos:
+
+```jinja title="generators/ocsf-idp/templates/logon-success.jinja"
+{%- set user_name = module.rand.choice(["alice", "bob", "carol", "dave", "frank"]) -%}
+{%- set hostname = module.rand.choice(["ws-finance-14", "ws-eng-07", "ws-hr-22", "ws-sales-31"]) -%}
+{%- set dst_ip = module.rand.network.ip_v4_private_c() -%}
+{%- set src_ip = module.rand.network.ip_v4_private_b() -%}
+{%- set event = {
+    "time": (timestamp.timestamp() * 1000) | int,
+    "severity_id": 1,
+    "severity": "Informational",
+    "class_uid": 3002,
+    "class_name": "Authentication",
+    "category_uid": 3,
+    "category_name": "Identity & Access Management",
+    "activity_id": 1,
+    "activity_name": "Logon",
+    "type_uid": 300201,
+    "type_name": "Authentication: Logon",
+    "status_id": 1,
+    "status": "Success",
+    "is_mfa": true,
+    "logon_type_id": 3,
+    "logon_type": "Network",
+    "auth_protocol_id": 2,
+    "auth_protocol": "Kerberos",
+    "user": {"name": user_name, "uid": module.rand.crypto.uuid4()},
+    "src_endpoint": {"ip": src_ip},
+    "dst_endpoint": {"hostname": hostname, "ip": dst_ip},
+    "metadata": {
+        "version": "1.8.0",
+        "product": {"name": "Fabrikam Identity Provider", "vendor_name": "Fabrikam"}
+    }
+} -%}
+{{ event | tojson }}
+```
+
+`templates/logon-failure.jinja` renders the rarer case — the same class and activity, a failed outcome instead:
+
+```jinja title="generators/ocsf-idp/templates/logon-failure.jinja"
+{%- set user_name = module.rand.choice(["alice", "bob", "carol", "dave", "frank"]) -%}
+{%- set hostname = module.rand.choice(["ws-finance-14", "ws-eng-07", "ws-hr-22", "ws-sales-31"]) -%}
+{%- set dst_ip = module.rand.network.ip_v4_private_c() -%}
+{%- set src_ip = module.rand.network.ip_v4_private_b() -%}
+{%- set reason = module.rand.choice(["USER_DOES_NOT_EXIST", "INVALID_CREDENTIALS", "ACCOUNT_DISABLED", "ACCOUNT_LOCKED_OUT", "PASSWORD_EXPIRED"]) -%}
+{%- set event = {
+    "time": (timestamp.timestamp() * 1000) | int,
+    "severity_id": 2,
+    "severity": "Low",
+    "class_uid": 3002,
+    "class_name": "Authentication",
+    "category_uid": 3,
+    "category_name": "Identity & Access Management",
+    "activity_id": 1,
+    "activity_name": "Logon",
+    "type_uid": 300201,
+    "type_name": "Authentication: Logon",
+    "status_id": 2,
+    "status": "Failure",
+    "status_detail": reason,
+    "is_mfa": false,
+    "logon_type_id": 3,
+    "logon_type": "Network",
+    "auth_protocol_id": 2,
+    "auth_protocol": "Kerberos",
+    "user": {"name": user_name, "uid": module.rand.crypto.uuid4()},
+    "src_endpoint": {"ip": src_ip},
+    "dst_endpoint": {"hostname": hostname, "ip": dst_ip},
+    "metadata": {
+        "version": "1.8.0",
+        "product": {"name": "Fabrikam Identity Provider", "vendor_name": "Fabrikam"}
+    }
+} -%}
+{{ event | tojson }}
+```
+
+Both templates share `activity_id: 1` ("Logon"): the class covers a logon attempt regardless of its outcome, and `status_id`/`status` — not `activity_id` — is what actually distinguishes success from failure, which is also why `type_uid` stays `300201` in both. `logon_type_id: 3` ("Network") matches the fact that the event names a separate `src_endpoint` (where the credentials came from) and `dst_endpoint` (the host being logged into); Authentication requires at least one of `service` or `dst_endpoint` to be present, and `dst_endpoint` covers that here. `auth_protocol_id: 2` ("Kerberos") is one of the protocols OCSF's own Authentication class description names as typical. On the failure template, `status_detail` is drawn from the exact set of example failure details OCSF's own class documentation lists for a rejected logon.
+
+<Callout type="info">
+Some OCSF attributes, such as `cloud` or `osint`, belong to optional profiles — reusable attribute bundles a producer opts into for a specific context, like reporting from a cloud provider or attaching threat-intelligence data. The schema browser lists a profile's fields as required wherever that profile applies, but a plain Authentication event like the one above, which opts into no profile, needs none of them. Authentication also defines further optional and recommended attributes not used above — certificate details, HTTP request context, risk scoring, MITRE ATT&CK mappings — added the same way, as additional keys in the `event` mapping, once the pipeline consuming this data expects them.
+</Callout>
+
+### The generator config
+
+[`mode: chance`](/docs/plugins/event/template/modes#chance) picks one of the two templates per timestamp, weighted so successful logons dominate and failures stay rare. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [file](/docs/plugins/output/file) output writes each event through the [json](/docs/plugins/formatters#json) formatter with `indent: 2`, so the nested structure stays readable:
+
+```yaml title="generators/ocsf-idp/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: chance
+    templates:
+      - logon_success:
+          template: templates/logon-success.jinja
+          chance: 85
+      - logon_failure:
+          template: templates/logon-failure.jinja
+          chance: 15
+
+output:
+  - file:
+      path: output/events.json
+      separator: "\n"
+      formatter:
+        format: json
+        indent: 2
+```
+
+## OCSF example
+
+Running the generator above produces one Authentication event per second, mostly successful logons and, at the configured 15% chance, an occasional failure. A successful logon from an actual run:
+
+```json title="A successful logon"
+{
+  "activity_id": 1,
+  "activity_name": "Logon",
+  "auth_protocol": "Kerberos",
+  "auth_protocol_id": 2,
+  "category_name": "Identity \u0026 Access Management",
+  "category_uid": 3,
+  "class_name": "Authentication",
+  "class_uid": 3002,
+  "dst_endpoint": {
+    "hostname": "ws-finance-14",
+    "ip": "192.168.226.133"
+  },
+  "is_mfa": true,
+  "logon_type": "Network",
+  "logon_type_id": 3,
+  "metadata": {
+    "product": {
+      "name": "Fabrikam Identity Provider",
+      "vendor_name": "Fabrikam"
+    },
+    "version": "1.8.0"
+  },
+  "severity": "Informational",
+  "severity_id": 1,
+  "src_endpoint": {
+    "ip": "172.17.117.54"
+  },
+  "status": "Success",
+  "status_id": 1,
+  "time": 1783811504000,
+  "type_name": "Authentication: Logon",
+  "type_uid": 300201,
+  "user": {
+    "name": "carol",
+    "uid": "de3b0992-6cde-47a5-b70a-c000fff8cc36"
+  }
+}
+```
+
+In the raw output the JSON formatter escapes the ampersand in `category_name` as `\u0026` (a standard JSON escape that decodes back to `&`), which is why it reads `Identity \u0026 Access Management` above rather than a literal `&`.
+
+A failed logon from the same run:
+
+```json title="A failed logon"
+{
+  "activity_id": 1,
+  "activity_name": "Logon",
+  "auth_protocol": "Kerberos",
+  "auth_protocol_id": 2,
+  "category_name": "Identity \u0026 Access Management",
+  "category_uid": 3,
+  "class_name": "Authentication",
+  "class_uid": 3002,
+  "dst_endpoint": {
+    "hostname": "ws-eng-07",
+    "ip": "192.168.95.167"
+  },
+  "is_mfa": false,
+  "logon_type": "Network",
+  "logon_type_id": 3,
+  "metadata": {
+    "product": {
+      "name": "Fabrikam Identity Provider",
+      "vendor_name": "Fabrikam"
+    },
+    "version": "1.8.0"
+  },
+  "severity": "Low",
+  "severity_id": 2,
+  "src_endpoint": {
+    "ip": "172.27.197.60"
+  },
+  "status": "Failure",
+  "status_detail": "USER_DOES_NOT_EXIST",
+  "status_id": 2,
+  "time": 1783811507000,
+  "type_name": "Authentication: Logon",
+  "type_uid": 300201,
+  "user": {
+    "name": "dave",
+    "uid": "2dc3a3c0-1050-4de4-a289-ab849e5b2f87"
+  }
+}
+```
+
+Both events carry the same `class_uid`, `category_uid`, and `type_uid`, since both describe the same class and the same activity; only `severity_id`, `status_id`, and their sibling fields change to reflect the actual outcome, exactly as the schema intends.
+
+## FAQ
+
+<Accordions>
+<Accordion title="OCSF vs ECS?">
+Both are schemas for normalizing event data across sources, but they differ in structure and origin. [ECS](/docs/tutorials/formats/ecs) (Elastic Common Schema) names fields as dotted, nested paths — `event.category`, `event.action` — read primarily by the Elastic Stack. OCSF uses a numeric category/class/activity taxonomy with paired human-readable sibling fields, backed by a broader multi-vendor group under the Linux Foundation and adopted by platforms such as Amazon Security Lake independent of any single vendor's stack. Neither replaces the other universally — which one a pipeline targets usually follows from which backend or data lake receives the events.
+</Accordion>
+<Accordion title="Who uses OCSF?">
+Amazon Security Lake normalizes the AWS security data it ingests to OCSF before storing it. Splunk, one of the framework's co-founders alongside AWS, supports OCSF-formatted sources in its security products, and Datadog Cloud SIEM ships a processor that maps incoming logs onto the same schema. Adoption has grown past the founding group since the framework's 2022 launch, though how completely any given product implements it still varies.
+</Accordion>
+<Accordion title="Do I have to populate every OCSF field to be compliant?">
+No. Only the base envelope — `time`, `metadata`, `class_uid`, `category_uid`, `activity_id`, `severity_id`, `type_uid` — plus whatever a specific class promotes to required is mandatory; Authentication adds `user` on top of that envelope. Everything else on a class, recommended or optional, deepens the event without being necessary for it to validate.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [formats field guide](/docs/tutorials/formats) covering Windows Event Log, CEF, LEEF, syslog, and NDJSON
+- The [ECS lesson](/docs/tutorials/formats/ecs) for the other widely adopted normalization schema
+- The [detection testing lesson](/docs/tutorials/detection-testing) for turning Authentication-style telemetry into data that exercises Sigma rules and ATT&CK-mapped detections
+- The [delivery track](/docs/tutorials/delivery) for shipping generated events toward a real data lake or SIEM
+- The [Okta generator](/hub/identity-okta) in the Eventum Hub for a real identity-provider source in its native shape
+- The [template](/docs/plugins/event/template) event plugin and [formatters](/docs/plugins/formatters) reference for every field and format used above
