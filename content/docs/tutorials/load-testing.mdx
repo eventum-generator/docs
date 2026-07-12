@@ -191,9 +191,9 @@ Flags explained:
 |------|--------|
 | `--live-mode false` | Releases all 5,000 timestamps instantly — maximum throughput |
 | `--batch.size 100` | Groups 100 events per batch before sending |
-| `--max-concurrency 10` | Up to 10 batch writes in flight at once — see below |
+| `--max-concurrency 10` | Up to 10 concurrent requests in flight at once — one per batch, see below |
 
-`--max-concurrency` limits [concurrent write operations across all output plugins](/docs/core/concepts/output#concurrency), not concurrent requests: the `http` plugin fires every event in a batch as its own concurrent request, so with `--batch.size 100` and `--max-concurrency 10`, as many as 1,000 requests can be in flight at once in the worst case, spread across up to 10 batches. The generator fires 5,000 requests grouped into 50 batches of 100 this way. Adjust `--batch.size` and `--max-concurrency` together to find your API's breaking point without overshooting it by accident.
+`--max-concurrency` limits [concurrent write operations across all output plugins](/docs/core/concepts/output#concurrency) — here, that's the `http` plugin's batch writes. The `json-batch` formatter configured above turns each batch into a single HTTP request carrying the whole batch as one JSON array (see [batch vs per-request delivery](/docs/tutorials/delivery/http#batch-vs-per-request-delivery)), so one write is one request: `--max-concurrency 10` caps the run at 10 concurrent requests in flight, not 10 batches' worth of per-event requests. The 5,000 events split into 50 batches of 100, with up to 10 of those batches' requests in flight at once. Swapping `formatter` to `json` instead would fan each batch out into one request per event, multiplying `--batch.size` by `--max-concurrency` into the concurrent-request ceiling (1,000, at these settings) — but this lesson's `json-batch` config keeps it to one request per batch throughout. Adjust `--batch.size` and `--max-concurrency` together to find your API's breaking point without overshooting it by accident.
 
 </Step>
 <Step>
@@ -204,7 +204,7 @@ Flags explained:
 **Payload diversity, before pointing at a real target.** Swap the `http` block for `stdout` (keep the same `json-batch` formatter) and the exact batches that would have been sent print instead — useful for confirming the CRUD mix and field values look right before a single request reaches the target API.
 
 <Callout type="info">
-No test API to point at yet? The `http` output creates its client lazily and never tests `url` at startup, so an unreachable endpoint doesn't stop the run. Every write just fails in the background, logged rather than raised — the `stdout` swap above works whether or not `url` resolves to anything real.
+No test API to point at yet? The `http` output creates its client lazily and never tests `url` at startup, so an unreachable endpoint doesn't stop the run. Every write just fails in the background, logged rather than raised, and at the default verbosity that happens quietly — pass `-v` if you want it to show. The `stdout` swap above works whether or not `url` resolves to anything real.
 </Callout>
 
 **Delivery counters, against a real target.** A one-shot `eventum generate` run has no running application to expose these from, so this needs the full app instead: list the generator in [startup.yml](/docs/core/config/startup-yml) and start it with [`eventum run`](/docs/core/cli/eventum-run). Once it's running, the same counters [every output plugin tracks](/docs/core/concepts/output#error-tracking) become available live:
@@ -220,6 +220,10 @@ curl -u eventum:eventum http://localhost:9474/api/generators/load-test/stats
 | `format_failed` | Events that failed to format before a request was even sent |
 
 See the [Get Generator Stats](/docs/api/generators/id/stats/get) reference for the full response shape, or open Studio's [Instance metrics](/docs/studio/instances#instance-metrics) panel for the same numbers without a `curl` call.
+
+<Callout type="warn">
+These counters aren't equally reliable for the `http` output used here. `write_failed` only increases when a write is cancelled outright — a [`write_timeout`](/docs/core/config/startup-yml#overridable-generation-parameters) expiring before a batch finishes sending, for example — because the plugin otherwise handles every response itself and never raises on a bad status code or a timed-out request. And because `json-batch` ships a whole batch as one request, a rejected or dropped batch leaves both `written` and `write_failed` unchanged — nothing marks the failure. Watch `written` against the number of events you actually sent (5,000 in this run) and treat any shortfall as failed requests. Run with `-v` so those failures show up in the logs instead of going unrecorded.
+</Callout>
 
 </Step>
 </Steps>
