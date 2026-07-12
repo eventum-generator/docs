@@ -28,9 +28,50 @@ Testing a rule against telemetry like this means generating both halves of the s
 
 A [`chance`](/docs/plugins/event/template/modes#chance)-weighted mix of templates produces exactly that split — a low-probability pattern buried in a high-probability background — without a state machine tracking which stage of an attack is underway.
 
-## Generate the telemetry with Eventum
+## What you'll build
 
-### The event templates
+A single Eventum generator that produces a Windows Security authentication stream with a brute-force pattern deliberately planted in it, alongside the Sigma rule that catches it:
+
+- **Three [`template`](/docs/plugins/event/template) files** — a benign logon that dominates the stream, plus the two halves of the attack: a repeated failed logon and the occasional success that follows it.
+- **[`chance`](/docs/plugins/event/template/modes#chance) picking mode** weights the mix so attack-shaped events stay a small minority, concentrated onto a fixed pool of source addresses held in [`shared`](/docs/plugins/event/template/state) state.
+- **A bounded [`static`](/docs/plugins/input/static) input** produces a fixed, rerunnable batch — the shape a repeatable detection test wants.
+- **A [`file`](/docs/plugins/output/file) output** writes the stream as newline-delimited JSON, ready to grep or forward to a SIEM.
+- **A Sigma [correlation rule](https://github.com/SigmaHQ/sigma-specification/blob/main/specification/sigma-correlation-rules-specification.md)** that fires on the planted pattern and stays quiet on the benign background.
+
+## Prerequisites
+
+- [Eventum installed](/docs/core/introduction/installation)
+
+## Project structure
+
+<Files>
+  <Folder name="detection-lab" defaultOpen>
+    <File name="generator.yml" />
+    <Folder name="templates" defaultOpen>
+      <File name="benign-logon.jinja" />
+      <File name="brute-force-attempt.jinja" />
+      <File name="brute-force-success.jinja" />
+    </Folder>
+    <Folder name="output" defaultOpen>
+      <File name="security.jsonl" />
+    </Folder>
+  </Folder>
+</Files>
+
+## Build it
+
+<Steps>
+<Step>
+### Create the project directory
+
+```bash
+mkdir -p detection-lab/templates
+cd detection-lab
+```
+
+</Step>
+<Step>
+### Write the event templates
 
 The example below reproduces a classic [Brute Force](https://attack.mitre.org/techniques/T1110/) (T1110) pattern against Windows authentication: many failed logons from one source address, occasionally followed by a success once a guessed credential lands. All three templates share the JSON shape from the [Windows Event Log lesson](/docs/tutorials/formats/windows-event-log) — `event.code`, `winlog.event_id`, and the native `event_data` fields a real Security-channel event carries.
 
@@ -124,7 +165,9 @@ The example below reproduces a classic [Brute Force](https://attack.mitre.org/te
 {%- do shared.set('record_id', record_id + 1) -%}
 ```
 
-### The generator config
+</Step>
+<Step>
+### Configure the generator
 
 [`mode: chance`](/docs/plugins/event/template/modes#chance) mixes the three templates by weight: successful logons dominate at 87, failed attempts sit at 10, and the rare successful guess at 3 — roughly one attack-shaped event in ten, and about one in thirty of those a completed compromise. A bounded [`static`](/docs/plugins/input/static) input produces a fixed, rerunnable batch instead of an open-ended stream, and a [`file`](/docs/plugins/output/file) output writes one JSON object per line:
 
@@ -156,7 +199,9 @@ output:
         format: json
 ```
 
-## The result
+</Step>
+<Step>
+### Run it
 
 [`eventum generate`](/docs/core/cli/eventum-generate) in [sample mode](/docs/core/concepts/generator#sample-mode) (`--live-mode false`) runs the whole batch immediately instead of pacing it against the clock:
 
@@ -175,7 +220,10 @@ The batch writes in under a second. `static` assigns every event the same curren
 {"@timestamp": "2026-07-12T15:23:15.761004+00:00", "event": {"code": "4624", "action": "logged-in", "outcome": "success"}, "user": {"name": "ajohnson", "domain": "CONTOSO"}, "source": {"ip": "195.120.95.182"}, "winlog": {"channel": "Security", "provider_name": "Microsoft-Windows-Security-Auditing", "event_id": "4624", "record_id": "3", "logon": {"type": "Network"}, "event_data": {"TargetUserName": "ajohnson", "TargetDomainName": "CONTOSO", "LogonType": "3", "IpAddress": "195.120.95.182"}}}
 ```
 
-Across the full 3,000-event batch, 302 events came out as EventID 4625 — close to the configured 1-in-10 weight — and 2,698 as 4624. Three source addresses account for nearly all of the 4625s, with 97 to 107 each, while every other address in the stream, drawn fresh per benign event, repeats at most 4 times by coincidence.
+Across the full 3,000-event batch, 302 events came out as EventID 4625 — close to the configured 1-in-10 weight — and 2,698 as 4624. Three source addresses account for nearly all of the 4625s, with 97 to 107 each. Every other address, drawn fresh per benign event, turns up far less often — usually once, occasionally a few times where the small reserved range the public-IP pool sometimes draws from happens to collide — never anywhere near those three.
+
+</Step>
+</Steps>
 
 ## Test detection rules against the stream
 
@@ -201,7 +249,6 @@ level: high
 tags:
     - attack.credential_access
     - attack.t1110
-    - attack.t1110.001
 ---
 title: Five or more failed logons from one source
 id: b86a5346-d45f-4bbf-9c3d-b47da5137e34
@@ -257,7 +304,7 @@ grep '"IpAddress": "178.161.163.143"' output/security.jsonl
 {"@timestamp": "2026-07-12T15:23:15.761004+00:00", "event": {"code": "4624", "action": "logged-in", "outcome": "success"}, "user": {"name": "svc-sql", "domain": "CONTOSO"}, "source": {"ip": "178.161.163.143"}, "winlog": {"channel": "Security", "provider_name": "Microsoft-Windows-Security-Auditing", "event_id": "4624", "record_id": "284", "logon": {"type": "Network"}, "event_data": {"TargetUserName": "svc-sql", "TargetDomainName": "CONTOSO", "LogonType": "3", "IpAddress": "178.161.163.143"}}}
 ```
 
-Running the same filter against any of the other benign source addresses in this batch turns up at most 4 matches — under the rule's threshold of 5, which is exactly why that threshold catches the attacker pool without also catching ordinary coincidental reuse.
+Running the same filter against any of the other benign source addresses in this batch turns up only a few matches — under the rule's threshold of 5, and nowhere near the attacker pool's hundred-plus, which is exactly why that threshold separates the two without also catching ordinary coincidental reuse.
 
 ## Sigma rule testing across formats
 
@@ -298,7 +345,7 @@ The technique-to-telemetry mapping this lesson builds on carries over to any oth
 No. The templates above reproduce the event IDs, field values, and repetition a technique leaves in a log — the same evidence a real Brute Force attempt would leave in Windows Security — without executing a credential-guessing tool, touching a real account, or running any code resembling the technique itself. A rule that fires on this telemetry fires on the pattern; whether that pattern originated from a real attacker or from `brute-force-attempt.jinja` is not something the rule, or the SIEM behind it, can tell.
 </Accordion>
 <Accordion title="How do I map generated telemetry to a specific ATT&CK technique?">
-Start from the technique's own description of what it leaves behind, then work backward to the fields that would carry it. [T1110 Brute Force](https://attack.mitre.org/techniques/T1110/) leaves repeated authentication failures from a limited set of sources against a limited set of accounts, which is why the rule above groups by `IpAddress` and counts `EventID: 4625`. A rule tags the techniques it covers under `tags` — `attack.t1110`, or a sub-technique like `attack.t1110.001` for password guessing specifically — and the telemetry that tests it just needs to produce the fields and volume that tag implies.
+Start from the technique's own description of what it leaves behind, then work backward to the fields that would carry it. [T1110 Brute Force](https://attack.mitre.org/techniques/T1110/) leaves repeated authentication failures from a limited set of sources against a limited set of accounts, which is why the rule above groups by `IpAddress` and counts `EventID: 4625`. The right sub-technique tag depends on the exact pattern: `attack.t1110.001` (Password Guessing) is many passwords against one known account, `attack.t1110.003` (Password Spraying) is few attempts spread across many accounts to avoid lockouts. The generator above reproduces neither precisely — one source, several accounts, many attempts against each — so the rule tags the parent `attack.t1110` rather than a sub-technique that doesn't quite fit.
 </Accordion>
 <Accordion title="How much of the stream should be malicious versus benign?">
 Whatever ratio the rule is meant to survive. The `chance` weights above (87/10/3) put roughly one attack-shaped event in ten in the stream, concentrated onto three addresses — enough to cross the rule's threshold of 5 within a 3,000-event batch. Lowering the attack templates' `chance` values relative to the benign one pushes that ratio down, but the batch (or the running time, under `time_patterns`) needs to grow to match — what makes the pool detectable is the absolute count each address accumulates within the rule's `timespan`, not the percentage of the stream it represents.
