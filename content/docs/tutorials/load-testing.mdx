@@ -1,18 +1,34 @@
 ---
-title: API Load Testing
-description: Stress-test a REST API with diverse, realistic request payloads at maximum throughput using sample mode.
+title: API Load Testing with Realistic Load Test Data
+description: Generate realistic load test data — a diverse, weighted mix of request payloads — and fire it at a REST API in sample mode to benchmark throughput and find its breaking point.
 ---
 
-Build a generator that fires a burst of diverse API requests at a target endpoint as fast as possible. Use it to benchmark throughput, uncover race conditions, and validate rate limiters — all without writing test scripts.
+Load test data is the request stream a load test actually needs to be useful: not one payload sent as fast as possible, but a realistic mix of operations, identifiers, and body shapes, released at whatever rate the test calls for. A load test built on the wrong kind of data measures the wrong thing — how fast a target answers the same cached request a thousand times, not how it holds up against the shape of traffic a real deployment receives.
+
+Build a generator that produces that stream: a burst of diverse API requests fired at a target endpoint as fast as possible, to benchmark throughput, uncover race conditions, and validate rate limiters — all without writing test scripts or capturing real traffic first.
+
+## Generating realistic load test data
+
+Replaying one fixed request in a `curl` loop is the obvious way to put load on an endpoint, and it does generate traffic — but every iteration hits the same cache entry, the same validator branch, the same row in a database, because every iteration sends the exact same body. A target under that kind of load looks fast for the wrong reason: it keeps answering the same question, not the varied mix a real deployment actually receives.
+
+Realistic load test data breaks that pattern on three axes: **operation mix** — a spread of reads and writes instead of one endpoint hammered in isolation; **identifiers** — a different user, record, or resource on every request, so caches see a realistic mix of hits and misses and lookups touch more than one row; and **payload shape** — field values drawn from [distributions and weighted choices](/docs/tutorials/realism/values) instead of one constant body, so a validator's optional-field branches, length checks, and type coercions all get exercised, not just the one path a fixed payload happens to take.
+
+None of this needs a captured production sample. `module.rand` and `module.faker` generate a fresh, plausible value on every render, and `weighted_choice` shapes the mix of operations and values to match what a real deployment's traffic actually looks like — the same techniques the [Realistic values](/docs/tutorials/realism/values) lesson covers for log events, applied here to API requests instead.
+
+## Load testing with diverse payloads
+
+The build below turns that theory into a concrete pattern: four templates, one per CRUD operation, mixed by [chance](/docs/plugins/event/template/modes#chance) weights that approximate a typical web application's read-heavy traffic — reads dominate, creates and updates follow, deletes stay rare. Every template draws its own identifiers and field values fresh per request, so the 5,000 requests in one run touch different pages, different records, different names and roles — not one payload sent 5,000 times.
+
+That volume of realistic requests answers a different question than a [pipeline correctness test](/docs/tutorials/test-data-pipeline) does. Throughput testing — this lesson — asks how much traffic a target can sustain before latency climbs or requests start failing; pipeline testing asks whether one realistic event survives a specific transport and lands intact at the other end. A target can pass one and fail the other: an endpoint that holds up under thousands of requests a second can still silently reject a payload shape a correctness check would have caught, and a pipeline that handles a single well-formed event perfectly can still fall over the moment real concurrency hits it.
 
 ## What you'll build
 
 The generator uses:
 
 - [**static**](/docs/plugins/input/static) input — produces a burst of N timestamps instantly.
-- [**Sample mode**](/docs/core/concepts/scheduling#live-mode-vs-sample-mode) (`--live-mode false`) — releases all timestamps without waiting for the clock.
-- [**chance**](/docs/core/concepts/producing#picking-modes) picking mode — weighted mix of request types (GET, POST, PUT, DELETE).
-- [**HTTP output**](/docs/plugins/output/http) — sends each event as a request to the target API.
+- [**Sample mode**](/docs/core/concepts/generator#sample-mode) (`--live-mode false`) — releases all timestamps without waiting for the clock.
+- [**chance**](/docs/plugins/event/template/modes#chance) picking mode — weighted mix of request types (GET, POST, PUT, DELETE).
+- [**HTTP output**](/docs/plugins/output/http) — sends each event as a request to the target API; see [Send test data to an API endpoint](/docs/tutorials/delivery/http) for batching and delivery mechanics in depth.
 - **Batch tuning** — controls how many requests are in flight at once.
 
 ## Prerequisites
@@ -55,15 +71,15 @@ cd load-test
 
 Each template produces a JSON request body. The [HTTP output](/docs/plugins/output/http) sends it as a POST to the target endpoint. The template includes the HTTP method and path so the API can route accordingly (adjust the format to match your API's expectations).
 
-**GET users** — list endpoint, no body needed.
+**GET users** — list endpoint, no body needed. `page` is drawn from a clamped [exponential distribution](/docs/tutorials/realism/values) instead of a flat range, so most requests land on the first few pages and only a thin tail paginates deep — the way real API clients actually browse a list; `limit` is a weighted pick favoring the default page size over larger ones.
 
 ```jinja title="templates/get-users.jinja"
 {
   "method": "GET",
   "path": "/api/v1/users",
   "params": {
-    "page": {{ module.rand.number.integer(1, 100) }},
-    "limit": {{ module.rand.choice([10, 25, 50]) }}
+    "page": {{ module.rand.number.clamp(module.rand.number.exponential(1 / 5), 1, 100) | round | int }},
+    "limit": {{ module.rand.weighted_choice({10: 60, 25: 30, 50: 10}) }}
   }
 }
 ```
@@ -104,6 +120,8 @@ Each template produces a JSON request body. The [HTTP output](/docs/plugins/outp
   "path": "/api/v1/users/{{ module.rand.number.integer(1, 10000) }}"
 }
 ```
+
+Every template above draws its identifiers, names, and roles fresh per render, so the batch below produces a genuinely varied stream instead of one fixture repeated 5,000 times.
 
 </Step>
 <Step>
@@ -149,6 +167,7 @@ Key settings:
 
 - **static count: 5000** — the total number of requests to generate.
 - **chance distribution** — 50% reads, 25% creates, 15% updates, 10% deletes — mimics a typical web application workload.
+- **chance values are relative weights** — 0.50/0.25/0.15/0.10 need not sum to 1; only the ratio between them matters (see [chance picking mode](/docs/plugins/event/template/modes#chance)).
 - **json-batch formatter** — groups events into a JSON array per batch, reducing HTTP round-trips.
 
 </Step>
@@ -172,30 +191,35 @@ Flags explained:
 |------|--------|
 | `--live-mode false` | Releases all 5,000 timestamps instantly — maximum throughput |
 | `--batch.size 100` | Groups 100 events per batch before sending |
-| `--max-concurrency 10` | Up to 10 HTTP requests in flight simultaneously |
+| `--max-concurrency 10` | Up to 10 batch writes in flight at once — see below |
 
-The generator fires 5,000 requests grouped into 50 batches of 100, with up to 10 batches in flight at once. Adjust `--batch.size` and `--max-concurrency` to find your API's breaking point.
+`--max-concurrency` limits [concurrent write operations across all output plugins](/docs/core/concepts/output#concurrency), not concurrent requests: the `http` plugin fires every event in a batch as its own concurrent request, so with `--batch.size 100` and `--max-concurrency 10`, as many as 1,000 requests can be in flight at once in the worst case, spread across up to 10 batches. The generator fires 5,000 requests grouped into 50 batches of 100 this way. Adjust `--batch.size` and `--max-concurrency` together to find your API's breaking point without overshooting it by accident.
 
 </Step>
 <Step>
 ### Monitor results
 
-While the test runs (or immediately after), check the metrics:
+`eventum generate` runs a single generator with no application server behind it, so there's nothing to query while it runs — and it prints no summary when it exits, even at the highest verbosity (`-vvvvv`). What you can check depends on what you're looking for:
+
+**Payload diversity, before pointing at a real target.** Swap the `http` block for `stdout` (keep the same `json-batch` formatter) and the exact batches that would have been sent print instead — useful for confirming the CRUD mix and field values look right before a single request reaches the target API.
+
+<Callout type="info">
+No test API to point at yet? The `http` output creates its client lazily and never tests `url` at startup, so an unreachable endpoint doesn't stop the run. Every write just fails in the background, logged rather than raised — the `stdout` swap above works whether or not `url` resolves to anything real.
+</Callout>
+
+**Delivery counters, against a real target.** A one-shot `eventum generate` run has no running application to expose these from, so this needs the full app instead: list the generator in [startup.yml](/docs/core/config/startup-yml) and start it with [`eventum run`](/docs/core/cli/eventum-run). Once it's running, the same counters [every output plugin tracks](/docs/core/concepts/output#error-tracking) become available live:
 
 ```bash
-# If running with eventum run, query the REST API:
-curl -s http://localhost:9474/api/v1/instances/load-test/metrics | python -m json.tool
+curl -u eventum:eventum http://localhost:9474/api/generators/load-test/stats
 ```
 
-Key metrics to watch:
+| Counter | What it tells you |
+|---------|-------------------|
+| `written` | Requests the target accepted |
+| `write_failed` | Write attempts that failed outright |
+| `format_failed` | Events that failed to format before a request was even sent |
 
-| Metric | What it tells you |
-|--------|-------------------|
-| `write_ok` | Successful API requests |
-| `write_failed` | Failed requests (timeouts, 5xx errors) |
-| `format_failed` | Events that failed JSON validation before sending |
-
-For `eventum generate` runs, check the summary printed at exit, or add a `stdout` output to see events in real time.
+See the [Get Generator Stats](/docs/api/generators/id/stats/get) reference for the full response shape, or open Studio's [Instance metrics](/docs/studio/instances#instance-metrics) panel for the same numbers without a `curl` call.
 
 </Step>
 </Steps>
@@ -226,3 +250,22 @@ For `eventum generate` runs, check the summary printed at exit, or add a `stdout
     href="/docs/faq#performance-and-tuning"
   />
 </Cards>
+
+## FAQ
+
+<Accordions>
+<Accordion title="How is this different from testing the pipeline itself?">
+Different question. This lesson measures capacity — how much request volume a target can sustain before latency climbs or requests start failing. [Testing the pipeline](/docs/tutorials/test-data-pipeline) measures correctness — whether one realistic event survives a specific transport and lands intact at the other end. A target can pass one check and fail the other, so neither replaces the other.
+</Accordion>
+<Accordion title="Why mix request types instead of hammering one endpoint?">
+Because that's what production traffic actually looks like, and because a single repeated request measures a narrow, often cached code path rather than a target's real capacity. The [chance](/docs/plugins/event/template/modes#chance) mix above spreads load across reads and writes the way a typical web application actually receives them; each template also draws its own identifiers and field values fresh per request, so caches, validators, and database lookups all see a realistic spread of inputs instead of the same one repeated 5,000 times.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [Send test data to an API endpoint](/docs/tutorials/delivery/http) lesson for HTTP delivery, batching, and authentication in depth
+- The [Realistic values](/docs/tutorials/realism/values) lesson for the distributions and weighted choices behind a diverse payload
+- The [Test data pipeline](/docs/tutorials/test-data-pipeline) lesson for confirming correctness instead of capacity
+- The [Scenarios track](/docs/tutorials/scenarios) for the wider picture of applied synthetic data
+- The [Eventum Hub](/hub) for ready-made generators to point at your own API instead of building one from scratch
