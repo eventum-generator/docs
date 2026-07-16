@@ -62,7 +62,7 @@ A generator that produces Windows Security events needs three pieces: an input t
 
 ### The traffic pattern
 
-[time-patterns](/docs/plugins/input/time-patterns) builds a curve from four stages: an oscillator that defines a repeating period, a multiplier that sets a baseline count per period, a randomizer that adds period-to-period variance, and a spreader that places events within each period using a statistical distribution. A triangular spreader with its peak (`mode`) at the middle of the day approximates a business-hours-like shape:
+[time-patterns](/docs/plugins/input/time-patterns) builds a curve from four stages: an oscillator that defines a repeating period, a multiplier that sets a baseline count per period, a randomizer that adds period-to-period variance, and a spreader that places events within each period using a statistical distribution. A beta spreader with equal shape parameters concentrates events around the middle of the day and thins them toward both edges — a symmetric bell that traces a business-hours-like shape:
 
 ```yaml title="generators/winlog/patterns/business-hours.yml"
 label: business-hours-logons
@@ -77,14 +77,13 @@ randomizer:
   deviation: 0.25
   direction: mixed
 spreader:
-  distribution: triangular
+  distribution: beta
   parameters:
-    left: 0.15
-    mode: 0.5
-    right: 0.9
+    a: 4
+    b: 4
 ```
 
-With `start` anchored to midnight and a one-day period, `mode: 0.5` lands at noon; `left: 0.15` and `right: 0.9` confine every event to between 03:36 and 21:36, with density tapering linearly toward each edge of that window. `ratio: 2000` sets about 2,000 logon-family events per day before the randomizer's ±25% variance is applied.
+With `start` anchored to midnight and a one-day period, the equal shape parameters (`a: 4`, `b: 4`) center the day's peak at noon and taper density smoothly toward both ends — a rounded bell rather than a triangle's straight sides, so activity thins through the early morning and late evening instead of stopping at a hard cutoff. `ratio: 2000` sets about 2,000 logon-family events per day before the randomizer's ±25% variance is applied.
 
 ### The event templates
 
@@ -179,11 +178,7 @@ output:
         format: json
 ```
 
-<Callout type="info">
-To inspect events without writing to disk, replace the `file` output with [`stdout: {}`](/docs/plugins/output/stdout).
-</Callout>
-
-For a constant rate instead of a daily curve, a [cron](/docs/plugins/input/cron) input is simpler — it is what the Hub's own generators use. To emit Sysmon telemetry instead of Security events, keep the same input and output and swap in Sysmon-shaped templates: set `winlog.channel` to `Microsoft-Windows-Sysmon/Operational`, use Sysmon's own EventIDs, and add a `ProcessGuid` to correlate related events. The [Eventum Hub](/hub) ships both as ready-made, production-tuned generators: [windows-security](/hub/windows-security) covers 12 correlated event types across a 120-host Active Directory fleet, and [windows-sysmon](/hub/windows-sysmon) covers 15 Sysmon event types with process-lifecycle correlation across the same fleet.
+To emit Sysmon telemetry instead of Security events, keep the same input and output and swap in Sysmon-shaped templates: set `winlog.channel` to `Microsoft-Windows-Sysmon/Operational`, use Sysmon's own EventIDs, and add a `ProcessGuid` to correlate related events. The [Eventum Hub](/hub) ships both as ready-made, production-tuned generators: [windows-security](/hub/windows-security) covers 12 correlated event types across a 120-host Active Directory fleet, and [windows-sysmon](/hub/windows-sysmon) covers 15 Sysmon event types with process-lifecycle correlation across the same fleet.
 
 ## The result
 
@@ -216,9 +211,6 @@ Running the generator above produces one JSON object per event, with the fields 
 ## FAQ
 
 <Accordions>
-<Accordion title="Do I need a Windows host?">
-No. The templates produce the same fields a Windows host would log, using ordinary sample data and randomization. Nothing here calls a Windows API or requires Sysmon, Active Directory, or a Windows machine of any kind — Eventum runs the same way on Linux, macOS, or in a container.
-</Accordion>
 <Accordion title="EVTX binary vs XML/JSON?">
 EVTX is the binary container Windows actually writes to `C:\Windows\System32\winevt\Logs` — event records encoded as binary XML and grouped into 64 KB chunks alongside the XML templates they reference, not human-readable text. The XML shown in Event Viewer, in Microsoft's own event documentation, and in the example above is a rendering of that binary data, not the storage format itself. Most non-Windows destinations — SIEMs, Elastic Agent, Eventum — skip the binary layer entirely and work with the rendered fields as JSON, which is what the templates above produce directly; no EVTX file is created or parsed at any point.
 </Accordion>
