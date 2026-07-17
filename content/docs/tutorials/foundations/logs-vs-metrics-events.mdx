@@ -23,11 +23,11 @@ The differences show up concretely in what each one is, where it lives, and how 
 
 | Signal | Shape | Typical example | Where it's stored | How it's queried |
 |--------|-------|------------------|--------------------|-------------------|
-| Logs | A timestamped line of text | `2026-07-11T17:44:01Z ERROR order 39402 failed: payment declined` | A log store — a file, or a log-oriented search backend | Full-text or field search, filtered by a time range |
+| Logs | A timestamped line of text | `2026-07-11T17:44:01+00:00 ERROR order 39402 failed: payment declined` | A log store — a file, or a log-oriented search backend | Full-text or field search, filtered by a time range |
 | Metrics | A timestamped number, often pre-aggregated | `cpu.usage{host="web-01"} 0.72` | A time-series database | Range queries and aggregation over a window — average, rate, percentile |
 | Events | A timestamped structured record with named fields | `{"event": "order_failed", "order_id": 39402, "reason": "payment declined"}` | An event stream or a document index | Field-level filters and aggregations against the structured payload |
 
-Every row starts with the same word, timestamped, which is exactly the trait the next section builds on.
+Every row also starts with the same word, timestamped — a hint that logs, metrics, and events aren't different data sources, just different renderings of the same underlying record.
 
 ## Where events fit as the common abstraction
 
@@ -60,7 +60,7 @@ Rendered through the [file](/docs/plugins/output/file) output's default `plain` 
 
 ### A metric reading over time
 
-A single numeric measurement, sampled on a fixed interval, with no description attached beyond what's being measured and where. Eventum has no dedicated metrics format — a metric-shaped event is a regular JSON object built around a name and a value:
+A single numeric measurement, sampled on a fixed interval, carrying none of a log's descriptive text — only what's being measured, where, and the value itself. Eventum has no dedicated metrics format — a metric-shaped event is a regular JSON object built around a name and a value, validated the same way as any other event, through the [json](/docs/plugins/formatters#json) formatter:
 
 ```jinja title="templates/cpu-usage.jinja"
 {%- set previous = locals.get("value", 0.35) -%}
@@ -81,7 +81,7 @@ Each reading adjusts the previous one by a small step instead of picking a fresh
 
 ### A structured event
 
-A record with several named fields, each describing one part of the same occurrence — closer to what an application or an API actually emits:
+A record with several named fields, each describing one part of the same occurrence — the shape an application or an API actually emits, rather than a sentence written for a person to read:
 
 ```jinja title="templates/login.jinja"
 {%- set user = module.rand.choice(["alice", "bob", "carol"]) -%}
