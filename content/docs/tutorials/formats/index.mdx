@@ -1,6 +1,6 @@
 ---
 title: "Log and event formats: a field guide"
-description: The formats your pipeline speaks — syslog, CEF, LEEF, Windows Event Log, NDJSON, OCSF, ECS — explained, with a generated sample of each.
+description: The formats your pipeline speaks — syslog, CEF, LEEF, Windows Event Log, NDJSON, OCSF, ECS, Apache/Nginx access logs — explained, with a generated sample of each.
 ---
 
 Every log pipeline speaks a format. Get it wrong and your parser drops the event; get it right and detections, dashboards, and alerts behave correctly. This track explains the formats you meet most often and shows how to generate a compliant sample of each with Eventum.
@@ -13,4 +13,5 @@ Every log pipeline speaks a format. Get it wrong and your parser drops the event
   <Card title="NDJSON" description="Newline-delimited JSON, also known as JSON Lines: how it differs from a JSON array, and a generated NDJSON stream." href="/docs/tutorials/formats/ndjson" />
   <Card title="OCSF" description="Open Cybersecurity Schema Framework: categories, event classes, and activities — and a generated Authentication event." href="/docs/tutorials/formats/ocsf" />
   <Card title="ECS" description="Elastic Common Schema: how event, host, and related fields are namespaced, and a generated ECS-mapped event." href="/docs/tutorials/formats/ecs" />
+  <Card title="Apache & Nginx access logs" description="Common Log Format and Combined Log Format, Apache vs Nginx defaults, and a generated Combined-format stream." href="/docs/tutorials/formats/apache-nginx-access-logs" />
 </Cards>
