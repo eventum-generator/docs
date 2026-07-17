@@ -1,6 +1,6 @@
 ---
 title: "Logs vs metrics vs events: picking the right telemetry shape"
-description: How logs, metrics, and events differ, why a log and a metric are each an event in a different shape, and how to generate all three with Eventum.
+description: How logs and metrics differ, why each is an event in a different shape, and how to generate a log line, a metric reading, and a structured event with Eventum.
 ---
 
 A ticket asks for the metrics for the checkout service, and that request alone could mean a log line written each time an order fails, a number sampled every few seconds, or a structured record carrying a dozen named fields — three different things to generate, three different destinations, three different volumes. *Log*, *metric*, and *event* get used as if they name the same kind of thing, but a log store, a time-series database, and an event index each expect a specific shape, and a feed built for one doesn't load cleanly into another.
