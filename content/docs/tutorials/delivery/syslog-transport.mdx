@@ -1,5 +1,5 @@
 ---
-title: "Send syslog to a collector over TCP or UDP"
+title: Send syslog to a collector over TCP or UDP
 description: Send a generated syslog stream to a collector or SIEM over UDP or TCP, with RFC 5426 and RFC 6587 framing, TLS via RFC 5425, and why an unreachable TCP target fails loudly while UDP fails silently.
 ---
 
@@ -77,7 +77,7 @@ output:
 ```
 
 <Callout type="info">
-`tcp`'s `_open` runs a real handshake before a single event ever renders: `asyncio.open_connection` against `host`/`port`, bounded by `connect_timeout` (10 seconds by default). A closed or unreachable port fails that handshake, and the run stops immediately with a logged connection error — no event is dropped quietly, because none was ever sent. `udp`'s `_open` only opens a local socket; there is no handshake to fail. Point it at a reachable host with nothing listening on that port, or a collector that later goes away mid-run, and the process keeps going regardless — datagrams travel into the network, any rejection comes back as an ICMP error that gets logged, and the run itself never notices. A `udp` misconfiguration looks identical to success until something on the receiving end is checked directly.
+`tcp` opens a real connection to `host`/`port` before anything is sent, bounded by `connect_timeout` (10 seconds by default), so a closed or unreachable port fails immediately and stops the run with a logged error — a syslog misconfiguration surfaces loudly. `udp` only opens a local socket with no connection to fail, so an unreachable target never stops the run: datagrams are sent into the void and only surface as logged socket errors, if at all.
 </Callout>
 
 ### Two ways to frame a message
@@ -142,17 +142,14 @@ Swapping in the `tcp` output and pointing the same generator at a plain TCP list
 Pointing the `tcp` config at a closed port instead — nothing listening at all — never gets this far. The run stops before a single event renders:
 
 ```text title="tcp output against a closed port"
-error    Failed to connect
-         host=127.0.0.1 port=20599
-         reason="[Errno 111] Connect call failed ('127.0.0.1', 20599)"
-error    Failed to open some of the output plugins
+[error    ] Failed to connect              [eventum.core.stages.output_stage] generator_id=syslog-collector host=127.0.0.1 port=20599 reason="[Errno 111] Connect call failed ('127.0.0.1', 20599)"
+[error    ] Failed to open some of the output plugins [eventum.core.generator] generator_id=syslog-collector
 ```
 
 The reverse test on `udp` confirms the other half: pointing it at a target that stopped listening mid-run, three sends in a row logged an ICMP rejection instead of raising:
 
 ```text title="udp output after the collector stops listening"
-error    UDP socket error received
-         reason="[Errno 111] Connection refused"
+[error    ] UDP socket error received      [eventum.plugins.output.plugins.udp.plugin] generator_id=syslog-collector plugin_id=1 plugin_name=udp plugin_type=output reason='[Errno 111] Connection refused'
 ```
 
 repeated for each of the three events sent while nothing was listening — and the generator kept producing and sending the next one regardless. Nothing about the run itself distinguished those three failed sends from a successful one; only the listener's own absence gave it away.
@@ -164,7 +161,7 @@ repeated for each of the three events sent while nothing was listening — and t
 Match whatever the real fleet or the collector's own documentation uses, not a general preference — both are standardized transports, and most collectors (rsyslog, syslog-ng, and effectively every commercial SIEM) accept either on their default listener. UDP stays the default for network hardware, embedded devices, and anything that predates or never adopted RFC 6587 — no connection to establish or maintain, and a collector restart or a brief network blip doesn't need a reconnect. Reach for TCP when a message might not fit comfortably in a single datagram, when delivery and ordering need to survive a lossy network, or simply because the receiving collector requires it — the tradeoff, covered above, is that TCP also means a genuinely unreachable collector stops the generator at startup instead of failing invisibly.
 </Accordion>
 <Accordion title="What happens if the collector is down?">
-Entirely dependent on which output is configured, and it's worth testing deliberately before relying on either in an unattended run. `tcp` fails loudly: the connection attempt in `_open` fails before a single event is generated, the run stops, and the error — host, port, and the underlying OS reason — lands right in the log. `udp` fails silently: the process keeps running, keeps "succeeding" by its own accounting, and the only trace of a problem is an ICMP error logged if one happens to come back, which isn't guaranteed on every network path. Don't rely on the absence of errors in Eventum's own log to confirm a `udp` stream actually arrived — check the collector's ingest counters, or capture the wire directly with `tcpdump`, the same way this lesson's own verification used `nc`.
+Entirely dependent on which output is configured, and it's worth testing deliberately before relying on either in an unattended run. `tcp` fails loudly: the connection attempt fails before a single event is generated, the run stops, and the error — host, port, and the underlying OS reason — lands right in the log. `udp` fails silently: the process keeps running, keeps "succeeding" by its own accounting, and the only trace of a problem is an ICMP error logged if one happens to come back, which isn't guaranteed on every network path. Don't rely on the absence of errors in Eventum's own log to confirm a `udp` stream actually arrived — check the collector's ingest counters, or capture the wire directly with `tcpdump`, the same way this lesson's own verification used `nc`.
 </Accordion>
 <Accordion title="Octet-counting or non-transparent framing?">
 Non-transparent — the default `separator: "\n"` above — unless a collector's documentation specifically calls for octet-counting. Nearly every common target (rsyslog's `imtcp`, syslog-ng's `network()` source, most commercial SIEM TCP listeners) accepts LF-delimited messages out of the configuration shown above, no extra settings needed. Octet-counting mainly matters when a message can itself contain an embedded `LF` — RFC 6587 flags exactly this as non-transparent framing's weak point, since a receiver has no way to tell an `LF` inside the message from the one marking its end. A length prefix has no character it needs to avoid.
