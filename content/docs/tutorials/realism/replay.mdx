@@ -1,0 +1,114 @@
+---
+title: "Replay logs with fresh timestamps: reuse a captured log file"
+description: How to replay logs with fresh timestamps in Eventum — take a captured log file and play it back with current timestamps instead of generating events from scratch.
+---
+
+Some test scenarios do not call for synthetic data at all — they call for a file that already exists, played back. A captured production sample from a system that's since been decommissioned, an incident capture pulled straight from a security ticket, a golden dataset a test suite has quietly depended on for months: reaching for a template that generates a plausible approximation throws away the one thing that made any of these worth keeping in the first place — their exact content, in their exact order. Generating from scratch reproduces the shape a source would produce; it cannot reproduce the one sequence of events that actually happened.
+
+Eventum's [replay](/docs/plugins/event/replay) event plugin exists for exactly this: replaying historical logs without shipping their original, stale timestamps along with them. Every line in a captured file still carries whatever timestamp it had the moment the file was captured, and replay reads that file back line by line and, wherever a line carries a timestamp, rewrites it to the moment the event is actually replayed — the same real content, arriving with fresh timestamps instead of old ones.
+
+## When to replay instead of generate
+
+Replay and the [template](/docs/plugins/event/template) plugin solve different problems, and the choice comes down to what a given test actually needs held constant. Replay preserves exact content and exact ordering — the file handed to it is the file that comes back out, line for line, with nothing invented and nothing left out. Generation synthesizes fresh data on every run instead: parameterized, varied from one event to the next, and able to keep producing for as long as the generator keeps running.
+
+Reach for replay when the value sits in one specific file: a captured incident that needs to run past a detection rule exactly as it happened, an exact reproduction of a known-bad or known-good case, a fixed golden dataset a test suite already depends on. Reach for generation instead when a test needs variety across many runs, parameters someone can adjust, or a stream that keeps going rather than stopping once a fixed file runs out.
+
+## How log replay works
+
+The replay event plugin reads a log file from `path` line by line and emits each line as one event, in file order — one line consumed per timestamp the input plugin schedules. Content by itself is not enough for most replay scenarios, though: a line's own timestamp is fixed at whatever moment the file was originally captured, and replaying it verbatim would ship stale timestamps into a system expecting current ones.
+
+Two fields fix that. `timestamp_pattern` is a regular expression with a named `timestamp` group that locates the original timestamp inside each line; `timestamp_format` is a strftime format string describing how the replacement should be rendered — left unset, replay falls back to ISO 8601. Together, they let the plugin swap out just that one substring for the event's actual current timestamp, leaving the rest of the line untouched. A line that doesn't match the pattern at all is emitted exactly as read, logged as a warning rather than treated as an error — which matters for a captured file that mixes timestamped entries with the odd header, separator, or footer line.
+
+`repeat` decides what happens once the file runs out: left at its default of `false`, the plugin stops producing once the last line has been replayed; set to `true`, it loops back to the start and keeps going instead, useful for pairing a small captured sample with a schedule that keeps ticking. Two more fields cover less common cases: `chunk_size` controls how much of the file is buffered in memory at a time — the default reads it in 1 MiB chunks rather than loading it whole, which keeps a large file safe to replay — and `encoding` overrides the default UTF-8 for a file captured with a different codec.
+
+## Replay a log with fresh timestamps in Eventum
+
+<Steps>
+<Step>
+### Write the source log
+
+`generators/incident-replay/samples/source.log` is a small slice of a captured authentication log — three failed logins followed by the one that got through, the kind of snippet an analyst might pull straight from an incident ticket. Every line but the last carries a plain ISO-8601 timestamp; the last is a marker appended when the capture was saved, with no timestamp of its own:
+
+```text title="generators/incident-replay/samples/source.log"
+2026-03-14T02:11:03 sshd: Failed password for invalid user admin from 198.51.100.23 port 51422 ssh2
+2026-03-14T02:11:05 sshd: Failed password for invalid user admin from 198.51.100.23 port 51423 ssh2
+2026-03-14T02:11:08 sshd: Failed password for invalid user admin from 198.51.100.23 port 51424 ssh2
+2026-03-14T02:11:12 sshd: Accepted password for root from 198.51.100.23 port 51425 ssh2
+[end of capture]
+```
+
+</Step>
+<Step>
+### Configure the replay generator
+
+A per-second [cron](/docs/plugins/input/cron) tick supplies one timestamp per line, and replay's own fields do the rest: `path` to the file, `timestamp_pattern` to find the original timestamp, `timestamp_format` to parse it. The [file](/docs/plugins/output/file) output writes each line through the `plain` formatter — the events here are already-formatted text, not JSON, so `plain` is the only formatter that keeps them intact:
+
+```yaml title="generators/incident-replay/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  replay:
+    path: samples/source.log
+    timestamp_pattern: '(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})'
+    timestamp_format: '%Y-%m-%dT%H:%M:%S'
+
+output:
+  - file:
+      path: output/events.log
+      write_mode: overwrite
+      formatter:
+        format: plain
+```
+
+- **path** — `samples/source.log`, resolved relative to `generator.yml`.
+- **timestamp_pattern** — matches the plain `YYYY-MM-DDTHH:MM:SS` timestamp at the start of each line, naming the match `timestamp`.
+- **timestamp_format** — parses that same shape and renders the replacement in it, so the substituted timestamp lands in the identical position the original occupied.
+- **formatter** — set to `plain`, the file output's own default, and the only correct choice here, since a replayed line is already-formatted text, not JSON.
+
+</Step>
+</Steps>
+
+<Callout type="info">
+The output below was produced by running this generator in [sample mode](/docs/core/concepts/generator#sample-mode) (`--live-mode false`) with `--keep-order true`, so all five lines render at once, in file order, for inspection. `repeat` is left at its default of `false`, so the generator stops on its own once the fifth line has been replayed — no bound on the cron input was needed to make this a finite run. A generator left running normally drops both flags and lets cron tick indefinitely in [live mode](/docs/core/concepts/generator#live-mode-default) instead, replaying one line per second until the file is exhausted.
+</Callout>
+
+## The result
+
+Running this generator replays all five lines and then stops on its own — nothing forces it to continue once the last line has been replayed:
+
+```text title="generators/incident-replay/output/events.log"
+2026-07-17T14:53:19 sshd: Failed password for invalid user admin from 198.51.100.23 port 51422 ssh2
+2026-07-17T14:53:20 sshd: Failed password for invalid user admin from 198.51.100.23 port 51423 ssh2
+2026-07-17T14:53:21 sshd: Failed password for invalid user admin from 198.51.100.23 port 51424 ssh2
+2026-07-17T14:53:22 sshd: Accepted password for root from 198.51.100.23 port 51425 ssh2
+[end of capture]
+```
+
+Every one of the first four lines kept its exact original content — the same source IP, the same port, the same username, the same outcome — with only the leading timestamp moved from March 2026 to the moment this run actually happened, one second apart, matching the per-second cron schedule. The fifth line has nothing for `timestamp_pattern` to match, so it came back exactly as written in `source.log`, byte for byte — the only sign it was even considered is a warning logged at the time (`Failed to substitute timestamp into original message`, reason `No match found`), not an error, and not a dropped event.
+
+## FAQ
+
+<Accordions>
+<Accordion title="Does replay change the log content?">
+Only the substring that `timestamp_pattern`'s named group matches changes — nothing else in a line is touched, and a line with no match at all comes back exactly as read, the way the `[end of capture]` marker line does in the example above. Leave `timestamp_pattern` unset entirely and replay changes nothing: every line is emitted exactly as it appears in the file.
+</Accordion>
+<Accordion title="Can I loop the file?">
+Yes — set `repeat: true` and replay resets to the beginning once it reaches the end of the file instead of stopping, which pairs a small captured sample with a schedule that keeps ticking indefinitely. Left at the default `false`, as in the example above, the plugin stops producing once the last line has been replayed, and the generator run ends with it.
+</Accordion>
+<Accordion title="Live or bulk replay?">
+Either — replay itself doesn't decide which one fits, [streaming vs bulk](/docs/tutorials/foundations/streaming-vs-bulk) does. In [live mode](/docs/core/concepts/generator#live-mode-default), one line replays per scheduled timestamp, paced to the clock, so the five-line file above paired with a per-second schedule takes five real seconds. In [sample mode](/docs/core/concepts/generator#sample-mode) (`--live-mode false`), the whole file replays as fast as the pipeline can move, the way the run above did.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [Realism](/docs/tutorials/realism) pillar for the other techniques that make synthetic data behave like production
+- The [Log and event formats](/docs/tutorials/formats) field guide for the record shapes a replayed file is likely to carry
+- The [Streaming vs bulk](/docs/tutorials/foundations/streaming-vs-bulk) lesson for how live mode paces a replay and sample mode replays a whole file at once
+- The [Sigma detection testing](/docs/tutorials/detection-testing) tutorial for replaying a captured incident straight into a detection rule instead of building attack telemetry from scratch
+- The [replay](/docs/plugins/event/replay) reference for every field, including `chunk_size` and `encoding`
+- The [template](/docs/plugins/event/template) reference for the alternative event plugin, when a test needs generated variety instead of one exact file
+- Ready-made generators in the [Eventum Hub](/hub)
