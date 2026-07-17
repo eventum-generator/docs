@@ -1,0 +1,156 @@
+---
+title: "Streaming vs bulk: live mode vs sample mode in Eventum"
+description: How streaming and bulk test data differ, how Eventum's live mode and sample mode produce each, and how to bound a generator that would otherwise run forever.
+---
+
+Run `eventum generate` against a fresh generator config with every default left in place, and the command does not return. Nothing prints, no file fills up, and checking back a minute later still finds no finished dataset — the generator is doing exactly what it was configured to do: waiting for each timestamp's real moment on the wall clock before producing it, one event at a time, the way a live system would. Add a single flag to the same command, and it finishes in under a second with a complete file on disk.
+
+Those are the two ways any Eventum generator can produce test data. Streaming keeps producing for as long as it runs, pacing every event to the clock so the feed behaves like a live source. Bulk ignores that pacing, produces a fixed amount of data as fast as the pipeline can move, and finishes with a dataset instead of an ongoing feed. The same generator config can do either — picking the wrong one for a given test means waiting on a stream that was never going to finish in time, or handing a live dashboard a file that stopped updating the moment it was written.
+
+## Streaming vs bulk: two ways to produce test data
+
+Two properties of a run are independent of what the generator actually produces: whether it keeps going, and whether it waits for the clock. Every run combines them one of two ways:
+
+- **Streaming** is continuous and paced — the generator keeps producing for as long as it runs, releasing each event at (or near) the moment its timestamp names, so the feed behaves like a live source a downstream system can tail indefinitely.
+- **Bulk** is finite and unpaced — the generator produces a fixed amount of data, ignores what the timestamps say about timing, and finishes as fast as the pipeline can move; the result is a dataset you keep, not an ongoing feed.
+
+Neither property depends on the event content or the destination. The same JSON event, built from the same template, can arrive as a live tap a monitoring tool watches or as a file sitting on disk before anything reads it — streaming and bulk decide which, not the shape of the data itself.
+
+## When to use each
+
+Which one fits depends on what the data feeds into, not on how the generator is built:
+
+| Streaming | Bulk |
+|-----------|------|
+| Real-time pipeline test | Seed a database |
+| SIEM or monitoring feed | Build a fixed test dataset |
+| Stress test at a realistic rate | Backfill a time range |
+| Live dashboard demo | CI fixture |
+
+<Callout type="info">
+"Stress test" is not one exercise. Pacing a stream at a realistic rate to see how a live pipeline holds up over time — the row above — is streaming. Firing as many requests as possible to find an endpoint's breaking point is a different exercise entirely: a bulk burst aimed at a live target instead of a file. See [API load testing](/docs/tutorials/load-testing) for the latter.
+</Callout>
+
+## Live mode and sample mode in Eventum
+
+Eventum implements this choice as a single flag on how a generator is run, not as something configured in the generator itself. [Live mode](/docs/core/concepts/generator#live-mode-default) is the default, and it is streaming: each event is produced and delivered at the actual moment its timestamp names, synchronized to the wall clock — a tick scheduled for 12:00:05 is produced at 12:00:05, not before. [Sample mode](/docs/core/concepts/generator#sample-mode) (`--live-mode false`) is bulk: it ignores what the timestamps say about timing and produces all of them as fast as the pipeline can move, so a schedule that would span a week in live mode completes in however long rendering and writing every event actually takes.
+
+```bash
+# Streaming - live mode, the default
+eventum generate --path generator.yml --id my-gen
+
+# Bulk - sample mode
+eventum generate --path generator.yml --id my-gen --live-mode false
+```
+
+The same toggle exists as the `live_mode` field on a generator entry in [startup.yml](/docs/core/config/startup-yml), for running many generators through `eventum run` instead of one at a time on the command line.
+
+One more flag matters only in live mode: [`--skip-past`](/docs/core/cli/eventum-generate) defaults to `true`, so a schedule that technically began before the generator was launched doesn't dump its entire backlog the moment it starts — streaming picks up from "now," not from wherever the schedule's `start` happens to fall. Sample mode has no equivalent concern, since a bulk run was never paced to "now" in the first place.
+
+## Making a run finite
+
+Streaming only makes sense for an input that keeps producing. A [cron](/docs/plugins/input/cron) tick with no `end`, a [timer](/docs/plugins/input/timer) with no `repeat` limit, a [time_patterns](/docs/plugins/input/time-patterns) oscillator with `end: "never"` — none of these ever produce a finished run on their own; left in live mode, each is, by design, still going the next time you check. Bulk needs the opposite: a run that actually stops, which is a property of the input plugin, not of sample mode itself. [linspace](/docs/plugins/input/linspace), [timestamps](/docs/plugins/input/timestamps), and [static](/docs/plugins/input/static) are finite by construction — a range, a list, or a fixed count — while `cron` and `timer` need to be told where to stop: `cron`'s `end` field or `timer`'s `repeat` count, the same fields that, left unset, are what makes them run forever in the first place.
+
+Before, a per-second cron with no bound — keeps producing for as long as the generator runs, in either mode:
+
+```yaml
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+```
+
+After, the same schedule bounded to one hour — still one event per second, but now a run that ends:
+
+```yaml
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+      end: "+1h"
+```
+
+Run the bounded version in sample mode and it is a finite dataset; run it in live mode and it is a finite stream — one hour long instead of unbounded, but still paced to the clock while it lasts.
+
+## Same generator, both modes
+
+Wire the bounded schedule above into a complete generator, and the flag alone decides whether the result is a dataset already sitting on disk or a feed still arriving:
+
+```yaml title="generators/heartbeat/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+      end: "+1h"
+
+event:
+  template:
+    mode: all
+    templates:
+      - heartbeat:
+          template: templates/heartbeat.jinja
+
+output:
+  - file:
+      path: output/events.jsonl
+      write_mode: overwrite
+      formatter:
+        format: json
+```
+
+```jinja title="generators/heartbeat/templates/heartbeat.jinja"
+{"timestamp": "{{ timestamp.isoformat() }}", "status": "ok"}
+```
+
+Run it once in sample mode and the full hour completes immediately — a finished file, ready to load into a dev database or hand to a test as a fixture:
+
+```bash
+eventum generate --path generator.yml --id seed --live-mode false
+```
+
+```json title="output/events.jsonl — 3,600 lines, produced in under a second"
+{"timestamp": "2026-07-17T12:55:29+00:00", "status": "ok"}
+{"timestamp": "2026-07-17T12:55:30+00:00", "status": "ok"}
+{"timestamp": "2026-07-17T12:55:31+00:00", "status": "ok"}
+...
+{"timestamp": "2026-07-17T13:55:26+00:00", "status": "ok"}
+{"timestamp": "2026-07-17T13:55:27+00:00", "status": "ok"}
+{"timestamp": "2026-07-17T13:55:28+00:00", "status": "ok"}
+```
+
+Run the exact same config again with no flag added — live mode is the default — and the file grows one line a second instead of appearing all at once, the way a real heartbeat would arrive at a monitoring tool tailing it. Eight real seconds in:
+
+```json title="output/events.jsonl — after 8 real seconds"
+{"timestamp": "2026-07-17T12:55:42+00:00", "status": "ok"}
+{"timestamp": "2026-07-17T12:55:43+00:00", "status": "ok"}
+{"timestamp": "2026-07-17T12:55:44+00:00", "status": "ok"}
+{"timestamp": "2026-07-17T12:55:45+00:00", "status": "ok"}
+{"timestamp": "2026-07-17T12:55:46+00:00", "status": "ok"}
+{"timestamp": "2026-07-17T12:55:47+00:00", "status": "ok"}
+{"timestamp": "2026-07-17T12:55:48+00:00", "status": "ok"}
+```
+
+Same `generator.yml`, same template, same output path. What changes is only whether the run has already finished or is still going — the difference between a dataset and a feed is the flag it started with, not the config that describes it.
+
+## FAQ
+
+<Accordions>
+<Accordion title="Streaming vs batch data?">
+Streaming paces every event to the clock and keeps producing for as long as the generator runs, so the feed behaves like a live source. Batch — Eventum calls it bulk, produced in [sample mode](/docs/core/concepts/generator#sample-mode) — ignores that pacing and produces a fixed amount of data as fast as the pipeline can move, finishing with a dataset instead of an ongoing feed. Same generator, same events — the difference is entirely in how the run is started.
+</Accordion>
+<Accordion title="How do I generate a finite dataset?">
+Two things need to be true: the input plugin has to actually stop — [linspace](/docs/plugins/input/linspace), [timestamps](/docs/plugins/input/timestamps), and [static](/docs/plugins/input/static) always do, `cron` and `timer` only if `end` or `repeat` is set — and the run needs to be in [sample mode](/docs/core/concepts/generator#sample-mode) (`--live-mode false`) so it completes immediately instead of taking as long in wall-clock time as the schedule spans. A finite input left in live mode still finishes eventually, just not before the last timestamp's real moment arrives.
+</Accordion>
+<Accordion title="Does live mode replay past timestamps?">
+Not by default. [`--skip-past`](/docs/core/cli/eventum-generate) defaults to `true`, so live mode skips every timestamp earlier than "now" and starts from the next one still in the future. Setting `--skip-past false` replays that backlog instead — but immediately, not at the original pace, since the scheduler only ever waits for timestamps that are still ahead of the clock.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [Foundations](/docs/tutorials/foundations) pillar for the broader path from synthetic event data to a working pipeline
+- The [Scheduling](/docs/core/concepts/scheduling) concept page for how finite and infinite inputs combine and how timestamps from multiple inputs merge
+- The [Stream synthetic data to your stack](/docs/tutorials/delivery) pillar for delivering a live feed to a real backend instead of a file
+- The [API load testing](/docs/tutorials/load-testing) lesson for a bulk burst fired at a live endpoint to find its breaking point
+- The [Seed a database with realistic test data](/docs/tutorials/csv-dataset) lesson for a bulk dataset built to load into a database
+- Ready-made generators in the [Eventum Hub](/hub)
