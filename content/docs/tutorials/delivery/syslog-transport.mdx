@@ -1,0 +1,183 @@
+---
+title: "Send syslog to a collector over TCP or UDP"
+description: Send a generated syslog stream to a collector or SIEM over UDP or TCP, with RFC 5426 and RFC 6587 framing, TLS via RFC 5425, and why an unreachable TCP target fails loudly while UDP fails silently.
+---
+
+A syslog line that only ever lands in a file has the right shape but never crosses the wire a real syslog source actually uses. Testing an rsyslog or syslog-ng ingestion rule, a SIEM's syslog listener, or a log shipper's parser end to end means putting bytes on that exact connection — a live UDP datagram or a live TCP stream arriving at the collector's own listening port — not text that merely looks correct sitting in a local file.
+
+Eventum ships generated syslog straight to a collector over either transport: the [udp](/docs/plugins/output/udp) output sends one datagram per event, the [tcp](/docs/plugins/output/tcp) output holds a connection open and streams events across it, and either one delivers whatever a template renders — the RFC 3164 or RFC 5424 line from the [syslog format lesson](/docs/tutorials/formats/syslog), or a CEF or LEEF line riding the same header. What changes between the two outputs is the wire behavior this lesson covers: how each transport marks where one message ends and the next begins, and what each one does the moment the collector on the other end isn't there.
+
+## Syslog on the wire: UDP vs TCP
+
+syslog's message format — the PRI value, then either an RFC 3164 or RFC 5424 header — is standardized separately from how that message actually reaches a collector. Two RFCs cover the wire: [RFC 5426](https://datatracker.ietf.org/doc/html/rfc5426) for UDP, published in 2009, and [RFC 6587](https://datatracker.ietf.org/doc/html/rfc6587) for TCP, three years later in 2012. This lesson is about those two — see the [syslog format lesson](/docs/tutorials/formats/syslog) for what actually goes inside the message itself.
+
+UDP is the original transport, and it stays close to BSD syslog's own assumptions: RFC 5426 requires exactly one syslog message per datagram, with no acknowledgment and no guarantee a datagram arrives at all, arrives once, or arrives in the order it was sent. That's also exactly why UDP is still the default nearly everywhere — a network appliance, a firewall, or a long-lived Unix daemon has no connection to establish, maintain, or recover if the collector restarts; it just keeps sending into the network and trusts that most of it gets there. RFC 5426 registers UDP port 514 for this, the same port BSD syslog has used informally since long before either RFC existed.
+
+TCP arrived later, once environments needed something UDP structurally can't offer: delivery actually acknowledged by the transport, ordering that survives a lossy network, and no practical ceiling on a single message's size. RFC 6587 never registers a standard port for it — it notes plainly that 514/TCP actually belongs to the unrelated Shell protocol — but nearly every collector listens on 514 for TCP anyway, convention outrunning the standard. A TCP connection also raises a question a UDP datagram never has to answer: since TCP is just a byte stream with no built-in message boundaries, where does one syslog message end and the next begin? RFC 6587 calls this framing, and the TCP section below covers the two ways it defines to answer that, alongside the TLS-encrypted variant TCP alone makes possible.
+
+## Send syslog over UDP
+
+<Steps>
+<Step>
+
+### Write the template
+
+One line, in the RFC 3164 shape the format lesson already covers: a PRI value computed the same way — facility 4 (security/authorization messages) times 8 plus severity 4 (Warning), the same `<36>` from that lesson — followed by a timestamp, a hostname, and a free-text tail. [`module.rand`](/docs/plugins/event/template/modules) fills in the parts that vary between events:
+
+```jinja title="generators/syslog-collector/templates/conn-denied.jinja"
+{%- set src_ip = module.rand.network.ip_v4_public() -%}
+{%- set dst_port = module.rand.weighted_choice({22: 40, 3389: 35, 23: 15, 445: 10}) -%}
+<36>{{ timestamp.strftime('%b %e %H:%M:%S') }} fw-edge-01 netfilter: DENY IN=eth0 SRC={{ src_ip }} DST=10.0.4.12 PROTO=TCP DPT={{ dst_port }}
+```
+
+A gateway firewall logging a blocked inbound connection — `dst_port` weighted toward the ports opportunistic scanners hit most, SSH and RDP ahead of Telnet and SMB. See the [syslog format lesson](/docs/tutorials/formats/syslog) for how the PRI value and the rest of the RFC 3164 header are actually put together; this one rendered line is all the transport below needs.
+
+</Step>
+<Step>
+
+### Configure the udp output
+
+A [cron](/docs/plugins/input/cron) input ticks once a second, and the [udp](/docs/plugins/output/udp) output sends each rendered line as its own datagram:
+
+```yaml title="generators/syslog-collector/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: all
+    templates:
+      - conn_denied:
+          template: templates/conn-denied.jinja
+
+output:
+  - udp:
+      host: collector.example.com
+      port: 514
+      separator: "\n"
+```
+
+`port: 514` is [UDP syslog's own IANA-registered port](https://datatracker.ietf.org/doc/html/rfc5426) — most collectors listen there by default. `formatter` is left unset, falling back to `udp`'s own default, [`plain`](/docs/plugins/formatters#plain): the line the template rendered goes out unchanged, nothing reshapes it. `separator: "\n"` is also already the default, shown here for clarity — RFC 5426 already guarantees exactly one message per datagram, so this trailing newline isn't what separates one event from the next; the datagram boundary already does that. It's appended only because most collectors still expect a trailing newline on the payload itself, a holdover convention rather than a framing requirement.
+
+</Step>
+</Steps>
+
+## Send syslog over TCP
+
+The `udp` block above sends into the network without ever checking whether anything is listening on the other end — and that is the point of the callout below. Swap the output block for [`tcp`](/docs/plugins/output/tcp), leave `input` and `event` untouched, and delivery behaves fundamentally differently the moment the generator starts:
+
+```yaml title="generators/syslog-collector/generator.yml (output block only)"
+output:
+  - tcp:
+      host: collector.example.com
+      port: 514
+      separator: "\n"
+```
+
+<Callout type="info">
+`tcp`'s `_open` runs a real handshake before a single event ever renders: `asyncio.open_connection` against `host`/`port`, bounded by `connect_timeout` (10 seconds by default). A closed or unreachable port fails that handshake, and the run stops immediately with a logged connection error — no event is dropped quietly, because none was ever sent. `udp`'s `_open` only opens a local socket; there is no handshake to fail. Point it at a reachable host with nothing listening on that port, or a collector that later goes away mid-run, and the process keeps going regardless — datagrams travel into the network, any rejection comes back as an ICMP error that gets logged, and the run itself never notices. A `udp` misconfiguration looks identical to success until something on the receiving end is checked directly.
+</Callout>
+
+### Two ways to frame a message
+
+A UDP datagram carries exactly one message by construction — the network preserves that boundary for free. A TCP connection is just a byte stream; nothing about it marks where one syslog message ends and the next begins, so RFC 6587 defines two ways to add that boundary back:
+
+- **Non-transparent framing** — the message followed by a trailing delimiter, almost always `LF`. This is what `separator: "\n"` produces, and it's the default for both `tcp` and `udp` above — the shape nearly every collector accepts.
+- **Octet-counting** — a decimal length prefix ahead of the message instead of a trailing delimiter: `MSG-LEN SP SYSLOG-MSG`, a byte count, a space, then exactly that many bytes.
+
+```text title="Non-transparent framing (LF invisible at the end of the line)"
+<36>Jul 17 09:14:02 fw-edge-01 netfilter: DENY IN=eth0 SRC=203.0.113.44 DST=10.0.4.12 PROTO=TCP DPT=22
+```
+
+```text title="The same message, octet-counting framed instead"
+102 <36>Jul 17 09:14:02 fw-edge-01 netfilter: DENY IN=eth0 SRC=203.0.113.44 DST=10.0.4.12 PROTO=TCP DPT=22
+```
+
+`separator` on the `tcp` output only ever appends a trailing string, so it produces non-transparent framing and nothing else — keep it as the default unless a collector's own documentation specifically calls for octet-counting. RFC 6587 itself flags why octet-counting exists at all: a trailing delimiter only works if the message never contains that same character, and nothing stops a syslog message from carrying an embedded `LF`. If a collector needs the length-prefixed form instead, render it directly in the template — replacing this lesson's final template line with:
+
+```jinja
+{%- set line = "<36>" ~ timestamp.strftime('%b %e %H:%M:%S') ~ " fw-edge-01 netfilter: DENY IN=eth0 SRC=" ~ src_ip ~ " DST=10.0.4.12 PROTO=TCP DPT=" ~ dst_port -%}
+{{ line | length }} {{ line }}
+```
+
+paired with `separator: ""` on the `tcp` block, since the length prefix — not a trailing character — now marks the end of each message. (`length` counts characters here; a message with multi-byte UTF-8 content needs the encoded byte count instead, since RFC 6587 counts octets, not characters.)
+
+### Encrypting the connection with TLS
+
+Plain TCP syslog carries every message in cleartext. [RFC 5425](https://datatracker.ietf.org/doc/html/rfc5425) layers TLS over the same TCP transport, traditionally on port 6514 rather than 514. `tcp`'s `ssl: true` turns it on:
+
+```yaml title="generators/syslog-collector/generator.yml (output block only)"
+output:
+  - tcp:
+      host: collector.example.com
+      port: 6514
+      ssl: true
+      verify: true
+      ca_cert: certs/ca.pem
+      separator: "\n"
+```
+
+`verify: true` is already `tcp`'s own default — it just has no effect until `ssl` is on — and it checks the collector's certificate against `ca_cert` rather than accepting anything presented once TLS is enabled; set it to `false` only against a collector whose certificate can't be validated yet, such as a self-signed one during setup. Mutual TLS, where the collector in turn verifies the generator's own identity, adds `client_cert` and `client_cert_key` alongside the fields above; see the [tcp output reference](/docs/plugins/output/tcp#parameters) for every TLS field. `udp` has no TLS equivalent — RFC 5425 exists only for the TCP transport, since there is no persistent connection for a connectionless datagram to secure the way TLS secures a stream.
+
+## The result
+
+Both configs above were validated against a local listener standing in for a real collector — `nc -u -l` for `udp`, plain `nc -l` for `tcp` — since no actual collector was reachable while writing this lesson. Three consecutive lines exactly as the `udp` output sent them, one datagram each:
+
+```text title="Received over UDP"
+<36>Jul 17 20:06:23 fw-edge-01 netfilter: DENY IN=eth0 SRC=4.76.136.227 DST=10.0.4.12 PROTO=TCP DPT=22
+<36>Jul 17 20:06:24 fw-edge-01 netfilter: DENY IN=eth0 SRC=198.65.83.210 DST=10.0.4.12 PROTO=TCP DPT=23
+<36>Jul 17 20:06:24 fw-edge-01 netfilter: DENY IN=eth0 SRC=199.213.45.61 DST=10.0.4.12 PROTO=TCP DPT=22
+```
+
+Swapping in the `tcp` output and pointing the same generator at a plain TCP listener produced the identical shape, LF-terminated exactly as `separator: "\n"` specifies — the only difference is the connection underneath:
+
+```text title="Received over TCP"
+<36>Jul 17 20:06:43 fw-edge-01 netfilter: DENY IN=eth0 SRC=171.15.15.42 DST=10.0.4.12 PROTO=TCP DPT=22
+<36>Jul 17 20:06:44 fw-edge-01 netfilter: DENY IN=eth0 SRC=8.236.67.150 DST=10.0.4.12 PROTO=TCP DPT=23
+<36>Jul 17 20:06:45 fw-edge-01 netfilter: DENY IN=eth0 SRC=198.44.68.112 DST=10.0.4.12 PROTO=TCP DPT=22
+```
+
+Pointing the `tcp` config at a closed port instead — nothing listening at all — never gets this far. The run stops before a single event renders:
+
+```text title="tcp output against a closed port"
+error    Failed to connect
+         host=127.0.0.1 port=20599
+         reason="[Errno 111] Connect call failed ('127.0.0.1', 20599)"
+error    Failed to open some of the output plugins
+```
+
+The reverse test on `udp` confirms the other half: pointing it at a target that stopped listening mid-run, three sends in a row logged an ICMP rejection instead of raising:
+
+```text title="udp output after the collector stops listening"
+error    UDP socket error received
+         reason="[Errno 111] Connection refused"
+```
+
+repeated for each of the three events sent while nothing was listening — and the generator kept producing and sending the next one regardless. Nothing about the run itself distinguished those three failed sends from a successful one; only the listener's own absence gave it away.
+
+## FAQ
+
+<Accordions>
+<Accordion title="UDP or TCP for syslog?">
+Match whatever the real fleet or the collector's own documentation uses, not a general preference — both are standardized transports, and most collectors (rsyslog, syslog-ng, and effectively every commercial SIEM) accept either on their default listener. UDP stays the default for network hardware, embedded devices, and anything that predates or never adopted RFC 6587 — no connection to establish or maintain, and a collector restart or a brief network blip doesn't need a reconnect. Reach for TCP when a message might not fit comfortably in a single datagram, when delivery and ordering need to survive a lossy network, or simply because the receiving collector requires it — the tradeoff, covered above, is that TCP also means a genuinely unreachable collector stops the generator at startup instead of failing invisibly.
+</Accordion>
+<Accordion title="What happens if the collector is down?">
+Entirely dependent on which output is configured, and it's worth testing deliberately before relying on either in an unattended run. `tcp` fails loudly: the connection attempt in `_open` fails before a single event is generated, the run stops, and the error — host, port, and the underlying OS reason — lands right in the log. `udp` fails silently: the process keeps running, keeps "succeeding" by its own accounting, and the only trace of a problem is an ICMP error logged if one happens to come back, which isn't guaranteed on every network path. Don't rely on the absence of errors in Eventum's own log to confirm a `udp` stream actually arrived — check the collector's ingest counters, or capture the wire directly with `tcpdump`, the same way this lesson's own verification used `nc`.
+</Accordion>
+<Accordion title="Octet-counting or non-transparent framing?">
+Non-transparent — the default `separator: "\n"` above — unless a collector's documentation specifically calls for octet-counting. Nearly every common target (rsyslog's `imtcp`, syslog-ng's `network()` source, most commercial SIEM TCP listeners) accepts LF-delimited messages out of the configuration shown above, no extra settings needed. Octet-counting mainly matters when a message can itself contain an embedded `LF` — RFC 6587 flags exactly this as non-transparent framing's weak point, since a receiver has no way to tell an `LF` inside the message from the one marking its end. A length prefix has no character it needs to avoid.
+</Accordion>
+<Accordion title="Does this work for CEF, LEEF, or feeding a SIEM?">
+Yes — both outputs send whatever the template renders, one line at a time; nothing about `udp` or `tcp` is specific to the RFC 3164/5424 shape used above. Swap in the [CEF](/docs/tutorials/formats/cef) or [LEEF](/docs/tutorials/formats/leef) lesson's own template and the exact same `udp`/`tcp` config ships it to a SIEM's syslog listener instead — many products, ArcSight and QRadar included, expect their format wrapped inside (or standing in for) a syslog header on the wire. For a complete pipeline behind that listener, the [detection testing](/docs/tutorials/detection-testing) and [SIEM test data](/docs/tutorials/siem-events) lessons build the stateful, correlated telemetry a rule or a dashboard actually needs; either one's output can ride this transport instead of the file or OpenSearch index they use directly.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [delivery track](/docs/tutorials/delivery) for streaming the same kind of stream to OpenSearch, Kafka, ClickHouse, and HTTP alongside a syslog collector
+- The [syslog format lesson](/docs/tutorials/formats/syslog) for the PRI value and the RFC 3164/5424 header fields this transport carries
+- The [CEF](/docs/tutorials/formats/cef) and [LEEF](/docs/tutorials/formats/leef) lessons for two more formats that often ride this same transport into a SIEM
+- The [detection testing](/docs/tutorials/detection-testing) and [SIEM test data](/docs/tutorials/siem-events) lessons for complete, correlated telemetry to deliver this way
+- The [tcp output reference](/docs/plugins/output/tcp), [udp output reference](/docs/plugins/output/udp), and [formatters reference](/docs/plugins/formatters) for every connection, TLS, framing, and formatting parameter
