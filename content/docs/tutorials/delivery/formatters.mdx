@@ -1,0 +1,187 @@
+---
+title: "Output formatters: one stream, a shape per destination"
+description: Output formatters decide how the same event stream leaves each destination — one line per event, a single array, or a custom envelope — and which of the six to choose for a given target.
+---
+
+A synthetic event stream rarely has just one destination in mind, and different destinations expect the same data shaped differently: a log file wants one JSON object on its own line so a shipper can tail it, a bulk-ingest API wants every event bundled into a single request body, and a partner endpoint wants its own named wrapper around the batch. Nothing about the event itself changes between these three — only the wire shape does.
+
+Baking that shape into the event template itself is the obvious fallback: open a bracket before the first event, comma-join the rest, close it after the last one, wrap the whole thing in whatever key one particular endpoint happens to want. It works for exactly one destination, and breaks the moment a second one needs a different shape — the template now carries wire-format logic that has nothing to do with the data it produces, duplicated and drifting a little more every time another destination joins.
+
+Eventum keeps that decision out of the template entirely. Every output plugin applies a **formatter** — a small, swappable step between "here is an event string" and "here is what gets written" — so the same generator config can hand a bulk-ingest API a single JSON array, a log file one compact line per event, and a partner's endpoint its own named envelope, by changing nothing but the `formatter` block on each output.
+
+## One stream, a shape per destination
+
+Eventum's pipeline produces one stream of events and hands an identical copy to every configured output plugin — a generator commonly writes to more than one destination at once. Formatting happens per output plugin, not once for the whole generator, so each destination's `formatter` block picks its own shape independently of what any other output plugin does with the same events. Point one output at a local file with `json` and another at a bulk API with `json-batch` in the same `output:` list, and the identical stream leaves as an NDJSON file on disk and a single batched array over HTTP, at the same time. The [formatters reference](/docs/plugins/formatters) documents every format and parameter in full; this lesson is about picking the right one for a given destination.
+
+## Choosing a formatter
+
+Match the formatter to what the destination expects, not to whatever shape the event template happens to render — that stays the same regardless of formatter:
+
+| Destination | Formatter |
+|-------------|-----------|
+| Raw-text collector — a syslog listener, a plain-text log file | [`plain`](/docs/plugins/formatters#plain) |
+| NDJSON file, or any per-record index or stream | [`json`](/docs/plugins/formatters#json) |
+| Bulk-ingest API that accepts one array per call | [`json-batch`](/docs/plugins/formatters#json-batch) |
+| A custom per-event request body or line | [`template`](/docs/plugins/formatters#template) |
+| A named envelope, CSV, or XML batch | [`template-batch`](/docs/plugins/formatters#template-batch) |
+| Another Eventum generator's `http` input | `eventum-http-input` |
+
+`plain` and `json` look interchangeable whenever the event template already renders JSON, but they aren't: `plain` passes the string through exactly as produced, untouched and unchecked, while `json` parses it and re-serializes it compactly, catching anything that isn't valid JSON before it ever reaches the destination. NDJSON wants `json`, not `plain`, for exactly that reason — see the [NDJSON lesson](/docs/tutorials/formats/ndjson) for that pairing built out in full, `file`'s own `separator: "\n"` included.
+
+## Per-event vs per-batch
+
+The six formats split into two groups by what they operate on. `plain`, `json`, and `template` are per-event: each takes N events and returns up to N formatted strings, one per input event — `json` can skip an individual malformed event without touching the rest of the batch. `json-batch`, `template-batch`, and `eventum-http-input` are per-batch: each takes N events and returns exactly one formatted string for the whole batch, however many events that batch held.
+
+That split changes two things a destination-shape decision alone doesn't cover. **Request count**: a per-event formatter means one write — one HTTP request, one Kafka message, one line appended to a file — for every event; a per-batch formatter collapses however many events the generator's own [`batch.size`/`batch.delay`](/docs/core/config/eventum-yml#generation) accumulated into a single write, trading many small writes for fewer, larger ones. **Failure blast radius**: a per-event write stands on its own, so one rejected or malformed event doesn't touch its neighbors; a per-batch write is all-or-nothing once it leaves Eventum — whatever the destination does with that one array or envelope, accept it or reject it, happens to every event the batch was carrying at once. [Batch vs per-request delivery](/docs/tutorials/delivery/http#batch-vs-per-request-delivery) works through that exact tradeoff for one destination in depth.
+
+## Worked examples
+
+One event template, reused unchanged below — only the output block's formatter changes between examples, which is the point.
+
+<Steps>
+<Step>
+
+### Write the shared template
+
+A background job finishing on a worker queue: an ID, which queue it ran on, which worker picked it up, how long it took, and how it ended. Building it as a Jinja mapping and serializing it in one step with the `tojson` filter keeps every rendered event on a single line, the same technique the [CloudTrail lesson](/docs/tutorials/formats/cloudtrail) uses for its own nested records — `template` and `template-batch` forward whatever a template renders exactly as written, with no reformatting of their own, so a template spanning multiple lines would carry those line breaks straight into a batched result instead.
+
+```jinja title="generators/job-events/templates/job-completed.jinja"
+{%- set status = module.rand.weighted_choice({"succeeded": 82, "failed": 11, "retried": 7}) -%}
+{%- set event = {
+    "job_id": module.rand.crypto.uuid4(),
+    "queue": module.rand.choice(["emails", "exports", "thumbnails", "webhooks"]),
+    "worker_id": "worker-" ~ module.rand.number.integer(1, 12),
+    "duration_ms": module.rand.number.exponential(0.004) | round(1),
+    "status": status,
+    "finished_at": timestamp.isoformat()
+} -%}
+{{ event | tojson }}
+```
+
+`duration_ms` uses `module.rand.number.exponential`, not a uniform range — most jobs finish quickly and a shrinking few take much longer, the shape a real queue's completion times actually follow.
+
+</Step>
+<Step>
+
+### NDJSON file, via json
+
+A [cron](/docs/plugins/input/cron) input ticks once a second, and a [file](/docs/plugins/output/file) output writes each event through [json](/docs/plugins/formatters#json):
+
+```yaml title="generators/job-events/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: all
+    templates:
+      - job_completed:
+          template: templates/job-completed.jinja
+
+output:
+  - file:
+      path: output/jobs.ndjson
+      separator: "\n"
+      formatter:
+        format: json
+```
+
+`json` validates and compacts each event to one line regardless of how the template rendered it; `file`'s own `separator: "\n"` is what then places each one on its own line — the pairing the [NDJSON lesson](/docs/tutorials/formats/ndjson) covers in full.
+
+</Step>
+<Step>
+
+### A bulk array, via json-batch
+
+A bulk-ingest API that accepts one array per call wants every event from a batch collected into a single JSON array instead of separate lines. Swap the output block for:
+
+```yaml title="generators/job-events/generator.yml (output block only)"
+output:
+  - file:
+      path: output/jobs-batch.json
+      write_mode: overwrite
+      formatter:
+        format: json-batch
+```
+
+Written to a file here, with `write_mode: overwrite`, so the array from the latest batch is easy to inspect on its own — a real bulk-ingest destination is normally an `http` output instead, where this is the same [`json-batch`](/docs/tutorials/delivery/http#batch-vs-per-request-delivery) default the HTTP delivery lesson sends as a single POST body per batch, no overwrite-or-append question involved since nothing is being appended to a local file. Every event in the batch lands inside one pair of brackets, comma-joined; how many events that is comes from the generator's own `batch.size`/`batch.delay`, not from the formatter.
+
+</Step>
+<Step>
+
+### A named envelope, via template-batch
+
+Some destinations don't want a bare array at all — they want it wrapped in a key of their own choosing, the way AWS CloudTrail wraps a batch in `{"Records": [...]}` (covered in full in the [CloudTrail lesson](/docs/tutorials/formats/cloudtrail)). `json-batch` can't produce that: it always writes a bare `[...]`, with no key to name. [`template-batch`](/docs/plugins/formatters#template-batch) hands the whole batch to a template instead and lets it decide the wrapper:
+
+```yaml title="generators/job-events/generator.yml (output block only)"
+output:
+  - file:
+      path: output/jobs-envelope.json
+      write_mode: overwrite
+      formatter:
+        format: template-batch
+        template: '{"jobs": [{{ events | join(", ") }}]}'
+```
+
+Written to a file for the same reason as the previous step. `events` inside a `template-batch` template is the list of raw rendered strings from the first step — each one already valid JSON text, not a parsed object. `events | join(", ")` concatenates them as they are, so wrapping the result in `[...]` reassembles a genuine JSON array under the `jobs` key. Writing `{{ events }}` directly instead, without the filter, renders Jinja's own textual representation of that list — comma-separated and single-quoted, not valid JSON at all.
+
+</Step>
+</Steps>
+
+## The result
+
+Three separate runs of the configs above, eight jobs each. `json` produces eight independent, compact lines — any one of them parses on its own, and a line-oriented tool can start on the first line without waiting for the rest:
+
+```json title="output/jobs.ndjson"
+{"duration_ms": 109.7, "finished_at": "2026-07-17T21:30:55+00:00", "job_id": "9a2bd766-79f3-4d61-8c1b-6ef9753286e4", "queue": "emails", "status": "succeeded", "worker_id": "worker-3"}
+{"duration_ms": 20.9, "finished_at": "2026-07-17T21:30:54+00:00", "job_id": "521faeb9-a61a-42e9-b4be-1aa8e7e3cc0a", "queue": "emails", "status": "succeeded", "worker_id": "worker-10"}
+{"duration_ms": 40.9, "finished_at": "2026-07-17T21:30:56+00:00", "job_id": "1732c98b-179f-46a8-9d59-1bbbd733f833", "queue": "exports", "status": "succeeded", "worker_id": "worker-1"}
+{"duration_ms": 131.1, "finished_at": "2026-07-17T21:30:57+00:00", "job_id": "b2f9c855-c240-4e58-8446-c78bd48886db", "queue": "thumbnails", "status": "succeeded", "worker_id": "worker-6"}
+{"duration_ms": 320.7, "finished_at": "2026-07-17T21:30:58+00:00", "job_id": "4bd0ebac-209a-4d67-8a3f-690dafb63533", "queue": "emails", "status": "succeeded", "worker_id": "worker-3"}
+{"duration_ms": 333.0, "finished_at": "2026-07-17T21:30:59+00:00", "job_id": "29924f02-91f8-4b13-a9df-237f515c897e", "queue": "exports", "status": "succeeded", "worker_id": "worker-5"}
+{"duration_ms": 368.3, "finished_at": "2026-07-17T21:31:00+00:00", "job_id": "155159f4-2d50-472d-bb08-f531cd5b441b", "queue": "webhooks", "status": "succeeded", "worker_id": "worker-7"}
+{"duration_ms": 149.3, "finished_at": "2026-07-17T21:31:01+00:00", "job_id": "de950fb0-5f27-4205-872f-4f97acebf154", "queue": "emails", "status": "retried", "worker_id": "worker-2"}
+```
+
+`json-batch` collapses the same eight jobs into a single array — this is what would ship as one POST body against a bulk-ingest API:
+
+```json title="output/jobs-batch.json"
+[{"duration_ms": 14.2, "finished_at": "2026-07-17T21:30:55+00:00", "job_id": "d4b74395-0518-43c1-94f7-b7a54c7730c6", "queue": "thumbnails", "status": "succeeded", "worker_id": "worker-10"}, {"duration_ms": 137.8, "finished_at": "2026-07-17T21:30:56+00:00", "job_id": "bed7d0e8-8c0b-4867-8c1f-715bc502417e", "queue": "webhooks", "status": "succeeded", "worker_id": "worker-2"}, {"duration_ms": 19.4, "finished_at": "2026-07-17T21:30:57+00:00", "job_id": "b224c0b3-3707-45c6-af17-0c1f84fc5fc6", "queue": "thumbnails", "status": "succeeded", "worker_id": "worker-6"}, {"duration_ms": 320.0, "finished_at": "2026-07-17T21:30:58+00:00", "job_id": "bedc9a44-1f6b-44da-b33d-870cad19f052", "queue": "emails", "status": "succeeded", "worker_id": "worker-5"}, {"duration_ms": 67.5, "finished_at": "2026-07-17T21:30:59+00:00", "job_id": "fc0d95d0-6948-47ff-992c-3cb54ce39f49", "queue": "thumbnails", "status": "failed", "worker_id": "worker-9"}, {"duration_ms": 196.1, "finished_at": "2026-07-17T21:31:00+00:00", "job_id": "25602229-e870-4802-80fd-723d185d911e", "queue": "webhooks", "status": "succeeded", "worker_id": "worker-1"}, {"duration_ms": 256.3, "finished_at": "2026-07-17T21:31:01+00:00", "job_id": "eb5fc86e-9bed-4cda-a01d-767cf82accdb", "queue": "thumbnails", "status": "succeeded", "worker_id": "worker-6"}, {"duration_ms": 165.4, "finished_at": "2026-07-17T21:31:02+00:00", "job_id": "2cdf55de-19d3-49d4-8715-681ac3fd424b", "queue": "exports", "status": "succeeded", "worker_id": "worker-10"}]
+```
+
+`template-batch` wraps the same eight jobs in the named `jobs` envelope instead of a bare array:
+
+```json title="output/jobs-envelope.json"
+{"jobs": [{"duration_ms": 116.6, "finished_at": "2026-07-17T21:30:56+00:00", "job_id": "3948edb5-afbe-4278-8ea3-47d0d96ae3bd", "queue": "emails", "status": "succeeded", "worker_id": "worker-8"}, {"duration_ms": 172.0, "finished_at": "2026-07-17T21:30:57+00:00", "job_id": "a613dbc9-f759-40b0-8b01-b2ca71ad96f8", "queue": "webhooks", "status": "succeeded", "worker_id": "worker-10"}, {"duration_ms": 572.8, "finished_at": "2026-07-17T21:30:58+00:00", "job_id": "13361b47-ca1c-4e0b-8cf4-6467561343b1", "queue": "exports", "status": "succeeded", "worker_id": "worker-6"}, {"duration_ms": 125.7, "finished_at": "2026-07-17T21:30:59+00:00", "job_id": "a018f0ad-e6b8-4d50-9b06-7c9fa95fe25f", "queue": "webhooks", "status": "failed", "worker_id": "worker-3"}, {"duration_ms": 158.7, "finished_at": "2026-07-17T21:31:00+00:00", "job_id": "e2395d26-cc3f-4ae5-9011-6eda60754cac", "queue": "thumbnails", "status": "succeeded", "worker_id": "worker-1"}, {"duration_ms": 299.8, "finished_at": "2026-07-17T21:31:01+00:00", "job_id": "90817eed-e7fa-4897-8002-20ef82a342c0", "queue": "webhooks", "status": "failed", "worker_id": "worker-12"}, {"duration_ms": 41.9, "finished_at": "2026-07-17T21:31:02+00:00", "job_id": "bfa16842-493e-4ffe-af9b-f5643dcd4d72", "queue": "exports", "status": "failed", "worker_id": "worker-7"}, {"duration_ms": 435.3, "finished_at": "2026-07-17T21:31:03+00:00", "job_id": "a011ae6a-2045-463b-9dca-bdac9882c5d9", "queue": "exports", "status": "succeeded", "worker_id": "worker-12"}]}
+```
+
+Every field above sits at a single space after `:` and `,` — `json` and `json-batch` default to `indent: 0`, which means compact, not stripped; a positive `indent` pretty-prints the same data across multiple lines instead. Three separate runs, one template, one input, only the `formatter` block changed between them — the mapping decision from the top of this lesson, applied.
+
+## FAQ
+
+<Accordions>
+<Accordion title="Do multiple output blocks in the same generator share the same batches?">
+Yes. Batching happens once, upstream of every output plugin — the generator's own `batch.size`/`batch.delay` decide when a batch flushes, and every configured output plugin receives that identical batch to format and write in its own way. Formatting is the only thing that differs per output block: a `file` output set to `json` and an `http` output set to `json-batch` in the same generator both act on the same events at the same batch boundaries, they just package them differently on the way out.
+</Accordion>
+<Accordion title="What happens to one malformed event, under each formatter?">
+It depends on the formatter's own granularity. `json` and `template` skip just that one event — each is formatted independently, so one failure is logged as a format error and the rest of the batch ships normally. `json-batch` also isolates it: an invalid event is simply excluded from the array, not the whole array. `template-batch` is the one exception worth watching — the whole batch renders through a single template call, so a template that only joins the raw strings, like the envelope above, is unaffected by what's inside them, but one that inspects individual events, parsing each with a filter such as `fromjson`, fails for the entire batch the moment one event doesn't parse.
+</Accordion>
+<Accordion title="When does raising indent make sense?">
+Mainly for a file meant for a person to read directly — a sample dataset, a fixture, a config-review artifact — where a positive `indent` spreads each event across multiple lines for readability. Leave it at the default `0` for anything a machine parses next: a pretty-printed array parses identically, it just costs more bytes for no benefit once nothing human is reading it directly, and, as the [NDJSON lesson](/docs/tutorials/formats/ndjson) warns, a non-zero `indent` on `json` breaks the one-event-per-line shape a log shipper or `jq` depends on, since the event itself then spans several physical lines.
+</Accordion>
+<Accordion title="What is eventum-http-input actually for?">
+Chaining one generator's output into a second generator's input, rather than shaping the events themselves. It ignores the batch's content entirely and emits a single `{"count": N}` object — the exact request body Eventum's own [http](/docs/plugins/input/http) input plugin expects on its [on-demand endpoint](/docs/core/concepts/scheduling#on-demand-scheduling): N timestamps generated the moment that request lands. Point an `http` output using this formatter at a second generator's `http` input port, and every batch the first generator produces triggers the second to generate that many events of its own.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [formatters reference](/docs/plugins/formatters) for every parameter, plus the CSV, XML, and summary-report examples this lesson didn't rebuild
+- The [NDJSON lesson](/docs/tutorials/formats/ndjson) for the json-to-NDJSON pairing built out with its own two-template generator
+- The [AWS CloudTrail lesson](/docs/tutorials/formats/cloudtrail) for the Records envelope this lesson's named wrapper is modeled on
+- The [HTTP delivery lesson](/docs/tutorials/delivery/http) for json-batch vs json request shaping against a real endpoint
+- The [OpenSearch delivery lesson](/docs/tutorials/delivery/opensearch) for the bulk body a json-shaped stream feeds directly
+- The [formats field guide](/docs/tutorials/formats) for the log and event shapes formatters end up producing
+- The [delivery track](/docs/tutorials/delivery) for every destination these shapes actually ship to
