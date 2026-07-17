@@ -87,7 +87,7 @@ Visually the two lines are indistinguishable. Three details underneath that surf
 
 ## Generate an access log with Eventum
 
-The generator below models a small storefront's traffic — page and asset requests that mostly succeed, a share of `304 Not Modified` responses from conditional requests, and a rarer mix of client and server errors — rendering each one as a single Combined-format line. Apache Combined and nginx's `combined` produce the same line for the same request, so one template covers what either vendor would actually write; nothing in the rendered line itself says which one produced it.
+The generator below models a small storefront's traffic — page and asset requests that mostly succeed, a share of `304 Not Modified` responses from conditional requests, and a rarer mix of client and server errors — rendering each one as a single Combined-format line. Apache Combined and nginx's `combined` produce the same line for the same request, with one exception: a response with an empty body, where Apache's `%b` writes `-` and nginx's `$body_bytes_sent` writes `0` (the caveat above). Outside that one field, one template covers what either vendor would actually write.
 
 <Steps>
 <Step>
@@ -111,7 +111,7 @@ Fields are filled with [`module.rand`](/docs/plugins/event/template/modules), th
 {{ client_ip }} - - [{{ timestamp.strftime('%d/%b/%Y:%H:%M:%S %z') }}] "{{ method }} {{ path }} HTTP/1.1" {{ status }} {{ "-" if bytes == 0 else bytes }} "{{ referer }}" "{{ user_agent }}"
 ```
 
-The ident and authuser positions are hardcoded literal characters — `- -` right after `client_ip` — not variables, since this storefront runs no `identd` and gates nothing behind HTTP authentication; that matches the first caveat above exactly. `bytes` is drawn from [`module.rand.number.lognormal`](/docs/plugins/event/template/modules), the right-skewed distribution the [realistic values lesson](/docs/tutorials/realism/values) recommends for response sizes, forced to `0` for every `304` — and the render line prints that `0` as a bare `-`, Apache's own convention for an empty body.
+The ident position is a hardcoded literal character — the first `-` right after `client_ip` — not a variable, since this storefront runs no `identd`; that matches the first caveat above exactly. The second `-`, authuser, is a genuine substitutable field in both vendors (`%u` / `$remote_user`), not a literal one — it renders as a dash here only because this storefront gates nothing behind HTTP authentication, so there's never a real username to substitute; that's a simplification of this generator's traffic, not the same real-vs-literal split as ident's. `bytes` is drawn from [`module.rand.number.lognormal`](/docs/plugins/event/template/modules), the right-skewed distribution the [realistic values lesson](/docs/tutorials/realism/values) recommends for response sizes, forced to `0` for every `304` — and the render line prints that `0` as a bare `-`, Apache's own convention for an empty body.
 
 `templates/access-error.jinja` renders the rarer case — `404`, `403`, and `500` responses, each with a real, non-zero error-page body:
 
@@ -182,6 +182,14 @@ Running the generator in [sample mode](/docs/core/concepts/generator#sample-mode
 ```
 
 All nine Combined fields land in the order the tables above define: client address, the hardcoded `- -` for ident and authuser, the bracketed local timestamp, the quoted request line, status, bytes, and the two quoted headers. The fifth line is a `403` with a real body of `513` bytes; the seventh is a `304` — the bytes column prints a bare `-` instead of a number, exactly the empty-body convention Apache's `%b` defines, the same response nginx's `$body_bytes_sent` would instead print as a literal `0`.
+
+Substituting nginx's convention for that same request changes exactly one field:
+
+```text title="The same 304 as nginx would write it"
+192.138.23.154 - - [17/Jul/2026:16:30:28 +0000] "GET / HTTP/1.1" 304 0 "https://example.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+```
+
+Only the bytes column changes, from a bare `-` to a literal `0`; every other field is unchanged. The generator never rendered this line itself — it always follows Apache's `%b` convention — this is the same request rewritten by hand to show nginx's `$body_bytes_sent` convention instead.
 
 ## FAQ
 
