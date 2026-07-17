@@ -41,7 +41,7 @@ Two fields fix that. `timestamp_pattern` is a regular expression with a named `t
 <Step>
 ### Configure the replay generator
 
-A per-second [cron](/docs/plugins/input/cron) tick supplies one timestamp per line, and replay's own fields do the rest: `path` to the file, `timestamp_pattern` to find the original timestamp, `timestamp_format` to parse it. The [file](/docs/plugins/output/file) output writes each line through the `plain` formatter — the events here are already-formatted text, not JSON, so `plain` is the only formatter that keeps them intact:
+A per-second [cron](/docs/plugins/input/cron) tick supplies one timestamp per line, and replay's own fields do the rest: `path` to the file, `timestamp_pattern` to find the original timestamp, `timestamp_format` to render the replacement. The [file](/docs/plugins/output/file) output writes each line through the `plain` formatter — the events here are already-formatted text, not JSON, so `plain` is the only formatter that keeps them intact:
 
 ```yaml title="generators/incident-replay/generator.yml"
 input:
@@ -65,7 +65,7 @@ output:
 
 - **path** — `samples/source.log`, resolved relative to `generator.yml`.
 - **timestamp_pattern** — matches the plain `YYYY-MM-DDTHH:MM:SS` timestamp at the start of each line, naming the match `timestamp`.
-- **timestamp_format** — parses that same shape and renders the replacement in it, so the substituted timestamp lands in the identical position the original occupied.
+- **timestamp_format** — renders the replacement in this shape, and the substituted timestamp lands in the exact position the original occupied (the two fields need not describe the same shape).
 - **formatter** — set to `plain`, the file output's own default, and the only correct choice here, since a replayed line is already-formatted text, not JSON.
 
 </Step>
