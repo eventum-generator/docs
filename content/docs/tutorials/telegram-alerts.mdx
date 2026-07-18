@@ -1,17 +1,25 @@
 ---
-title: Scheduled Telegram Alerts
-description: Simulate a monitoring system that sends alert notifications to a Telegram chat on a cron schedule.
+title: "Alert Simulation: Scheduled Telegram Alerts"
+description: Alert simulation for testing a monitoring pipeline — generate randomized-severity alerts on a cron schedule and deliver them to a Telegram chat through the Bot API, exercising the pipeline without a real incident.
 ---
 
-Build a generator that simulates infrastructure monitoring alerts and delivers them to a Telegram chat via the Bot API. Alerts fire on a cron schedule with randomized severity and service names — a miniature alerting pipeline in a few files.
+Alert simulation is generating the notifications a monitoring system fires when something crosses a threshold, without anything actually crossing one. A notification pipeline, an on-call rotation, or an alerting dashboard needs a steady stream of realistic alerts to prove that each piece works — a chat receiving the message, a rotation paging the right person, a dashboard rendering and counting what arrives, an escalation path picking up whatever a first responder leaves unacknowledged — evidence a real incident would also produce, at the cost of causing one.
+
+Eventum generates that stream directly: alerts with a randomized severity, service, and metric value, firing on a cron schedule and delivered over HTTP to a live Telegram chat through the Bot API — a miniature alerting pipeline in a few files, exercising a real notification channel instead of a mock.
+
+## Alert simulation and the pipeline it exercises
+
+A [detection rule](/docs/tutorials/detection-testing) that matches, a threshold that trips, or a health check that fails all produce the same next step: an alert, structured no differently from any other [event](/docs/tutorials/foundations/logs-vs-metrics-events) Eventum generates — a severity, a service, a message, a timestamp. Testing that a rule fires correctly says nothing about what happens after: whether the chat on the other end of the notification actually receives it, whether the on-call rotation pages the right person for a `critical` and stays quiet for an `info`, whether a dashboard tile counts it against the right service, whether a `warning` left unacknowledged escalates on schedule. A real incident exercises that whole chain eventually — at whatever severity and service it happens to produce.
+
+Firing realistic alerts on a schedule exercises the same chain on demand, at whatever severity mix and service spread a test needs, instead of waiting on a rule to match or an incident to happen. Telegram is one concrete chat to land these in — nothing below depends on Telegram past the request body and the endpoint URL, and the same pipeline reaches Slack, Discord, or PagerDuty just as directly.
 
 ## What you'll build
 
 The generator uses:
 
 - [**cron**](/docs/plugins/input/cron) input — fires every 2 minutes.
-- **Template** with conditional Jinja2 logic — different message format per severity level.
-- [**HTTP output**](/docs/plugins/output/http) — sends POST requests to the Telegram Bot API.
+- [**all**](/docs/plugins/event/template/modes#all) picking mode — renders the one alert template on every tick, using conditional Jinja2 logic to vary message format and value range by severity.
+- [**HTTP output**](/docs/plugins/output/http) — posts each rendered alert to the Telegram Bot API as its own request. See [Send test data to an API endpoint](/docs/tutorials/delivery/http) for the delivery mechanics behind it.
 - [**Secrets**](/docs/core/config/secrets) — bot token stored securely in the keyring.
 - [**Parameters**](/docs/core/config/parameters) — chat ID passed through `startup.yml`.
 
@@ -58,7 +66,7 @@ The template produces a JSON body for the Telegram [sendMessage](https://core.te
 ```jinja title="generators/alerts/templates/alert.jinja"
 {% set severity = module.rand.weighted_choice(["info", "warning", "critical", "resolved"], [0.4, 0.35, 0.2, 0.05]) %}
 {% set service = module.rand.choice(["api-gateway", "auth-service", "db-primary", "cache-redis", "worker-queue", "nginx-lb"]) %}
-{% set icons = {"info": "\u2139\ufe0f", "warning": "\u26a0\ufe0f", "critical": "\ud83d\udd34", "resolved": "\u2705"} %}
+{% set icons = {"info": "ℹ️", "warning": "⚠️", "critical": "🔴", "resolved": "✅"} %}
 {% set metric = module.rand.choice(["CPU usage", "memory usage", "request latency", "error rate", "disk I/O", "connection pool"]) %}
 {% if severity == "critical" %}
 {% set value = module.rand.number.integer(90, 100) %}
@@ -76,17 +84,17 @@ The template produces a JSON body for the Telegram [sendMessage](https://core.te
 
 The message looks like this in Telegram:
 
-> 🔴 **CRITICAL** | `db-primary`
+> 🔴 **CRITICAL** | `nginx-lb`
 >
-> CPU usage: **95%**
-> Host: `srv-db-01.example.com`
-> Time: 14:30:00 UTC
+> connection pool: **95%**
+> Host: `desktop-00.miller.info`
+> Time: 13:34:09 UTC
 
 </Step>
 <Step>
 ### Configure the generator
 
-The cron expression `0 */2 * * * *` fires at second 0 of every 2nd minute. The HTTP output posts to the Telegram API endpoint.
+The cron expression `0 */2 * * * *` fires at second 0 of every 2nd minute. The HTTP output posts to the Telegram API endpoint, with `success_code: 200` matching what `sendMessage` actually returns on success — the [http output](/docs/plugins/output/http)'s own default of `201` assumes an endpoint that treats each POST as creating a new resource, which Telegram's does not.
 
 ```yaml title="generators/alerts/generator.yml"
 input:
@@ -116,7 +124,7 @@ output:
 ```
 
 <Callout>
-The `plain` formatter passes the template output as-is — the template already produces a valid JSON request body. The `stdout` output is included for local debugging; remove it in production.
+The `plain` formatter passes the template output as-is — the template already produces a valid JSON request body. Swapping in the `http` output's own default of `json-batch` here would collect every alert a batch accumulates into a single JSON array and post that array as one request, which Telegram's `sendMessage` endpoint does not accept; see [Send test data to an API endpoint](/docs/tutorials/delivery/http) for the full per-event versus per-batch tradeoff behind that choice. The `stdout` output is included for local debugging; remove it in production.
 </Callout>
 
 </Step>
@@ -170,13 +178,17 @@ Enter your bot token when prompted (e.g., `110201543:AAHdqTcvCH1vGWJxfSeofSAs0K5
 eventum run -c eventum.yml
 ```
 
-Every 2 minutes, an alert message appears in your Telegram chat. The terminal shows the raw JSON body on stdout:
+Every 2 minutes, an alert message appears in your Telegram chat. The terminal shows the same JSON body on stdout:
+
+<Callout type="info">
+The alert below was captured by pointing this generator's output at `stdout` alone and swapping the `cron` input for a bounded [static](/docs/plugins/input/static) input, so it rendered immediately in [sample mode](/docs/core/concepts/generator#sample-mode) (`--live-mode false`) instead of waiting on the real 2-minute cadence. The deployed config above, run with `eventum run`, produces the identical JSON shape at that real cadence, delivered to Telegram instead of the terminal.
+</Callout>
 
 ```json
 {
   "chat_id": 123456789,
   "parse_mode": "Markdown",
-  "text": "\u26a0\ufe0f *WARNING* | `cache-redis`\n\nmemory usage: *78%*\nHost: `srv-cache-02.example.com`\nTime: 14:32:00 UTC"
+  "text": "⚠️ *WARNING* | `api-gateway`\n\nconnection pool: *81%*\nHost: `srv-41.cole-williams.com`\nTime: 13:34:09 UTC"
 }
 ```
 
@@ -185,9 +197,9 @@ Every 2 minutes, an alert message appears in your Telegram chat. The terminal sh
 
 ## Going further
 
+- **Any HTTP-reachable destination** — Telegram's Bot API is one concrete endpoint; nothing about the generator depends on it past the request body and the URL. Point the same `http` output at a [Slack Incoming Webhook](https://api.slack.com/messaging/webhooks), a [Discord Webhook](https://discord.com/developers/docs/resources/webhook), or a [PagerDuty Events API](https://developer.pagerduty.com/docs/events-api-v2/overview/) integration instead, reshaping the template's JSON to match the destination's expected payload. See [Send test data to an API endpoint](/docs/tutorials/delivery/http) for the delivery mechanics this generalizes.
 - **Escalation schedule** — use [multiple inputs](/docs/core/concepts/scheduling#combining-multiple-inputs) with different cron expressions: check every 2 minutes during business hours, every 10 minutes overnight.
 - **Incident sequences** — switch to [FSM mode](/docs/core/concepts/producing#picking-modes) to model alert → acknowledged → investigating → resolved workflows.
-- **Slack or Discord** — swap the Telegram API URL for a [Slack Incoming Webhook](https://api.slack.com/messaging/webhooks) or [Discord Webhook](https://discord.com/developers/docs/resources/webhook) URL and adjust the JSON payload accordingly.
 - **Silence window** — use the cron `start`/`end` fields to suppress alerts during maintenance windows.
 
 ## What's next
@@ -209,3 +221,29 @@ Every 2 minutes, an alert message appears in your Telegram chat. The terminal sh
     href="/docs/core/config/secrets"
   />
 </Cards>
+
+## FAQ
+
+<Accordions>
+<Accordion title="Why simulate alerts instead of waiting for a real incident to test the pipeline?">
+The pipeline worth testing is everything downstream of the alert firing, not the condition that triggers it: whether the chat receives the message, whether an on-call rotation pages the right person for a `critical` and stays quiet for an `info`, whether a dashboard tile counts it against the right service, whether an unacknowledged `warning` escalates on schedule. A real incident exercises that chain only after something has actually broken, and only at whatever severity and service the incident happened to produce. Firing realistic alerts on a cron schedule exercises the same chain on demand, at whatever severity mix and service spread a test needs — see [Test Sigma rules with synthetic attack telemetry](/docs/tutorials/detection-testing) for the same argument one layer upstream, applied to the detection rule that would normally trigger an alert like this one in the first place.
+</Accordion>
+<Accordion title="Why does this generator use mode: all with only one template?">
+[`mode: all`](/docs/plugins/event/template/modes#all) renders every configured template on each input tick; with a single `alert` template listed, that's equivalent to always firing it. The randomization here — severity, service, metric — happens inside the template itself, not through template selection. The mode still matters as a choice: a second, always-fires template — a heartbeat or health-check event running alongside every alert, say — slots in by adding it to the `templates` list, with no change to `mode`. Contrast [`chance`](/docs/plugins/event/template/modes#chance) or [`spin`](/docs/plugins/event/template/modes#spin), which pick one of several templates per tick instead of rendering all of them.
+</Accordion>
+<Accordion title="Why does the HTTP output use the plain formatter instead of the default json-batch?">
+`json-batch` — the [http](/docs/plugins/output/http) output's own default — collects every event a batch accumulates into a single JSON array and posts that array as one request body; Telegram's `sendMessage` endpoint expects one JSON object per call, not an array, so `json-batch` would break delivery the moment more than one alert landed in the same batch. `plain` sends one request per event instead, and the template above already renders a complete `sendMessage` body per alert, which is exactly what that one request needs to be. See [Send test data to an API endpoint](/docs/tutorials/delivery/http) for the full per-event versus per-batch tradeoff behind this choice.
+</Accordion>
+<Accordion title="Can this generator alert somewhere other than Telegram?">
+Yes — nothing about the generator is Telegram-specific past the request body and the URL. See [Going further](#going-further) below for pointing the same `http` output at Slack, Discord, or PagerDuty instead. The cron schedule, the severity/service randomization, and the `${secrets.*}`-backed credential all carry over unchanged either way — only the URL, the body shape, and whatever authentication the new destination expects need to change.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [Test Sigma rules with synthetic attack telemetry](/docs/tutorials/detection-testing) tutorial for generating the detection match an alert like this one would normally be triggered by
+- The [Logs vs metrics vs events](/docs/tutorials/foundations/logs-vs-metrics-events) lesson for treating an alert as a structured event like any other, not a special case
+- The [Send test data to an API endpoint](/docs/tutorials/delivery/http) lesson for the `success_code`, formatter, and batching mechanics behind the HTTP delivery this scenario relies on
+- The [Secrets](/docs/core/config/secrets) reference for the keyring and `${secrets.*}` substitution storing the bot token
+- The [Scenarios track](/docs/tutorials/scenarios) for the wider picture of applied synthetic data
+- Ready-made generators in the [Eventum Hub](/hub)
