@@ -133,6 +133,7 @@ Each template produces one JSON event following [Elastic Common Schema](https://
 {% do shared.set("src_ip", src_ip) %}
 {% do shared.set("workstation", workstation) %}
 {% do shared.set("process_count", 0) %}
+{% do shared.pop("logoff_ready", None) %}
 {
   "@timestamp": "{{ timestamp.isoformat() }}",
   "event": {
@@ -169,10 +170,14 @@ Each template produces one JSON event following [Elastic Common Schema](https://
 }
 ```
 
-**Process creation** — the FSM loops on this state. Each call increments a counter in `shared`; after 4 iterations the FSM transitions to logoff.
+**Process creation** — the FSM loops on this state. Each call increments a counter in `shared`; once it reaches 4, the template itself sets a flag that tells the FSM the session is ready for logoff.
 
 ```jinja title="generators/winevents/templates/process.jinja"
-{% do shared.set("process_count", shared.get("process_count", 0) + 1) %}
+{% set process_count = shared.get("process_count", 0) + 1 %}
+{% do shared.set("process_count", process_count) %}
+{% if process_count >= 4 %}
+{% do shared.set("logoff_ready", true) %}
+{% endif %}
 {% set proc = module.rand.choice(["cmd.exe", "powershell.exe", "notepad.exe", "chrome.exe", "svchost.exe", "taskmgr.exe"]) %}
 {
   "@timestamp": "{{ timestamp.isoformat() }}",
@@ -250,10 +255,10 @@ event:
       - process:
           template: templates/process.jinja
           transitions:
-            - to: process
-              when: { lt: { "shared.process_count": 4 } }
             - to: logoff
-              when: { ge: { "shared.process_count": 4 } }
+              when: { defined: shared.logoff_ready }
+            - to: process
+              when: { always: }
       - logoff:
           template: templates/logoff.jinja
           transitions:
@@ -279,9 +284,13 @@ Reading the transitions:
 |------|----|-----------|---------|
 | logon | privilege | `always` | Every logon gets privileges |
 | privilege | process | `always` | Start creating processes |
-| process | process | `shared.process_count` &lt; 4 | Keep creating processes |
-| process | logoff | `shared.process_count` &ge; 4 | End the session |
+| process | logoff | `defined: shared.logoff_ready` | End the session after 4 processes |
+| process | process | `always` (fallback) | Keep creating processes |
 | logoff | logon | `always` | Start a new session |
+
+<Callout type="info">
+Transitions are evaluated **in order**, and the first one whose condition holds wins. On `process`, the `logoff_ready` check is listed before the `always` fallback — reversed, the fallback would fire first every time, since `always` never fails, and the FSM would never reach the flag check.
+</Callout>
 
 </Step>
 <Step>
@@ -365,7 +374,7 @@ A complete session: logon → privilege → 4 processes → logoff. Then a new s
 
 - **Scale up traffic** — increase `multiplier.ratio` in `traffic.yml` to 100+ and reduce the oscillator period for high-volume SIEM testing.
 - **Add failed logons** — create a `logon_failed.jinja` template for Event ID 4625 and add it as an FSM branch with a probability-based condition.
-- **Vary session length** — store a random target in `shared` during logon (`module.rand.number.integer(2, 8)`) and check against it in the process transition.
+- **Vary session length** — store a random target in `shared` during logon (`module.rand.number.integer(2, 8)`) and have the process template compare its counter against that target instead of the fixed 4, setting `logoff_ready` once it's reached.
 - **Multiple workstations** — add a second generator in `startup.yml` with different parameters to simulate traffic from separate network segments.
 
 ## What's next
