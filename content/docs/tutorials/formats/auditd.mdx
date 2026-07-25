@@ -119,7 +119,7 @@ type=PROCTITLE msg={{ msg_id }}: proctitle={{ proctitle_hex }}
 
 ### Configure the generator
 
-[`mode: any`](/docs/plugins/event/template/modes#any) is the simplest fit for a single template — every timestamp renders it, with no picking logic needed since there's nothing to pick between. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [file](/docs/plugins/output/file) output writes each event through the [plain](/docs/plugins/formatters#plain) formatter:
+[`mode: any`](/docs/plugins/event/template/modes#any) is the simplest fit for a single template — every timestamp renders it, with no picking logic needed since there's nothing to pick between. A [cron](/docs/plugins/input/cron) input ticks once a second and emits five timestamps per tick, so each second produces five audit events — six lines each, thirty in total, every event under its own audit ID. A [file](/docs/plugins/output/file) output writes them through the [plain](/docs/plugins/formatters#plain) formatter:
 
 ```yaml title="generators/auditd-raw/generator.yml"
 input:

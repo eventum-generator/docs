@@ -94,12 +94,12 @@ The message looks like this in Telegram:
 <Step>
 ### Configure the generator
 
-The cron expression `0 */2 * * * *` fires at second 0 of every 2nd minute. The HTTP output posts to the Telegram API endpoint, with `success_code: 200` matching what `sendMessage` actually returns on success — the [http output](/docs/plugins/output/http)'s own default of `201` assumes an endpoint that treats each POST as creating a new resource, which Telegram's does not.
+The cron expression `*/2 * * * * 0` fires at second 0 of every 2nd minute — seconds are the last field, after the weekday, so the trailing `0` is the second and the leading `*/2` the minute. The HTTP output posts to the Telegram API endpoint, with `success_code: 200` matching what `sendMessage` actually returns on success — the [http output](/docs/plugins/output/http)'s own default of `201` assumes an endpoint that treats each POST as creating a new resource, which Telegram's does not.
 
 ```yaml title="generators/alerts/generator.yml"
 input:
   - cron:
-      expression: "0 */2 * * * *"
+      expression: "*/2 * * * * 0"
       count: 1
 
 event:
