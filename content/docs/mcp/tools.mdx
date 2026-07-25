@@ -28,7 +28,7 @@ Available on both transports. They operate on the generators in your generators 
 |---|---|---|
 | `list_generators` | Read | List the saved generators. |
 | `list_generator_files` | Read | List the files in one generator. |
-| `read_generator_file` | Read | Read a file in a generator. |
+| `read_generator_file` | Read | Read a file in a generator. A file larger than the read limit comes back in windows the agent pages through, so a generator output file cannot flood its context. |
 | `write_generator_file` | Write | Create or overwrite a file in a generator. |
 | `delete_generator_file` | Write | Delete a file from a generator. |
 | `delete_generator` | Write | Delete a whole generator and its files. |
