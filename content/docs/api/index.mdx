@@ -19,6 +19,7 @@ description: Eventum API reference
 <Card href="/docs/api/generator-configs/name/post" title="Create Generator Config" description="Create generator configuration in the directory with specified name." />
 <Card href="/docs/api/generator-configs/name/delete" title="Delete Generator Config" description="Delete whole generator configuration directory with specified name." />
 <Card href="/docs/api/generator-configs/name/put" title="Update Generator Config" description="Update generator configuration in the directory with specified name." />
+<Card href="/docs/api/generator-configs/name/rename/post" title="Rename Generator Config" description="Rename generator configuration directory. Instances that use the configuration are repointed at the new directory and must be stopped beforehand." />
 <Card href="/docs/api/generator-configs/name/path/get" title="Get Generator Config Path" description="Get generator configuration path in the directory with specified name." />
 <Card href="/docs/api/generator-configs/name/file-tree/get" title="Get Generator File Tree" description="Get file tree of the generator directory with specified name." />
 <Card href="/docs/api/generator-configs/name/file/filepath/get" title="Get Generator File" description="Read file from specified path inside generator directory with specified name." />
@@ -52,6 +53,7 @@ description: Eventum API reference
 <Card href="/docs/api/generators/id/delete" title="Delete Generator" description="Remove generator by its id. Stop it in case it is running." />
 <Card href="/docs/api/generators/id/put" title="Update Generator" description="Update generator with provided parameters. Note that `id` path parameter takes precedence over `id` field in the body." />
 <Card href="/docs/api/generators/id/status/get" title="Get Generator Status" description="Get generator status" />
+<Card href="/docs/api/generators/id/rename/post" title="Rename Generator" description="Rename generator. The definition in the startup file is renamed along with the generator, and scenario membership is kept." />
 <Card href="/docs/api/generators/id/start/post" title="Start Generator" description="Start generator by its id" />
 <Card href="/docs/api/generators/id/stop/post" title="Stop Generator" description="Stop generator by its id" />
 <Card href="/docs/api/generators/id/stats/get" title="Get Generator Stats" description="Get stats of running generator" />
@@ -68,6 +70,7 @@ description: Eventum API reference
 <Card href="/docs/api/scenarios/get" title="List Scenarios" description="List all scenarios" />
 <Card href="/docs/api/scenarios/name/get" title="Get Scenario" description="Get scenario details" />
 <Card href="/docs/api/scenarios/name/delete" title="Delete Scenario" description="Delete scenario (remove tag from all generators)" />
+<Card href="/docs/api/scenarios/name/rename/post" title="Rename Scenario" description="Rename scenario (rewrite tag in all generators that carry it)" />
 <Card href="/docs/api/scenarios/name/generators/generator_id/post" title="Add Generator To Scenario" description="Add generator to scenario" />
 <Card href="/docs/api/scenarios/name/generators/generator_id/delete" title="Remove Generator From Scenario" description="Remove generator from scenario" />
 <Card href="/docs/api/scenarios/name/generators/generator_name/globals-usage/get" title="Get globals usage for a generator in a scenario" description="Detect globals.set/get usage in Jinja2 templates via AST analysis." />
@@ -80,4 +83,6 @@ description: Eventum API reference
 <Card href="/docs/api/secrets/name/delete" title="Delete Secret Value" description="Delete secret with specified name to keyring" />
 <Card href="/docs/api/secrets/name/put" title="Set Secret Value" description="Put secret with specified name to keyring" />
 <Card href="/docs/api/secrets/get" title="List Secret Names" description="List all secrets names" />
+<Card href="/docs/api/secrets/name/references/get" title="List Secret References" description="List projects whose configuration references the secret as `${secrets.<name>}`" />
+<Card href="/docs/api/secrets/name/rename/post" title="Rename Secret Value" description="Rename secret in keyring. References to the secret in generator configurations are not rewritten." />
 </Cards>

@@ -11,7 +11,7 @@
             "name": "Apache 2.0",
             "url": "https://github.com/eventum-generator/eventum/blob/master/LICENSE"
         },
-        "version": "2.5.0"
+        "version": "2.6.0"
     },
     "paths": {
         "/auth/login": {
@@ -488,6 +488,78 @@
                     },
                     "500": {
                         "description": "Configuration cannot be deleted due to OS error"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/generator-configs/{name}/rename": {
+            "post": {
+                "tags": [
+                    "Generator configs"
+                ],
+                "summary": "Rename Generator Config",
+                "description": "Rename generator configuration directory. Instances that use the configuration are repointed at the new directory and must be stopped beforehand.",
+                "operationId": "rename_generator_config_generator_configs__name__rename_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "Name of the generator directory",
+                            "title": "Name"
+                        },
+                        "description": "Name of the generator directory"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RenameGeneratorDirRequest",
+                                "description": "New directory name"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "IDs of repointed instances",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "title": "Response Rename Generator Config Generator Configs  Name  Rename Post"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                    },
+                    "404": {
+                        "description": "Generator configuration does not exist"
+                    },
+                    "409": {
+                        "description": "Directory with the new name already exists, or an instance using the configuration is active"
+                    },
+                    "500": {
+                        "description": "Configuration cannot be renamed due to OS error"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -2605,6 +2677,70 @@
                 }
             }
         },
+        "/generators/{id}/rename": {
+            "post": {
+                "tags": [
+                    "Generators"
+                ],
+                "summary": "Rename Generator",
+                "description": "Rename generator. The definition in the startup file is renamed along with the generator, and scenario membership is kept.",
+                "operationId": "rename_generator_generators__id__rename_post",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Generator id",
+                            "title": "Id"
+                        },
+                        "description": "Generator id"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RenameGeneratorRequest",
+                                "description": "New generator id"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Generator with provided id is not found"
+                    },
+                    "409": {
+                        "description": "Generator with the new id already exists, or the generator is active"
+                    },
+                    "500": {
+                        "description": "Startup file cannot be read, validated, or written"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/generators/{id}/start": {
             "post": {
                 "tags": [
@@ -3240,6 +3376,9 @@
                                 }
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Startup file cannot be read, parsed, validated, or written"
                     }
                 }
             }
@@ -3276,6 +3415,9 @@
                                 }
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Startup file cannot be read, parsed, validated, or written"
                     },
                     "404": {
                         "description": "Scenario not found"
@@ -3322,11 +3464,75 @@
                             }
                         }
                     },
+                    "500": {
+                        "description": "Startup file cannot be read, parsed, validated, or written"
+                    },
                     "404": {
                         "description": "Scenario not found"
                     },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/scenarios/{name}/rename": {
+            "post": {
+                "tags": [
+                    "Scenarios"
+                ],
+                "summary": "Rename Scenario",
+                "description": "Rename scenario (rewrite tag in all generators that carry it)",
+                "operationId": "rename_scenario_scenarios__name__rename_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Scenario name",
+                            "title": "Name"
+                        },
+                        "description": "Scenario name"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RenameScenarioRequest",
+                                "description": "New scenario name"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
                     "500": {
-                        "description": "Cannot read startup file due to OS error\n\nStartup file structure is invalid;\n\nCannot modify startup file due to OS error;"
+                        "description": "Startup file cannot be read, parsed, validated, or written"
+                    },
+                    "404": {
+                        "description": "Scenario not found"
+                    },
+                    "409": {
+                        "description": "Scenario with the new name already exists"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -3385,7 +3591,7 @@
                         }
                     },
                     "500": {
-                        "description": "Cannot read startup file due to OS error\n\nStartup file structure is invalid;\n\nCannot modify startup file due to OS error;"
+                        "description": "Startup file cannot be read, parsed, validated, or written"
                     },
                     "404": {
                         "description": "Generator with this ID is not defined"
@@ -3414,18 +3620,6 @@
                 "operationId": "remove_generator_from_scenario_scenarios__name__generators__generator_id__delete",
                 "parameters": [
                     {
-                        "name": "generator_id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "minLength": 1,
-                            "description": "Generator ID",
-                            "title": "Generator Id"
-                        },
-                        "description": "Generator ID"
-                    },
-                    {
                         "name": "name",
                         "in": "path",
                         "required": true,
@@ -3436,6 +3630,18 @@
                             "title": "Name"
                         },
                         "description": "Scenario name"
+                    },
+                    {
+                        "name": "generator_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Generator ID",
+                            "title": "Generator Id"
+                        },
+                        "description": "Generator ID"
                     }
                 ],
                 "responses": {
@@ -3447,11 +3653,11 @@
                             }
                         }
                     },
-                    "404": {
-                        "description": "Scenario not found\n\nGenerator with this ID is not in this scenario;"
-                    },
                     "500": {
-                        "description": "Cannot read startup file due to OS error\n\nStartup file structure is invalid;\n\nCannot modify startup file due to OS error;"
+                        "description": "Startup file cannot be read, parsed, validated, or written"
+                    },
+                    "404": {
+                        "description": "Generator with this ID is not in this scenario"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -3989,10 +4195,137 @@
                     }
                 }
             }
+        },
+        "/secrets/{name}/references": {
+            "get": {
+                "tags": [
+                    "Secrets"
+                ],
+                "summary": "List Secret References",
+                "description": "List projects whose configuration references the secret as `${secrets.<name>}`",
+                "operationId": "list_secret_references_secrets__name__references_get",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Secret name",
+                            "title": "Name"
+                        },
+                        "description": "Secret name"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Names of referencing generator directories",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "title": "Response List Secret References Secrets  Name  References Get"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/secrets/{name}/rename": {
+            "post": {
+                "tags": [
+                    "Secrets"
+                ],
+                "summary": "Rename Secret Value",
+                "description": "Rename secret in keyring. References to the secret in generator configurations are not rewritten.",
+                "operationId": "rename_secret_value_secrets__name__rename_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Secret name",
+                            "title": "Name"
+                        },
+                        "description": "Secret name"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RenameSecretRequest",
+                                "description": "New secret name"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Secret is missing in keyring"
+                    },
+                    "409": {
+                        "description": "Secret with the new name already exists"
+                    },
+                    "500": {
+                        "description": "Failed to rename secret"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
         "schemas": {
+            "APIParameters": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean",
+                        "title": "Enabled",
+                        "default": true
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "APIParameters",
+                "description": "REST API service parameters.\n\nAttributes\n----------\nenabled : bool, default=True\n    Whether to enable the REST API."
+            },
             "After": {
                 "properties": {
                     "after": {
@@ -4721,6 +5054,19 @@
                         ],
                         "title": "Proxy Url"
                     },
+                    "pool_maxsize": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Pool Maxsize",
+                        "default": 32
+                    },
                     "input_format": {
                         "anyOf": [
                             {
@@ -5046,6 +5392,19 @@
                             }
                         ],
                         "title": "Proxy Url"
+                    },
+                    "pool_maxsize": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Pool Maxsize",
+                        "default": 32
                     },
                     "input_format": {
                         "anyOf": [
@@ -7181,7 +7540,7 @@
                         "type": "string",
                         "title": "App Version",
                         "description": "Application version",
-                        "default": "2.5.0"
+                        "default": "2.6.0"
                     },
                     "python_version": {
                         "type": "string",
@@ -7205,7 +7564,7 @@
                         "type": "string",
                         "title": "Platform",
                         "description": "Host platform",
-                        "default": "Linux-6.6.114.1-microsoft-standard-WSL2-x86_64-with-glibc2.35"
+                        "default": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.35"
                     },
                     "host_name": {
                         "type": "string",
@@ -7223,7 +7582,7 @@
                         "type": "number",
                         "title": "Boot Timestamp",
                         "description": "Timestamp of host boot up",
-                        "default": 1778671725.0
+                        "default": 1784986380.0
                     },
                     "cpu_count": {
                         "anyOf": [
@@ -7271,25 +7630,25 @@
                     "network_sent_bytes": {
                         "type": "integer",
                         "title": "Network Sent Bytes",
-                        "description": "Number of sent bytes using network.",
+                        "description": "Number of bytes sent over network by this application.",
                         "readOnly": true
                     },
                     "network_received_bytes": {
                         "type": "integer",
                         "title": "Network Received Bytes",
-                        "description": "Number of received bytes using network.",
+                        "description": "Number of bytes received over network by this application.",
                         "readOnly": true
                     },
                     "disk_written_bytes": {
                         "type": "integer",
                         "title": "Disk Written Bytes",
-                        "description": "Number of written bytes.",
+                        "description": "Number of bytes written to disk by this application.",
                         "readOnly": true
                     },
                     "disk_read_bytes": {
                         "type": "integer",
                         "title": "Disk Read Bytes",
-                        "description": "Number of read bytes.",
+                        "description": "Number of bytes read from disk by this application.",
                         "readOnly": true
                     },
                     "uptime": {
@@ -7315,7 +7674,7 @@
                     "uptime"
                 ],
                 "title": "InstanceInfo",
-                "description": "Response model containing instance info."
+                "description": "Information about the running app instance and its host.\n\nBuilt by reading host metrics through syscalls, so constructing it\ncan block - call it from a worker thread on the event loop."
             },
             "ItemsSampleConfig": {
                 "properties": {
@@ -8415,6 +8774,37 @@
                 "title": "Lt",
                 "description": "Check if value is lower than other value using '<' operator."
             },
+            "MCPParameters": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean",
+                        "title": "Enabled",
+                        "default": false
+                    },
+                    "allow_write": {
+                        "type": "boolean",
+                        "title": "Allow Write",
+                        "default": false
+                    },
+                    "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "Path",
+                        "default": "/mcp"
+                    },
+                    "allowed_hosts": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Allowed Hosts"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "MCPParameters",
+                "description": "MCP server service parameters.\n\nAttributes\n----------\nenabled : bool, default=False\n    Whether to mount the MCP server over HTTP.\n\nallow_write : bool, default=False\n    Whether MCP write tools are permitted over HTTP. Enabling this\n    lets a connected agent write and preview generators, and some\n    plugins execute code on the host (the template plugin runs\n    Python, a script plugin runs a provided file) - keep it off\n    unless the network and agent are trusted.\n\npath : str, default='/mcp'\n    Mount path for the MCP HTTP endpoint.\n\nallowed_hosts : list[str], default=[]\n    Allowed Host header values for DNS-rebinding protection. Empty\n    disables the check (suitable behind a trusted reverse proxy);\n    a non-empty list enables it and rejects other Host headers."
+            },
             "Matches": {
                 "properties": {
                     "matches": {
@@ -9042,6 +9432,72 @@
                 "title": "QueueParameters",
                 "description": "Parameters of input plugins queue.\n\nAttributes\n----------\nmax_timestamp_batches : int, default=10\n    Maximum number of batches in timestamps queue.\n\nmax_event_batches : int, default=10\n    Maximum number of batches in events queue."
             },
+            "RenameGeneratorDirRequest": {
+                "properties": {
+                    "new_name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "New Name",
+                        "description": "New directory name. Must be a single directory name, since only directories directly inside `path.generators_dir` are recognized as generator directories."
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "new_name"
+                ],
+                "title": "RenameGeneratorDirRequest",
+                "description": "New name for an existing generator directory."
+            },
+            "RenameGeneratorRequest": {
+                "properties": {
+                    "new_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "New Id",
+                        "description": "New generator id"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "new_id"
+                ],
+                "title": "RenameGeneratorRequest",
+                "description": "New id for an existing generator."
+            },
+            "RenameScenarioRequest": {
+                "properties": {
+                    "new_name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "New Name",
+                        "description": "New scenario name"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "new_name"
+                ],
+                "title": "RenameScenarioRequest",
+                "description": "New name for an existing scenario."
+            },
+            "RenameSecretRequest": {
+                "properties": {
+                    "new_name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "New Name",
+                        "description": "New secret name"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "new_name"
+                ],
+                "title": "RenameSecretRequest",
+                "description": "New name for an existing secret."
+            },
             "ReplayEventPluginConfig-Output": {
                 "properties": {
                     "path": {
@@ -9360,15 +9816,11 @@
             },
             "ServerParameters": {
                 "properties": {
-                    "ui_enabled": {
-                        "type": "boolean",
-                        "title": "Ui Enabled",
-                        "default": true
+                    "ui": {
+                        "$ref": "#/components/schemas/UIParameters"
                     },
-                    "api_enabled": {
-                        "type": "boolean",
-                        "title": "Api Enabled",
-                        "default": true
+                    "api": {
+                        "$ref": "#/components/schemas/APIParameters"
                     },
                     "host": {
                         "type": "string",
@@ -9387,12 +9839,15 @@
                     },
                     "auth": {
                         "$ref": "#/components/schemas/AuthParameters"
+                    },
+                    "mcp": {
+                        "$ref": "#/components/schemas/MCPParameters"
                     }
                 },
                 "additionalProperties": false,
                 "type": "object",
                 "title": "ServerParameters",
-                "description": "Server parameters.\n\nAttributes\n----------\nui_enabled : bool, default = True\n    Whether to enable web UI.\n\napi_enabled : bool, default = True\n    Whether to enable REST API.\n\nhost : str, default='0.0.0.0'\n    Bind address for server process.\n\nport : int, default=9474\n    Bind port for server process,\n\nssl : SSLParameters, default=SSLParameters(...)\n    SSL parameters.\n\nauth : AuthParameters\n    Auth parameters."
+                "description": "Server parameters.\n\nAttributes\n----------\nui : UIParameters\n    Web UI service parameters.\n\napi : APIParameters\n    REST API service parameters.\n\nhost : str, default='0.0.0.0'\n    Bind address for server process.\n\nport : int, default=9474\n    Bind port for server process,\n\nssl : SSLParameters, default=SSLParameters(...)\n    SSL parameters.\n\nauth : AuthParameters\n    Auth parameters.\n\nmcp : MCPParameters\n    MCP service parameters.\n\nNotes\n-----\nThe flat `ui_enabled` and `api_enabled` keys are deprecated\naliases for `ui.enabled` and `api.enabled` and will be removed\nin version 2.8. They still work but emit a deprecation warning\nand cannot be combined with their nested counterparts."
             },
             "Settings-Input": {
                 "properties": {
@@ -11138,6 +11593,19 @@
                     "source"
                 ],
                 "title": "TimestampsInputPluginConfig"
+            },
+            "UIParameters": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean",
+                        "title": "Enabled",
+                        "default": true
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "UIParameters",
+                "description": "Web UI service parameters.\n\nAttributes\n----------\nenabled : bool, default=True\n    Whether to enable the web UI."
             },
             "UdpOutputPluginConfig-Input": {
                 "properties": {
