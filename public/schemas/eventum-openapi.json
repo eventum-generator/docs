@@ -11,7 +11,7 @@
             "name": "Apache 2.0",
             "url": "https://github.com/eventum-generator/eventum/blob/master/LICENSE"
         },
-        "version": "2.5.0"
+        "version": "2.6.0"
     },
     "paths": {
         "/auth/login": {
@@ -3240,6 +3240,9 @@
                                 }
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Startup file cannot be read, parsed, validated, or written"
                     }
                 }
             }
@@ -3276,6 +3279,9 @@
                                 }
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Startup file cannot be read, parsed, validated, or written"
                     },
                     "404": {
                         "description": "Scenario not found"
@@ -3322,11 +3328,11 @@
                             }
                         }
                     },
+                    "500": {
+                        "description": "Startup file cannot be read, parsed, validated, or written"
+                    },
                     "404": {
                         "description": "Scenario not found"
-                    },
-                    "500": {
-                        "description": "Cannot read startup file due to OS error\n\nStartup file structure is invalid;\n\nCannot modify startup file due to OS error;"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -3385,7 +3391,7 @@
                         }
                     },
                     "500": {
-                        "description": "Cannot read startup file due to OS error\n\nStartup file structure is invalid;\n\nCannot modify startup file due to OS error;"
+                        "description": "Startup file cannot be read, parsed, validated, or written"
                     },
                     "404": {
                         "description": "Generator with this ID is not defined"
@@ -3414,18 +3420,6 @@
                 "operationId": "remove_generator_from_scenario_scenarios__name__generators__generator_id__delete",
                 "parameters": [
                     {
-                        "name": "generator_id",
-                        "in": "path",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "minLength": 1,
-                            "description": "Generator ID",
-                            "title": "Generator Id"
-                        },
-                        "description": "Generator ID"
-                    },
-                    {
                         "name": "name",
                         "in": "path",
                         "required": true,
@@ -3436,6 +3430,18 @@
                             "title": "Name"
                         },
                         "description": "Scenario name"
+                    },
+                    {
+                        "name": "generator_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Generator ID",
+                            "title": "Generator Id"
+                        },
+                        "description": "Generator ID"
                     }
                 ],
                 "responses": {
@@ -3447,11 +3453,11 @@
                             }
                         }
                     },
-                    "404": {
-                        "description": "Scenario not found\n\nGenerator with this ID is not in this scenario;"
-                    },
                     "500": {
-                        "description": "Cannot read startup file due to OS error\n\nStartup file structure is invalid;\n\nCannot modify startup file due to OS error;"
+                        "description": "Startup file cannot be read, parsed, validated, or written"
+                    },
+                    "404": {
+                        "description": "Generator with this ID is not in this scenario"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -3993,6 +3999,19 @@
     },
     "components": {
         "schemas": {
+            "APIParameters": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean",
+                        "title": "Enabled",
+                        "default": true
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "APIParameters",
+                "description": "REST API service parameters.\n\nAttributes\n----------\nenabled : bool, default=True\n    Whether to enable the REST API."
+            },
             "After": {
                 "properties": {
                     "after": {
@@ -4721,6 +4740,19 @@
                         ],
                         "title": "Proxy Url"
                     },
+                    "pool_maxsize": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Pool Maxsize",
+                        "default": 32
+                    },
                     "input_format": {
                         "anyOf": [
                             {
@@ -5046,6 +5078,19 @@
                             }
                         ],
                         "title": "Proxy Url"
+                    },
+                    "pool_maxsize": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Pool Maxsize",
+                        "default": 32
                     },
                     "input_format": {
                         "anyOf": [
@@ -5608,6 +5653,17 @@
                         "type": "boolean",
                         "title": "Is Dir"
                     },
+                    "size_in_bytes": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Size In Bytes"
+                    },
                     "children": {
                         "anyOf": [
                             {
@@ -5630,7 +5686,7 @@
                     "is_dir"
                 ],
                 "title": "FileNode",
-                "description": "Representation of a file or directory in a file tree.\n\nUsed as a recursive structure to describe the contents of a\ngenerator directory for API responses.\n\nAttributes\n----------\nname : str\n    The base name of the file or directory.\n\nis_dir : bool\n    Whether this node represents a directory or a file.\n\nchildren : list[FileNode] | None\n    Nested file nodes if this node is a directory. `None` if this\n    node is a file."
+                "description": "Representation of a file or directory in a file tree.\n\nUsed as a recursive structure to describe the contents of a\ngenerator directory for API responses.\n\nAttributes\n----------\nname : str\n    The base name of the file or directory.\n\nis_dir : bool\n    Whether this node represents a directory or a file.\n\nsize_in_bytes : int | None\n    Size of the file in bytes. `None` for directories and for files\n    whose size cannot be read.\n\nchildren : list[FileNode] | None\n    Nested file nodes if this node is a directory. `None` if this\n    node is a file."
             },
             "FileOutputPluginConfig-Input": {
                 "properties": {
@@ -7181,7 +7237,7 @@
                         "type": "string",
                         "title": "App Version",
                         "description": "Application version",
-                        "default": "2.5.0"
+                        "default": "2.6.0"
                     },
                     "python_version": {
                         "type": "string",
@@ -7205,7 +7261,7 @@
                         "type": "string",
                         "title": "Platform",
                         "description": "Host platform",
-                        "default": "Linux-6.6.114.1-microsoft-standard-WSL2-x86_64-with-glibc2.35"
+                        "default": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.35"
                     },
                     "host_name": {
                         "type": "string",
@@ -7223,7 +7279,7 @@
                         "type": "number",
                         "title": "Boot Timestamp",
                         "description": "Timestamp of host boot up",
-                        "default": 1778671725.0
+                        "default": 1784986380.0
                     },
                     "cpu_count": {
                         "anyOf": [
@@ -7271,25 +7327,25 @@
                     "network_sent_bytes": {
                         "type": "integer",
                         "title": "Network Sent Bytes",
-                        "description": "Number of sent bytes using network.",
+                        "description": "Number of bytes sent over network by this application.",
                         "readOnly": true
                     },
                     "network_received_bytes": {
                         "type": "integer",
                         "title": "Network Received Bytes",
-                        "description": "Number of received bytes using network.",
+                        "description": "Number of bytes received over network by this application.",
                         "readOnly": true
                     },
                     "disk_written_bytes": {
                         "type": "integer",
                         "title": "Disk Written Bytes",
-                        "description": "Number of written bytes.",
+                        "description": "Number of bytes written to disk by this application.",
                         "readOnly": true
                     },
                     "disk_read_bytes": {
                         "type": "integer",
                         "title": "Disk Read Bytes",
-                        "description": "Number of read bytes.",
+                        "description": "Number of bytes read from disk by this application.",
                         "readOnly": true
                     },
                     "uptime": {
@@ -7315,7 +7371,7 @@
                     "uptime"
                 ],
                 "title": "InstanceInfo",
-                "description": "Response model containing instance info."
+                "description": "Information about the running app instance and its host.\n\nBuilt by reading host metrics through syscalls, so constructing it\ncan block - call it from a worker thread on the event loop."
             },
             "ItemsSampleConfig": {
                 "properties": {
@@ -8415,6 +8471,37 @@
                 "title": "Lt",
                 "description": "Check if value is lower than other value using '<' operator."
             },
+            "MCPParameters": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean",
+                        "title": "Enabled",
+                        "default": false
+                    },
+                    "allow_write": {
+                        "type": "boolean",
+                        "title": "Allow Write",
+                        "default": false
+                    },
+                    "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "Path",
+                        "default": "/mcp"
+                    },
+                    "allowed_hosts": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Allowed Hosts"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "MCPParameters",
+                "description": "MCP server service parameters.\n\nAttributes\n----------\nenabled : bool, default=False\n    Whether to mount the MCP server over HTTP.\n\nallow_write : bool, default=False\n    Whether MCP write tools are permitted over HTTP. Enabling this\n    lets a connected agent write and preview generators, and some\n    plugins execute code on the host (the template plugin runs\n    Python, a script plugin runs a provided file) - keep it off\n    unless the network and agent are trusted.\n\npath : str, default='/mcp'\n    Mount path for the MCP HTTP endpoint.\n\nallowed_hosts : list[str], default=[]\n    Allowed Host header values for DNS-rebinding protection. Empty\n    disables the check (suitable behind a trusted reverse proxy);\n    a non-empty list enables it and rejects other Host headers."
+            },
             "Matches": {
                 "properties": {
                     "matches": {
@@ -9360,15 +9447,11 @@
             },
             "ServerParameters": {
                 "properties": {
-                    "ui_enabled": {
-                        "type": "boolean",
-                        "title": "Ui Enabled",
-                        "default": true
+                    "ui": {
+                        "$ref": "#/components/schemas/UIParameters"
                     },
-                    "api_enabled": {
-                        "type": "boolean",
-                        "title": "Api Enabled",
-                        "default": true
+                    "api": {
+                        "$ref": "#/components/schemas/APIParameters"
                     },
                     "host": {
                         "type": "string",
@@ -9387,12 +9470,15 @@
                     },
                     "auth": {
                         "$ref": "#/components/schemas/AuthParameters"
+                    },
+                    "mcp": {
+                        "$ref": "#/components/schemas/MCPParameters"
                     }
                 },
                 "additionalProperties": false,
                 "type": "object",
                 "title": "ServerParameters",
-                "description": "Server parameters.\n\nAttributes\n----------\nui_enabled : bool, default = True\n    Whether to enable web UI.\n\napi_enabled : bool, default = True\n    Whether to enable REST API.\n\nhost : str, default='0.0.0.0'\n    Bind address for server process.\n\nport : int, default=9474\n    Bind port for server process,\n\nssl : SSLParameters, default=SSLParameters(...)\n    SSL parameters.\n\nauth : AuthParameters\n    Auth parameters."
+                "description": "Server parameters.\n\nAttributes\n----------\nui : UIParameters\n    Web UI service parameters.\n\napi : APIParameters\n    REST API service parameters.\n\nhost : str, default='0.0.0.0'\n    Bind address for server process.\n\nport : int, default=9474\n    Bind port for server process,\n\nssl : SSLParameters, default=SSLParameters(...)\n    SSL parameters.\n\nauth : AuthParameters\n    Auth parameters.\n\nmcp : MCPParameters\n    MCP service parameters.\n\nNotes\n-----\nThe flat `ui_enabled` and `api_enabled` keys are deprecated\naliases for `ui.enabled` and `api.enabled` and will be removed\nin version 2.8. They still work but emit a deprecation warning\nand cannot be combined with their nested counterparts."
             },
             "Settings-Input": {
                 "properties": {
@@ -11138,6 +11224,19 @@
                     "source"
                 ],
                 "title": "TimestampsInputPluginConfig"
+            },
+            "UIParameters": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean",
+                        "title": "Enabled",
+                        "default": true
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "UIParameters",
+                "description": "Web UI service parameters.\n\nAttributes\n----------\nenabled : bool, default=True\n    Whether to enable the web UI."
             },
             "UdpOutputPluginConfig-Input": {
                 "properties": {
