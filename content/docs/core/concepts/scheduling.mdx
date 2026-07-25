@@ -75,7 +75,7 @@ input:
 
   # Burst: 50 events every 5 minutes
   - cron:
-      expression: "0 */5 * * * *"
+      expression: "*/5 * * * * 0"
       count: 50
       tags: [spike]
 ```
@@ -173,13 +173,13 @@ Combine two `cron` inputs — one for work hours, one for off-hours — with dif
 input:
   # Business hours: high rate
   - cron:
-      expression: "* * 9-17 * * MON-FRI"
+      expression: "* 9-17 * * MON-FRI *"
       count: 20
       tags: [business]
 
   # Off-hours: low rate
   - cron:
-      expression: "*/10 * 0-8,18-23 * * *"
+      expression: "* 0-8,18-23 * * * */10"
       count: 1
       tags: [quiet]
 ```

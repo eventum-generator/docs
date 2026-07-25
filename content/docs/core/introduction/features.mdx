@@ -126,7 +126,7 @@ Everything in Eventum is configured through YAML files — no code required for 
 ```yaml title="generator.yml"
 input:
   - cron:
-      expression: "*/5 * * * * *"
+      expression: "* * * * * */5"
       count: 3
       tags: [web]
 

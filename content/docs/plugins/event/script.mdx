@@ -113,7 +113,7 @@ Tags from the input plugin let you vary behavior based on which schedule trigger
 ```yaml title="generator.yml"
 input:
   - cron:
-      expression: "*/5 * * * * *"
+      expression: "* * * * * */5"
       count: 1
       tags: [regular]
   - cron:
@@ -236,7 +236,7 @@ This is a scenario where `script` shines — managing trace context, propagating
 ```yaml title="generator.yml"
 input:
   - cron:
-      expression: "*/2 * * * * *"    # a request every 2 seconds
+      expression: "* * * * * */2"    # a request every 2 seconds
       count: 1
 
 event:
