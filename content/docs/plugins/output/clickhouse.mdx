@@ -16,14 +16,14 @@ Inserts events into a ClickHouse table using the HTTP interface. Supports config
 | `table` | string | — | Required. Non-empty. | Target table. |
 | `username` | string | `"default"` | Non-empty. | Authentication username. |
 | `password` | string | `""` | — | Authentication password. |
-| `dsn` | ClickHouse DSN or null | `null` | — | DSN string (e.g., `clickhouse+native://user:pass@host:9000/db`). Overrides individual connection fields. |
+| `dsn` | ClickHouse DSN or null | `null` | — | DSN string (e.g., `clickhouse+http://user:pass@host:8123/db`). |
 | `connect_timeout` | integer | `10` | >= 1 | Connection timeout in seconds. |
 | `request_timeout` | integer | `300` | >= 1 | Full request timeout in seconds. |
 | `client_name` | string or null | `null` | Non-empty if set. | Client name for the ClickHouse query log. |
 | `verify` | boolean | `true` | — | Whether to verify the server's TLS certificate. |
-| `ca_cert` | path or null | `null` | Non-empty if set. | Path to CA certificate file. |
-| `client_cert` | path or null | `null` | Non-empty if set. | Path to client certificate. Must be provided together with `client_cert_key`. |
-| `client_cert_key` | path or null | `null` | Non-empty if set. | Path to client certificate key. Must be provided together with `client_cert`. |
+| `ca_cert` | path or null | `null` | — | Path to CA certificate file. |
+| `client_cert` | path or null | `null` | — | Path to client certificate. Must be provided together with `client_cert_key`. |
+| `client_cert_key` | path or null | `null` | — | Path to client certificate key. Must be provided together with `client_cert`. |
 | `server_host_name` | string or null | `null` | Non-empty if set. | Expected server hostname in the TLS certificate. |
 | `tls_mode` | string or null | `null` | `"proxy"`, `"strict"`, or `"mutual"` | TLS verification mode. |
 | `proxy_url` | URL or null | `null` | Valid HTTP/HTTPS URL. | Proxy address. |
@@ -39,7 +39,7 @@ Inserts events into a ClickHouse table using the HTTP interface. Supports config
 - Events are sent via ClickHouse's raw insert API using the specified `input_format`.
 - The default combination of `json` formatter + `JSONEachRow` input format sends one JSON object per line.
 - For non-JSON formats (CSV, TabSeparated, etc.), use `header`, `footer`, and `separator` to control event wrapping and the `plain` formatter.
-- Connection via DSN overrides individual `host`, `port`, `protocol`, `database`, `username`, and `password` fields.
+- `dsn` fills only the connection values that are not set otherwise. Since `host` is required and `port`, `database` and `username` carry defaults, a DSN contributes the password when `password` is left empty.
 
 ## Examples
 
@@ -67,15 +67,6 @@ output:
       table: events
       verify: true
       input_format: JSONEachRow
-```
-
-Via DSN string:
-
-```yaml
-output:
-  - clickhouse:
-      dsn: clickhouse+native://admin:secret@clickhouse.prod:9000/analytics
-      table: events
 ```
 
 CSV input format with plain formatter:
