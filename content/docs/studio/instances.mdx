@@ -20,7 +20,7 @@ The main area is a sortable, paginated table with the following columns:
 |--------|-------------|
 | **Instance** | The unique ID of the instance (assigned in [startup.yml](/docs/core/config/startup-yml) or when creating a new instance). |
 | **Project** | The generator project this instance is running. Links to the project editor. |
-| **Status** | Current state — **Active** (green dot) for running instances, **Finished** (green dot) for instances that completed normally, **Failed** for instances that stopped due to an error. |
+| **Status** | Current state — **Active** while the instance is generating, **Starting** or **Stopping** while it changes state, **Finished** once it completed, **Failed** if it stopped on an error, **Idle** if it has not run. |
 | **Last start time** | When the instance was most recently started (relative time, e.g. "2 minutes ago"). |
 
 Columns are sortable — click any column header to sort ascending or descending.
@@ -31,7 +31,7 @@ Above the table, three filters help you narrow the list:
 
 - **Search by instance** — text filter on instance IDs.
 - **Search by project** — text filter on project names.
-- **Running only** — checkbox to hide finished and failed instances.
+- **Status** — **All**, **Active**, or **Inactive**; Inactive covers finished, failed and idle instances alike.
 
 ## Creating an instance
 
