@@ -7194,7 +7194,7 @@
                             }
                         ],
                         "title": "Verify",
-                        "default": false
+                        "default": true
                     },
                     "ca_cert": {
                         "anyOf": [
@@ -7396,7 +7396,7 @@
                             }
                         ],
                         "title": "Verify",
-                        "default": false
+                        "default": true
                     },
                     "ca_cert": {
                         "anyOf": [
@@ -7556,44 +7556,37 @@
                     "python_version": {
                         "type": "string",
                         "title": "Python Version",
-                        "description": "Python version",
-                        "default": "3.14.3"
+                        "description": "Python version"
                     },
                     "python_implementation": {
                         "type": "string",
                         "title": "Python Implementation",
-                        "description": "Python implementation",
-                        "default": "CPython"
+                        "description": "Python implementation"
                     },
                     "python_compiler": {
                         "type": "string",
                         "title": "Python Compiler",
-                        "description": "Python compiler",
-                        "default": "Clang 21.1.4 "
+                        "description": "Python compiler"
                     },
                     "platform": {
                         "type": "string",
                         "title": "Platform",
-                        "description": "Host platform",
-                        "default": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.35"
+                        "description": "Host platform"
                     },
                     "host_name": {
                         "type": "string",
                         "title": "Host Name",
-                        "description": "Host name",
-                        "default": "huawei-laptop"
+                        "description": "Host name"
                     },
                     "host_ip_v4": {
                         "type": "string",
                         "title": "Host Ip V4",
-                        "description": "Host IPv4",
-                        "default": "127.0.1.1"
+                        "description": "Host IPv4"
                     },
                     "boot_timestamp": {
                         "type": "number",
                         "title": "Boot Timestamp",
-                        "description": "Timestamp of host boot up",
-                        "default": 1785161574.0
+                        "description": "Timestamp of host boot up"
                     },
                     "cpu_count": {
                         "anyOf": [
@@ -8978,7 +8971,7 @@
                             }
                         ],
                         "title": "Verify",
-                        "default": false
+                        "default": true
                     },
                     "ca_cert": {
                         "anyOf": [
@@ -9144,7 +9137,7 @@
                             }
                         ],
                         "title": "Verify",
-                        "default": false
+                        "default": true
                     },
                     "ca_cert": {
                         "anyOf": [
@@ -14253,5 +14246,10 @@
     "externalDocs": {
         "description": "Eventum Documentation",
         "url": "https://eventum.run/"
-    }
+    },
+    "servers": [
+        {
+            "url": "/api"
+        }
+    ]
 }
