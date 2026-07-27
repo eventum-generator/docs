@@ -25,13 +25,15 @@ The standard format is `minute hour day month weekday`, but croniter extends it 
 
 | Field | Position | Allowed values |
 |-------|----------|---------------|
-| Second | 1st (optional) | 0–59 |
-| Minute | 2nd | 0–59 |
-| Hour | 3rd | 0–23 |
-| Day of month | 4th | 1–31 |
-| Month | 5th | 1–12 |
-| Day of week | 6th | 0–6 (0 = Sunday) |
+| Minute | 1st | 0–59 |
+| Hour | 2nd | 0–23 |
+| Day of month | 3rd | 1–31 |
+| Month | 4th | 1–12 |
+| Day of week | 5th | 0–6 (0 = Sunday) |
+| Second | 6th (optional) | 0–59 |
 | Year | 7th (optional) | 1970–2099 |
+
+Both extra fields come after the standard five, seconds first — so `35 10 * * * 3` fires at 10:35:03 every day, and the year field is only available once seconds are given.
 
 Special characters: `*` (any), `,` (list), `-` (range), `/` (step), `R` (random value within range).
 

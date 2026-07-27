@@ -76,7 +76,7 @@ Re-schedule historical logs to new timestamps. The plugin finds the original tim
 ```yaml title="generator.yml"
 input:
   - cron:
-      expression: "*/5 * * * * *"   # every 5 seconds
+      expression: "* * * * * */5"   # every 5 seconds
       count: 1
 
 event:

@@ -5967,6 +5967,17 @@
                         "type": "boolean",
                         "title": "Is Dir"
                     },
+                    "size_in_bytes": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Size In Bytes"
+                    },
                     "children": {
                         "anyOf": [
                             {
@@ -5989,7 +6000,7 @@
                     "is_dir"
                 ],
                 "title": "FileNode",
-                "description": "Representation of a file or directory in a file tree.\n\nUsed as a recursive structure to describe the contents of a\ngenerator directory for API responses.\n\nAttributes\n----------\nname : str\n    The base name of the file or directory.\n\nis_dir : bool\n    Whether this node represents a directory or a file.\n\nchildren : list[FileNode] | None\n    Nested file nodes if this node is a directory. `None` if this\n    node is a file."
+                "description": "Representation of a file or directory in a file tree.\n\nUsed as a recursive structure to describe the contents of a\ngenerator directory for API responses.\n\nAttributes\n----------\nname : str\n    The base name of the file or directory.\n\nis_dir : bool\n    Whether this node represents a directory or a file.\n\nsize_in_bytes : int | None\n    Size of the file in bytes. `None` for directories and for files\n    whose size cannot be read.\n\nchildren : list[FileNode] | None\n    Nested file nodes if this node is a directory. `None` if this\n    node is a file."
             },
             "FileOutputPluginConfig-Input": {
                 "properties": {
@@ -7582,7 +7593,7 @@
                         "type": "number",
                         "title": "Boot Timestamp",
                         "description": "Timestamp of host boot up",
-                        "default": 1784986380.0
+                        "default": 1785161574.0
                     },
                     "cpu_count": {
                         "anyOf": [
