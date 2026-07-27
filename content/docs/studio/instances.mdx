@@ -20,7 +20,7 @@ The main area is a sortable, paginated table with the following columns:
 |--------|-------------|
 | **Instance** | The unique ID of the instance (assigned in [startup.yml](/docs/core/config/startup-yml) or when creating a new instance). |
 | **Project** | The generator project this instance is running. Links to the project editor. |
-| **Status** | Current state — **Active** (lit green) for running instances, **Starting** or **Stopping** while an instance is changing state, **Finished** (the same green, unlit) for instances that completed normally, **Failed** for instances that stopped due to an error, and **Inactive** for instances that have not run. |
+| **Status** | Current state — **Active** (lit green indicator) for running instances, **Starting** or **Stopping** while an instance is changing state, **Finished** for instances that completed normally, **Failed** for instances that stopped due to an error, and **Inactive** for instances that have not run. Only a running instance carries a lit indicator; the states at rest sit on a neutral chip. |
 | **Last start time** | When the instance was most recently started (relative time, e.g. "2 minutes ago"). |
 
 Columns are sortable — click any column header to sort ascending or descending.
