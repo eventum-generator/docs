@@ -502,6 +502,78 @@
                 }
             }
         },
+        "/generator-configs/{name}/rename": {
+            "post": {
+                "tags": [
+                    "Generator configs"
+                ],
+                "summary": "Rename Generator Config",
+                "description": "Rename generator configuration directory. Instances that use the configuration are repointed at the new directory and must be stopped beforehand.",
+                "operationId": "rename_generator_config_generator_configs__name__rename_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "Name of the generator directory",
+                            "title": "Name"
+                        },
+                        "description": "Name of the generator directory"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RenameGeneratorDirRequest",
+                                "description": "New directory name"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "IDs of repointed instances",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "title": "Response Rename Generator Config Generator Configs  Name  Rename Post"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                    },
+                    "404": {
+                        "description": "Generator configuration does not exist"
+                    },
+                    "409": {
+                        "description": "Directory with the new name already exists, or an instance using the configuration is active"
+                    },
+                    "500": {
+                        "description": "Configuration cannot be renamed due to OS error"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/generator-configs/{name}/path": {
             "get": {
                 "tags": [
@@ -2605,6 +2677,70 @@
                 }
             }
         },
+        "/generators/{id}/rename": {
+            "post": {
+                "tags": [
+                    "Generators"
+                ],
+                "summary": "Rename Generator",
+                "description": "Rename generator. The definition in the startup file is renamed along with the generator, and scenario membership is kept.",
+                "operationId": "rename_generator_generators__id__rename_post",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Generator id",
+                            "title": "Id"
+                        },
+                        "description": "Generator id"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RenameGeneratorRequest",
+                                "description": "New generator id"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Generator with provided id is not found"
+                    },
+                    "409": {
+                        "description": "Generator with the new id already exists, or the generator is active"
+                    },
+                    "500": {
+                        "description": "Startup file cannot be read, validated, or written"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/generators/{id}/start": {
             "post": {
                 "tags": [
@@ -3347,6 +3483,70 @@
                 }
             }
         },
+        "/scenarios/{name}/rename": {
+            "post": {
+                "tags": [
+                    "Scenarios"
+                ],
+                "summary": "Rename Scenario",
+                "description": "Rename scenario (rewrite tag in all generators that carry it)",
+                "operationId": "rename_scenario_scenarios__name__rename_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Scenario name",
+                            "title": "Name"
+                        },
+                        "description": "Scenario name"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RenameScenarioRequest",
+                                "description": "New scenario name"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Startup file cannot be read, parsed, validated, or written"
+                    },
+                    "404": {
+                        "description": "Scenario not found"
+                    },
+                    "409": {
+                        "description": "Scenario with the new name already exists"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/scenarios/{name}/generators/{generator_id}": {
             "post": {
                 "tags": [
@@ -3992,6 +4192,120 @@
                     },
                     "500": {
                         "description": "Failed to list secret names"
+                    }
+                }
+            }
+        },
+        "/secrets/{name}/references": {
+            "get": {
+                "tags": [
+                    "Secrets"
+                ],
+                "summary": "List Secret References",
+                "description": "List projects whose configuration references the secret as `${secrets.<name>}`",
+                "operationId": "list_secret_references_secrets__name__references_get",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Secret name",
+                            "title": "Name"
+                        },
+                        "description": "Secret name"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Names of referencing generator directories",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "title": "Response List Secret References Secrets  Name  References Get"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/secrets/{name}/rename": {
+            "post": {
+                "tags": [
+                    "Secrets"
+                ],
+                "summary": "Rename Secret Value",
+                "description": "Rename secret in keyring. References to the secret in generator configurations are not rewritten.",
+                "operationId": "rename_secret_value_secrets__name__rename_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Secret name",
+                            "title": "Name"
+                        },
+                        "description": "Secret name"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RenameSecretRequest",
+                                "description": "New secret name"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Secret is missing in keyring"
+                    },
+                    "409": {
+                        "description": "Secret with the new name already exists"
+                    },
+                    "500": {
+                        "description": "Failed to rename secret"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -7279,7 +7593,7 @@
                         "type": "number",
                         "title": "Boot Timestamp",
                         "description": "Timestamp of host boot up",
-                        "default": 1784986380.0
+                        "default": 1785161574.0
                     },
                     "cpu_count": {
                         "anyOf": [
@@ -9128,6 +9442,72 @@
                 "type": "object",
                 "title": "QueueParameters",
                 "description": "Parameters of input plugins queue.\n\nAttributes\n----------\nmax_timestamp_batches : int, default=10\n    Maximum number of batches in timestamps queue.\n\nmax_event_batches : int, default=10\n    Maximum number of batches in events queue."
+            },
+            "RenameGeneratorDirRequest": {
+                "properties": {
+                    "new_name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "New Name",
+                        "description": "New directory name. Must be a single directory name, since only directories directly inside `path.generators_dir` are recognized as generator directories."
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "new_name"
+                ],
+                "title": "RenameGeneratorDirRequest",
+                "description": "New name for an existing generator directory."
+            },
+            "RenameGeneratorRequest": {
+                "properties": {
+                    "new_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "New Id",
+                        "description": "New generator id"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "new_id"
+                ],
+                "title": "RenameGeneratorRequest",
+                "description": "New id for an existing generator."
+            },
+            "RenameScenarioRequest": {
+                "properties": {
+                    "new_name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "New Name",
+                        "description": "New scenario name"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "new_name"
+                ],
+                "title": "RenameScenarioRequest",
+                "description": "New name for an existing scenario."
+            },
+            "RenameSecretRequest": {
+                "properties": {
+                    "new_name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "title": "New Name",
+                        "description": "New secret name"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "new_name"
+                ],
+                "title": "RenameSecretRequest",
+                "description": "New name for an existing secret."
             },
             "ReplayEventPluginConfig-Output": {
                 "properties": {

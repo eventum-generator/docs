@@ -12,6 +12,7 @@ import {
   GraduationCap,
   Pencil,
   Save,
+  TextCursorInput,
   Trash2,
 } from 'lucide-react';
 import type { MDXComponents } from 'mdx/types';
@@ -43,6 +44,7 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     GraduationCap,
     Pencil,
     Save,
+    TextCursorInput,
     Trash2,
     ...components,
   };

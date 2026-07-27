@@ -19,6 +19,7 @@ Read-only, and available on both transports. They let the agent learn what Event
 | `get_formatter_schema` | Return the configuration schema for one formatter. |
 | `describe_sample` | Describe a CSV or JSON [sample](/docs/plugins/event/template/samples) file used by a generator. |
 | `list_secret_names` | List the secret names in the keyring, so a config can reference them. The agent cannot read or change their values — that is done with [`eventum-keyring`](/docs/core/cli/eventum-keyring). |
+| `list_secret_references` | List the projects whose configuration reads a given secret, to see what a rename or a removal would break. |
 
 ## Workspace & authoring tools
 
@@ -43,7 +44,7 @@ Available on both transports. They operate on the generators in your generators 
 
 ## Live-management tools
 
-Available only over HTTP. They control the generators the server manages.
+Available only over HTTP. They control the generators the server manages, and rename the objects an instance holds.
 
 | Tool | Access | Description |
 |---|---|---|
@@ -54,8 +55,11 @@ Available only over HTTP. They control the generators the server manages.
 | `stop_generator` | Write | Stop a managed generator. |
 | `register_generator` | Write | Register an authored generator with the running server, so it can be started and is restored after a server restart. |
 | `unregister_generator` | Write | Remove a generator from the running server, and stop restoring it on restart. |
+| `rename_generator` | Write | Rename a stopped generator, keeping its project, parameters and scenario membership. |
 | `get_generator_logs` | Read | Return the recent log lines for a managed generator, to diagnose a run. |
 | `list_startup_generators` | Read | List the generators configured to start with the server. |
+| `rename_generator_config` | Write | Rename a project, moving its directory and repointing the generators that use it. All of them must be stopped first. |
+| `rename_secret` | Write | Rename a secret, keeping its value under the new name. Configurations are not rewritten — check `list_secret_references` first. |
 
 ## Scenario tools
 
@@ -67,6 +71,7 @@ Available only over HTTP. A **scenario** is a named group of generators — a ta
 | `get_scenario` | Read | Return a scenario and the ids of the generators in it. |
 | `add_generator_to_scenario` | Write | Add a generator to a scenario. |
 | `remove_generator_from_scenario` | Write | Remove a generator from a scenario. |
+| `rename_scenario` | Write | Rename a scenario, rewriting the tag on every generator in it. |
 | `delete_scenario` | Write | Delete a scenario, untagging every generator in it. |
 
 ## Global-state tools

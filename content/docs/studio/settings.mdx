@@ -35,7 +35,7 @@ The page shows a table with three columns:
 
 | Column | Description |
 |--------|-------------|
-| **Name** | The secret name (the key used in `${secrets.name}` tokens). |
+| **Name** | The secret name (the key used in `${secrets.name}` tokens). Hovering the row reveals **copy** and **rename** (<TextCursorInput className="inline" size={14} />) buttons next to it. |
 | **Value** | The secret value, masked with asterisks by default. |
 | **Actions** | Three buttons per row: **reveal** (<Eye className="inline" size={14} />), **edit** (<Pencil className="inline" size={14} />), and **delete** (<Trash2 className="inline" size={14} />). |
 
@@ -46,6 +46,12 @@ Click the **reveal** (<Eye className="inline" size={14} />) button next to a sec
 ### Editing secrets
 
 Click the **edit** (<Pencil className="inline" size={14} />) button to edit an existing secret's value. The field becomes editable and you can save the updated value.
+
+### Renaming secrets
+
+Hover the row and click the **rename** (<TextCursorInput className="inline" size={14} />) button next to the secret name to give it a different name. The value is kept under the new name.
+
+The dialog lists the projects whose configuration reads the secret as `${secrets.name}`. Those tokens keep the old name — update them yourself, otherwise the affected generators fail to load.
 
 ### Deleting secrets
 
