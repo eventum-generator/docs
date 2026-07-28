@@ -35,7 +35,20 @@ When running with [`eventum run`](/docs/core/cli/eventum-run), parameters are se
     index_name: access-logs
 ```
 
-Each key in `params` maps to a `${params.<key>}` token in the generator config. Parameter names must be flat (no nesting) — use descriptive names like `opensearch_host` rather than nested structures.
+Each key in `params` maps to a `${params.<key>}` token in the generator config.
+
+Parameters can also be grouped, and the token then names the path to the value:
+
+```yaml title="startup.yml"
+- id: access-logs
+  path: access-logs/generator.yml
+  params:
+    opensearch:
+      host: https://opensearch.prod:9200
+      user: admin
+```
+
+The generator config reads them as `${params.opensearch.host}` and `${params.opensearch.user}`. A parameter named with a dot in it — `opensearch.host: https://opensearch.prod:9200` — is read by the same token.
 
 ### Via CLI flags
 
@@ -48,7 +61,7 @@ eventum generate \
   --params '{"opensearch_host": "https://localhost:9200", "opensearch_user": "admin", "index_name": "dev-logs"}'
 ```
 
-The JSON keys map to the same `${params.<key>}` tokens. This is useful for one-off runs and CI pipelines where you don't want to create a `startup.yml`.
+The JSON keys map to the same `${params.<key>}` tokens, and nested objects are read by the same path form. This is useful for one-off runs and CI pipelines where you don't want to create a `startup.yml`.
 
 ## Type handling
 
