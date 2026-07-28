@@ -159,11 +159,13 @@ Generator configs support **variable substitution** with `${params.name}` for us
 
 Eventum ships with a built-in web interface called **Studio** for visual generator management. Studio lets you:
 
-- Browse and edit generator projects
+- Browse and edit generator projects, with a file explorer and a code editor beside the plugin forms
 - Configure input, event, and output plugins through forms
 - Preview scheduling distributions as histograms
-- Edit templates and scripts with syntax highlighting
-- Debug event production — render events on demand, inspect output, and catch errors before going live
+- Debug event production — render events on demand, inspect output and state, and catch errors before going live
+- Preview the payload a formatter delivers before a destination ever sees it
+- Start, stop and watch generator instances, with live throughput and per-stage failure counts
+- Group generators into scenarios and see the state they exchange
 
 <ThemedImage
   lightSrc="/images/home/debug_light.png"

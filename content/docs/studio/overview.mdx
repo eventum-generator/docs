@@ -1,15 +1,31 @@
 ---
-title: Overview
-description: The Studio home screen — quick access to projects, instances, scenarios, and the Eventum Hub.
+title: Home
+description: The Studio home screen — recently modified projects, the state of every instance, and quick access to the rest of Studio and the Eventum Hub.
 ---
 
-The Overview page is the Studio home screen. It shows your Eventum version and platform info, provides quick actions for creating projects or browsing the [Eventum Hub](/hub), and links to the main Studio areas.
+Home is the screen Studio opens on. It answers two questions at a glance: what you were last working on, and whether anything is currently wrong.
 
 <ThemedImage
-  lightSrc="/images/studio_ui/overview_page_light.png"
-  darkSrc="/images/studio_ui/overview_page_dark.png"
-  alt="Overview page in Eventum Studio"
+  lightSrc="/images/studio_ui/home_light.png"
+  darkSrc="/images/studio_ui/home_dark.png"
+  alt="The Home screen of Eventum Studio"
   className="rounded-lg border mt-2"
 />
 
-The **Recent projects** section at the bottom shows your most recently accessed generator projects for quick navigation to the [project editor](/docs/studio/projects).
+**New project** scaffolds a generator project and opens it, and **Browse Hub** links to the [Eventum Hub](/hub), the catalog of ready-made generators.
+
+## Recent projects
+
+The generator projects whose files changed most recently, each with the number of instances running it, its size on disk and when it last changed. Clicking one opens the [project workspace](/docs/studio/projects#project-workspace).
+
+## Instances
+
+The instance count with a breakdown of what those instances are doing — active, inactive, and how the inactive ones ended up that way: finished, failed, or never started. A failure is visible here without opening the [Instances](/docs/studio/instances) page, and **Monitoring** links to the [dashboard](/docs/studio/monitoring) for the live figures behind the counts.
+
+**Recent instances** lists the most recently started ones with their project, their uptime while they run, and their status.
+
+## Explore
+
+Three tiles for the sections that carry the day-to-day work — [Projects](/docs/studio/projects), [Instances](/docs/studio/instances) and [Scenarios](/docs/studio/scenarios).
+
+The footer states the Eventum version, the Python version and the platform, which is the first thing worth quoting in a bug report.

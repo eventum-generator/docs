@@ -1,32 +1,55 @@
 ---
 title: Monitoring
-description: Real-time system monitoring — resource gauges, event flow statistics, throughput charts, and instance status.
+description: The Studio dashboard — aggregate pipeline flow, throughput and failure charts, per-instance share of the output load, and host and process resource usage.
 ---
 
-The Monitoring page is a real-time dashboard for the running Eventum instance. All values update automatically while the page is open.
+The Monitoring page is the dashboard for the whole application: every running instance added up, refreshed while the page is open.
 
 <ThemedImage
-  lightSrc="/images/studio_ui/monitoring_page_light.png"
-  darkSrc="/images/studio_ui/monitoring_page_dark.png"
-  alt="Monitoring dashboard in Eventum Studio"
+  lightSrc="/images/studio_ui/monitoring_light.png"
+  darkSrc="/images/studio_ui/monitoring_dark.png"
+  alt="The Monitoring dashboard in Eventum Studio"
   className="rounded-lg border mt-2"
 />
 
-## Performance
+With nothing running the live sections are replaced by a note pointing at [Instances](/docs/studio/instances).
 
-Four gauges show host-level resource usage: memory, CPU, network I/O, and disk I/O.
+## Pipeline
 
-## Flow stats
+The three stages of generation as one line, with the totals since the instances started: timestamps **enqueued** by the input stage, events **produced** by the event plugins, and events **written** by the output plugins. Under the last two sit the losses that explain the difference — **dropped** and **failed** for the event stage, **write failed** and **format failed** for the output stage — in red once above zero.
 
-Five counters summarize aggregate event throughput: **Generated** (timestamps from input plugins) → **Produced** (events from the event plugin) → **Written** (events delivered by output plugins), plus **Input EPS** and **Output EPS**.
+Read left to right, the row answers where events are going missing without opening a single instance.
 
-The difference between Generated, Produced, and Written reflects events lost to produce/write failures or still queued for processing.
+## Throughput
 
-## Charts
+Input and output events per second over a moving window of roughly two and a half minutes, with the current rates named above the graph. The two lines together show whether the output stage is keeping up with the timestamps the input stage is producing.
 
-- **Instances by produced events** — shows which generators are the most active.
-- **Instances by output EPS** — shows how output throughput is distributed across instances.
+## Failures
 
-## Instances sidebar
+The same window for failures, with event-stage and output-stage failures as separate lines. The section appears only while something is failing, so an empty dashboard means there is nothing to report rather than a chart nobody needs to read.
 
-The right panel shows instance totals (active, inactive, failed) and a recent activity list with links to each instance's scenario and project.
+## Instance load
+
+Each instance's share of the total output rate, stacked over the same window, with a legend naming every instance, its current rate and its percentage of the total.
+
+<ThemedImage
+  lightSrc="/images/studio_ui/monitoring_resources_light.png"
+  darkSrc="/images/studio_ui/monitoring_resources_dark.png"
+  alt="Instance load and resource usage on the Monitoring dashboard"
+  className="rounded-lg border mt-2"
+/>
+
+This is where an instance that is dominating the pipeline, or has quietly stopped contributing to it, becomes obvious.
+
+## Resources
+
+Four tiles for the machine and the process, each with its own recent history:
+
+| Tile | Scope | What it reports |
+|------|-------|-----------------|
+| **CPU** | host | Current utilization, with core count and clock. |
+| **Memory** | host | Used against total. |
+| **Disk I/O** | app | Read and write rates, and the totals since start. |
+| **Network** | app | Inbound and outbound rates, and the totals since start. |
+
+Reading these next to the throughput graph separates a slow generator from a saturated machine: a plateau in output that lines up with a CPU ceiling is a different problem from one that does not.

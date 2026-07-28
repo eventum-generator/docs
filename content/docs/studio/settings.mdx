@@ -1,92 +1,96 @@
 ---
 title: Settings and management
-description: Application settings, secrets management, and server lifecycle controls in Eventum Studio.
+description: Application settings, the encrypted secrets keyring, and the management console with instance identity, the live application log and lifecycle controls.
 ---
 
-Studio provides three administrative pages for configuring the application itself — **Settings** for application parameters, **Secrets** for encrypted credentials, and **Management** for server lifecycle controls.
+Studio has three administrative pages for the application itself — **Settings** for its parameters, **Secrets** for encrypted credentials, and **Management** for what the process is doing and how to restart or stop it.
 
 ## Settings
 
-The Settings page is a form-based editor for the application configuration — the same parameters defined in [eventum.yml](/docs/core/config/eventum-yml). Changes made here are written back to the config file on disk.
+The Settings page is a form over the application configuration — the same parameters [eventum.yml](/docs/core/config/eventum-yml) holds. Saving writes them back to that file.
 
 <ThemedImage
-  lightSrc="/images/studio_ui/settings_page_light.png"
-  darkSrc="/images/studio_ui/settings_page_dark.png"
-  alt="Settings page in Eventum Studio"
+  lightSrc="/images/studio_ui/settings_server_light.png"
+  darkSrc="/images/studio_ui/settings_server_dark.png"
+  alt="The Server section of the Settings page in Eventum Studio"
   className="rounded-lg border mt-2"
 />
 
-The page is organized into four sections, accessible via the navigation on the right:
+The rail on the left holds four sections, one form each:
+
+| Section | What it covers |
+|---------|----------------|
+| **Server** | The REST API and the web interface, the bind address and port, TLS, basic authentication, and MCP access. |
+| **Generation** | Defaults applied to every generator — timezone, ordering, batching, queues and write concurrency. |
+| **Paths** | The filesystem locations this instance reads from and writes to. |
+| **Logging** | Severity, format and rotation of the logs. |
+
+A section with unsaved changes is marked with a dot in the rail, so edits spread across sections are still visible from wherever you are.
+
+<ThemedImage
+  lightSrc="/images/studio_ui/settings_generation_light.png"
+  darkSrc="/images/studio_ui/settings_generation_dark.png"
+  alt="The Generation section of the Settings page in Eventum Studio"
+  className="rounded-lg border mt-2"
+/>
+
+Batch size and queue depths decide how much memory generation holds at once, and the Generation section states the resulting figure as you change them rather than leaving it to be worked out.
+
+**Save** appears in the page header once anything is edited, and asks for confirmation first: these parameters are read when the application starts, so applying them restarts the instance and the interface is briefly unavailable.
 
 ---
 
 ## Secrets
 
-The Secrets page provides a visual interface for managing the encrypted keyring — the same secrets you would manage with the [`eventum-keyring`](/docs/core/cli/eventum-keyring) CLI tool.
+The Secrets page manages the encrypted keyring — the same secrets the [`eventum-keyring`](/docs/core/cli/eventum-keyring) CLI tool manages. A secret is referenced from any configuration as `${secrets.name}` and resolved when a generator loads.
 
 <ThemedImage
-  lightSrc="/images/studio_ui/secrets_page_light.png"
-  darkSrc="/images/studio_ui/secrets_page_dark.png"
+  lightSrc="/images/studio_ui/secrets_light.png"
+  darkSrc="/images/studio_ui/secrets_dark.png"
   alt="Secrets page in Eventum Studio"
   className="rounded-lg border mt-2"
 />
 
-The page shows a table with three columns:
+Each row is one secret, with its name and its value masked. The actions per row are:
 
-| Column | Description |
+| Action | Description |
 |--------|-------------|
-| **Name** | The secret name (the key used in `${secrets.name}` tokens). Hovering the row reveals **copy** and **rename** (<TextCursorInput className="inline" size={14} />) buttons next to it. |
-| **Value** | The secret value, masked with asterisks by default. |
-| **Actions** | Three buttons per row: **reveal** (<Eye className="inline" size={14} />), **edit** (<Pencil className="inline" size={14} />), and **delete** (<Trash2 className="inline" size={14} />). |
+| **Copy name** | Copies the name, which is what a configuration references. |
+| **Rename** | Gives the secret a new name. |
+| **Show** / **Hide** | Reveals the value, and hides it again. |
+| **Edit** | Makes the value editable, then saves it. |
+| **Remove** | Deletes the secret from the keyring, after a confirmation. |
 
-### Viewing secrets
+**Add secret** opens a row for a new **Name** and **Value**; once saved the secret is immediately available to generator configurations.
 
-Click the **reveal** (<Eye className="inline" size={14} />) button next to a secret to reveal its value. Click again to hide it.
-
-### Editing secrets
-
-Click the **edit** (<Pencil className="inline" size={14} />) button to edit an existing secret's value. The field becomes editable and you can save the updated value.
-
-### Renaming secrets
-
-Hover the row and click the **rename** (<TextCursorInput className="inline" size={14} />) button next to the secret name to give it a different name. The value is kept under the new name.
-
-The dialog lists the projects whose configuration reads the secret as `${secrets.name}`. Those tokens keep the old name — update them yourself, otherwise the affected generators fail to load.
-
-### Deleting secrets
-
-Click the **delete** (<Trash2 className="inline" size={14} />) button to remove a secret from the keyring. This is irreversible — any generator configs referencing `${secrets.name}` for the deleted secret will fail to load until the secret is re-created.
-
-### Adding a new secret
-
-At the bottom of the table, two input fields let you add a new secret:
-
-- **new secret name** — the name for the secret.
-- **secret value** — the value to encrypt and store.
-
-The value field has a **reveal** (<Eye className="inline" size={14} />) toggle and a **save** (<Save className="inline" size={14} />) button. After saving, the secret appears in the table above and is immediately available for use in generator configs.
+<Callout type="warn">
+Removing a secret is irreversible. Any configuration referencing `${secrets.name}` for it fails to load until the secret is created again.
+</Callout>
 
 ---
 
 ## Management
 
-The Management page provides server lifecycle controls — restart and shutdown.
+The Management page reports what this instance is and what it is doing, and holds the controls that end it.
 
 <ThemedImage
-  lightSrc="/images/studio_ui/management_page_light.png"
-  darkSrc="/images/studio_ui/management_page_dark.png"
+  lightSrc="/images/studio_ui/management_light.png"
+  darkSrc="/images/studio_ui/management_dark.png"
   alt="Management page in Eventum Studio"
   className="rounded-lg border mt-2"
 />
 
-Three action buttons are available:
+Three cards describe the instance: **Application** (the Eventum version and the Python build it runs on), **Host** (hostname, address, platform and uptime), and **System load** (CPU and memory, with a link to the [Monitoring](/docs/studio/monitoring) dashboard for the history).
+
+**Instance logs** is the application-wide log as it is written to disk, with line numbers and controls to jump to the start or follow the end. This is the log that records configuration loading, which generators were started, and which of them refused to start — the per-instance logs live on the [instance page](/docs/studio/instances#logs).
+
+### Danger zone
 
 | Action | Description |
 |--------|-------------|
-| **Show logs** | Opens the application-level log viewer (same as instance logs, but for the main application process). |
-| **Restart** | All generators are stopped, the configuration is re-read, and generators are re-started according to the updated startup config. The web UI may be briefly unavailable during the restart. This is equivalent to sending `SIGHUP` to the process. |
-| **Stop** | Stops the Eventum application entirely. All generators are shut down gracefully and the server process exits. **This is irreversible from the UI** — once stopped, you'll need to restart Eventum from the command line. |
+| **Restart** | Stops the generators, re-reads the configuration, and starts them again according to it. The interface is briefly unavailable. Equivalent to sending `SIGHUP` to the process. |
+| **Stop** | Stops the application. Generators are shut down gracefully and the process exits. |
 
 <Callout type="warn">
-The **Stop** button shuts down the entire Eventum process. You will lose access to Studio and will need to restart Eventum from the terminal with `eventum run -c eventum.yml`.
+**Stop** ends the whole Eventum process, including the interface you are using. Starting it again means going back to the terminal and running `eventum run -c eventum.yml`.
 </Callout>

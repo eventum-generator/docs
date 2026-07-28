@@ -1,17 +1,17 @@
 ---
 title: Projects
-description: Generator projects in Studio — the project list, the visual plugin editor with input preview, event debugger, output formatter testing, and file management.
+description: Generator projects in Studio — the project list and the workspace that edits a generator, with a file explorer, a code editor, a stage inspector, and a console holding the timestamp preview, event debugger and formatter preview.
 ---
 
-A **project** in Studio corresponds to a generator directory on disk — a [generator.yml](/docs/core/config/generator-yml) file and its supporting resources (templates, scripts, samples, pattern files). The Projects section lets you browse, create, and visually edit generator configurations without touching YAML directly.
+A **project** in Studio corresponds to a generator directory on disk — a [generator.yml](/docs/core/config/generator-yml) file and its supporting resources (templates, scripts, samples, pattern files). The Projects section lets you browse, create, and edit generator configurations without writing YAML by hand.
 
 ## Project list
 
-The Projects page shows all generator directories discovered under the configured `generators_dir` path.
+The Projects page shows all generator directories discovered under the configured `generators_dir` path. The heading counts them and states how many are in use by at least one instance.
 
 <ThemedImage
-  lightSrc="/images/studio_ui/projects_page_light.png"
-  darkSrc="/images/studio_ui/projects_page_dark.png"
+  lightSrc="/images/studio_ui/projects_light.png"
+  darkSrc="/images/studio_ui/projects_dark.png"
   alt="Projects page in Eventum Studio"
   className="rounded-lg border mt-2"
 />
@@ -20,200 +20,195 @@ The table has the following columns:
 
 | Column | Description |
 |--------|-------------|
-| **Project Name** | The name of the generator directory. Click to open the project editor. |
-| **Instances** | Badges showing which instances are using this project. A project with no instances shows "Not used". |
-| **Modified** | When the project was last modified (relative time). |
-| **Size** | Total size of all files in the project directory. |
+| **Project name** | The name of the generator directory. Click it to open the project. |
+| **Instances** | One badge per instance running this project, each carrying that instance's status color. A project with no instances shows "Not used". |
+| **Modified** | When any file in the project directory last changed. |
+| **Size** | Total size of the project directory. |
+
+**Project name**, **Modified** and **Size** are sortable — click a header to switch direction.
 
 ### Filtering
 
 - **Search by name** — text filter on project names.
-- **Search by instance** — text filter on associated instance names.
-- **Any used** — checkbox to show only projects that have at least one instance.
+- **Search by instance** — text filter on the names of the instances using a project.
+- **All / In use / Unused** — restricts the list to projects that have instances, or to those that have none.
 
-Click **Create new** to scaffold a new generator project.
+### Creating and managing projects
 
-Each row has a three-dot menu for actions like renaming or deleting the project.
+**Create new** scaffolds a new generator project: pick a name, and Studio writes a minimal `generator.yml` you can build on.
 
-### Renaming a project
-
-**Rename** in the row menu changes the project name and moves its directory. Instances that use the project follow the new name automatically — the dialog lists them, and all of them must be stopped before the rename goes through.
+Each row carries a menu with **Edit**, which opens the project, and **Rename** and **Delete**. Renaming a project also updates the instances that point at it, so a rename never leaves an instance without a config.
 
 ---
 
-## Project editor
+## Project workspace
 
-Clicking a project name opens the full-screen editor. The editor is divided into three main tabs — **Input plugins**, **Event plugin**, and **Output plugins** — matching the three stages of the [generator pipeline](/docs/core/concepts/generator#the-three-stage-pipeline).
-
-All three tabs share a consistent layout:
-
-- **Left sidebar** — plugin list and file tree.
-- **Center workspace** — plugin-specific tools (preview, debugger, editor, formatter).
-- **Right sidebar** — plugin parameters form.
-- **Top right** — **Back** button to return to the project list, and **Save** button to persist changes to disk.
-
-### File tree
-
-The bottom-left panel on every tab shows the project's file tree — all files and directories inside the generator directory. Files are displayed with type-appropriate icons (templates, YAML configs, data files, markdown) and their size. You can browse the structure, select files to edit, upload and create new files and directories.
-
-A file larger than 10 MB is not opened in the editor — instead of transferring it, the tab reports its size and the limit. Generator output files reach that size quickly; read them outside Studio.
-
----
-
-## Input plugins tab
-
-The Input plugins tab lets you configure and preview input plugins — the scheduling stage that determines *when* events are generated.
+Clicking a project name opens the workspace: a full-screen layout of four docked panels around one generator.
 
 <ThemedImage
-  lightSrc="/images/studio_ui/project_page_input_plugins_tab_light.png"
-  darkSrc="/images/studio_ui/project_page_input_plugins_tab_dark.png"
-  alt="Input plugins tab in the project editor"
+  lightSrc="/images/studio_ui/project_input_light.png"
+  darkSrc="/images/studio_ui/project_input_dark.png"
+  alt="The project workspace with the Input stage selected"
   className="rounded-lg border mt-2"
 />
 
-### Plugin list
+| Panel | What it holds |
+|-------|---------------|
+| **Explorer** (left) | The project's file tree. |
+| **Editor** (center) | Open files as tabs. |
+| **Inspector** (right) | The plugins of the selected stage and their parameters. |
+| **Console** (bottom) | The tool that belongs to the selected stage. |
 
-The left sidebar shows the configured input plugins (e.g. `time_patterns #1`). Click a plugin to select it. Use the **+** button to add a new input plugin.
+The vertical dividers and the console's top edge are draggable, so you can give whichever panel you are working in more room. The console also collapses to its header, or expands to fill the window, using the two controls on its right.
 
-### Plugin parameters
+### The stage switcher
 
-The right sidebar shows all parameters for the selected input plugin. The fields vary by plugin type — for example, a `time_patterns` plugin shows:
+The bar at the top carries the three stages of the [generator pipeline](/docs/core/concepts/generator#the-three-stage-pipeline) — **Input**, **Event** and **Output** — each showing which plugins it currently holds. Selecting a stage retargets both the Inspector and the Console; the Explorer and the Editor stay as they are, so you keep the file you are editing while moving between stages.
 
-- **Patterns** — list of pattern files used by this plugin.
-- **Tags** — string labels attached to every timestamp from this plugin.
-- **Pattern editor** — select a pattern to edit, then configure its **Oscillator** (start time, end time, period, period unit), **Multiplier**, **Randomizer**, and **Spreader** sections in form fields.
+Every tool keeps its state while you are away. Generated timestamps, a running debugger session and typed-in sample events all survive switching stages and come back as you left them.
 
-For other plugin types (cron, timer, linspace, etc.), the right sidebar shows their respective parameters.
+### Saving
 
-### Workspace — Preview
+**Save** in the top right writes the configuration and every modified file at once. While anything is unsaved, a badge next to it names what is pending — `config`, `2 files`, or `config + 2 files`. Modified files are also marked with a dot on their editor tab, and **Save file** above the editor saves just the file in front of you (also `Ctrl/Cmd+S`).
 
-The center area provides a scheduling preview tool:
-
-- **Number of timestamps** — how many timestamps to generate for the preview (e.g. 10000).
-- **Time span** — bin width of preview histogram (e.g. "30s", "5m", "1h").
-- **Timezone** — timezone for timestamp interpretation.
-- **Selected plugin / All plugins** — toggle between previewing only the selected plugin or merging all input plugins together.
-- **Skip past timestamps** — toggle to exclude timestamps that have already passed.
-
-Click **Generate** to run the preview. The result is displayed as:
-
-- **Distribution histogram** — a bar chart showing how timestamps are distributed over time. This is the fastest way to verify that your scheduling produces the expected traffic shape — daily peaks, uniform spacing, spiky bursts, etc.
-- **Timestamps** — a raw list of the generated timestamps.
-
-The histogram also shows the **Total count** at the bottom right.
+Leaving the workspace with unsaved changes raises a confirmation first, whichever way you navigate away.
 
 ---
 
-## Event plugin tab
+## Explorer
 
-The Event plugin tab is where you configure and debug the event plugin — the stage that turns timestamps into event strings.
+The Explorer lists every file and directory inside the generator directory, each with a type-appropriate icon and its size. Clicking a file opens it in the editor.
 
-The tab has three workspace sub-tabs: **Debugger**, **State**, and **Editor**.
+The panel header holds **New file**, **New folder** and **Upload files**. The right-click menu of the tree offers the same two creation actions, plus **Rename** and **Delete** on a file or directory. Files are moved by dragging them onto another directory, and dropping files from outside the browser uploads them into the directory they land on.
+
+The `generator.yml` file is what makes the directory a project, so it cannot be renamed, moved or deleted from here.
+
+---
+
+## Editor
+
+Files open as tabs and stay open until closed, so several templates can be kept side by side. A middle click closes a tab; closing one with unsaved changes asks first.
+
+- **Syntax highlighting** for Jinja, Python, YAML, JSON, Markdown, CSV and the other formats a generator holds.
+- **Autocomplete** for Jinja templates and Python scripts, covering the context variables and helper modules available in a template.
+- **Find and replace** (`Ctrl/Cmd+F`) — a match counter, **Match case**, **Regular expression** and **Whole word** toggles, next and previous match, select all matches, and a replace row that replaces the current match or every match at once.
+- **Go to line** (`Ctrl/Cmd+Alt+G`).
+
+<ThemedImage
+  lightSrc="/images/studio_ui/project_editor_search_light.png"
+  darkSrc="/images/studio_ui/project_editor_search_dark.png"
+  alt="Find and replace in the project editor"
+  className="rounded-lg border mt-2"
+/>
+
+Files above 10 MB are not opened in the editor — the tab reports the size and the limit instead. Sample data that large is better edited outside Studio.
+
+---
+
+## Input stage
+
+The Inspector lists the configured input plugins and the parameters of the selected one. **+** adds a plugin, and the delete icon beside a plugin removes it. Below the form, **Configuration** shows the YAML the form produces, which is the quickest way to check what will be written to disk.
+
+The console holds the **Timestamps preview**: it runs the input stage without starting a generator, so you can confirm the schedule produces the traffic shape you intended.
+
+| Control | Description |
+|---------|-------------|
+| **Plugins** | Preview one input plugin, or leave it empty to merge all of them as a running generator would. |
+| **Count** | How many timestamps to generate for the preview. |
+| **Time span** | Bin width of the histogram, for example `30s`, `5m`, `1h`. |
+| **Timezone** | The zone the timestamps are shown in. |
+| **Skip past** | Excludes timestamps that have already passed. |
+
+**Generate** runs the preview and fills two views: **Distribution**, a histogram of timestamps over time with the total count, and **Timestamps**, the generated values themselves. Daily peaks, uniform spacing and bursts are all visible in the histogram at a glance — the screenshot above previews three overlaid [time patterns](/docs/plugins/input/time-patterns) and shows their combined daily rhythm.
+
+---
+
+## Event stage
+
+The Inspector holds the single event plugin and its parameters. For the [template plugin](/docs/plugins/event/template) that includes the picking mode, the template list with their chances, the samples, and the parameters passed to every render.
+
+The console offers two views of the same live plugin instance: **Debugger** and **State**.
 
 ### Debugger
 
-The debugger lets you produce events on demand and inspect the output before running a full generator.
+The debugger produces events on demand, so you can iterate on a template without starting a generator.
 
 <ThemedImage
-  lightSrc="/images/studio_ui/project_page_event_plugin_debugger_tab_light.png"
-  darkSrc="/images/studio_ui/project_page_event_plugin_debugger_tab_dark.png"
-  alt="Event plugin debugger tab in the project editor"
+  lightSrc="/images/studio_ui/project_event_debugger_light.png"
+  darkSrc="/images/studio_ui/project_event_debugger_dark.png"
+  alt="The event debugger in the project workspace"
   className="rounded-lg border mt-2"
 />
 
-At the top of the debugger workspace:
+**Start** builds the plugin from the current configuration; the indicator next to it reports the session as running, and **Stop** discards it. With a session running:
 
 | Field | Description |
 |-------|-------------|
-| **Event timestamp** | The timestamp to pass to the event plugin. Defaults to the current time with an **Auto** toggle that keeps it up to date. |
-| **Tags** | Optional tags to pass alongside the timestamp (simulates tags from input plugins). |
-| **Count** | How many events to produce in one run (e.g. 10). |
+| **Event timestamp** | The timestamp handed to the plugin. **Auto** keeps it at the current time. |
+| **Tags** | Tags to pass alongside the timestamp, as an input plugin would. |
+| **Count** | How many events to produce per run. |
 
-Two action buttons:
+**Produce** renders the events and shows them under **Events**, one card each, with a syntax selector for coloring and a copy button per event. Anything the plugin raises appears under **Errors** beside them, with the reason — a template that fails is reported here rather than silently producing nothing.
 
-- **Stop** — stop the debugger.
-- **Produce** — trigger event production with the current settings.
-
-Below the controls, the **Events** section shows the produced output:
-
-- **Syntax highlighting** — select the format (e.g. "json") for colored output.
-- Each event is displayed in its own card with expand/collapse and copy buttons.
-
-This is the fastest way to iterate on templates or scripts — change a template in the editor, re-start the debugger, click Produce, and immediately see the output. No need to start a full generator.
+Editing a template and producing again picks up the change, which makes the loop between editor and output a few seconds long.
 
 ### State
 
-The State tab exposes the event plugin's internal state — useful for debugging stateful templates that use `locals`, `shared`, or `globals`.
+The State view exposes the state of the plugin the debugger built, which is what a template reads and writes through `locals`, `shared` and `globals`.
 
 <ThemedImage
-  lightSrc="/images/studio_ui/project_page_event_plugin_state_tab_light.png"
-  darkSrc="/images/studio_ui/project_page_event_plugin_state_tab_dark.png"
-  alt="Event plugin state tab in the project editor"
+  lightSrc="/images/studio_ui/project_event_state_light.png"
+  darkSrc="/images/studio_ui/project_event_state_dark.png"
+  alt="Template state in the project workspace"
   className="rounded-lg border mt-2"
 />
-
-Three state scopes are displayed, each as a key-value table:
 
 | Scope | Description |
 |-------|-------------|
-| **Local state** | State specific to the selected template. Each template has its own `locals` dictionary. |
-| **Shared state** | State shared across all templates in this generator. Accessible as `shared` in templates. |
-| **Global state** | State shared across all generators in the application. Accessible as `globals` in templates. |
+| **Local state** | State of one template. Select the template to inspect it. |
+| **Shared state** | State shared by every template in this generator. |
+| **Global state** | State shared by every generator in the application. |
 
-Each table shows keys and their current values. Individual rows have edit and delete actions. The toolbar above each table provides:
+Each table lists keys with their values, typed as object, array or scalar, and large values expand rather than being cut short. Rows can be edited and deleted individually, and each table offers **Sync** to re-read the values, **Add** to insert a key as JSON, and **Clear** to empty the scope.
 
-- **Sync** — refresh the state from the backend (useful when a running instance has modified it).
-- **Clear** — remove all keys at once.
-- **Add** — add a new key-value pair. Values are entered as JSON.
+The State view needs the live plugin the debugger builds, so it becomes available once a session is running.
 
 <Callout type="warn">
-Modifying **Global state** from the State tab affects all currently running generator instances, not just the one you're editing. Use [Scenarios](/docs/studio/scenarios) to see which generators depend on which global keys.
+Global state is application-wide. Editing it from here affects every running instance, not only the generator you have open. [Scenarios](/docs/studio/scenarios) show which generators read and write which global keys.
 </Callout>
-
-### Editor
-
-The Editor tab provides a code editor with syntax highlighting for the template, script or any other file.
-
-<ThemedImage
-  lightSrc="/images/studio_ui/project_page_event_plugin_editor_tab_light.png"
-  darkSrc="/images/studio_ui/project_page_event_plugin_editor_tab_dark.png"
-  alt="Event plugin editor tab in the project editor"
-  className="rounded-lg border mt-2"
-/>
-
-Editor features:
-
-- **Tab bar** — open files as tabs (e.g. `templates/template.jinja`, `README.md`). Multiple files can be open simultaneously.
-- **Syntax highlighting** — Jinja, Python, YAML, JSON, Markdown and other formats are highlighted.
-- **Autocomplete** — basic intellisense is implemented for Jinja templates and Python scripts.
-
-
-Changes are saved to disk when you press `Ctrl + S`.
 
 ---
 
-## Output plugins tab
+## Output stage
 
-The Output plugins tab lets you configure output plugins and test their formatters.
+The Inspector lists the output plugins in delivery order with the parameters of the selected one, so a generator writing to several destinations is configured in one place.
 
 <ThemedImage
-  lightSrc="/images/studio_ui/project_page_output_plugins_tab_light.png"
-  darkSrc="/images/studio_ui/project_page_output_plugins_tab_dark.png"
-  alt="Output plugins tab in the project editor"
+  lightSrc="/images/studio_ui/project_output_light.png"
+  darkSrc="/images/studio_ui/project_output_dark.png"
+  alt="The Output stage of the project workspace with the formatter preview"
   className="rounded-lg border mt-2"
 />
 
-### Workspace — Formatter
+The console holds the **Formatter preview**, which runs sample events through a formatter and shows the payload that would be delivered:
 
-The center workspace provides a live formatter testing tool. The **Formatter** sub-tab shows:
+- **Formatter** — the [format](/docs/plugins/formatters) and its parameters, such as the JSON indent.
+- **Events** — sample events as text, one editable card each; **+** adds another.
+- **Result** — the formatted output after **Format**, with rejected events listed under **Errors** together with the reason.
 
-- **Format** — dropdown to select the formatter type (e.g. `json-batch`, `plain`, `json`, `template`, `template-batch`).
-- **Indent, ...** — parameters of the selected formatter.
+Checking a payload here costs nothing and answers the question a full run would answer slowly — whether the events a template emits are actually valid for the format the destination expects.
 
-Below the formatter settings, a two-column view lets you test formatting interactively:
+---
 
-- **Events** (left) — add sample events as text input. Each event is an editable card.
-- **Formatted events** (right, under **Result**) — click **Format** to apply the formatter and see the transformed output.
-- **Errors** — any formatting errors are displayed below the result.
+## When the configuration cannot be loaded
 
-This is a useful way to verify that your events are valid for the chosen formatter before running a full pipeline — especially for JSON formatters that will reject invalid JSON.
+An invalid `generator.yml` leaves nothing for the stages to describe, so the workspace falls back to the Explorer and the Editor, with a notice naming the problem and **Show details** for the validation error itself.
+
+<ThemedImage
+  lightSrc="/images/studio_ui/project_config_error_light.png"
+  darkSrc="/images/studio_ui/project_config_error_dark.png"
+  alt="The project workspace with an invalid generator configuration"
+  className="rounded-lg border mt-2"
+/>
+
+Fix the file in the editor, save it, then **Reload** to bring the rest of the workspace back. Keeping the editor reachable is the point: a config that a hand edit or a merge left malformed is repaired in the same place it broke.
