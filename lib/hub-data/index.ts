@@ -35,6 +35,7 @@ import { fortinetFortimail } from './generators/fortinet-fortimail';
 import { vpnCiscoAnyconnect } from './generators/vpn-cisco-anyconnect';
 import { databaseMssqlAudit } from './generators/database-mssql-audit';
 import { databasePostgresql } from './generators/database-postgresql';
+import { databaseSapHana } from './generators/database-sap-hana';
 import { identityOkta } from './generators/identity-okta';
 import { proxyZscaler } from './generators/proxy-zscaler';
 import { securityWaf } from './generators/security-waf';
@@ -93,6 +94,7 @@ export const generators: GeneratorMeta[] = [
   databaseMssqlAudit,
   databaseMysqlAudit,
   databasePostgresql,
+  databaseSapHana,
   identityOkta,
   securityWaf,
   securityCrowdstrikeFalcon,
