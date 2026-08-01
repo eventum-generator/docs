@@ -109,7 +109,7 @@ formatter:
 
 #### Invalid JSON handling
 
-Events that are not valid JSON are silently skipped. The remaining events are still formatted normally:
+Events that are not valid JSON are skipped. Each rejection is written to the generator log and counted in the `format_failed` metric; the remaining events are still formatted normally:
 
 ```text title="Events from event plugin (3 events, one invalid)"
 {"user": "alice"}
@@ -124,7 +124,7 @@ not valid json
 
 ### json-batch
 
-Collects all events in a batch into a single JSON array. Useful for HTTP endpoints that accept a batch payload. Each event must be valid JSON — invalid events are excluded from the array.
+Collects all events in a batch into a single JSON array. Useful for HTTP endpoints that accept a batch payload. Each event must be valid JSON — invalid events are excluded from the array and counted in the `format_failed` metric. When every event of a batch is invalid, the batch produces no output at all.
 
 | Parameter | Type | Default | Constraints | Description |
 |-----------|------|---------|-------------|-------------|
