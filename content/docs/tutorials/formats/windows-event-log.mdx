@@ -58,6 +58,8 @@ Every event carries the same envelope, whatever channel or provider produced it.
 
 ## Generate it with Eventum
 
+Eventum does not reproduce the binary EVTX form directly — nothing downstream of Windows consumes events that way. In a real pipeline a shipper such as winlogbeat or Elastic Agent reads each event and re-emits it as an [ECS](/docs/tutorials/formats/ecs)-mapped JSON document under a `winlog.*` namespace; that shipped shape is what a SIEM actually indexes. The generator below produces that winlog/ECS JSON directly — the same shape a winlogbeat feed delivers, with no Windows host or agent to run.
+
 A generator that produces Windows Security events needs three pieces: an input that shapes when events happen, a [template](/docs/plugins/event/template) event plugin that renders one of several Windows-shaped Jinja templates per timestamp, and an output. The example below produces `4624` (logon success) and `4625` (logon failure) events on a daily curve that ramps up through the morning, peaks around midday, and tapers off overnight.
 
 ### The traffic pattern
@@ -96,7 +98,17 @@ With `start` anchored to midnight and a one-day period, the equal shape paramete
 {%- set record_id = shared.get('record_id', 1) -%}
 {
   "@timestamp": "{{ timestamp.isoformat() }}",
-  "event": { "code": "4624", "action": "logged-in", "outcome": "success" },
+  "event": {
+    "action": "logged-in",
+    "category": ["authentication"],
+    "code": "4624",
+    "kind": "event",
+    "module": "security",
+    "outcome": "success",
+    "provider": "Microsoft-Windows-Security-Auditing",
+    "type": ["start"]
+  },
+  "host": { "name": "{{ params.host }}", "os": { "type": "windows" } },
   "user": { "name": "{{ username }}", "domain": "{{ params.domain }}" },
   "source": { "ip": "{{ src_ip }}" },
   "winlog": {
@@ -104,6 +116,7 @@ With `start` anchored to midnight and a one-day period, the equal shape paramete
     "provider_name": "Microsoft-Windows-Security-Auditing",
     "event_id": "4624",
     "record_id": "{{ record_id }}",
+    "keywords": ["Audit Success"],
     "logon": { "type": "{{ logon[0] }}" },
     "event_data": {
       "TargetUserName": "{{ username }}",
@@ -125,7 +138,17 @@ Logon failure follows the same shape, using the `Status` field Windows itself se
 {%- set record_id = shared.get('record_id', 1) -%}
 {
   "@timestamp": "{{ timestamp.isoformat() }}",
-  "event": { "code": "4625", "action": "logon-failed", "outcome": "failure" },
+  "event": {
+    "action": "logon-failed",
+    "category": ["authentication"],
+    "code": "4625",
+    "kind": "event",
+    "module": "security",
+    "outcome": "failure",
+    "provider": "Microsoft-Windows-Security-Auditing",
+    "type": ["start"]
+  },
+  "host": { "name": "{{ params.host }}", "os": { "type": "windows" } },
   "user": { "name": "{{ username }}", "domain": "{{ params.domain }}" },
   "source": { "ip": "{{ src_ip }}" },
   "winlog": {
@@ -133,6 +156,7 @@ Logon failure follows the same shape, using the `Status` field Windows itself se
     "provider_name": "Microsoft-Windows-Security-Auditing",
     "event_id": "4625",
     "record_id": "{{ record_id }}",
+    "keywords": ["Audit Failure"],
     "event_data": {
       "TargetUserName": "{{ username }}",
       "TargetDomainName": "{{ params.domain }}",
@@ -159,6 +183,7 @@ event:
     mode: chance
     params:
       domain: CONTOSO
+      host: WIN-DC-01
     samples:
       usernames:
         type: items
@@ -182,12 +207,22 @@ To emit Sysmon telemetry instead of Security events, keep the same input and out
 
 ## The result
 
-Running the generator above produces one JSON object per event, with the fields that matter for detection and correlation preserved from the original schema:
+Running the generator above produces one JSON object per event, in the winlog/ECS shape a shipper would emit from the underlying Security event:
 
 ```json
 {
   "@timestamp": "2026-03-04T09:41:07.203112+00:00",
-  "event": { "code": "4624", "action": "logged-in", "outcome": "success" },
+  "event": {
+    "action": "logged-in",
+    "category": ["authentication"],
+    "code": "4624",
+    "kind": "event",
+    "module": "security",
+    "outcome": "success",
+    "provider": "Microsoft-Windows-Security-Auditing",
+    "type": ["start"]
+  },
+  "host": { "name": "WIN-DC-01", "os": { "type": "windows" } },
   "user": { "name": "ajohnson", "domain": "CONTOSO" },
   "source": { "ip": "192.168.14.203" },
   "winlog": {
@@ -195,6 +230,7 @@ Running the generator above produces one JSON object per event, with the fields 
     "provider_name": "Microsoft-Windows-Security-Auditing",
     "event_id": "4624",
     "record_id": "482",
+    "keywords": ["Audit Success"],
     "logon": { "type": "Network" },
     "event_data": {
       "TargetUserName": "ajohnson",
@@ -206,7 +242,7 @@ Running the generator above produces one JSON object per event, with the fields 
 }
 ```
 
-`winlog.event_id` (mirrored in `event.code`) carries the EventID, `@timestamp` is the rendered TimeCreated, `winlog.provider_name` is the Provider, and `winlog.event_data` holds the same Data Name/value pairs — `TargetUserName`, `LogonType`, `IpAddress` — that the real EventData block would carry.
+`winlog.event_id` (mirrored in `event.code`) carries the EventID, `@timestamp` is the rendered TimeCreated, `winlog.provider_name` is the Provider, and `winlog.event_data` holds the same Data Name/value pairs — `TargetUserName`, `LogonType`, `IpAddress` — that the real EventData block would carry. The `event.*` classification (`category`, `type`, `kind`) and `host.name` are the ECS fields a shipper adds on top — the ones authentication detections and cross-host correlation actually key on.
 
 ## FAQ
 
