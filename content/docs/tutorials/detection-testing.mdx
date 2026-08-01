@@ -8,7 +8,7 @@ Shipping a detection rule means answering two questions with evidence, not intui
 Eventum generates the telemetry a detection rule actually inspects — the event IDs, fields, and repetition a technique leaves behind — parameterized across as many source addresses, accounts, and volumes as a test needs, blended into the ordinary traffic the rule has to ignore.
 
 <Callout type="info">
-This lesson generates telemetry shaped like a specific attack pattern — event IDs, field values, and repetition — to exercise a detection rule. It runs no exploit code, no malicious payload, and no attacker tooling: every event below is an ordinary Windows Security log entry, mechanically identical to the benign traffic surrounding it.
+This lesson generates telemetry shaped like a specific attack pattern — event IDs, field values, and repetition — to exercise a detection rule. It runs no exploit code, payload, or attacker tooling — every event below is an ordinary Windows Security log entry, mechanically identical to the benign traffic surrounding it.
 </Callout>
 
 ## Attack telemetry for detection testing
@@ -220,7 +220,7 @@ The batch writes in under a second. `static` assigns every event the same curren
 {"@timestamp": "2026-07-12T15:23:15.761004+00:00", "event": {"code": "4624", "action": "logged-in", "outcome": "success"}, "user": {"name": "ajohnson", "domain": "CONTOSO"}, "source": {"ip": "195.120.95.182"}, "winlog": {"channel": "Security", "provider_name": "Microsoft-Windows-Security-Auditing", "event_id": "4624", "record_id": "3", "logon": {"type": "Network"}, "event_data": {"TargetUserName": "ajohnson", "TargetDomainName": "CONTOSO", "LogonType": "3", "IpAddress": "195.120.95.182"}}}
 ```
 
-Across the full 3,000-event batch, 302 events came out as EventID 4625 — close to the configured 1-in-10 weight — and 2,698 as 4624. Three source addresses account for nearly all of the 4625s, with 97 to 107 each. Every other address, drawn fresh per benign event, turns up far less often — usually once, occasionally a few times where the small reserved range the public-IP pool sometimes draws from happens to collide — never anywhere near those three.
+Across the full 3,000-event batch, 302 events came out as EventID 4625 — close to the configured 1-in-10 weight — and 2,698 as 4624. Three source addresses account for nearly all of the 4625s, with 97 to 107 each. Every other address, drawn fresh per benign event, turns up far less often — usually once, occasionally a few times where the public-IP pool's small reserved range happens to collide. None comes anywhere near those three.
 
 </Step>
 </Steps>
@@ -359,5 +359,5 @@ Whatever ratio the rule is meant to survive. The `chance` weights above (87/10/3
 - The [SIEM test data lesson](/docs/tutorials/siem-events) for modeling stateful Windows Security sessions rather than a single detection pattern
 - The [test data pipeline lesson](/docs/tutorials/test-data-pipeline) for delivering this telemetry to a real SIEM and confirming receipt
 - The [Alert simulation: scheduled Telegram alerts](/docs/tutorials/telegram-alerts) tutorial for delivering a matching rule's output as a real alert notification, instead of a line grepped out of a file
-- The [Scenarios track](/docs/tutorials/scenarios) for the wider picture of applied synthetic data
+- The [Scenarios track](/docs/tutorials/scenarios) for the other use cases synthetic test data covers
 - The [windows-security](/hub/windows-security) and [windows-sysmon](/hub/windows-sysmon) generators in the Eventum Hub for production-tuned sources of this telemetry

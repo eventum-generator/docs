@@ -3,9 +3,9 @@ title: "AWS CloudTrail log format: the Records envelope, event fields, and userI
 description: The AWS CloudTrail log format — the Records envelope, camelCase event fields, and userIdentity — and how to generate CloudTrail-compliant records with Eventum.
 ---
 
-Validating a CloudTrail parser, or a detection rule written against CloudTrail's own field names, needs event records shaped to the exact case those field names use — `eventName`, not `event_name` or `EventName`; `sourceIPAddress`, not `source_ip_address`. A real AWS account produces the genuine article, but triggering the specific API calls that generate a given event, then waiting for CloudTrail to actually deliver it, is slow for what it returns, and its events arrive on AWS's own schedule rather than a test's — nowhere near the varied, on-demand stream a parser or detection rule actually needs to be exercised against.
+Validating a CloudTrail parser, or a detection rule written against CloudTrail's own field names, needs event records shaped to the exact case those field names use — `eventName`, not `event_name` or `EventName`; `sourceIPAddress`, not `source_ip_address`. A real AWS account produces those records, but only after the specific API call is triggered and CloudTrail delivers it minutes later, on AWS's schedule rather than a test's — and a single account exercises one code path at a time, not the mix of services and outcomes a parser has to handle.
 
-Eventum renders CloudTrail records directly from a template — the same flat camelCase fields, the same envelope CloudTrail itself writes to S3 — so a parser, a detection rule, or an ingestion pipeline built against CloudTrail's real field names can be exercised against a realistic stream of records without a live AWS account, a triggered API call, or a delivery delay anywhere in the loop.
+Eventum renders those records straight from a template — the same flat camelCase fields, the same `Records` envelope CloudTrail writes to S3 — and delivers them on whatever schedule a test sets. A parser, a detection rule, or an ingestion pipeline written against the real field names sees the shape it expects, with no AWS account to configure and no delivery delay to wait out.
 
 ## The CloudTrail record format
 
@@ -48,7 +48,7 @@ CloudTrail delivers events to an S3 bucket as gzip-compressed JSON files, one ob
 }
 ```
 
-Every field inside that one event is flat and camelCase — no nested schema namespaces the way [ECS](/docs/tutorials/formats/ecs) or [OCSF](/docs/tutorials/formats/ocsf) organize their own fields, aside from a handful of fields — `userIdentity` chief among them — that nest a small object of their own. A production trail holds many such objects inside one `Records` array per delivered file, not one file per event.
+Every field inside that one event is flat and camelCase — no nested schema namespaces the way [ECS](/docs/tutorials/formats/ecs) or [OCSF](/docs/tutorials/formats/ocsf) organize their own fields. A handful of fields, `userIdentity` chief among them, nest a small object of their own. A production trail holds many such objects inside one `Records` array per delivered file, not one file per event.
 
 ## Key fields of a CloudTrail event
 
@@ -95,14 +95,14 @@ Real CloudTrail records carry more fields than the set above depending on the ev
 
 ## Generate CloudTrail records with Eventum
 
-The generator below models a small multi-account AWS organization — deployments that assume a role far more often than anyone signs into the console by hand:
+This section builds a small multi-account AWS organization's traffic — deployments that assume a role far more often than anyone signs into the console by hand:
 
 <Steps>
 <Step>
 
 ### Write the CloudTrail event templates
 
-Fields are filled with [`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module. Each template builds the record as a single Jinja mapping and serializes it in one step with the built-in `tojson` filter, the same technique the [ECS lesson](/docs/tutorials/formats/ecs) uses for its own nested event shape — CloudTrail's `userIdentity`, `requestParameters`, and `responseElements` all nest the same way.
+[`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module, supplies every field. Each template builds the record as a single Jinja mapping and serializes it in one step with the built-in `tojson` filter, the same technique the [ECS lesson](/docs/tutorials/formats/ecs) uses for its own nested event shape — CloudTrail's `userIdentity`, `requestParameters`, and `responseElements` all nest the same way.
 
 `templates/assume-role.jinja` renders the common case — an IAM user in one of three accounts assuming a role to run a deployment:
 
@@ -212,7 +212,7 @@ A sign-in succeeds 92% of the time here; `module.rand.chance` decides the outcom
 
 ### Configure the generator
 
-[`mode: chance`](/docs/plugins/event/template/modes#chance) picks between the two templates per timestamp, weighted so `AssumeRole` dominates and console sign-ins stay a minority — the same 85/15 split the [ECS](/docs/tutorials/formats/ecs) and [NDJSON](/docs/tutorials/formats/ndjson) lessons use for their own common/rare pairs. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [file](/docs/plugins/output/file) output writes each record through the [json](/docs/plugins/formatters#json) formatter — one complete CloudTrail record per line, the schema a parser or validator checks a record against directly:
+Per timestamp, [`mode: chance`](/docs/plugins/event/template/modes#chance) selects between the two templates, weighted so `AssumeRole` dominates and console sign-ins stay a minority — the same 85/15 split the [ECS](/docs/tutorials/formats/ecs) and [NDJSON](/docs/tutorials/formats/ndjson) lessons use for their own common/rare pairs. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [file](/docs/plugins/output/file) output writes each record through the [json](/docs/plugins/formatters#json) formatter — one complete CloudTrail record per line, the schema a parser or validator checks a record against directly:
 
 ```yaml title="generators/cloudtrail-records/generator.yml"
 input:
@@ -286,7 +286,7 @@ Swapping to the `template-batch` output from the step above produces a different
 {"Records": [{"awsRegion": "us-east-1", "eventID": "2405d5d8-79b9-4e3a-81cd-a3b259d1779a", "eventName": "AssumeRole", "eventSource": "sts.amazonaws.com", "eventTime": "2026-07-17T17:26:42Z", "eventType": "AwsApiCall", "eventVersion": "1.09", "managementEvent": true, "readOnly": false, "recipientAccountId": "777788889999", "requestParameters": {"durationSeconds": 3600, "roleArn": "arn:aws:iam::777788889999:role/DevOpsDeployRole", "roleSessionName": "deploy-d64fadeb"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::777788889999:assumed-role/DevOpsDeployRole/deploy-d64fadeb", "assumedRoleId": "AROAOHTMVGOQ97546276:deploy-d64fadeb"}, "credentials": {"accessKeyId": "ASIAPIYHWTMC06659140", "sessionToken": "c997c0f487750f3703c6edc1650e21b378152a18edfe0e7fb7f54c966c2639d4"}}, "sourceIPAddress": "201.16.102.233", "userAgent": "aws-cli/2.15.22 Python/3.11.8 Linux/6.5.0", "userIdentity": {"accessKeyId": "AKIAHJNZPSGY56402318", "accountId": "777788889999", "arn": "arn:aws:iam::777788889999:user/priya.desai", "principalId": "AIDAORJUFOQW84574538", "type": "IAMUser", "userName": "priya.desai"}}, {"awsRegion": "us-east-1", "eventID": "58b3f050-1674-4f1f-8368-751be74fe07a", "eventName": "AssumeRole", "eventSource": "sts.amazonaws.com", "eventTime": "2026-07-17T17:26:42Z", "eventType": "AwsApiCall", "eventVersion": "1.09", "managementEvent": true, "readOnly": false, "recipientAccountId": "111122223333", "requestParameters": {"durationSeconds": 3600, "roleArn": "arn:aws:iam::111122223333:role/DevOpsDeployRole", "roleSessionName": "deploy-35af6c90"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::111122223333:assumed-role/DevOpsDeployRole/deploy-35af6c90", "assumedRoleId": "AROAXRJTQXNB15780269:deploy-35af6c90"}, "credentials": {"accessKeyId": "ASIAMMDIHIRE12817713", "sessionToken": "7d5ce0aaaa6fa3ba4e5bffa8ed6fff78df7b34658dee91457590cc4b231042bf"}}, "sourceIPAddress": "208.134.186.179", "userAgent": "aws-cli/2.15.22 Python/3.11.8 Linux/6.5.0", "userIdentity": {"accessKeyId": "AKIAPOEOAVJF59014958", "accountId": "111122223333", "arn": "arn:aws:iam::111122223333:user/diego.alvarez", "principalId": "AIDAOUOLQOBY03768790", "type": "IAMUser", "userName": "diego.alvarez"}}, {"awsRegion": "us-east-1", "eventID": "bbee1d49-b0c3-416d-9b39-a667bafb18cb", "eventName": "AssumeRole", "eventSource": "sts.amazonaws.com", "eventTime": "2026-07-17T17:26:42Z", "eventType": "AwsApiCall", "eventVersion": "1.09", "managementEvent": true, "readOnly": false, "recipientAccountId": "111122223333", "requestParameters": {"durationSeconds": 3600, "roleArn": "arn:aws:iam::111122223333:role/CI-DeployRole", "roleSessionName": "deploy-5ef96124"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::111122223333:assumed-role/CI-DeployRole/deploy-5ef96124", "assumedRoleId": "AROAFUPIDPYP64043815:deploy-5ef96124"}, "credentials": {"accessKeyId": "ASIAVQXBEXXX68850070", "sessionToken": "7d4b29105c930a179fb7b1af9bc78a02efc8ceba85c3137b4b8381b7acccb48e"}}, "sourceIPAddress": "188.32.116.163", "userAgent": "aws-cli/2.15.22 Python/3.11.8 Linux/6.5.0", "userIdentity": {"accessKeyId": "AKIANLTUQVUU90706873", "accountId": "111122223333", "arn": "arn:aws:iam::111122223333:user/priya.desai", "principalId": "AIDAJKDHWJPJ65518893", "type": "IAMUser", "userName": "priya.desai"}}]}
 ```
 
-One string, one object, one named `Records` key holding an array of three complete records — the same envelope [the section above](#the-cloudtrail-record-format) described, now assembled from Eventum's own output instead of quoted from AWS's docs. Three shapes have appeared across this lesson, and a pipeline built against CloudTrail needs to know which one it is looking at: the per-record camelCase schema `json` produces above, the batched `Records` envelope `template-batch` reproduces here, and the ECS-normalized `aws.cloudtrail.*` document a collector like Filebeat's AWS module produces once it parses either one — covered in the [ECS lesson](/docs/tutorials/formats/ecs), not this page.
+The result is the same envelope [the section above](#the-cloudtrail-record-format) described — a single JSON object with one `Records` array, holding three complete records — now produced by Eventum instead of quoted from AWS's docs. Three shapes have appeared across this lesson, and a pipeline built against CloudTrail needs to know which one it is looking at: the per-record camelCase schema `json` produces above, the batched `Records` envelope `template-batch` reproduces here, and the ECS-normalized `aws.cloudtrail.*` document a collector like Filebeat's AWS module produces once it parses either one — covered in the [ECS lesson](/docs/tutorials/formats/ecs), not this page.
 
 ## FAQ
 

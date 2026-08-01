@@ -3,7 +3,7 @@ title: API Load Testing with Realistic Load Test Data
 description: Generate realistic load test data — a diverse, weighted mix of request payloads — and fire it at a REST API in sample mode to benchmark throughput and find its breaking point.
 ---
 
-Load test data is the request stream a load test actually needs to be useful: not one payload sent as fast as possible, but a realistic mix of operations, identifiers, and body shapes, released at whatever rate the test calls for. A load test built on the wrong kind of data measures the wrong thing — how fast a target answers the same cached request a thousand times, not how it holds up against the shape of traffic a real deployment receives.
+Load test data is the request stream a load test actually needs: a realistic mix of operations, identifiers, and body shapes, released at whatever rate the test calls for — never the same payload sent as fast as possible. A load test built on the wrong kind of data measures the wrong thing — how fast a target answers the same cached request a thousand times, not how it holds up against the shape of traffic a real deployment receives.
 
 Build a generator that produces that stream: a burst of diverse API requests fired at a target endpoint as fast as possible, to benchmark throughput, uncover race conditions, and validate rate limiters — all without writing test scripts or capturing real traffic first.
 
@@ -193,7 +193,7 @@ Flags explained:
 | `--batch.size 100` | Groups 100 events per batch before sending |
 | `--max-concurrency 10` | Up to 10 concurrent requests in flight at once — one per batch, see below |
 
-`--max-concurrency` limits [concurrent write operations across all output plugins](/docs/core/concepts/output#concurrency) — here, that's the `http` plugin's batch writes. The `json-batch` formatter configured above turns each batch into a single HTTP request carrying the whole batch as one JSON array (see [batch vs per-request delivery](/docs/tutorials/delivery/http#batch-vs-per-request-delivery)), so one write is one request: `--max-concurrency 10` caps the run at 10 concurrent requests in flight, not 10 batches' worth of per-event requests. The 5,000 events split into 50 batches of 100, with up to 10 of those batches' requests in flight at once. Swapping `formatter` to `json` instead would fan each batch out into one request per event, multiplying `--batch.size` by `--max-concurrency` into the concurrent-request ceiling (1,000, at these settings) — but this lesson's `json-batch` config keeps it to one request per batch throughout. Adjust `--batch.size` and `--max-concurrency` together to find your API's breaking point without overshooting it by accident.
+`--max-concurrency` limits [concurrent write operations across all output plugins](/docs/core/concepts/output#concurrency) — here, that's the `http` plugin's batch writes. The `json-batch` formatter configured above turns each batch into a single HTTP request carrying the whole batch as one JSON array (see [batch vs per-request delivery](/docs/tutorials/delivery/http#batch-vs-per-request-delivery)). With `json-batch`, one write is one request, so `--max-concurrency 10` caps the run at 10 requests in flight — not 10 batches' worth of per-event requests. The 5,000 events split into 50 batches of 100, with up to 10 of those batches' requests in flight at once. Swap the formatter to plain `json` and each batch fans out into one request per event instead, multiplying `--batch.size` by `--max-concurrency` into the real ceiling (1,000 here). Adjust `--batch.size` and `--max-concurrency` together to find your API's breaking point without overshooting it by accident.
 
 </Step>
 <Step>
@@ -259,7 +259,7 @@ These counters aren't equally reliable for the `http` output used here. `write_f
 
 <Accordions>
 <Accordion title="How is this different from testing the pipeline itself?">
-Different question. This lesson measures capacity — how much request volume a target can sustain before latency climbs or requests start failing. [Testing the pipeline](/docs/tutorials/test-data-pipeline) measures correctness — whether one realistic event survives a specific transport and lands intact at the other end. A target can pass one check and fail the other, so neither replaces the other.
+These aren't interchangeable checks. This lesson measures capacity — how much request volume a target can sustain before latency climbs or requests start failing. [Testing the pipeline](/docs/tutorials/test-data-pipeline) measures correctness — whether one realistic event survives a specific transport and lands intact at the other end. A target can pass one check and fail the other, so neither replaces the other.
 </Accordion>
 <Accordion title="Why mix request types instead of hammering one endpoint?">
 Because that's what production traffic actually looks like, and because a single repeated request measures a narrow, often cached code path rather than a target's real capacity. The [chance](/docs/plugins/event/template/modes#chance) mix above spreads load across reads and writes the way a typical web application actually receives them; each template also draws its own identifiers and field values fresh per request, so caches, validators, and database lookups all see a realistic spread of inputs instead of the same one repeated 5,000 times.
@@ -271,5 +271,5 @@ Because that's what production traffic actually looks like, and because a single
 - The [Send test data to an API endpoint](/docs/tutorials/delivery/http) lesson for HTTP delivery, batching, and authentication in depth
 - The [Realistic values](/docs/tutorials/realism/values) lesson for the distributions and weighted choices behind a diverse payload
 - The [Test data pipeline](/docs/tutorials/test-data-pipeline) lesson for confirming correctness instead of capacity
-- The [Scenarios track](/docs/tutorials/scenarios) for the wider picture of applied synthetic data
-- The [Eventum Hub](/hub) for ready-made generators to point at your own API instead of building one from scratch
+- The [Scenarios track](/docs/tutorials/scenarios) for how this scenario relates to the rest of the course
+- The [Eventum Hub](/hub) for pre-built generators covering common API traffic patterns

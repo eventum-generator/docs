@@ -5,7 +5,7 @@ description: How Elastic Common Schema (ECS) namespaces its event, host, and rel
 
 A firewall calls it `src_ip`. A cloud identity provider's API calls the same fact `sourceIpAddress`. A home-grown application logs it as `client.address`. All three name the exact same piece of data about the exact same login attempt, and a query, dashboard, or detection rule written against one of those field names finds nothing in the other two — not because the data disagrees, but because nothing forces different sources to agree on what to call it.
 
-Elastic Common Schema fixes the field names once, across every source that adopts it, so the same query keeps matching regardless of which source produced the event. Eventum generates events that already carry ECS's real field names and structure directly from a template, and its JSON formatter delivers them ready to index, so an index mapping, a Kibana dashboard, or a detection rule built against ECS fields can be exercised without a live firewall, identity provider, or application anywhere in the loop.
+Elastic Common Schema fixes the field names once, across every source that adopts it, so the same query keeps matching regardless of which source produced the event. Eventum generates events that already carry ECS's real field names and structure directly from a template, and its JSON formatter delivers them ready to index. An index mapping, a Kibana dashboard, or a detection rule built against ECS fields can be exercised against them without a live firewall, identity provider, or application in place.
 
 ## What is Elastic Common Schema?
 
@@ -30,7 +30,7 @@ ECS's native home is the Elastic Stack: Elasticsearch stores the fields, and Kib
 
 `ecs.version` is required on every event too. Its value names which ECS version the event's fields conform to — `9.4.0` for every event generated below.
 
-The **event** field set carries the fields that classify what happened. `event.kind` sets the broadest classification, one of eight allowed values: `event` — the value every event generated below uses — covers ordinary activity and is by far the most common, `alert` covers a detection firing, and the remaining six (`metric`, `state`, `asset`, `enrichment`, `pipeline_error`, `signal`) cover narrower cases such as numeric measurements and ingestion diagnostics. `event.category` and `event.type` narrow further, together, and both are constrained to closed lists rather than free text: `event.category` names one of 20 allowed broad buckets — `authentication`, `network`, `file`, `process`, `iam`, and 15 others — and `event.type` names one of 18 allowed sub-buckets within it, such as `start`, `end`, `info`, `creation`, or `deletion`. The two aren't independent: ECS documents which `event.type` values are expected for each `event.category`. The `authentication` category, for instance, expects only `start`, `end`, or `info` — a login attempt is the `start` of the challenge-response process regardless of how it turns out, and `end` marks a logoff. `event.action` stays free text, a short label for what specifically happened (`ssh_login`, `user-password-change`), and `event.outcome` closes the fact off with exactly one of three allowed values — `success`, `failure`, or `unknown`.
+The **event** field set carries the fields that classify what happened. `event.kind` sets the broadest classification, one of eight allowed values. `event` — used by every example below — covers ordinary activity and is by far the most common; `alert` covers a detection firing; the remaining six (`metric`, `state`, `asset`, `enrichment`, `pipeline_error`, `signal`) cover narrower cases like numeric measurements and ingestion diagnostics. `event.category` and `event.type` narrow further, together, and both are constrained to closed lists rather than free text: `event.category` names one of 20 allowed broad buckets — `authentication`, `network`, `file`, `process`, `iam`, and 15 others — and `event.type` names one of 18 allowed sub-buckets within it, such as `start`, `end`, `info`, `creation`, or `deletion`. The two aren't independent: ECS documents which `event.type` values are expected for each `event.category`. The `authentication` category, for instance, expects only `start`, `end`, or `info` — a login attempt is the `start` of the challenge-response process regardless of how it turns out, and `end` marks a logoff. `event.action` stays free text, a short label for what specifically happened (`ssh_login`, `user-password-change`), and `event.outcome` closes the fact off with exactly one of three allowed values — `success`, `failure`, or `unknown`.
 
 `host.*` names the machine the event concerns. `host.name` and `host.ip` are the two fields nearly every event populates — `host.ip` is itself documented as an array, since a single host can carry more than one address.
 
@@ -38,11 +38,11 @@ The **event** field set carries the fields that classify what happened. `event.k
 
 ## Generate an ECS authentication event with Eventum
 
-The generator below models SSH access to a small fleet of Linux servers — ssh logs are one of the two sources ECS's own authentication category description names as typical, alongside Windows event logs — producing a common successful logon and a rarer failed attempt, each a complete ECS authentication event.
+This section generates SSH access to a small fleet of Linux servers — ssh logs are one of the two sources ECS's own authentication category description names as typical, alongside Windows event logs — producing a common successful logon and a rarer failed attempt, each a complete ECS authentication event.
 
 ### The templates
 
-Because an ECS event nests several field sets inside one document — `event`, `host`, `user`, `source`, `related` — each template below builds the event as a single Jinja mapping and serializes the whole structure at once with the built-in `tojson` filter, the same approach the [OCSF lesson](/docs/tutorials/formats/ocsf) uses for its own nested event shape. Fields are filled with [`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module.
+Because an ECS event nests several field sets inside one document — `event`, `host`, `user`, `source`, `related` — each template below builds the event as a single Jinja mapping and serializes the whole structure at once with the built-in `tojson` filter, the same approach the [OCSF lesson](/docs/tutorials/formats/ocsf) uses for its own nested event shape. Every field inside it is drawn from [`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module.
 
 `templates/ssh-login-success.jinja` renders the common case:
 
@@ -107,7 +107,7 @@ Because an ECS event nests several field sets inside one document — `event`, `
 {{ event | tojson }}
 ```
 
-Both templates share `event.category: ["authentication"]` and `event.type: ["start"]`, since both describe the same stage of the same process — the start of a challenge-response attempt — regardless of whether it succeeds; `event.outcome` is what actually tells them apart. The failure template adds `event.reason`, a free-text field naming why the action in `event.action` did not succeed. `related.user`, `related.ip`, and `related.hosts` collect the user, both addresses involved (the connecting client and the host being logged into), and the hostname named elsewhere in the same event — each as an array, per the rule above.
+Both templates share `event.category: ["authentication"]` and `event.type: ["start"]` (see above) — only `event.outcome` tells them apart. The failure template adds `event.reason`, a free-text field naming why the action in `event.action` did not succeed. `related.user`, `related.ip`, and `related.hosts` collect the user, both addresses involved (the connecting client and the host being logged into), and the hostname named elsewhere in the same event — each as an array, per the rule above.
 
 <Callout type="info">
 Neither template populates `related.hash`, since a login event has no file or process hash to relate. Populate it the same way — as an array — on any event that does carry one.
@@ -115,7 +115,7 @@ Neither template populates `related.hash`, since a login event has no file or pr
 
 ### The generator config
 
-[`mode: chance`](/docs/plugins/event/template/modes#chance) picks one of the two templates per timestamp, weighted so successful logons dominate and failures stay rare. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [file](/docs/plugins/output/file) output writes each event through the [json](/docs/plugins/formatters#json) formatter with `indent: 2`, so the nested structure stays readable:
+The template config uses [`mode: chance`](/docs/plugins/event/template/modes#chance) to pick between the two templates per timestamp, weighted so successful logons dominate and failures stay rare. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [file](/docs/plugins/output/file) output writes each event through the [json](/docs/plugins/formatters#json) formatter with `indent: 2`, so the nested structure stays readable:
 
 ```yaml title="generators/ecs-ssh-auth/generator.yml"
 input:
@@ -144,7 +144,7 @@ output:
 
 ## ECS example
 
-Running the generator above produces one authentication event per second, mostly successful logons and, at the configured 15% chance, an occasional failure. A successful logon from an actual run:
+The generator above produces one authentication event per second, mostly successful logons and, at the configured 15% chance, an occasional failure. A successful logon from an actual run:
 
 ```json title="A successful SSH logon"
 {
@@ -240,7 +240,7 @@ A failed attempt from the same run:
 }
 ```
 
-Both events carry the same `event.category` and `event.type` — `authentication` and `start` — since both describe the same stage of the same process; only `event.outcome`, and `event.reason` on the failed one, change to reflect what actually happened. `related.ip` carries two addresses on every event, the connecting client and the host itself, and `related.user` and `related.hosts` still write their single value as a one-element array, exactly as the rule requires.
+Both events carry the same `event.category` and `event.type` — `authentication` and `start`, as before. Only `event.outcome` — and `event.reason` on the failed attempt — changes between the two events shown here. `related.ip` carries two addresses on every event, the connecting client and the host itself, and `related.user` and `related.hosts` still write their single value as a one-element array, exactly as the rule requires.
 
 ## FAQ
 

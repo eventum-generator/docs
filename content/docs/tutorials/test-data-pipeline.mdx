@@ -15,7 +15,7 @@ A pipeline earns trust by handling realistic conditions correctly, not by having
 - **Changing a parser or a mapping** — a regression here doesn't announce itself; it silently drops or reshapes fields until a dashboard comes up empty or a detection stops firing.
 - **Validating a dashboard or an alert at volume** — a panel or a rule that looks right against ten hand-written events can still fail against ten thousand, or against a shape of traffic those ten never represented.
 
-Synthetic data fits this job because of what it deliberately isn't: not a copy of production, so no real user data, credentials, or business records ever sit in a test cluster; not a fixed sample, so the same generator reruns in CI on every change instead of going stale after a single export; and not hand-authored, so its volume scales to whatever the test needs, from a dozen events to a sustained stream.
+Synthetic data fits this job because none of it is real: no user data, credentials, or business records ever sit in a test cluster. It isn't a fixed sample either — the same generator reruns in CI on every change instead of going stale after one export — and nothing here is hand-authored, so its volume scales to whatever the test needs, from a dozen events to a sustained stream.
 
 ## End-to-end data pipeline testing
 
@@ -262,7 +262,7 @@ This lesson connects four tracks, each covering one layer of the pipeline in dep
   />
 </Cards>
 
-Not every destination behaves the same way when it's unreachable, which matters for a test built to run without one. OpenSearch and [HTTP](/docs/tutorials/delivery/http) only reach out when there's something to write, so a pipeline test still runs end to end without a live target — delivery just fails quietly, per event, as shown above. [Kafka](/docs/tutorials/delivery/kafka) and [ClickHouse](/docs/tutorials/delivery/clickhouse) connect as soon as the generator starts, so an unreachable broker or database stops the run before it produces anything. Neither behavior is wrong, but it's worth knowing which one your backend has before building a test around it.
+Not every destination behaves the same way when it's unreachable, which matters for a test built to run without one. OpenSearch and [HTTP](/docs/tutorials/delivery/http) only reach out when there's something to write, so a pipeline test still runs end to end without a live target — delivery just fails quietly, per event, as shown above. [Kafka](/docs/tutorials/delivery/kafka) and [ClickHouse](/docs/tutorials/delivery/clickhouse) connect as soon as the generator starts, so an unreachable broker or database stops the run before it produces anything. Neither behavior is wrong, but know which one your backend has before building a test around it.
 
 ## What to run through the pipeline
 
@@ -321,11 +321,11 @@ Two independent checks, both covered above. Eventum's own `written`, `write_fail
 Nothing about the templates, the picking mode, or the batch. Add a `stdout` output alongside (or instead of) the real one, as this lesson does, and every event that would have been delivered prints locally. For an OpenSearch or HTTP destination specifically, you don't even need to remove the block — an unreachable target doesn't stop the run, since neither plugin checks connectivity until it has something to write. Kafka and ClickHouse do check at startup, so those need either a reachable target or the block removed.
 </Accordion>
 <Accordion title="How is this different from load testing?">
-Different question entirely. This lesson checks correctness — does a realistic event reach the destination intact, in the format the destination expects. [Load testing](/docs/tutorials/load-testing) checks capacity — how much throughput the destination or the API in front of it can sustain before it degrades. A pipeline that passes this lesson's check can still fall over under load, and a pipeline that survives a load test can still be silently dropping fields a correctness check would have caught.
+Not the same measurement. This lesson checks correctness — whether a realistic event reaches the destination intact, in the format it expects. [Load testing](/docs/tutorials/load-testing) checks capacity — how much throughput the destination or the API in front of it can sustain before it degrades. A pipeline that passes this lesson's check can still fall over under load, and a pipeline that survives a load test can still be silently dropping fields a correctness check would have caught.
 </Accordion>
 </Accordions>
 
 ## Related
 
 - The [Scenarios pillar](/docs/tutorials/scenarios) for the wider picture of what synthetic data tests
-- The [Eventum Hub](/hub) for ready-made generators to point at your own pipeline instead of building one from scratch
+- The [Eventum Hub](/hub) for generators built for other pipelines and sources, ready to point at yours

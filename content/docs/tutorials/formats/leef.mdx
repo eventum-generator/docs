@@ -5,7 +5,7 @@ description: How LEEF structures its header and tab-delimited attributes, the 1.
 
 Testing a QRadar DSM (Device Support Module) mapping, or a correlation rule built against LEEF fields, requires LEEF events shaped to exercise the exact case under test. A live firewall, intrusion prevention system, or endpoint agent configured to forward LEEF can produce them, but standing one up just to generate test traffic is slow, and its output arrives on its own schedule, not the tester's. Public examples are scarce too: the authoritative specification is an IBM PDF guide, and nearly everything else that ranks for the format's name is vendor integration documentation that assumes the reader already knows the structure it depends on.
 
-Eventum generates LEEF lines directly from a template — a correctly ordered header followed by correctly delimited attributes — and delivers them to whatever the QRadar log source listens on, so the DSM mapping or the rule can be exercised without a QRadar appliance or a real device anywhere in the loop.
+Eventum renders LEEF lines from a template — header fields in order, attributes correctly delimited — and ships them to the QRadar log source directly, so the DSM mapping or the rule gets tested without standing up an appliance.
 
 ## What LEEF looks like
 

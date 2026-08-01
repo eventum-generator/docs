@@ -3,9 +3,9 @@ title: "Apache log format: Common Log Format, Combined Log Format, and Nginx"
 description: How the Apache log format — Common Log Format and Combined Log Format — lines up with nginx's matching defaults, and how to generate compliant access-log lines with Eventum.
 ---
 
-Testing a log shipper's parsing rules, a WAF signature tuned against request-line shape, or a billing job that reconciles bytes served all need access-log lines shaped exactly the way a real web server writes them. A live Apache or nginx instance can produce them, but its output arrives on whatever schedule its actual traffic sets, and standing one up just to capture a redirect, a 404, or a response with an empty body is slow for what it returns. Both vendors document the format precisely, but neither ships more than a single illustrative line — nowhere near the varied stream a parser actually needs to be exercised against.
+A log shipper's parser, a WAF signature tuned against request-line shape, and a billing job that reconciles bytes served all expect access-log lines shaped exactly the way a real web server writes them. A live Apache or nginx instance can produce them, but its output arrives on whatever schedule its actual traffic sets, and standing one up just to capture a redirect, a 404, or a response with an empty body is slow for what it returns. Both vendors document the format precisely, but neither ships more than a single illustrative line — far short of the mix of status codes and body sizes a parser actually has to handle.
 
-Eventum renders that stream directly from a template — client address, request line, status, and byte count in the exact field order Apache's Combined Log Format defines, the same order nginx's matching default uses — and writes each line to a file exactly as produced, so a parsing rule, a WAF signature, or a billing script can be exercised against realistic access-log traffic without a real web server anywhere in the loop.
+Eventum renders that stream directly from a template — client address, request line, status, and byte count in the exact field order Apache's Combined Log Format defines, the same order nginx's matching default uses — and writes each line to a file exactly as produced. Any of the three can then be exercised against realistic access-log traffic without standing up a real web server.
 
 ## Common Log Format and Combined Log Format
 
@@ -27,7 +27,7 @@ Every directive names one positional field, delimited by spaces; nothing here is
 | Status | `%>s` | The final HTTP status code sent to the client. |
 | Bytes | `%b` | Response body size, excluding headers. `-` when the response carries no body; `%B` prints `0` for the same case instead. |
 
-Apache's own reference example ties every field to a value:
+Here is that example with every field labeled:
 
 ```text title="Apache's reference CLF example"
 127.0.0.1 - frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326
@@ -81,20 +81,20 @@ Rendered, the two formats produce the same nine fields in the same order:
 
 Visually the two lines are indistinguishable. Three details underneath that surface still catch a parser written against only one vendor:
 
-- **Ident is a real field in Apache, a hardcoded character in nginx.** Apache's `%l` is a genuine positional field — an RFC 1413 lookup against `identd` on the client machine — that prints `-` because virtually no client runs `identd` any more, not because the field is fake. nginx's format string has no equivalent variable in that position at all: the `-` between `$remote_addr` and `[$time_local]` in the `log_format combined` definition above is a literal character baked into the format string, not a substitution. Both logs show the same dash for a different reason, and neither one is ever going to show anything else.
+- **Ident is a real field in Apache, a hardcoded character in nginx.** Apache's `%l` is a genuine positional field — an RFC 1413 lookup against `identd` on the client machine — that prints `-` because virtually no client runs `identd` any more, not because the field is fake. nginx's format string has no equivalent variable in that position at all: the `-` between `$remote_addr` and `[$time_local]` in the `log_format combined` definition above is a literal character baked into the format string, not a substitution.
 - **A zero-byte body prints differently.** Apache's `%b` prints `-` when the response carries no body — a `304 Not Modified`, most commonly. `%B`, a separate directive, prints `0` for that same case instead. nginx's `$body_bytes_sent` follows `%B`'s convention, not `%b`'s: [nginx's own variable reference](https://nginx.org/en/docs/http/ngx_http_core_module.html#var_body_bytes_sent) describes it as "compatible with the `%B` parameter of the `mod_log_config` Apache module," and it prints a literal `0`, never a dash. A parser that treats a bare `-` as the only valid empty-body marker silently mis-parses every zero-byte nginx line.
 - **Both defaults count body bytes only.** `%b` / `%B` and `$body_bytes_sent` all exclude response headers from the count — [nginx's docs](https://nginx.org/en/docs/http/ngx_http_core_module.html#var_body_bytes_sent) state it directly, describing the variable as "not counting the response header." Apache's `%O` (needs `mod_logio`) and nginx's `$bytes_sent` both count the full response, headers included, but neither ships in the respective vendor's default `combined` format — reconciling either byte count against a packet capture or a proxy's own counter needs the headers-inclusive variable explicitly, not the default.
 
 ## Generate an access log with Eventum
 
-The generator below models a small storefront's traffic — page and asset requests that mostly succeed, a share of `304 Not Modified` responses from conditional requests, and a rarer mix of client and server errors — rendering each one as a single Combined-format line. Apache Combined and nginx's `combined` produce the same line for the same request, with one exception: a response with an empty body, where Apache's `%b` writes `-` and nginx's `$body_bytes_sent` writes `0` (the caveat above). Outside that one field, one template covers what either vendor would actually write.
+The generator that follows models a small storefront's traffic — page and asset requests that mostly succeed, a share of `304 Not Modified` responses from conditional requests, and a rarer mix of client and server errors — rendering each one as a single Combined-format line. Apache Combined and nginx's `combined` produce the same line for the same request, with one exception: a response with an empty body, where Apache's `%b` writes `-` and nginx's `$body_bytes_sent` writes `0` (the caveat above). Outside that one field, one template covers what either vendor would actually write.
 
 <Steps>
 <Step>
 
 ### Write the Combined-format templates
 
-Fields are filled with [`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module. `templates/access-success.jinja` renders the common case — mostly `200`s, a share of zero-byte `304`s that exercise the caveat above directly, and an occasional `301`:
+Values come from [`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module. `templates/access-success.jinja` renders the common case — mostly `200`s, a share of zero-byte `304`s that exercise the caveat above directly, and an occasional `301`:
 
 ```jinja title="generators/access-logs/templates/access-success.jinja"
 {%- set client_ip = module.rand.network.ip_v4_public() -%}
@@ -134,7 +134,7 @@ The ident position is a hardcoded literal character — the first `-` right afte
 
 ### Configure the generator
 
-[`mode: chance`](/docs/plugins/event/template/modes#chance) picks one of the two templates per timestamp, weighted so successful requests dominate and errors stay rare. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [file](/docs/plugins/output/file) output writes each rendered line to `output/access.log` through the [plain formatter](/docs/plugins/formatters#plain):
+Per timestamp, [`mode: chance`](/docs/plugins/event/template/modes#chance) chooses between the two templates, weighted so successful requests dominate and errors stay rare. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [file](/docs/plugins/output/file) output writes each rendered line to `output/access.log` through the [plain formatter](/docs/plugins/formatters#plain):
 
 ```yaml title="generators/access-logs/generator.yml"
 input:
@@ -169,7 +169,7 @@ output:
 
 ## The result
 
-Running the generator in [sample mode](/docs/core/concepts/generator#sample-mode) for a short burst produced consistent Combined-format lines end to end. Seven consecutive lines from an actual run:
+A short burst in [sample mode](/docs/core/concepts/generator#sample-mode) produced consistent Combined-format lines end to end. Seven consecutive lines from an actual run:
 
 ```text title="output/access.log"
 1.110.236.55 - - [17/Jul/2026:16:30:22 +0000] "GET /static/logo.png HTTP/1.1" 200 24528 "https://example.com/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
@@ -201,7 +201,7 @@ Yes — the [web-apache](/hub/web-apache) and [web-nginx](/hub/web-nginx) genera
 Combined, in almost every real case. Referer and User-Agent are the two fields most bot-detection and log-analytics rules actually key on, and a stock install of either server writes Combined by default — bare CLF mostly shows up in documentation and in parsers old enough to only expect the first seven fields. Drop the two trailing quoted fields from the templates above to produce CLF instead; the first seven fields don't change shape between the two formats.
 </Accordion>
 <Accordion title="How do I tell whether a zero-byte line came from Apache or nginx?">
-Not from the bytes column alone. A bare `-` is Apache's convention (`%b`), a bare `0` is nginx's (`$body_bytes_sent`, compatible with Apache's own `%B`), but nothing in the line names which vendor produced it either way. In practice, whatever already tells a pipeline which host or service shipped a given file is what selects the right convention — a parser meant to handle both should treat `-` and `0` in that column as the same underlying fact, a response with no body.
+Not from the bytes column alone. A bare `-` is Apache's convention (`%b`), a bare `0` is nginx's (`$body_bytes_sent`, compatible with Apache's own `%B`), but nothing in the line names which vendor produced it either way. That comes from whatever metadata already tags the file by host or service. A parser meant to handle both should treat `-` and `0` in that column as the same fact: a response with no body.
 </Accordion>
 </Accordions>
 

@@ -7,7 +7,7 @@ Testing a pipeline, tuning a detection, or demonstrating a dashboard all depend 
 
 ## What synthetic event and log data is
 
-Synthetic event and log data is generated records that describe something happening at a specific point in time — a login, an HTTP request, a sensor reading, a security alert — rather than a fixed table of unrelated sample rows. Three traits set it apart from a flat export out of a general-purpose data generator such as Faker or Mockaroo:
+A login, an HTTP request, a sensor reading, a security alert — each is a record of something happening at a specific point in time, not a row in a fixed table of unrelated samples. Three traits set that apart from a flat export out of a general-purpose data generator such as Faker or Mockaroo:
 
 - **Time-aware** — each record carries a timestamp that reflects when it occurred, and the sequence of timestamps follows a pattern, such as a steady rate or a realistic daily curve, instead of being stamped all at once when a file is written.
 - **Continuous** — a generator keeps producing new records for as long as it runs, at a pace you control, rather than producing one export and stopping.
@@ -17,7 +17,7 @@ A synthetic event or log feed can stand in for a live source; a static export ca
 
 ## Where it is used
 
-Different teams use synthetic event and log data for different reasons, though the underlying data is the same kind of thing. A data engineer needs realistic traffic to test a pipeline before real data exists. An SRE needs sustained load to see how ingestion and storage behave under pressure. A detection engineer needs telemetry shaped like an attack to tune a detection without running one against a live system. A backend developer needs a believable set of records to seed a development or staging database. What changes across these cases is the format, the destination, and the volume — not the underlying idea of generating event and log records as they would occur over time.
+Different teams use synthetic event and log data for different reasons, though the underlying data is the same kind of thing. A data engineer needs realistic traffic to test a pipeline before real data exists; an SRE, sustained load to see how ingestion and storage hold up under pressure. A detection engineer needs telemetry shaped like an attack, without running one against a live system — a backend developer, just a believable set of records to seed a staging database. What changes across these cases is the format, the destination, and the volume, not the generator underneath.
 
 ## How Eventum generates it
 

@@ -5,7 +5,7 @@ description: How to replay logs with fresh timestamps in Eventum — take a capt
 
 Some test scenarios do not call for synthetic data at all — they call for a file that already exists, played back. A captured production sample from a system that's since been decommissioned, an incident capture pulled straight from a security ticket, a golden dataset a test suite has quietly depended on for months: reaching for a template that generates a plausible approximation throws away the one thing that made any of these worth keeping in the first place — their exact content, in their exact order. Generating from scratch reproduces the shape a source would produce; it cannot reproduce the one sequence of events that actually happened.
 
-Eventum's [replay](/docs/plugins/event/replay) event plugin exists for exactly this: replaying historical logs without shipping their original, stale timestamps along with them. Every line in a captured file still carries whatever timestamp it had the moment the file was captured, and replay reads that file back line by line and, wherever a line carries a timestamp, rewrites it to the moment the event is actually replayed — the same real content, arriving with fresh timestamps instead of old ones.
+Eventum's [replay](/docs/plugins/event/replay) event plugin replays historical logs without shipping their original, stale timestamps along with them. Every line in a captured file still carries whatever timestamp it had the moment the file was captured, and replay reads that file back line by line and, wherever a line carries a timestamp, rewrites it to the moment the event is actually replayed — the same real content, arriving with a fresh timestamp.
 
 ## When to replay instead of generate
 

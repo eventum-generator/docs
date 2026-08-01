@@ -3,9 +3,9 @@ title: "SIEM Test Data: Windows Security Events → OpenSearch"
 description: Generate SIEM test data — Windows Security Event Log sessions indexed into OpenSearch — for detection development, parser validation, and analyst training.
 ---
 
-SIEM test data is synthetic security telemetry — logons, privilege use, process activity, and similar events — shaped to resemble what a real environment produces, without exposing production systems or capturing genuine user activity. Teams generate it to develop and tune detection rules against realistic event sequences, to validate that a SIEM's parsers and ingestion pipeline handle a given log source correctly, and to train analysts on realistic alert volume and structure — none of it requires running a live attack or touching a production system.
+A detection rule tuned against a handful of hand-written events, a SIEM parser wired to a new log source, an analyst who has never seen an incident play out — each needs the same thing before anyone trusts it: security telemetry that behaves like a real environment's. Logons, privilege use, and process activity, in realistic sequences and volume, with no live attack and no production system anywhere in the test.
 
-Build a generator that produces Windows Security Event Log sessions — logon, privilege assignment, process creation, and logoff — with realistic timing and user behavior. Events are indexed into OpenSearch, ready for dashboards and detection rules.
+The generator below produces Windows Security Event Log sessions — logon, privilege assignment, process creation, and logoff — with realistic timing and user behavior, indexed into OpenSearch and ready for dashboards and detection rules.
 
 <Callout type="info">
 **No OpenSearch?** Replace the `opensearch` output with `stdout: {}` in the generator config. Everything else stays the same.
@@ -219,7 +219,7 @@ Each template produces one JSON event following [Elastic Common Schema](https://
 }
 ```
 
-The key pattern: the `logon` template writes session context into `shared` state, and all subsequent templates read from it. This keeps the session consistent — the same user, workstation, and session ID appear across every event in the session.
+The `logon` template writes session context into `shared` state, and every later template reads from it — the same user, workstation, and session ID appear across every event in the session.
 
 </Step>
 <Step>

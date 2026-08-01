@@ -5,13 +5,13 @@ description: How to simulate user sessions — a login, a stretch of activity, a
 
 A generator that fires isolated events — one random user logging an action here, an unrelated user somewhere else, each timestamp picked independently of the last — never produces the shape real activity actually takes. A person who uses a system logs in, does a handful of things, and eventually logs out, and every event in between belongs to that one visit: the same user, the same session id, in a fixed order, over a bounded stretch of time.
 
-Eventum models that shape with a state machine: each stage of a session — a login, an action, a logout — is a template, and the template's own logic decides when the machine is ready to move to the next stage. State shared across those templates carries whatever ties the sequence together, typically a session id and a running count of what has happened so far, which is what turns a handful of otherwise disconnected-looking JSON lines into one traceable session.
+Eventum models that shape with a state machine: each stage of a session — a login, an action, a logout — is a template, and the template's own logic decides when the machine is ready to move to the next stage. State shared across those templates carries whatever ties the sequence together, typically a session id and a running count of what has happened so far — the detail that turns a handful of otherwise disconnected-looking JSON lines into one traceable session.
 
 ## What a login-to-logout sequence looks like
 
 A session is any stretch of related events tied to one actor, bounded by a clear start and a clear end, with a variable amount of activity in between. A web visit starts with a login and ends with a logout or a timeout; a support ticket opens, gets updated a few times, and closes; a device connects, reports for a while, and disconnects. What makes these sequences — rather than just a pile of events that happen to share a user id — is that each step depends on where the sequence currently stands: there is no logout without a prior login, and the number of actions in between is not fixed in advance.
 
-A generator that treats every timestamp as a fresh, independent random pick cannot produce this. Nothing stops it from emitting a logout with no matching login, or a burst of unrelated actions under session ids that each appear exactly once. Modeling a session means giving the generator memory: an idea of what stage the current sequence is in, and what has already happened since it started.
+Nothing stops a generator that treats every timestamp as a fresh, independent random pick from emitting a logout with no matching login, or a burst of unrelated actions under session ids that each appear exactly once. Modeling a session means giving the generator memory: an idea of what stage the current sequence is in, and what has already happened since it started.
 
 ## Modeling sessions with a state machine
 
@@ -26,7 +26,7 @@ Eventum's [template](/docs/plugins/event/template) event plugin has a picking mo
 
 Each timestamp renders the machine's current state and then checks that state's transitions in order; the first one whose condition holds moves the machine, and if none do, it stays put and renders the same state again on the next timestamp. A transition's condition inspects state that the current template set while rendering — a flag, a counter, anything the template chose to record — so the sequence advances only when the template itself signals it is ready, not on a fixed schedule.
 
-That state is also what correlates the sequence. Every state in the machine is a separate template, and `locals` — the per-template scope — belongs to exactly one of them: a value set in `login`'s locals never reaches `action`'s. `shared` is the one scope every state in the same generator reads and writes, which is why a session id and a running step count belong there: `login` sets them once, `action` and `logout` read and update them on every later render, and those same shared values tie every event below back to one session.
+That state is also what correlates the sequence. Every state in the machine is a separate template, and `locals` — the per-template scope — belongs to exactly one of them: a value set in `login`'s locals never reaches `action`'s. `shared` is the one scope every state in the same generator reads and writes, so a session id and a running step count belong there: `login` sets them once, `action` and `logout` read and update them on every later render, and those same shared values tie every event below back to one session.
 
 ## Simulate a login-to-logout session in Eventum
 

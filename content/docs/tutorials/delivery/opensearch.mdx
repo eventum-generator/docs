@@ -3,9 +3,9 @@ title: Generating logs for OpenSearch
 description: Generate a realistic log stream and index it into OpenSearch over the bulk API, authenticated with encrypted secrets — no real traffic or production data required.
 ---
 
-A dashboard, a detection rule, or an ingestion benchmark all need the same raw material: a realistic stream of log documents already sitting in an OpenSearch index. Waiting for production traffic to accumulate takes time most projects don't have, and copying real logs into a test cluster means carrying whatever they contain — IP addresses, session tokens, request bodies — into an environment built for testing, not for holding production data. Searching for a way around this mostly turns up ingestion tutorials that assume the logs already exist somewhere, or a Python script that fakes Apache access-log lines into a file — useful for the lines themselves, silent on how they're supposed to reach an index.
+A dashboard, a detection rule, or an ingestion benchmark all need a realistic stream of log documents already sitting in an OpenSearch index. Waiting for production traffic to accumulate takes time most projects don't have, and copying real logs into a test cluster carries whatever they contain — IP addresses, session tokens, request bodies — into an environment built for testing, not for holding production data. Most ingestion tutorials assume the logs already exist somewhere; a script faking access-log lines produces text, not a document actually indexed.
 
-Eventum closes that gap with a native `opensearch` output plugin: point it at a cluster, describe a document's shape in a template, and it sends every generated event to the index over the bulk API as it's produced — continuously in real time, or as a single finite batch for a one-off test dataset.
+The `opensearch` output plugin sends every generated event to an index over the bulk API as it's produced — continuously in real time, or as a single finite batch for a one-off test dataset. A document's shape lives in a template, and the plugin indexes each event as it's generated.
 
 ## How log ingestion into OpenSearch works
 

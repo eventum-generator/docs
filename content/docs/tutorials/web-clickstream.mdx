@@ -3,7 +3,7 @@ title: Clickstream Data → ClickHouse
 description: Generate clickstream data — user browsing sessions and bounces modeled with a finite state machine — and stream page views into ClickHouse for funnel analysis.
 ---
 
-Clickstream data is the record of every page a visitor loads on their way through a site, in the order they loaded it — a landing page, a run of product pages, a cart, sometimes a checkout. A funnel report, a conversion-rate query, or a cohort analysis depends entirely on that order: how many sessions reached each stage, and how many dropped off before the next one. A stream of page-view events generated independently of each other can share a session id by coincidence, but it cannot reproduce one visitor's user journey — landing, browsing, a cart addition — arriving in that order for that visitor, which is the one property a funnel query actually reads.
+Clickstream data is the record of every page a visitor loads on their way through a site, in the order they loaded it — a landing page, a run of product pages, a cart, sometimes a checkout. A funnel report, a conversion-rate query, or a cohort analysis depends entirely on that order: how many sessions reached each stage, and how many dropped off before the next one. A stream of page-view events generated independently of each other can share a session id by coincidence. It cannot reproduce a visitor's journey — landing, browsing, cart — arriving in that order, which is the one property a funnel query actually reads.
 
 Eventum produces that order with the same finite-state-machine technique covered in [Modeling sessions](/docs/tutorials/realism/sessions): each stage of the journey is a template, and the template's own logic decides when a visitor is ready to advance. This lesson applies it to a five-stage browsing funnel instead of a three-stage login/action/logout cycle, adds a bounce path for visitors who browse but never buy, and streams the result into ClickHouse for funnel analysis.
 
@@ -182,7 +182,7 @@ The FSM models a user journey through five stages. Each template renders one pag
 
 A fixed page-count threshold would make every converting session the same length. Rolling a chance instead spreads conversions across a range of session lengths — some visitors add an item after two pages, others after four or five — the same way real browsing sessions vary, while the deterministic ceiling at 5 still guarantees a bounce for anyone who never converts at all.
 
-**Add to cart** — records the cart addition. It also clears `ready_to_add` and resets `browse_streak` immediately: unlike [Modeling sessions](/docs/tutorials/realism/sessions)' `logout_ready`, which fires once per session, `ready_to_add` here can fire again on a later loop through `browse` — up to the cart's two-item target — so the flag has to be cleared the moment it's consumed, or the next stretch of browsing would fall straight back into `add-to-cart` on the stale value instead of earning it again from a fresh count:
+**Add to cart** — records the cart addition, then clears `ready_to_add` and resets `browse_streak` immediately. Unlike [Modeling sessions](/docs/tutorials/realism/sessions)' `logout_ready`, which fires once per session, `ready_to_add` here can fire again on a later loop through `browse` — up to the cart's two-item target. That's why the flag has to be cleared the moment it's consumed: otherwise the next stretch of browsing would fall straight back into `add-to-cart` on the stale value instead of earning it again from a fresh count:
 
 ```jinja title="generators/clickstream/templates/add-to-cart.jinja"
 {%- do shared.pop("ready_to_add", None) -%}
@@ -444,7 +444,7 @@ ORDER BY views DESC;
 A session that lands, browses, and leaves without ever adding anything to the cart. `browse.jinja` tracks how many pages the current visitor has viewed since the session started, or since the last cart addition, and sets `session_done` once that count reaches 5 with the cart still empty, sending the FSM to `exit` instead of `add-to-cart` on the next check. A visitor who leaves from the landing page itself, before browsing at all, is a different and simpler bounce shape that this generator doesn't model directly.
 </Accordion>
 <Accordion title="Why does browse.jinja roll a random chance instead of comparing against a fixed page count?">
-A fixed threshold makes every converting session the same length, which is the flat, unrealistic shape this course argues against elsewhere. Rolling a chance once the visitor has browsed at least two pages spreads conversions across a range of session lengths instead of a single fixed one, while the deterministic ceiling still guarantees a bounce for anyone who never converts at all.
+So conversion timing varies between visitors instead of landing on the same page count every time — the reasoning is in `browse.jinja` above. What the chance keeps is the deterministic ceiling: once a visitor's streak hits 5, the funnel forces the outcome, so no session browses forever without either converting or bouncing.
 </Accordion>
 <Accordion title="Can this generator track more than one visitor browsing at the same time?">
 No. One `fsm` machine holds exactly one current session in `shared` state — the same limitation [Modeling sessions](/docs/tutorials/realism/sessions) has for its login/action/logout cycle — so sessions here play out one after another rather than concurrently. Modeling many visitors browsing at once needs the pool-in-state pattern from [Correlated events](/docs/tutorials/realism/correlated-events) instead: a dict of in-flight sessions keyed by session id, with each render advancing one entry from the pool.
@@ -460,5 +460,5 @@ The query shown above already groups by `page_type` and counts distinct `session
 - The [Correlated events](/docs/tutorials/realism/correlated-events) lesson for tracking many concurrent visitors in a pool instead of one session at a time
 - The [Generate test data for ClickHouse](/docs/tutorials/delivery/clickhouse) lesson for the HTTP insert mechanics, connection pooling, and `generateRandom` comparison behind this output
 - The [Streaming vs bulk](/docs/tutorials/foundations/streaming-vs-bulk) lesson for live mode's continuous feed versus the bounded sample-mode batch used to inspect this generator
-- The [Scenarios track](/docs/tutorials/scenarios) for the wider picture of applied synthetic data
-- The [Eventum Hub](/hub) for ready-made generators instead of building a funnel from scratch
+- The [Scenarios track](/docs/tutorials/scenarios) for the broader set of scenarios synthetic data solves
+- The [Eventum Hub](/hub) for generators that already model common funnels, instead of starting the FSM from a blank state

@@ -13,7 +13,7 @@ Three rows of hand-typed fixture data confirm that a `transactions` table accept
 
 Copying a production snapshot instead would supply that volume, but it drags real customer names, card details, and order histories into a database any developer on the team can query — a liability a synthetic dataset never carries, since none of it describes a real person or a real purchase. It also goes stale the moment it's taken; regenerating a synthetic dataset costs one command, not a new export.
 
-## Database seeding with realistic data
+## Why CSV for database seeding
 
 A CSV file is the most portable way to get that dataset into a database, because every mainstream engine already has a bulk-import path built around it: PostgreSQL's `COPY`, MySQL's `LOAD DATA INFILE`, and the CSV import wizard built into most GUI database clients all read the same file format. The dataset generated below drops into whatever engine currently backs dev — no custom loader script, no per-database export format to maintain.
 
@@ -281,7 +281,7 @@ No. `chance` values are relative weights, not percentages of a fixed total — E
 No. The same shaped, correlated CSV works as an analytics fixture or an ML training set — anywhere a realistic file beats a handful of hand-written rows. Seeding a database just adds one step after generation, a bulk-import command; analytics and ML workloads typically read the file directly instead.
 </Accordion>
 <Accordion title="How is this different from a load test or a pipeline test?">
-Different question. [Load testing](/docs/tutorials/load-testing) measures how much request volume a target can sustain before it degrades. [Pipeline testing](/docs/tutorials/test-data-pipeline) measures whether one realistic event survives a specific transport and lands intact. Seeding, this lesson's subject, asks neither — it asks whether a database already holding realistic volume and distribution behaves correctly at rest: pagination past page one, query performance at scale, and reports that only break against a rare row a handful of fixtures never produce.
+A related question, but not the same one. [Load testing](/docs/tutorials/load-testing) measures how much request volume a target can sustain before it degrades. [Pipeline testing](/docs/tutorials/test-data-pipeline) measures whether one realistic event survives a specific transport and lands intact. Seeding, this lesson's subject, asks neither — it asks whether a database already holding realistic volume and distribution behaves correctly at rest: pagination past page one, query performance at scale, and reports that only break against a rare row a handful of fixtures never produce.
 </Accordion>
 </Accordions>
 
@@ -290,5 +290,5 @@ Different question. [Load testing](/docs/tutorials/load-testing) measures how mu
 - The [Realistic values](/docs/tutorials/realism/values) lesson for the distributions and weighted choices behind the price ranges and the 80/15/5 transaction mix
 - The [ClickHouse delivery lesson](/docs/tutorials/delivery/clickhouse) for seeding an analytical database directly, with no CSV in between
 - The [Test data pipeline](/docs/tutorials/test-data-pipeline) lesson for testing transport correctness instead of seeding a database at rest
-- The [Scenarios pillar](/docs/tutorials/scenarios) for the wider picture of applied synthetic data
-- The [Eventum Hub](/hub) for ready-made generators instead of building a dataset from scratch
+- The [Scenarios pillar](/docs/tutorials/scenarios) for the course's other synthetic-data scenarios
+- The [Eventum Hub](/hub) for datasets already shaped for common sources, ready to load without building one first

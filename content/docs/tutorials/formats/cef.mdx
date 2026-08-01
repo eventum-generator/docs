@@ -3,9 +3,9 @@ title: "CEF format: header and extension"
 description: How CEF (Common Event Format) structures its header and extension, valid severity values, and escaping rules — plus generating compliant CEF logs with Eventum.
 ---
 
-Validating a SIEM's CEF parser, or a detection rule written against CEF fields, requires CEF events shaped to exercise the exact case under test. A live firewall, intrusion detection system, or ArcSight SmartConnector can produce them, but standing one up is slow and its output arrives on its own schedule, not the tester's. Public examples are equally scarce: the authoritative specification is a vendor PDF, and the page that ranks highest for the format's name is a support-forum thread with a handful of copied lines and no explanation of the structure behind them.
+Validating a SIEM's CEF parser, or a detection rule written against CEF fields, requires CEF events shaped to exercise the exact case under test. A live firewall, intrusion detection system, or ArcSight SmartConnector can produce them, but standing one up is slow and its output arrives on its own schedule, not the tester's. Public examples are equally scarce: the authoritative specification is a vendor PDF, and most search results are forum threads with a few copied lines and no explanation of the structure behind them.
 
-Eventum generates CEF lines directly from a template — a correctly delimited header followed by a correctly escaped extension — and delivers them to whatever the collector listens on, so the parser or the detection rule can be exercised without a real device anywhere in the loop.
+Eventum generates CEF lines directly from a template — a correctly delimited header followed by a correctly escaped extension — and delivers them to whatever the collector listens on. The parser or the detection rule can be exercised against them without a real device in place.
 
 ## What CEF looks like
 
@@ -29,7 +29,7 @@ Every field up to `Severity` is mandatory and positional, delimited by unescaped
 | Name | A short, human-readable description. It should not repeat information already carried by another field: "Connection blocked", not "Connection from 198.51.100.7 blocked on port 22". |
 | Severity | The event's importance: 0–10, or one of `Unknown`, `Low`, `Medium`, `High`, `Very-High`. |
 
-ArcSight's own reference example ties every field to a value:
+Here is ArcSight's reference line, broken down field by field:
 
 ```text title="ArcSight's reference example"
 CEF:0|Security|threatmanager|1.0|100|worm successfully stopped|10|src=10.0.0.1 dst=2.1.2.2 spt=1232
@@ -91,11 +91,11 @@ Every backslash in `C:\Temp\payload.exe` becomes `\\`, in both the Name field an
 
 ## Generate CEF with Eventum
 
-The generator below models a firewall — `Acme NetGuard` — producing two CEF event types: routine policy-blocked connections and rarer, higher-severity intrusion alerts.
+The setup below models a firewall — `Acme NetGuard` — producing two CEF event types: routine policy-blocked connections and rarer, higher-severity intrusion alerts.
 
 ### The templates
 
-Fields are filled with [`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module, so every run produces different but structurally valid lines. `templates/blocked-connection.jinja` renders the routine case, Severity `4` (Medium):
+Each field is drawn from [`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module, so every run produces different but structurally valid lines. `templates/blocked-connection.jinja` renders the routine case, Severity `4` (Medium):
 
 ```jinja title="generators/cef-firewall/templates/blocked-connection.jinja"
 {%- set src_ip = module.rand.network.ip_v4_public() -%}
@@ -121,7 +121,7 @@ Neither template escapes anything, because the IP addresses, ports, and fixed st
 
 ### The generator config
 
-[`mode: chance`](/docs/plugins/event/template/modes#chance) picks one of the two templates per timestamp, weighted so blocked connections dominate and intrusions stay rare. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [tcp](/docs/plugins/output/tcp) output ships each rendered line to the collector's syslog port:
+[`mode: chance`](/docs/plugins/event/template/modes#chance) picks between the two templates per timestamp, weighted so blocked connections dominate and intrusions stay rare. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [tcp](/docs/plugins/output/tcp) output ships each rendered line to the collector's syslog port:
 
 ```yaml title="generators/cef-firewall/generator.yml"
 input:

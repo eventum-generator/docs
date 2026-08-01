@@ -49,9 +49,9 @@ One more flag matters only in live mode: [`--skip-past`](/docs/core/cli/eventum-
 
 ## Making a run finite
 
-Streaming only makes sense for an input that keeps producing. A [cron](/docs/plugins/input/cron) tick with no `end`, a [timer](/docs/plugins/input/timer) with no `repeat` limit, a [time_patterns](/docs/plugins/input/time-patterns) oscillator with `end: "never"` — none of these ever produce a finished run on their own; left in live mode, each is, by design, still going the next time you check. Bulk needs the opposite: a run that actually stops, which is a property of the input plugin, not of sample mode itself. [linspace](/docs/plugins/input/linspace), [timestamps](/docs/plugins/input/timestamps), and [static](/docs/plugins/input/static) are finite by construction — a range, a list, or a fixed count — while `cron` and `timer` need to be told where to stop: `cron`'s `end` field or `timer`'s `repeat` count, the same fields that, left unset, are what makes them run forever in the first place.
+Streaming only makes sense for an input that keeps producing. A [cron](/docs/plugins/input/cron) tick with no `end`, a [timer](/docs/plugins/input/timer) with no `repeat` limit, a [time_patterns](/docs/plugins/input/time-patterns) oscillator with `end: "never"` — none of these ever produce a finished run on their own; left in live mode, each is, by design, still going the next time you check. Bulk needs the opposite: a run that actually stops, which is a property of the input plugin, not of sample mode itself. [linspace](/docs/plugins/input/linspace), [timestamps](/docs/plugins/input/timestamps), and [static](/docs/plugins/input/static) are finite by construction — a range, a list, or a fixed count. Only `cron` and `timer` need to be told where to stop — `cron`'s `end` field, `timer`'s `repeat` count. Left unset, those same fields are exactly what makes them run forever.
 
-Before, a per-second cron with no bound — keeps producing for as long as the generator runs, in either mode:
+Before: a per-second cron with no bound keeps producing for as long as the generator runs, in either mode:
 
 ```yaml
 input:
@@ -136,7 +136,7 @@ Same `generator.yml`, same template, same output path. What changes is only whet
 
 <Accordions>
 <Accordion title="Streaming vs batch data?">
-Streaming paces every event to the clock and keeps producing for as long as the generator runs, so the feed behaves like a live source. Batch — Eventum calls it bulk, produced in [sample mode](/docs/core/concepts/generator#sample-mode) — ignores that pacing and produces a fixed amount of data as fast as the pipeline can move, finishing with a dataset instead of an ongoing feed. Same generator, same events — the difference is entirely in how the run is started.
+Same idea, different name: "batch" is what most tools call what Eventum calls bulk — see [above](#streaming-vs-bulk-two-ways-to-produce-test-data) for how the two differ from streaming.
 </Accordion>
 <Accordion title="How do I generate a finite dataset?">
 Two things need to be true: the input plugin has to actually stop — [linspace](/docs/plugins/input/linspace), [timestamps](/docs/plugins/input/timestamps), and [static](/docs/plugins/input/static) always do, `cron` and `timer` only if `end` or `repeat` is set — and the run needs to be in [sample mode](/docs/core/concepts/generator#sample-mode) (`--live-mode false`) so it completes immediately instead of taking as long in wall-clock time as the schedule spans. A finite input left in live mode still finishes eventually, just not before the last timestamp's real moment arrives.

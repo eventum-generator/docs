@@ -3,9 +3,9 @@ title: Generate test data for ClickHouse
 description: Insert a continuous, time-aware stream of test data into ClickHouse over its HTTP interface — realistic distributions, not a one-shot flat sample from generateRandom.
 ---
 
-A dashboard, a materialized view, and a query tuned for a specific partitioning scheme all need the same raw material: rows already sitting in a ClickHouse table, arriving the way a real source would instead of appearing all at once. Copying production data into a test table carries every customer record and payment detail it holds into an environment built for testing, not for holding it. ClickHouse's own shortcuts for manufacturing rows don't close that gap either: `generateRandom()` fills a table with a fixed batch of independently random values in one shot, and `INSERT ... SELECT` just copies rows that already exist somewhere — production's, usually, which is the very table this is meant to avoid touching — so neither produces a table that fills the way a real source would, over time, with values shaped like the real thing. That's enough to confirm a column accepts the right type, but not to see whether a materialized view keeps up with a real arrival rate, a `TTL` clause expires the right rows, or a monthly partition holds what a dashboard actually expects to query.
+A materialized view has to prove it keeps up with rows arriving continuously; a `TTL` clause needs rows old enough to actually expire; a dashboard query needs a month of partitions to scan. None of that holds against a table filled once and left static. Copying production data fills it but carries every customer record and payment detail into an environment built for testing, not for holding them. ClickHouse's own shortcuts don't help: `generateRandom()` writes one fixed batch of independently random values, and `INSERT ... SELECT` copies rows that already exist somewhere — usually production, the very table this is meant to avoid touching. Both confirm a column accepts the right type; neither shows whether a view keeps up with a real arrival rate or a partition holds what a dashboard expects to query.
 
-Eventum closes that gap with a native `clickhouse` output plugin: point it at a table, describe a row's shape in a template, and it inserts every generated event over ClickHouse's HTTP interface as it's produced — continuously, at a rate shaped to look like real traffic, with values drawn from statistical distributions instead of a single uniform random draw.
+The `clickhouse` output plugin inserts each generated event straight into a table over ClickHouse's HTTP interface, at a rate shaped like real traffic and with values drawn from statistical distributions rather than one uniform random draw. A row's shape lives in a template; the plugin writes it continuously, as events are produced.
 
 ## Inserting test data into ClickHouse over HTTP
 
@@ -33,7 +33,14 @@ SELECT * FROM generateRandom(
 LIMIT 1000;
 ```
 
-That statement fills the table with 1,000 rows in one shot and stops — a genuinely useful way to confirm the table's column types accept the shape of data a real `INSERT` would send, which is exactly the smoke test it's built for. What it doesn't produce is anything resembling a real source: `timestamp` lands on a uniformly random instant across the column's entire representable range instead of clustering near the present, `status` is a uniformly random 16-bit integer rather than the mostly-`200` mix a real API returns, `service`, `host`, and `endpoint` are random strings instead of values drawn from a fixed, meaningful set, and every row is independent, so nothing about one row's `endpoint` says anything about the next row sharing it. None of that matters for a type check. All of it matters for a materialized view that aggregates by `service` over time, a `TTL` policy, or a query that prunes by partition — which is what a continuous, time-aware stream is for.
+That statement fills the table with 1,000 rows in one shot and stops. It's a genuinely useful way to confirm the table's column types accept the shape of data a real `INSERT` would send — exactly the smoke test it's built for. What it doesn't produce is anything resembling a real source:
+
+- `timestamp` lands on a uniformly random instant across the column's entire representable range instead of clustering near the present.
+- `status` is a uniformly random 16-bit integer rather than the mostly-`200` mix a real API returns.
+- `service`, `host`, and `endpoint` are random strings instead of values drawn from a fixed, meaningful set.
+- Every row is independent, so nothing about one row's `endpoint` says anything about the next row sharing it.
+
+None of that matters for a type check. All of it matters for a materialized view that aggregates by `service` over time, a `TTL` policy, or a query that prunes by partition — which is what a continuous, time-aware stream is for.
 
 ## Generate a stream with Eventum
 
@@ -123,7 +130,7 @@ output:
         format: json
 ```
 
-`host`, `database`, and `table` name the destination — `database` falls back to `default` and `table` has no default, so it always needs setting explicitly. `formatter` is set to `json` here, which is also the plugin's default, paired with `input_format`, left unset here to keep its own default of `JSONEachRow` — the pairing described above. Every write from this output goes through a connection pool capped at `pool_maxsize` (default `32`) toward the ClickHouse host; raise it alongside [`generation.max_concurrency`](/docs/core/config/eventum-yml#concurrency-and-ordering) — which itself defaults to `100`, already above `pool_maxsize`'s default — once a generator's actual concurrent write volume is enough to matter, so the pool holds enough connections to keep up rather than discarding them under a burst it wasn't sized for.
+`host`, `database`, and `table` name the destination — `database` falls back to `default` and `table` has no default, so it always needs setting explicitly. `formatter` is set to `json` here, which is also the plugin's default, paired with `input_format`, left unset here to keep its own default of `JSONEachRow` — the pairing described above. Every write from this output goes through a connection pool capped at `pool_maxsize` (default `32`) toward the ClickHouse host. [`generation.max_concurrency`](/docs/core/config/eventum-yml#concurrency-and-ordering) defaults to `100`, already above `pool_maxsize`. Raise `pool_maxsize` to match once a generator's actual concurrent write volume grows — otherwise the pool discards connections under a burst it wasn't sized for.
 
 <Callout type="info">
 No ClickHouse server within reach yet? Eventum opens every configured output plugin before a generator starts producing, so one that cannot reach its target fails the whole run rather than skipping itself. Swap the `clickhouse` block for `stdout` while checking a template and pattern — it renders the identical formatted string `clickhouse` would have sent as one row's JSON body. Point `host` at a real server once one exists; nothing else in the config changes.

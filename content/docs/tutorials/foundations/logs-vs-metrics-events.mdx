@@ -3,19 +3,19 @@ title: "Logs vs metrics vs events: picking the right telemetry shape"
 description: How logs and metrics differ, why each is an event in a different shape, and how to generate a log line, a metric reading, and a structured event with Eventum.
 ---
 
-A ticket asks for the metrics for the checkout service, and that request alone could mean a log line written each time an order fails, a number sampled every few seconds, or a structured record carrying a dozen named fields — three different things to generate, three different destinations, three different volumes. *Log*, *metric*, and *event* get used as if they name the same kind of thing, but a log store, a time-series database, and an event index each expect a specific shape, and a feed built for one doesn't load cleanly into another.
+A ticket asks for the metrics for the checkout service, and that request alone could mean a log line written each time an order fails, a number sampled every few seconds, or a structured record carrying a dozen named fields — a different thing to generate, a different destination, a different volume — three problems wearing one word. *Log*, *metric*, and *event* get used as if they name the same kind of thing, but a log store, a time-series database, and an event index each expect a specific shape, and a feed built for one doesn't load cleanly into another.
 
 Choosing what to generate and where to send it starts with knowing which of the three you need, before a single template gets written.
 
 ## Logs, metrics, and events: three shapes of telemetry
 
-Three terms, three specific things:
+Three terms that get used interchangeably, but name three specific things:
 
 - A **log** is a timestamped textual record of a discrete occurrence — a line of text describing something that happened, written to be read in order, top to bottom.
 - A **metric** is a numeric measurement of a system, sampled or aggregated over time — a single number taken at an instant or rolled up over a window, not a description of an occurrence.
 - An **event** is a structured record of a discrete occurrence carrying named fields — the same occurrence a log describes, kept as data instead of folded into a sentence.
 
-These aren't three independent categories sitting side by side. A log is an event rendered as a line of text: the occurrence and the fields describing it are the same, only the shape changes, from named data to a sentence built for a person to read. A metric sample is an event too, one whose payload happens to be a measurement taken at a point in time rather than a description of what occurred. Events are the general shape; a log and a metric are two specializations of it, each suited to a different question — is this meant to be read on its own, or measured and compared across thousands of samples.
+Each still describes a single occurrence — what differs is the shape it's given and where that shape ends up living.
 
 ## How they differ
 
@@ -27,13 +27,13 @@ The differences show up concretely in what each one is, where it lives, and how 
 | Metrics | A timestamped number, often pre-aggregated | `cpu.usage{host="web-01"} 0.72` | A time-series database | Range queries and aggregation over a window — average, rate, percentile |
 | Events | A timestamped structured record with named fields | `{"event": "order_failed", "order_id": 39402, "reason": "payment declined"}` | An event stream or a document index | Field-level filters and aggregations against the structured payload |
 
-Every row also starts with the same word, timestamped — a hint that logs, metrics, and events aren't different data sources, just different renderings of the same underlying record.
+Every row above starts with the same word, timestamped, because log, metric, and event aren't independent categories: a log is an event rendered as a line of text, a metric is an event whose payload is a measurement, and an event is the general shape the other two specialize from — one suited to being read on its own, the other to being measured and compared across thousands of samples.
 
 ## Where events fit as the common abstraction
 
-Eventum's [three-stage pipeline](/docs/core/concepts/generator#the-three-stage-pipeline) produces events: the input stage decides when one occurs, the event stage decides what it contains, and the output stage decides where it goes. Nothing about that pipeline is specific to a log or a metric — the event stage renders whatever a [template](/docs/plugins/event/template) defines, and the same mechanism that fills in a JSON object with named fields can just as easily render one sentence of plain text or a single labeled number, depending only on what the template writes and which [formatter](/docs/plugins/formatters) serializes the result on the way out.
+Eventum's [three-stage pipeline](/docs/core/concepts/generator#the-three-stage-pipeline) produces events: the input stage decides when one occurs, the event stage decides what it contains, and the output stage decides where it goes. Nothing about that pipeline is specific to a log or a metric — the event stage renders whatever a [template](/docs/plugins/event/template) defines, and the same mechanism that fills in a JSON object with named fields renders one sentence of plain text or a single labeled number, depending only on what the template writes and which [formatter](/docs/plugins/formatters) serializes the result on the way out.
 
-A log line and a metric reading built with Eventum aren't two different tools; they're the same event, shaped by the template to read as a sentence in one case and as a labeled number in the other. Deciding which of the three you're building is a decision made in a template and a formatter, not a choice between separate systems.
+A log line and a metric reading built with Eventum are the same event, shaped differently by the template — one as a sentence, one as a labeled number. The template and the formatter make that call; nothing else in the pipeline does.
 
 ## Generate each with Eventum
 
@@ -102,7 +102,7 @@ Through the [json](/docs/plugins/formatters#json) formatter, each render is a va
 
 <Accordions>
 <Accordion title="Is a log an event?">
-Yes, in the sense that matters here: a log is an event whose payload has been rendered as a line of text instead of kept as named fields. The occurrence being recorded is the same — what changes is whether a program reads a field by name or has to parse a sentence to find the same information. [Structured logging](/docs/tutorials/foundations/structured-logging) covers what's gained by keeping the fields instead of folding them into a sentence.
+Yes — a log is what an event looks like once its fields are folded into a sentence. [Structured logging](/docs/tutorials/foundations/structured-logging) covers what's gained by keeping the fields separate instead.
 </Accordion>
 <Accordion title="Can Eventum generate metrics?">
 Eventum generates metric-shaped events — a template renders a named measurement and a value on the same schedule a real metric would be sampled, as in [the example above](#generate-each-with-eventum), validated by the same [json](/docs/plugins/formatters#json) formatter used for any other event. It is not a metrics aggregator or a time-series database: every value is generated or drifted by the template on each render, not computed as a rollup — a rate, a percentile, an average — from data already produced, and there's no counter, histogram, or query engine behind it.

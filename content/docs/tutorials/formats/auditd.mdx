@@ -3,9 +3,9 @@ title: "auditd log format: multi-record audit.log events and hex-encoded fields"
 description: auditd log format — the audit.log record syntax, multi-record events tied together by a shared audit ID, and hex-encoded fields — and how to generate audit.log entries with Eventum.
 ---
 
-Validating a parser built against `/var/log/audit/audit.log`, or a detection rule written to catch a specific syscall or `execve` pattern, needs audit records shaped exactly the way Linux's own audit subsystem writes them — the `type=`/`msg=audit(...)` envelope, the several lines one logical action actually produces, and the hex-encoded fields mixed in among the plain ones. A real audited host produces the genuine article, but only after an audit rule is actually installed and the exact activity is run under it — one host, one process, one moment, logged once, nowhere near the volume or variety a parser or a detection rule needs to be exercised against.
+Validating a parser built against `/var/log/audit/audit.log`, or a detection rule written to catch a specific syscall or `execve` pattern, needs audit records shaped exactly the way Linux's own audit subsystem writes them — the `type=`/`msg=audit(...)` envelope, the several lines one logical action actually produces, and the hex-encoded fields mixed in among the plain ones. A real audited host produces the same records, but only after an audit rule is installed and the exact activity is run under it — captured once, from a single host, a single process, a single moment, nowhere near the volume or variety a parser or detection rule has to handle.
 
-Eventum renders auditd records directly from a template — the same `type=`/`msg=audit(...)` lines, the same audit ID stitching a multi-record event together, the same hex-encoded fields a real kernel writes — so a parser, a SIEM detection rule, or an ingestion pipeline built against raw `audit.log` syntax can be exercised against a realistic stream without an audited host, a triggered syscall, or a captured log file anywhere in the loop.
+Eventum renders auditd records directly from a template — the same `type=`/`msg=audit(...)` lines, the same audit ID stitching a multi-record event together, the same hex-encoded fields a real kernel writes — so a parser, a SIEM detection rule, or an ingestion pipeline built against raw `audit.log` syntax can be exercised against a realistic stream with no audited host, no triggered syscall, and no captured log file required.
 
 ## The auditd record format
 
@@ -68,14 +68,14 @@ Not every record type joins a group like this one. `USER_LOGIN`, `USER_AUTH`, `U
 
 ## Generate auditd logs with Eventum
 
-The generator below models a fleet of admins already elevated to root — each via an earlier `su` or `sudo` — reading `/etc/passwd` under a rule that tags every privileged command with `key="privileged_commands"`, the same event modeled above.
+What follows models a fleet of admins already elevated to root — each via an earlier `su` or `sudo` — reading `/etc/passwd` under a rule that tags every privileged command with `key="privileged_commands"`, the same event modeled above.
 
 <Steps>
 <Step>
 
 ### Write the multi-record template
 
-Unlike the JSON-based format lessons elsewhere in this track, this template builds no data structure at all — it renders six literal text lines directly, computing the shared audit ID once and reusing it on every line. Fields are filled with [`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module; the audit ID's `serial` component persists across renders in [`shared`](/docs/plugins/event/template/state) state, the same technique the [linux-auditd Hub generator](/hub/linux-auditd) itself uses for its own per-host `event.sequence` counter.
+Unlike the JSON-based format lessons elsewhere in this track, this template builds no data structure at all — it renders six literal text lines directly, computing the shared audit ID once and reusing it on every line. Randomization comes from [`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in module; the audit ID's `serial` component persists across renders in [`shared`](/docs/plugins/event/template/state) state, the same technique the [linux-auditd Hub generator](/hub/linux-auditd) itself uses for its own per-host `event.sequence` counter.
 
 ```jinja title="generators/auditd-raw/templates/privileged-command.jinja"
 {%- set admins = [

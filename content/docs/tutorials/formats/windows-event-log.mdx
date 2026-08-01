@@ -3,9 +3,9 @@ title: "Windows Event Log & Sysmon: generate realistic events"
 description: Channels, EventID, and the XML event model behind Windows Event Log and Sysmon — and how to generate realistic Security and Sysmon events with Eventum.
 ---
 
-Testing a detection rule, a log parser, or a SIEM pipeline against Windows telemetry usually means one of two options: point the tool at a production domain controller, or pull a static EVTX sample from a public forensics repository. The first risks the environment the tool is meant to protect. The second is frozen at capture time, rarely matches your naming conventions or host inventory, and is the same file every other team already downloaded from the same repository.
+Testing a detection rule, a log parser, or a SIEM pipeline against Windows telemetry usually means one of two options: point the tool at a production domain controller, or pull a static EVTX sample from a public forensics repository. The first risks the environment the tool is meant to protect. The second is frozen at capture time, rarely matches the target environment's naming conventions or host inventory, and is the same file every other team already downloaded from the same repository.
 
-Eventum generates fresh Windows Event Log and Sysmon events on demand — parameterized, reproducible, and shaped to the traffic curve you expect — without installing anything on a Windows machine.
+Eventum generates fresh Windows Event Log and Sysmon events on demand — parameterized, reproducible, and shaped to the traffic curve the pipeline expects — without installing anything on a Windows machine.
 
 ## What Windows Event Log looks like
 
@@ -215,7 +215,7 @@ Running the generator above produces one JSON object per event, with the fields 
 EVTX is the binary container Windows actually writes to `C:\Windows\System32\winevt\Logs` — event records encoded as binary XML and grouped into 64 KB chunks alongside the XML templates they reference, not human-readable text. The XML shown in Event Viewer, in Microsoft's own event documentation, and in the example above is a rendering of that binary data, not the storage format itself. Most non-Windows destinations — SIEMs, Elastic Agent, Eventum — skip the binary layer entirely and work with the rendered fields as JSON, which is what the templates above produce directly; no EVTX file is created or parsed at any point.
 </Accordion>
 <Accordion title="How do I feed this into a SIEM?">
-Point the output plugin at your SIEM's ingestion path instead of a file: [opensearch](/docs/plugins/output/opensearch) or [http](/docs/plugins/output/http) for Elastic or OpenSearch, [kafka](/docs/plugins/output/kafka) for a streaming pipeline, [tcp](/docs/plugins/output/tcp) or [udp](/docs/plugins/output/udp) for a syslog-style collector. The input, templates, and sample data stay the same — only the `output` block changes. For a complete, stateful build that indexes correlated Windows Security sessions into OpenSearch, see the [SIEM test data lesson](/docs/tutorials/siem-events).
+Point the output plugin at the SIEM's ingestion path instead of a file: [opensearch](/docs/plugins/output/opensearch) or [http](/docs/plugins/output/http) for Elastic or OpenSearch, [kafka](/docs/plugins/output/kafka) for a streaming pipeline, [tcp](/docs/plugins/output/tcp) or [udp](/docs/plugins/output/udp) for a syslog-style collector. The input, templates, and sample data stay the same — only the `output` block changes. For a complete, stateful build that indexes correlated Windows Security sessions into OpenSearch, see the [SIEM test data lesson](/docs/tutorials/siem-events).
 </Accordion>
 </Accordions>
 

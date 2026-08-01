@@ -3,7 +3,7 @@ title: "Structured logging: from plain text to JSON"
 description: How structured logging differs from plain-text logs, the key-value and JSON conventions it uses, and how to generate structured JSON events with Eventum.
 ---
 
-A service that logs a single sentence per event is simple to write and easy to read on a terminal, until someone has to answer a real question with that log: how many payment failures affected a specific customer in the last hour, or which requests exceeded a set duration. Answering that from a sentence means writing a pattern that matches its exact wording, and that pattern breaks the moment the sentence is reworded, a field moves, or a new one is added, because the only contract between the writer and the reader is prose, and nothing enforces it.
+A service that logs a single sentence per event is simple to write and easy to read on a terminal, until someone has to answer a real question with that log: how many payment failures affected a specific customer in the last hour, or which requests exceeded a set duration. Answering that from a sentence means writing a pattern that matches its exact wording — and that pattern breaks the moment the sentence is reworded, a field moves, or a new one appears. The only contract between writer and reader is prose, and nothing enforces it.
 
 Structured logging replaces that contract with one a program can rely on: each piece of data is emitted as its own named field, in a consistent shape, instead of folded into a sentence. Eventum generates events this way directly from a template — every field rendered on its own — and its JSON formatter validates the result before delivery, so a parser, a search query, or a detection rule can be exercised against realistic structured data without a live service producing it.
 
@@ -37,7 +37,7 @@ Fixing the shape of a log line does not fix what each field is called: two struc
     A["Plain text<br/>one sentence per event"] --> B["Structured<br/>named fields (key-value or JSON)"]
     B --> C["Structured + schema<br/>shared field names (ECS, OCSF)"]`} />
 
-## Structured logging best practices
+## Rules that keep a structured log queryable
 
 A structured log is only as useful as the discipline behind it:
 
@@ -122,7 +122,7 @@ Every line is a complete, independently valid JSON object — the `json` formatt
 JSON is one common structured logging format, not the only one. What makes logging "structured" is that each piece of data is its own named field rather than text folded into a sentence; JSON expresses that as a nested, typed object, and a key-value line (`level=ERROR order_id=39402 user=bob`) expresses the same idea as flat text. JSON is the more common choice today because most log shippers, search backends, and SIEMs parse a JSON object directly, without a separate line grammar configured for it first.
 </Accordion>
 <Accordion title="What's the difference between structured and unstructured logging?">
-Unstructured (plain-text) logging composes a sentence and interpolates variable data into it, so reading that data back means matching the sentence's exact wording. Structured logging emits the same data as named fields in a consistent shape, so a program reads a field by name regardless of anything else in the line. The two can carry identical information — what changes is whether a machine queries it directly or has to reverse-engineer it from prose.
+Unstructured logging composes a sentence and buries the data inside it; structured logging keeps each piece as its own field. See [above](#structured-logging-vs-plain-text) for what that costs a query written against the sentence form.
 </Accordion>
 <Accordion title="Do I need a schema like ECS to have structured logs?">
 No. Structured logging only requires a consistent shape, such as JSON — a service that logs `{"level": "ERROR", "order_id": 39402}` is already structured. A schema such as ECS or OCSF adds a second layer on top: a shared set of field names, so events from different sources use the same name for the same kind of data. That layer matters once more than one source needs to be queried the same way.

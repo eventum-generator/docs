@@ -5,7 +5,7 @@ description: How the syslog PRI value encodes facility and severity, the RFC 316
 
 Testing a collector's parsing rules, an rsyslog or syslog-ng ingestion pipeline, or a SIEM's syslog listener requires messages shaped like what a real server, network appliance, or application actually sends. A live host can produce them, but its output arrives on its own schedule, and most environments run a mix of two incompatible message shapes at once: an older format still emitted by routers, firewalls, and most Unix daemons by default, and a newer one used by modern applications, cloud logging agents, and SIEMs that want structured metadata attached to a message. A parser built or tested against only one of them breaks silently the day a device speaking the other one gets connected.
 
-Eventum renders both shapes directly from a template — the header fields in the exact order each format defines, the PRI value computed from a real facility and severity — and delivers the result over TCP or UDP to whatever the collector listens on, so the parsing rules for either format can be exercised without a real device anywhere in the loop.
+Eventum renders both shapes directly from a template — the header fields in the exact order each format defines, the PRI value computed from a real facility and severity — and delivers the result over TCP or UDP to whatever the collector listens on, so the parsing rules for either format get tested with no real device plugged in to produce them.
 
 ## The two syslog headers
 
@@ -52,7 +52,7 @@ Facilities 4 and 10, and 9 and 15, share the same description in the specificati
 
 A failed SSH login is worth flagging but nowhere near an emergency: facility `4` (security/authorization messages) and severity `4` (Warning) give `PRI = 4 * 8 + 4 = 36`, written `<36>`. Both examples below reuse this exact combination.
 
-RFC 3164 documents what's commonly called BSD syslog: the format nearly every router, firewall, and long-lived Unix daemon still emits by default. A message has three parts — PRI, then a HEADER carrying just a timestamp and a hostname, then a MSG that carries everything else as free text, conventionally shaped as a TAG followed by CONTENT:
+RFC 3164 documents what's typically called BSD syslog: the format nearly every router, firewall, and long-lived Unix daemon still emits by default. A message has three parts — PRI, then a HEADER carrying just a timestamp and a hostname, then a MSG that carries everything else as free text, conventionally shaped as a TAG followed by CONTENT:
 
 ```text
 <PRI>Mmm dd hh:mm:ss HOSTNAME TAG: CONTENT
@@ -110,7 +110,7 @@ The same login failure, now as RFC 5424:
 | STRUCTURED-DATA | `[sshAuth@32473 srcIp="203.0.113.7" user="admin" result="failed"]` | one element, ID `sshAuth@32473`, three key-value pairs |
 | MSG | `Failed password for admin from 203.0.113.7 port 51422 ssh2` | free-text message, same content as the 3164 version |
 
-RFC 3164 is still what most infrastructure emits by default — routers, firewalls, and the syslog daemons on most Linux distributions send it unless reconfigured — so a collector aimed at a real environment has to accept it. RFC 5424 is the better target for anything new: cloud logging agents, modern application frameworks, and any SIEM integration that wants structured metadata attached to a message instead of inventing a private convention for it.
+RFC 3164 is still what most infrastructure emits by default — routers, firewalls, and the syslog daemons on most Linux distributions send it unless reconfigured — so a collector aimed at a real environment has to accept it. RFC 5424 is the better target for anything new: cloud logging agents, modern application frameworks, and any SIEM integration that needs a real home for key-value metadata instead of a private convention bolted onto free text.
 
 ## Generate syslog with Eventum
 
@@ -197,7 +197,7 @@ Both carry the same PRI, `<36>` — facility `4` (security/authorization message
 RFC 5424 for anything new — it is unambiguous, timezone-aware, and gives structured metadata a real place to live instead of being crammed into free text. Reach for RFC 3164 only when the receiving collector or a downstream parser expects it specifically, which today mostly means older network hardware and its matching monitoring stack. The two are not equally tolerant of a mismatch: a strict RFC 5424 parser rejects a 3164 message outright, while a 3164-only parser accepts a 5424 message but mis-splits its fields, since RFC 3164 places no real constraint on what follows the PRI value.
 </Accordion>
 <Accordion title="How do I send this to rsyslog or syslog-ng?">
-Point the generator's output at UDP port 514 (or TCP, if the collector's input module is configured for it) on the host running rsyslog or syslog-ng, exactly as the [udp](/docs/plugins/output/udp) example above does. rsyslog accepts either format on the same listener without extra configuration: its default parser chain tries the RFC 5424 parser first, looking for the sequence `1` immediately after the PRI value, and falls back to the RFC 3164 parser — which accepts nearly any text as a valid message — the moment that check fails. syslog-ng also reads both, though its default source driver commonly separates them by port rather than sniffing content the way rsyslog does; check the driver configuration if a collector needs to be pointed at a specific listener per format.
+Point the generator's output at UDP port 514 (or TCP, if the collector's input module is configured for it) on the host running rsyslog or syslog-ng, exactly as the [udp](/docs/plugins/output/udp) example above does. rsyslog accepts either format on the same listener without extra configuration: its default parser chain tries the RFC 5424 parser first, looking for the sequence `1` immediately after the PRI value, and falls back to the RFC 3164 parser — which accepts nearly any text as a valid message — the moment that check fails. syslog-ng also reads both, though its default source driver usually separates them by port rather than sniffing content the way rsyslog does; check the driver configuration if a collector needs to be pointed at a specific listener per format.
 </Accordion>
 <Accordion title="Which port — 514 vs 6514?">
 514 is the traditional port for plain-text syslog. UDP/514 is a formal IANA registration ([RFC 5426](https://datatracker.ietf.org/doc/html/rfc5426)); TCP/514 is convention only — [RFC 6587](https://datatracker.ietf.org/doc/html/rfc6587), which governs syslog over TCP, explicitly declines to assign it a port and notes that 514/TCP is actually allocated to the unrelated Shell protocol, but nearly every collector listens there anyway. 6514 is [RFC 5425](https://datatracker.ietf.org/doc/html/rfc5425)'s registered port for syslog over TLS, used when the transport itself needs to be encrypted and authenticated — regardless of whether RFC 3164 or RFC 5424 rides inside it. Eventum's [tcp](/docs/plugins/output/tcp) output supports `ssl` and certificate options for that case; [udp](/docs/plugins/output/udp) has no TLS equivalent, since UDP carries no connection to secure.
