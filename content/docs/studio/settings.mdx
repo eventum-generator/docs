@@ -68,11 +68,9 @@ The cards at the top identify the instance and the machine under it, and link th
 
 ### Danger zone
 
-**Restart** rebuilds the whole instance rather than just its generators. It stops the generators and the HTTP server, re-reads [eventum.yml](/docs/core/config/eventum-yml) and [startup.yml](/docs/core/config/startup-yml) from disk, and brings everything back up from what it finds there: logging, the API, the web interface, MCP, and every generator the startup file lists. This is what `SIGHUP` does, and the way a change made to either file outside Studio is picked up.
+**Restart** stops the whole application and starts it again from [eventum.yml](/docs/core/config/eventum-yml) and [startup.yml](/docs/core/config/startup-yml), without ending the process — what `SIGHUP` does, and the way a change made to either file outside Studio is picked up. The server stops with everything else, so the interface is unavailable for a moment.
 
-The operating system process stays the same one throughout, so anything supervising it sees no restart. The interface is unavailable while the server is down.
-
-**Stop** shuts the generators down gracefully and ends the process itself.
+**Stop** shuts the generators down gracefully and ends the process.
 
 <Callout type="warn">
 **Stop** ends the whole Eventum process, including the interface you are using. Starting it again means going back to the terminal and running `eventum run -c eventum.yml`.

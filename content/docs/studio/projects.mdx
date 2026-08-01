@@ -103,7 +103,7 @@ The Console exercises the selected stage on its own, without registering or star
 |-------|------|------------------|
 | Input | Timestamps preview | The timestamps the input plugins would emit, as a distribution and as a list |
 | Event | Event debugger | Events rendered on demand, with the failures behind them |
-| Event | Template state | The live state of the plugin the debugger built |
+| Event | Template state | The live state of the plugin the debugger is running |
 | Output | Formatter preview | Sample events passed through a formatter |
 
 The panel can be collapsed to its header, or maximized over the rest of the workspace.
@@ -128,14 +128,14 @@ Each plugin has its own color in the distribution, stacked where they overlap. F
   alt="The event debugger in the Studio console"
 />
 
-**Start** builds an event plugin from the current configuration and holds it running; **Produce** renders events with it.
+**Start** starts an event plugin from the current configuration and keeps it running; **Produce** renders events with it.
 
 **Event timestamp** and **Tags** stand in for what an input plugin would have supplied. A template that branches on the timestamp or on tags is exercised through these two fields. **Count** produces up to a hundred events from the same values in one run, and with **Auto** on the timestamp is reset to the current time afterwards.
 
 Produced events are listed on the left, with an optional syntax to highlight them by. Failures are listed on the right, each naming the event it happened on, the reason and the traceback.
 
 <Callout type="info">
-The plugin compiles its templates when it starts. After editing a template, **Stop** and **Start** the debugger for the next run to use the new version.
+The plugin reads its templates when it starts and keeps them for the whole session. After editing a template, **Stop** and **Start** the debugger for the next run to use the new version.
 </Callout>
 
 ### Template state

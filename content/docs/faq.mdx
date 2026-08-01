@@ -195,14 +195,14 @@ Use **sample mode** (`live_mode: false`). It generates events as fast as possibl
 ## Deployment and operations
 
 <Accordions>
-<Accordion title="How do I reload configuration without downtime?">
+<Accordion title="How do I apply a configuration change without restarting the process?">
 Send `SIGHUP` to the Eventum process:
 
 ```bash
 kill -HUP $(pidof eventum)
 ```
 
-This triggers a hot reload — all generators are stopped, configuration is re-read, and generators are re-started according to the updated config. The REST API and Studio remain available during the reload.
+This triggers a hot reload: the whole application stops and starts again from `eventum.yml` and `startup.yml`, without the process being replaced. The server stops with everything else, so the REST API and Studio are unreachable for a moment.
 </Accordion>
 
 <Accordion title="Can I start a generator later even though it has autostart: false?">
