@@ -1,0 +1,310 @@
+---
+title: "AWS CloudTrail log format: the Records envelope"
+description: The AWS CloudTrail log format — the Records envelope, camelCase event fields, and userIdentity — and how to generate CloudTrail-compliant records with Eventum.
+---
+
+Validating a CloudTrail parser, or a detection rule written against CloudTrail's own field names, needs event records shaped to the exact case those field names use — `eventName`, not `event_name` or `EventName`; `sourceIPAddress`, not `source_ip_address`. A real AWS account produces those records, but only after the specific API call is triggered and CloudTrail delivers it minutes later, on AWS's schedule rather than a test's — and a single account exercises one code path at a time, not the mix of services and outcomes a parser has to handle.
+
+Eventum renders those records straight from a template — the same flat camelCase fields, the same `Records` envelope CloudTrail writes to S3 — and delivers them on whatever schedule a test sets. A parser, a detection rule, or an ingestion pipeline written against the real field names sees the shape it expects, with no AWS account to configure and no delivery delay to wait out.
+
+## The CloudTrail record format
+
+CloudTrail delivers events to an S3 bucket as gzip-compressed JSON files, one object per delivery interval. Unzipped, every object holds exactly one top-level key, `Records`, whose value is an array of event objects — never a bare array on its own, and never one event per file. [AWS's own CloudTrail log file examples](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-log-file-examples.html) show the shape directly; the record below is one of theirs, trimmed to the fields this lesson covers:
+
+```json title="A CloudTrail log file delivered to S3 (adapted from AWS's own reference example)"
+{
+  "Records": [
+    {
+      "eventVersion": "1.08",
+      "eventTime": "2023-07-19T21:17:28Z",
+      "eventSource": "ec2.amazonaws.com",
+      "eventName": "StartInstances",
+      "awsRegion": "us-east-1",
+      "sourceIPAddress": "192.0.2.0",
+      "userAgent": "aws-cli/2.13.5 Python/3.11.4 Linux/4.14.255-314-253.539.amzn2.x86_64",
+      "userIdentity": {
+        "type": "IAMUser",
+        "principalId": "EXAMPLE6E4XEGITWATV6R",
+        "arn": "arn:aws:iam::123456789012:user/Mateo",
+        "accountId": "123456789012",
+        "accessKeyId": "AKIAIOSFODNN7EXAMPLE",
+        "userName": "Mateo"
+      },
+      "requestParameters": {
+        "instancesSet": { "items": [{ "instanceId": "i-EXAMPLE56126103cb" }] }
+      },
+      "responseElements": {
+        "instancesSet": {
+          "items": [{ "instanceId": "i-EXAMPLE56126103cb", "currentState": { "code": 0, "name": "pending" }, "previousState": { "code": 80, "name": "stopped" } }]
+        }
+      },
+      "eventID": "e755e09c-42f9-4c5c-9064-EXAMPLE228c7",
+      "eventType": "AwsApiCall",
+      "readOnly": false,
+      "managementEvent": true,
+      "recipientAccountId": "123456789012"
+    }
+  ]
+}
+```
+
+Every field inside that one event is flat and camelCase — no nested schema namespaces the way [ECS](/docs/tutorials/formats/ecs) or [OCSF](/docs/tutorials/formats/ocsf) organize their own fields. A handful of fields, `userIdentity` chief among them, nest a small object of their own. A production trail holds many such objects inside one `Records` array per delivered file, not one file per event.
+
+## Key fields of a CloudTrail event
+
+[CloudTrail's own record contents reference](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-event-reference-record-contents.html) documents every field a record can carry; the ones below are the ones a parser or detection rule keys on most:
+
+| Field | Description |
+|-------|-------------|
+| `eventVersion` | The version of the CloudTrail record format itself, e.g. `1.09` — unrelated to the version of the AWS API the call used. |
+| `eventTime` | The UTC time of the request, formatted `YYYY-MM-DDTHH:MM:SSZ`. |
+| `eventSource` | The AWS service the request went to, e.g. `sts.amazonaws.com`, `ec2.amazonaws.com`. |
+| `eventName` | The specific API action that was called, e.g. `AssumeRole`, `DescribeInstances`. |
+| `awsRegion` | The AWS Region the request targeted. |
+| `sourceIPAddress` | The IP address the request came from. |
+| `userAgent` | The client that made the request — the AWS CLI, an SDK, or the Management Console. |
+| `userIdentity` | Who made the call — see the table below. |
+| `requestParameters` | The parameters sent with the request; `null` for calls that take none. |
+| `responseElements` | The result of a create, update, or delete call; `null` for read-only calls and for calls that return nothing. |
+| `eventID` | A GUID CloudTrail assigns to uniquely identify the record. |
+| `eventType` | What kind of activity produced the record — see below. |
+| `readOnly` | `true` for a call that only reads data, `false` for one that changes something. |
+| `managementEvent` | `true` for control-plane activity — creating, modifying, or deleting resources and configuration — as opposed to the data-plane activity a resource generates while running. |
+| `recipientAccountId` | The account that received the event — usually the caller's own account, but can differ for cross-account resource access. |
+| `errorCode` / `errorMessage` | Present only when the call failed — the AWS error code and a description of what went wrong. |
+
+<Callout type="info">
+Real CloudTrail records carry more fields than the set above depending on the event type — `requestID`, `eventCategory`, and `tlsDetails` among them. [CloudTrail's record contents reference](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-event-reference-record-contents.html) documents the rest.
+</Callout>
+
+`eventType` identifies what kind of activity produced the record. Most events use one of two values: `AwsApiCall` for an ordinary API call, or `AwsConsoleSignIn` for a console sign-in — CloudTrail defines a few narrower values too, for service-generated and VPC-endpoint activity, that this lesson does not generate.
+
+`userIdentity` is itself an object, [documented separately by AWS](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-event-reference-user-identity.html):
+
+| Field | Description |
+|-------|-------------|
+| `type` | The kind of identity that made the call — `IAMUser`, `AssumedRole`, `Root`, `FederatedUser`, `AWSService`, and several other values for narrower cases. |
+| `principalId` | A unique identifier for the identity — for temporary credentials, this includes the session name. |
+| `arn` | The full ARN of the identity that made the call. |
+| `accountId` | The account that owns the identity. |
+| `accessKeyId` | The access key that signed the request — `AKIA`-prefixed for a long-term IAM user key, `ASIA`-prefixed for temporary credentials issued by STS. |
+| `userName` | The identity's friendly name, when `type` provides one. |
+| `sessionContext` | Present only when the request used temporary credentials — names how they were obtained (`sessionIssuer`) and whether the session used MFA (`attributes.mfaAuthenticated`). |
+
+`type` alone has [more than half a dozen possible values](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-event-reference-user-identity.html) beyond the ones named above; `IAMUser` and `AssumedRole` cover the large majority of ordinary activity in most accounts.
+
+## Generate CloudTrail records with Eventum
+
+This section builds a small multi-account AWS organization's traffic — deployments that assume a role far more often than anyone signs into the console by hand:
+
+<Steps>
+<Step>
+
+### Write the CloudTrail event templates
+
+[`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module, supplies every field. Each template builds the record as a single Jinja mapping and serializes it in one step with the built-in `tojson` filter, the same technique the [ECS lesson](/docs/tutorials/formats/ecs) uses for its own nested event shape — CloudTrail's `userIdentity`, `requestParameters`, and `responseElements` all nest the same way.
+
+`templates/assume-role.jinja` renders the common case — an IAM user in one of three accounts assuming a role to run a deployment:
+
+```jinja title="generators/cloudtrail-records/templates/assume-role.jinja"
+{%- set account_id = module.rand.choice(["111122223333", "444455556666", "777788889999"]) -%}
+{%- set user_name = module.rand.choice(["morgan.lee", "priya.desai", "diego.alvarez", "hannah.becker"]) -%}
+{%- set role_name = module.rand.choice(["DevOpsDeployRole", "ReadOnlyAuditRole", "CI-DeployRole"]) -%}
+{%- set principal_id = "AIDA" ~ module.rand.string.letters_uppercase(8) ~ module.rand.string.digits(8) -%}
+{%- set access_key_id = "AKIA" ~ module.rand.string.letters_uppercase(8) ~ module.rand.string.digits(8) -%}
+{%- set temp_access_key_id = "ASIA" ~ module.rand.string.letters_uppercase(8) ~ module.rand.string.digits(8) -%}
+{%- set assumed_role_id = "AROA" ~ module.rand.string.letters_uppercase(8) ~ module.rand.string.digits(8) -%}
+{%- set session_name = "deploy-" ~ module.rand.string.hex(8) -%}
+{%- set src_ip = module.rand.network.ip_v4_public() -%}
+{%- set record = {
+    "eventVersion": "1.09",
+    "eventTime": timestamp.strftime('%Y-%m-%dT%H:%M:%SZ'),
+    "eventSource": "sts.amazonaws.com",
+    "eventName": "AssumeRole",
+    "awsRegion": "us-east-1",
+    "sourceIPAddress": src_ip,
+    "userAgent": "aws-cli/2.15.22 Python/3.11.8 Linux/6.5.0",
+    "userIdentity": {
+        "type": "IAMUser",
+        "principalId": principal_id,
+        "arn": "arn:aws:iam::" ~ account_id ~ ":user/" ~ user_name,
+        "accountId": account_id,
+        "accessKeyId": access_key_id,
+        "userName": user_name
+    },
+    "requestParameters": {
+        "roleArn": "arn:aws:iam::" ~ account_id ~ ":role/" ~ role_name,
+        "roleSessionName": session_name,
+        "durationSeconds": 3600
+    },
+    "responseElements": {
+        "credentials": {
+            "accessKeyId": temp_access_key_id,
+            "sessionToken": module.rand.string.hex(64)
+        },
+        "assumedRoleUser": {
+            "assumedRoleId": assumed_role_id ~ ":" ~ session_name,
+            "arn": "arn:aws:sts::" ~ account_id ~ ":assumed-role/" ~ role_name ~ "/" ~ session_name
+        }
+    },
+    "eventID": module.rand.crypto.uuid4(),
+    "eventType": "AwsApiCall",
+    "readOnly": false,
+    "managementEvent": true,
+    "recipientAccountId": account_id
+} -%}
+{{ record | tojson }}
+```
+
+`accountId`, `userName`, and `roleName` are drawn from small fixed pools, the same technique the [ECS lesson](/docs/tutorials/formats/ecs) uses for its own hostname pool — enough variety to look like a real multi-account organization without needing a real one. `accessKeyId` follows AWS's own prefix convention: `AKIA` for the caller's long-term IAM user key, `ASIA` for the temporary credentials returned in `responseElements.credentials`. `sessionContext` is left out of `userIdentity` here, since this caller authenticates with that long-term key directly rather than a session already in progress — the Key fields section above covers what it holds when one is present.
+
+`templates/console-login.jinja` renders the rarer case — a console sign-in, close to the roughly 1-in-6 share the [cloud-aws-cloudtrail Hub generator](/hub/cloud-aws-cloudtrail) assigns this same action relative to `AssumeRole`:
+
+```jinja title="generators/cloudtrail-records/templates/console-login.jinja"
+{%- set account_id = module.rand.choice(["111122223333", "444455556666", "777788889999"]) -%}
+{%- set user_name = module.rand.choice(["morgan.lee", "priya.desai", "diego.alvarez", "hannah.becker"]) -%}
+{%- set principal_id = "AIDA" ~ module.rand.string.letters_uppercase(8) ~ module.rand.string.digits(8) -%}
+{%- set src_ip = module.rand.network.ip_v4_public() -%}
+{%- set mfa_used = module.rand.chance(0.4) -%}
+{%- set success = module.rand.chance(0.92) -%}
+{%- set user_agent = module.rand.choice([
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+]) -%}
+{%- set record = {
+    "eventVersion": "1.09",
+    "eventTime": timestamp.strftime('%Y-%m-%dT%H:%M:%SZ'),
+    "eventSource": "signin.amazonaws.com",
+    "eventName": "ConsoleLogin",
+    "awsRegion": "us-east-1",
+    "sourceIPAddress": src_ip,
+    "userAgent": user_agent,
+    "userIdentity": {
+        "type": "IAMUser",
+        "principalId": principal_id,
+        "arn": "arn:aws:iam::" ~ account_id ~ ":user/" ~ user_name,
+        "accountId": account_id,
+        "userName": user_name
+    },
+    "requestParameters": none,
+    "responseElements": {
+        "ConsoleLogin": "Success" if success else "Failure"
+    },
+    "additionalEventData": {
+        "MFAUsed": "Yes" if mfa_used else "No"
+    },
+    "eventID": module.rand.crypto.uuid4(),
+    "eventType": "AwsConsoleSignIn",
+    "readOnly": false,
+    "managementEvent": true,
+    "recipientAccountId": account_id
+} -%}
+{%- if not success -%}
+{%- do record.update({"errorMessage": "Failed authentication"}) -%}
+{%- endif -%}
+{{ record | tojson }}
+```
+
+A sign-in succeeds 92% of the time here; `module.rand.chance` decides the outcome and the record's own fields follow it — `responseElements.ConsoleLogin` reads `Success` or `Failure`, and `errorMessage` is added, via `record.update`, only when it does not. `requestParameters` is `null` on every sign-in — a `ConsoleLogin` call carries no request body of its own.
+
+</Step>
+<Step>
+
+### Configure the generator
+
+Per timestamp, [`mode: chance`](/docs/plugins/event/template/modes#chance) selects between the two templates, weighted so `AssumeRole` dominates and console sign-ins stay a minority — the same 85/15 split the [ECS](/docs/tutorials/formats/ecs) and [NDJSON](/docs/tutorials/formats/ndjson) lessons use for their own common/rare pairs. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [file](/docs/plugins/output/file) output writes each record through the [json](/docs/plugins/formatters#json) formatter — one complete CloudTrail record per line, the schema a parser or validator checks a record against directly:
+
+```yaml title="generators/cloudtrail-records/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: chance
+    templates:
+      - assume_role:
+          template: templates/assume-role.jinja
+          chance: 85
+      - console_login:
+          template: templates/console-login.jinja
+          chance: 15
+
+output:
+  - file:
+      path: output/cloudtrail.json
+      formatter:
+        format: json
+```
+
+`json` validates each record and compacts it to one line regardless of how the template itself is indented — useful here, since the Jinja mapping above spans many lines for readability. This is the per-record schema — what a parser checks one record at a time — not the batch shape CloudTrail actually delivers to S3; the next step reproduces that.
+
+</Step>
+<Step>
+
+### Reproduce the S3 delivery envelope
+
+CloudTrail never delivers a bare stream of records — every S3 object is the `Records` wrapper from [the section above](#the-cloudtrail-record-format). Two formatters aggregate a whole batch into one output string ([formatter reference](/docs/plugins/formatters#per-event-vs-per-batch)), but only one of them produces a named key: [`json-batch`](/docs/plugins/formatters#json-batch) collects a batch into a bare `[...]` array, while [`template-batch`](/docs/plugins/formatters#template-batch) hands the whole batch to a Jinja template and lets it decide the wrapper — which is what a literal `Records` key needs. Swap the output block for:
+
+```yaml title="generators/cloudtrail-records/generator.yml (output block only — input and event stay the same)"
+output:
+  - file:
+      path: output/cloudtrail-records.json
+      formatter:
+        format: template-batch
+        template: '{"Records": [{{ events | join(", ") }}]}'
+```
+
+`template-batch` exposes the whole batch as `events`, a list of the raw strings each template rendered — already valid JSON text apiece, not parsed objects. `events | join(", ")` concatenates those strings as they are, so wrapping the result in `[...]` reassembles a genuine JSON array; writing `{{ events }}` directly instead would print Jinja's own textual representation of that list — comma-separated and single-quoted, not valid JSON at all. The bracket and the join are what turn a batch of independent records into the array CloudTrail's own `Records` key expects.
+
+</Step>
+</Steps>
+
+## The result
+
+Running the generator from the previous step in live mode for a short burst produces a steady stream, one record per second, `console_login` turning up close to its configured 15% share. Four consecutive lines from an actual run:
+
+```json title="output/cloudtrail.json"
+{"awsRegion": "us-east-1", "eventID": "6744070a-36de-48d6-a623-1b73eecddb98", "eventName": "AssumeRole", "eventSource": "sts.amazonaws.com", "eventTime": "2026-07-17T17:25:51Z", "eventType": "AwsApiCall", "eventVersion": "1.09", "managementEvent": true, "readOnly": false, "recipientAccountId": "111122223333", "requestParameters": {"durationSeconds": 3600, "roleArn": "arn:aws:iam::111122223333:role/CI-DeployRole", "roleSessionName": "deploy-52428934"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::111122223333:assumed-role/CI-DeployRole/deploy-52428934", "assumedRoleId": "AROALPNWYSCZ21373705:deploy-52428934"}, "credentials": {"accessKeyId": "ASIADCENDLJI63843220", "sessionToken": "2470ea39a9f90c4cee58fc3692c658669512b126ba0c259dc880869122e3d4ca"}}, "sourceIPAddress": "201.186.144.205", "userAgent": "aws-cli/2.15.22 Python/3.11.8 Linux/6.5.0", "userIdentity": {"accessKeyId": "AKIADQAMYBPJ36610238", "accountId": "111122223333", "arn": "arn:aws:iam::111122223333:user/hannah.becker", "principalId": "AIDAZGZRGLER73255734", "type": "IAMUser", "userName": "hannah.becker"}}
+{"awsRegion": "us-east-1", "eventID": "a3278d5a-19dd-43f4-80c8-d2e78a556764", "eventName": "AssumeRole", "eventSource": "sts.amazonaws.com", "eventTime": "2026-07-17T17:25:52Z", "eventType": "AwsApiCall", "eventVersion": "1.09", "managementEvent": true, "readOnly": false, "recipientAccountId": "777788889999", "requestParameters": {"durationSeconds": 3600, "roleArn": "arn:aws:iam::777788889999:role/CI-DeployRole", "roleSessionName": "deploy-fc7af4da"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::777788889999:assumed-role/CI-DeployRole/deploy-fc7af4da", "assumedRoleId": "AROAHNSZXTBN47215902:deploy-fc7af4da"}, "credentials": {"accessKeyId": "ASIASGYDEFTA32984751", "sessionToken": "6a91fc62a42ba0e616aa9a49a9192215cc72594364e5168d0c9a2d8d801a74b7"}}, "sourceIPAddress": "196.74.51.180", "userAgent": "aws-cli/2.15.22 Python/3.11.8 Linux/6.5.0", "userIdentity": {"accessKeyId": "AKIAPCLHTJOP70692867", "accountId": "777788889999", "arn": "arn:aws:iam::777788889999:user/morgan.lee", "principalId": "AIDADZHMDQAR94347894", "type": "IAMUser", "userName": "morgan.lee"}}
+{"additionalEventData": {"MFAUsed": "No"}, "awsRegion": "us-east-1", "eventID": "c9612245-893d-4bd2-9354-83c2784c98bc", "eventName": "ConsoleLogin", "eventSource": "signin.amazonaws.com", "eventTime": "2026-07-17T17:25:53Z", "eventType": "AwsConsoleSignIn", "eventVersion": "1.09", "managementEvent": true, "readOnly": false, "recipientAccountId": "777788889999", "requestParameters": null, "responseElements": {"ConsoleLogin": "Success"}, "sourceIPAddress": "198.61.173.73", "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15", "userIdentity": {"accountId": "777788889999", "arn": "arn:aws:iam::777788889999:user/diego.alvarez", "principalId": "AIDANLPRZBMB13811225", "type": "IAMUser", "userName": "diego.alvarez"}}
+{"awsRegion": "us-east-1", "eventID": "d5a90865-be9f-4a1f-858d-d3204470b2eb", "eventName": "AssumeRole", "eventSource": "sts.amazonaws.com", "eventTime": "2026-07-17T17:25:54Z", "eventType": "AwsApiCall", "eventVersion": "1.09", "managementEvent": true, "readOnly": false, "recipientAccountId": "111122223333", "requestParameters": {"durationSeconds": 3600, "roleArn": "arn:aws:iam::111122223333:role/DevOpsDeployRole", "roleSessionName": "deploy-1c966eda"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::111122223333:assumed-role/DevOpsDeployRole/deploy-1c966eda", "assumedRoleId": "AROASXETSZUD11620091:deploy-1c966eda"}, "credentials": {"accessKeyId": "ASIABFASVOIF73488789", "sessionToken": "53eb4562c21cf50d680e6e67f0d0a114878f9596768ae5b150b228d98b1751ff"}}, "sourceIPAddress": "170.133.244.178", "userAgent": "aws-cli/2.15.22 Python/3.11.8 Linux/6.5.0", "userIdentity": {"accessKeyId": "AKIAGECGOLDL04697431", "accountId": "111122223333", "arn": "arn:aws:iam::111122223333:user/diego.alvarez", "principalId": "AIDAOLFYPPHA59776030", "type": "IAMUser", "userName": "diego.alvarez"}}
+```
+
+The first, second, and fourth lines are `AssumeRole` calls against three different accounts; the third is the `AwsConsoleSignIn` in between, `responseElements.ConsoleLogin` reading `Success`. A failed sign-in from a separate run carries the same shape with two fields flipped:
+
+```json title="A failed console sign-in, from a separate run"
+{"additionalEventData": {"MFAUsed": "Yes"}, "awsRegion": "us-east-1", "errorMessage": "Failed authentication", "eventID": "d74a6938-0417-44d4-9f5c-bbb5d1c3e641", "eventName": "ConsoleLogin", "eventSource": "signin.amazonaws.com", "eventTime": "2026-07-17T17:23:43Z", "eventType": "AwsConsoleSignIn", "eventVersion": "1.09", "managementEvent": true, "readOnly": false, "recipientAccountId": "444455556666", "requestParameters": null, "responseElements": {"ConsoleLogin": "Failure"}, "sourceIPAddress": "136.14.207.24", "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15", "userIdentity": {"accountId": "444455556666", "arn": "arn:aws:iam::444455556666:user/diego.alvarez", "principalId": "AIDAVKIOVJAK71473602", "type": "IAMUser", "userName": "diego.alvarez"}}
+```
+
+`responseElements.ConsoleLogin` reads `Failure` and `errorMessage` appears — present only because this attempt did not succeed, exactly as the Key fields section describes.
+
+Swapping to the `template-batch` output from the step above produces a different shape entirely — not a per-record stream, but a single JSON object per batch, its `Records` array holding every record that batch contained:
+
+```json title="output/cloudtrail-records.json"
+{"Records": [{"awsRegion": "us-east-1", "eventID": "2405d5d8-79b9-4e3a-81cd-a3b259d1779a", "eventName": "AssumeRole", "eventSource": "sts.amazonaws.com", "eventTime": "2026-07-17T17:26:42Z", "eventType": "AwsApiCall", "eventVersion": "1.09", "managementEvent": true, "readOnly": false, "recipientAccountId": "777788889999", "requestParameters": {"durationSeconds": 3600, "roleArn": "arn:aws:iam::777788889999:role/DevOpsDeployRole", "roleSessionName": "deploy-d64fadeb"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::777788889999:assumed-role/DevOpsDeployRole/deploy-d64fadeb", "assumedRoleId": "AROAOHTMVGOQ97546276:deploy-d64fadeb"}, "credentials": {"accessKeyId": "ASIAPIYHWTMC06659140", "sessionToken": "c997c0f487750f3703c6edc1650e21b378152a18edfe0e7fb7f54c966c2639d4"}}, "sourceIPAddress": "201.16.102.233", "userAgent": "aws-cli/2.15.22 Python/3.11.8 Linux/6.5.0", "userIdentity": {"accessKeyId": "AKIAHJNZPSGY56402318", "accountId": "777788889999", "arn": "arn:aws:iam::777788889999:user/priya.desai", "principalId": "AIDAORJUFOQW84574538", "type": "IAMUser", "userName": "priya.desai"}}, {"awsRegion": "us-east-1", "eventID": "58b3f050-1674-4f1f-8368-751be74fe07a", "eventName": "AssumeRole", "eventSource": "sts.amazonaws.com", "eventTime": "2026-07-17T17:26:42Z", "eventType": "AwsApiCall", "eventVersion": "1.09", "managementEvent": true, "readOnly": false, "recipientAccountId": "111122223333", "requestParameters": {"durationSeconds": 3600, "roleArn": "arn:aws:iam::111122223333:role/DevOpsDeployRole", "roleSessionName": "deploy-35af6c90"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::111122223333:assumed-role/DevOpsDeployRole/deploy-35af6c90", "assumedRoleId": "AROAXRJTQXNB15780269:deploy-35af6c90"}, "credentials": {"accessKeyId": "ASIAMMDIHIRE12817713", "sessionToken": "7d5ce0aaaa6fa3ba4e5bffa8ed6fff78df7b34658dee91457590cc4b231042bf"}}, "sourceIPAddress": "208.134.186.179", "userAgent": "aws-cli/2.15.22 Python/3.11.8 Linux/6.5.0", "userIdentity": {"accessKeyId": "AKIAPOEOAVJF59014958", "accountId": "111122223333", "arn": "arn:aws:iam::111122223333:user/diego.alvarez", "principalId": "AIDAOUOLQOBY03768790", "type": "IAMUser", "userName": "diego.alvarez"}}, {"awsRegion": "us-east-1", "eventID": "bbee1d49-b0c3-416d-9b39-a667bafb18cb", "eventName": "AssumeRole", "eventSource": "sts.amazonaws.com", "eventTime": "2026-07-17T17:26:42Z", "eventType": "AwsApiCall", "eventVersion": "1.09", "managementEvent": true, "readOnly": false, "recipientAccountId": "111122223333", "requestParameters": {"durationSeconds": 3600, "roleArn": "arn:aws:iam::111122223333:role/CI-DeployRole", "roleSessionName": "deploy-5ef96124"}, "responseElements": {"assumedRoleUser": {"arn": "arn:aws:sts::111122223333:assumed-role/CI-DeployRole/deploy-5ef96124", "assumedRoleId": "AROAFUPIDPYP64043815:deploy-5ef96124"}, "credentials": {"accessKeyId": "ASIAVQXBEXXX68850070", "sessionToken": "7d4b29105c930a179fb7b1af9bc78a02efc8ceba85c3137b4b8381b7acccb48e"}}, "sourceIPAddress": "188.32.116.163", "userAgent": "aws-cli/2.15.22 Python/3.11.8 Linux/6.5.0", "userIdentity": {"accessKeyId": "AKIANLTUQVUU90706873", "accountId": "111122223333", "arn": "arn:aws:iam::111122223333:user/priya.desai", "principalId": "AIDAJKDHWJPJ65518893", "type": "IAMUser", "userName": "priya.desai"}}]}
+```
+
+The result is the same envelope [the section above](#the-cloudtrail-record-format) described — a single JSON object with one `Records` array, holding three complete records — now produced by Eventum instead of quoted from AWS's docs. Three shapes have appeared across this lesson, and a pipeline built against CloudTrail needs to know which one it is looking at: the per-record camelCase schema `json` produces above, the batched `Records` envelope `template-batch` reproduces here, and the ECS-normalized `aws.cloudtrail.*` document a collector like Filebeat's AWS module produces once it parses either one — covered in the [ECS lesson](/docs/tutorials/formats/ecs), not this page.
+
+## FAQ
+
+<Accordions>
+<Accordion title="Why not use json-batch for the Records envelope?">
+`json-batch` collects a batch into a bare JSON array — `[{...}, {...}]` — with no key wrapping it, because it has no way to know what that key should be called. CloudTrail's own envelope is a JSON object with a `Records` field, not a bare array, so only a formatter that lets you author the wrapper yourself can reproduce it — which is exactly what `template-batch` is for. Any destination that already expects a bare array — an HTTP endpoint accepting a batch payload, among others — is what `json-batch` is for instead.
+</Accordion>
+<Accordion title="Do all CloudTrail events carry requestParameters and responseElements?">
+Both fields are always present in the record, but either can be `null`. `requestParameters` is `null` for calls that take none, like the `ConsoleLogin` example above. `responseElements` is `null` for every read-only call (`DescribeInstances`, `GetCallerIdentity`, and similar `Describe`/`List`/`Get` actions) and for write calls that return nothing — AWS's own reference singles out `responseElements` as present only for actions that create, update, or delete something. A parser that assumes both fields always hold an object breaks on exactly these records.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [formats field guide](/docs/tutorials/formats) covering every supported log and event shape
+- The [NDJSON lesson](/docs/tutorials/formats/ndjson) for the per-record stream shape on its own terms, independent of any particular schema
+- The [ECS lesson](/docs/tutorials/formats/ecs) for the schema CloudTrail records get mapped into downstream
+- The [formatters reference](/docs/plugins/formatters) for every formatter used above, `template-batch` included
+- The [Stream to your stack](/docs/tutorials/delivery) lessons, and specifically [OpenSearch delivery](/docs/tutorials/delivery/opensearch), for indexing generated records into a real cluster
+- The [detection-testing lesson](/docs/tutorials/detection-testing) for planting an attack-shaped pattern in a generated stream and testing a Sigma rule against it — `AssumeRole` and `ConsoleLogin` are as common a detection target as Windows Security's own logon events
+- The [cloud-aws-cloudtrail](/hub/cloud-aws-cloudtrail) generator in the Eventum Hub for the downstream ECS-mapped form of this same source

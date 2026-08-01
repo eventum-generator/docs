@@ -1,0 +1,44 @@
+---
+title: "Eventum 2.7.0: The Studio Refresh"
+description: "Eventum Studio gets one design system, a project page reorganised around building a generator, and live reporting on a running one. Renaming arrives for every object, and MCP agents get the operator's tools."
+date: "2026-08-01T18:00:00"
+author: "Eventum Team"
+tags:
+  - release
+---
+
+Eventum 2.7.0 is out. Studio carries most of the release: one design system across every screen, a project page reorganised around the work of building a generator, and live reporting on the instance and Monitoring pages. Renaming arrives for every object, and agents over MCP get the tools an operator uses.
+
+## Studio
+
+The [project page](/docs/studio/projects) is now a docked workspace — the files, the configuration and the debug console in one layout, with a single Save covering the configuration and every edited file at once. Debug results survive moving between stages, and a `generator.yml` that fails to parse opens in recovery mode instead of shutting the project.
+
+<ThemedImage
+  lightSrc="/images/studio_ui/project_workspace_light.png"
+  darkSrc="/images/studio_ui/project_workspace_dark.png"
+  alt="The project workspace in Eventum Studio"
+  className="rounded-lg border mt-2"
+/>
+
+[Monitoring](/docs/studio/monitoring) and the [instance page](/docs/studio/instances#instance-page) report a running pipeline live: stage throughput, failures over a rolling window, each instance's share of the output load, and host resources. The lists carry the same figures as sortable columns, and their filters live in the page address, so a filtered view can be bookmarked or sent on.
+
+<ThemedImage
+  lightSrc="/images/studio_ui/monitoring_light.png"
+  darkSrc="/images/studio_ui/monitoring_dark.png"
+  alt="The Monitoring dashboard in Eventum Studio"
+  className="rounded-lg border mt-2"
+/>
+
+## Renaming
+
+Projects, instances, scenarios and secrets can be renamed instead of recreated, and Eventum repoints what refers to them. The exception is a `${secrets.<name>}` written inside a configuration, so the dialog lists the projects reading that secret first. The same operations are available over the REST API and to an agent.
+
+## Agents
+
+An agent could already write generators over MCP and start them. It now also handles [scenarios](/docs/mcp/scenarios), the shared global state, the settings and the lifecycle of the instance itself — everything that writes still behind `server.mcp.allow_write`.
+
+## Upgrade notes
+
+A generator configuration no longer expands dotted keys, so nested settings are spelled as blocks — `formatter: {format: plain}` rather than `formatter.format: plain`; the shorthand keeps working in `eventum.yml`, `startup.yml` and time-pattern files. The `opensearch` and `http` outputs verify TLS certificates by default, so an endpoint with a self-signed or internal-CA certificate needs `ca_cert` pointed at the issuing CA, or `verify: false`. And `server.ui_enabled` and `server.api_enabled` are deprecated in favour of `server.ui.enabled` and `server.api.enabled`, warning at startup until they go away in 2.8.
+
+The release also settles certificate paths in the ClickHouse, OpenSearch and HTTP outputs, dotted names in `${params.*}` and `${secrets.*}`, and the failure counters that account for every event a destination or a formatter refuses. The full list is in the [2.7.0 changelog](/docs/changelog/2.7.0).

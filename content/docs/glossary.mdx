@@ -49,7 +49,7 @@ A [picking mode](/docs/core/concepts/producing#picking-modes) that cycles throug
 
 #### Chance
 
-A [picking mode](/docs/core/concepts/producing#picking-modes) that selects a template using weighted probabilities. Each template has a `chance` value (0.0–1.0); the chances across all templates must sum to 1.0.
+A [picking mode](/docs/core/concepts/producing#picking-modes) that selects a template using weighted probabilities. Each template's `chance` is a relative weight — only the ratio between templates matters, so the values need not sum to 1.
 
 #### Cryptfile
 
@@ -95,13 +95,13 @@ The configuration file for a single generator. Defines the input plugin(s), even
 
 #### Globals
 
-A state scope shared across all generators in the application. Accessible as `globals` in templates. Thread-safe — reads and writes are synchronized. Useful for cross-generator coordination. See [Producing events — State](/docs/core/concepts/producing#state).
+A state scope shared across all generators in the application. Accessible as `globals` in templates. Thread-safe — reads and writes are synchronized. Useful for cross-generator coordination. See [Producing events — State](/docs/core/concepts/producing#state-management).
 
 ## H
 
 #### Hot reload
 
-Reloading configuration without stopping the application. Triggered by sending `SIGHUP` to the Eventum process or clicking **Restart** in Studio. All generators stop, configuration is re-read, and generators restart with updated settings.
+Stopping the whole application and starting it again from its configuration files, without ending the process. Triggered by sending `SIGHUP` to the Eventum process or clicking **Restart** in Studio.
 
 ## I
 
@@ -131,7 +131,7 @@ The default operating mode (`live_mode: true`). Timestamps are released at their
 
 #### Locals
 
-A state scope private to a single template. Each template has its own `locals` dictionary, invisible to other templates. Useful for per-template counters and accumulators. See [Producing events — State](/docs/core/concepts/producing#state).
+A state scope private to a single template. Each template has its own `locals` dictionary, invisible to other templates. Useful for per-template counters and accumulators. See [Producing events — State](/docs/core/concepts/producing#state-management).
 
 ## M
 
@@ -201,7 +201,7 @@ An [event plugin](/docs/plugins/event/replay) that reads events from existing lo
 
 #### REST API
 
-HTTP endpoints for programmatic control of Eventum — managing generators, querying metrics, reading logs, and modifying configuration. Enabled via `api_enabled: true` in `eventum.yml`. See [API reference](/docs/api).
+HTTP endpoints for programmatic control of Eventum — managing generators, querying metrics, reading logs, and modifying configuration. Enabled via `api.enabled: true` in `eventum.yml`. See [API reference](/docs/api).
 
 ## S
 
@@ -223,7 +223,7 @@ Encrypted credentials stored in the [keyring](#keyring) and referenced in config
 
 #### Shared
 
-A state scope visible to all templates within the same generator. Accessible as `shared` in templates. Useful for cross-template coordination like maintaining a shared counter or session pool. See [Producing events — State](/docs/core/concepts/producing#state).
+A state scope visible to all templates within the same generator. Accessible as `shared` in templates. Useful for cross-template coordination like maintaining a shared counter or session pool. See [Producing events — State](/docs/core/concepts/producing#state-management).
 
 #### Skip past
 

@@ -15,10 +15,10 @@ Indexes events into an OpenSearch (or Elasticsearch-compatible) cluster. Uses th
 | `index` | string | — | Required. Non-empty. | Target index name. |
 | `connect_timeout` | integer | `10` | >= 1 | Connection timeout in seconds. |
 | `request_timeout` | integer | `300` | >= 1 | Full request timeout in seconds. |
-| `verify` | boolean | `false` | — | Whether to verify the server's TLS certificate. |
-| `ca_cert` | path or null | `null` | Non-empty if set. | Path to CA certificate file. |
-| `client_cert` | path or null | `null` | Non-empty if set. | Path to client certificate. Must be provided together with `client_cert_key`. |
-| `client_cert_key` | path or null | `null` | Non-empty if set. | Path to client certificate key. Must be provided together with `client_cert`. |
+| `verify` | boolean | `true` | — | Whether to verify the server's TLS certificate. |
+| `ca_cert` | path or null | `null` | — | Path to CA certificate file. |
+| `client_cert` | path or null | `null` | — | Path to client certificate. Must be provided together with `client_cert_key`. |
+| `client_cert_key` | path or null | `null` | — | Path to client certificate key. Must be provided together with `client_cert`. |
 | `proxy_url` | URL or null | `null` | Valid HTTP/HTTPS URL. | Proxy address. |
 | `formatter` | [formatter](/docs/plugins/formatters) | `json` | — | How events are serialized before indexing. |
 
@@ -27,6 +27,7 @@ Indexes events into an OpenSearch (or Elasticsearch-compatible) cluster. Uses th
 - Events are indexed using the OpenSearch bulk API for efficient batch writes.
 - When multiple `hosts` are listed, the plugin **round-robins** requests across them for load balancing.
 - Each event must be valid JSON — the default `json` formatter ensures this.
+- Certificates of the cluster nodes are verified by default. For nodes with a self-signed or internal-CA certificate, set `ca_cert` to the issuing CA, or set `verify: false` to connect without the check.
 
 ## Examples
 

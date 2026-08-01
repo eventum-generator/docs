@@ -1,0 +1,378 @@
+---
+title: "Suricata EVE JSON format: event_type and alerts"
+description: Suricata EVE JSON format — NDJSON events, the event_type discriminator, and the alert event's core fields — and how to generate EVE JSON events with Eventum.
+---
+
+Validating a parser built against Suricata's own alert fields, or a detection rule that keys on `signature_id` and `severity`, needs EVE JSON events shaped exactly the way a real sensor writes them — `event_type` naming which kind of record a line carries, and the alert's own fields sitting inside it exactly where a rule expects to find them. Standing up a live Suricata sensor, feeding it traffic, and waiting for one specific signature to actually fire is slow for what it returns, and a single documentation example or a captured pcap yields one alert, once — far short of the volume and the spread across event types a parser or a detection rule has to handle.
+
+Eventum renders EVE JSON lines directly from a template — the same `event_type` discriminator, the same common connection fields, the same nested `alert` object a real sensor writes — so a parser, a SIEM detection rule, or an ingestion pipeline built against Suricata's own field names gets a realistic EVE JSON stream without deploying a sensor, triggering a signature, or capturing a single pcap.
+
+## What is Suricata EVE JSON
+
+Suricata calls its own JSON output EVE — Extensible Event Format — and writes it as NDJSON: one complete JSON object per line, the same newline-delimited convention the [NDJSON lesson](/docs/tutorials/formats/ndjson) covers on its own terms. Every line carries an `event_type` field at its root naming what kind of record the line is — `alert`, `dns`, `flow`, and several others — plus a handful of fields common to every line regardless of type, and a type-named key holding that type's own fields. A `flow` line, for instance, carries the connection's common fields plus a single `flow` object summarizing the connection Suricata just finished tracking:
+
+```json title="A Suricata EVE JSON flow event"
+{"timestamp": "2026-07-14T09:12:03.184552+0000", "flow_id": 5185340927741163, "in_iface": "eth0", "event_type": "flow", "src_ip": "192.168.1.42", "src_port": 51422, "dest_ip": "203.0.113.77", "dest_port": 443, "proto": "TCP", "app_proto": "tls", "flow": {"pkts_toserver": 42, "pkts_toclient": 51, "bytes_toserver": 6180, "bytes_toclient": 28914, "start": "2026-07-14T09:11:48.041223+0000", "end": "2026-07-14T09:12:03.184552+0000", "age": 15, "state": "closed", "reason": "shutdown", "alerted": false}}
+```
+
+An `alert` line shares the same common fields but carries an `alert` object in place of `flow`. That pairing is exclusive in this lesson's generated output — one type-named key per line — though real Suricata can depart from it, as [the alert event section below](#the-alert-event) covers. `event_type` remains the discriminator this whole format turns on: a parser that reads it first knows which type-named key is the line's primary payload, and which fields inside it are valid to read.
+
+## Common fields and event types
+
+Every EVE JSON line, regardless of `event_type`, carries the same core set of fields identifying the connection it belongs to:
+
+| Field | Description |
+|-------|-------------|
+| `timestamp` | When Suricata logged the event, to the microsecond. |
+| `flow_id` | A numeric identifier shared by every event belonging to the same connection — an alert, a flow summary, and a protocol record for the same connection all carry the same `flow_id`. |
+| `in_iface` | The network interface Suricata captured the traffic on. |
+| `event_type` | The discriminator this lesson teaches — names which type-specific object the line carries. |
+| `src_ip` / `src_port` | The connection's source address and port. |
+| `dest_ip` / `dest_port` | The connection's destination address and port. |
+| `proto` | The transport protocol — `TCP`, `UDP`, and similar. |
+
+Two more fields turn up on most lines, but not all. `app_proto` names the application-layer protocol Suricata identified on the connection — `http`, `tls`, `dns`, and so on — once it has seen enough packets to tell. `community_id` is opt-in, off by default: a hash of the connection's five-tuple that lets Suricata and another tool such as Zeek write the same identifier for the same connection, so records from both sides of a pipeline can be correlated by that one value.
+
+`event_type` is what actually tells two lines apart. Suricata decodes several dozen protocols in total; the values a general-purpose monitored network produces most often are:
+
+| `event_type` | What the line records |
+|--------------|------------------------|
+| `alert` | A signature matched — see [the alert event section below](#the-alert-event). |
+| `flow` | Summary statistics for one connection, logged once it closes. |
+| `dns` | A DNS query or the answer to one. |
+| `http` | One HTTP transaction. |
+| `tls` | A TLS handshake, including the negotiated version and certificate details. |
+| `ssh` | An SSH handshake, including client and server software banners. |
+| `smtp` | One SMTP transaction. |
+| `dhcp` | A DHCP lease transaction. |
+| `fileinfo` | Metadata about a file transferred over a tracked protocol. |
+| `anomaly` | A protocol-decoding irregularity Suricata's parsers flagged. |
+| `stats` | Suricata's own periodic engine counters, unrelated to any single connection. |
+
+<Callout type="info">
+Suricata decodes well over a dozen further protocols — FTP, SMB, Kerberos, RDP, MQTT, and QUIC among them — each contributing its own `event_type` value the same way. This lesson covers the values a general-purpose monitored network produces most often; [Suricata's own EVE JSON format reference](https://docs.suricata.io/en/latest/output/eve/eve-json-format.html) documents the rest.
+</Callout>
+
+Every value shares the same envelope: the common fields above, plus a type-named key holding that type's own fields. That single-key rule holds for every `event_type` in the table above, not only `alert` — real Suricata's extended logging is the exception, covered next.
+
+## The alert event
+
+An `alert` event is what Suricata writes when a signature matches. Five fields carry the core of the detection:
+
+| Field | Description |
+|-------|-------------|
+| `action` | Whether Suricata allowed the traffic through or blocked it — `allowed` unless a matching rule uses the `drop` action and Suricata is running inline as an IPS; most sensors run passively, so `allowed` is what the large majority of alerts report regardless of how serious the detection is. |
+| `signature` | The rule's own message text, naming what it detects. |
+| `signature_id` | The rule's SID — the number that uniquely identifies it within the ruleset it came from: ET Open (Emerging Threats' free ruleset), ET Pro, or a local custom rule. |
+| `category` | The rule's classification, e.g. `Attempted Administrator Privilege Gain` or `Potentially Bad Traffic` — one of the classifications a ruleset's `classification.config` defines. |
+| `severity` | The classification's priority — `1` is the highest priority, `3` the lowest, inherited from the same `classification.config` entry as `category`. |
+
+Three more fields round out the object without being part of that core five: `gid` groups which rule-matching engine raised the alert — `1` for Suricata's standard signature engine, the value on virtually every alert; `rev` is the signature's revision number, incremented each time the ruleset publishes an update to the same SID; and `metadata` is a nested object of vendor-defined tags a rule can carry — `signature_severity`, `mitre_attack`, `cve`, and similar keys, each holding an array of values, present only on rules whose author supplied them.
+
+```json title="A Suricata alert event (its alert object adapted from Suricata's own EVE JSON format documentation)"
+{
+  "timestamp": "2026-07-14T09:15:11.442018+0000",
+  "flow_id": 2071558430912467,
+  "in_iface": "eth0",
+  "event_type": "alert",
+  "src_ip": "192.168.1.42",
+  "src_port": 51882,
+  "dest_ip": "203.0.113.77",
+  "dest_port": 80,
+  "proto": "TCP",
+  "app_proto": "http",
+  "alert": {
+    "action": "allowed",
+    "gid": 1,
+    "signature_id": 2024056,
+    "rev": 4,
+    "signature": "ET MALWARE Win32/CryptFile2 / Revenge Ransomware Checkin M3",
+    "category": "Malware Command and Control Activity Detected",
+    "severity": 1
+  }
+}
+```
+
+This lesson's `alert` events carry only the fields above. A real sensor can carry more: turning on extended alert logging (the `metadata` option under the `alert` entry in `eve-log`, covering `app-layer` and `flow`) makes an alert line also carry the triggering protocol's own object — `http`, `tls`, and similar — plus a `flow` object, alongside `alert`. A parser that assumes an alert line never carries anything but `alert` will break on a sensor configured that way.
+
+## Generate EVE JSON with Eventum
+
+The generator below models a monitored network's outbound traffic — mostly ordinary flow and DNS activity, an ET Open-style signature firing on the rare connection that looks like it doesn't belong.
+
+<Steps>
+<Step>
+
+### Write the EVE JSON templates
+
+Fields are filled with [`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module. Each template builds its event as a single Jinja mapping and serializes it in one step with the built-in `tojson` filter, the same technique the [ECS lesson](/docs/tutorials/formats/ecs) uses for its own nested event shape.
+
+`templates/alert.json.jinja` renders the event this lesson leads with — a signature match against outbound traffic, drawn from a small pool of ET Open-style signatures spanning the severity range:
+
+```jinja title="generators/suricata-eve/templates/alert.json.jinja"
+{%- set signatures = [
+    {
+        "sid": 2034647,
+        "gid": 1,
+        "rev": 2,
+        "signature": "ET EXPLOIT Apache Log4j RCE Attempt - 2021-44228 (CVE-2021-44228)",
+        "category": "Attempted Administrator Privilege Gain",
+        "severity": 1,
+        "metadata": {
+            "signature_severity": ["Critical"],
+            "attack_target": ["Server"],
+            "mitre_tactic_id": ["TA0001"],
+            "mitre_technique_id": ["T1190"]
+        }
+    },
+    {
+        "sid": 2018358,
+        "gid": 1,
+        "rev": 10,
+        "signature": "ET HUNTING GENERIC SUSPICIOUS POST to Dotted Quad with Fake Browser 1",
+        "category": "Potentially Bad Traffic",
+        "severity": 2,
+        "metadata": {
+            "signature_severity": ["Major"],
+            "attack_target": ["Client_Endpoint"]
+        }
+    },
+    {
+        "sid": 2013028,
+        "gid": 1,
+        "rev": 12,
+        "signature": "ET POLICY curl User-Agent Outbound",
+        "category": "Not Suspicious Traffic",
+        "severity": 3,
+        "metadata": {
+            "signature_severity": ["Informational"],
+            "attack_target": ["Client_Endpoint"]
+        }
+    }
+] -%}
+{%- set sig = module.rand.choice(signatures) -%}
+{%- set src_ip = params.internal_subnet ~ "." ~ module.rand.number.integer(2, 254) -%}
+{%- set src_port = module.rand.number.integer(1024, 65535) -%}
+{%- set dest_ip = module.rand.network.ip_v4_public() -%}
+{%- set dest_port = module.rand.weighted_choice([80, 443, 8080], [50, 35, 15]) -%}
+{%- set action = module.rand.weighted_choice(["allowed", "blocked"], [90, 10]) -%}
+{%- set flow_id = module.rand.number.integer(1000000000000000, 9999999999999999) -%}
+{%- set cid_input = (src_ip ~ ":" ~ (src_port | string) ~ "<>" ~ dest_ip ~ ":" ~ (dest_port | string) ~ "/tcp").encode() -%}
+{%- set community_id = "1:" ~ module.base64.b64encode(module.hashlib.sha1(cid_input).digest()).decode() -%}
+{%- set event = {
+    "timestamp": timestamp.strftime('%Y-%m-%dT%H:%M:%S.%f') ~ "+0000",
+    "flow_id": flow_id,
+    "in_iface": params.interface,
+    "event_type": "alert",
+    "src_ip": src_ip,
+    "src_port": src_port,
+    "dest_ip": dest_ip,
+    "dest_port": dest_port,
+    "proto": "TCP",
+    "community_id": community_id,
+    "app_proto": "http",
+    "alert": {
+        "action": action,
+        "gid": sig['gid'],
+        "signature_id": sig['sid'],
+        "rev": sig['rev'],
+        "signature": sig['signature'],
+        "category": sig['category'],
+        "severity": sig['severity'],
+        "metadata": sig['metadata']
+    }
+} -%}
+{{ event | tojson }}
+```
+
+`action` reads `allowed` for the large majority of alerts here, matching Suricata's own default outside inline IPS mode, and `blocked` only on the rarer draw — this sensor treats a handful of its signatures as inline drop rules. `community_id` is computed the same way the [security-suricata Hub generator](/hub/security-suricata) computes it: a SHA-1 hash of the connection's tuple, formatted with the `1:` version prefix a real Community ID value uses — enough to give the field its real shape without reimplementing Suricata's own binary hashing algorithm.
+
+`templates/dns.json.jinja` renders the second event type — a DNS answer for one of a small pool of domains, `NXDOMAIN` on the rarer lookup that doesn't resolve:
+
+```jinja title="generators/suricata-eve/templates/dns.json.jinja"
+{%- set domains = [
+    "www.suricata.io",
+    "update.example.com",
+    "api.example.net",
+    "cdn.example.org",
+    "mail.example.com"
+] -%}
+{%- set domain = module.rand.choice(domains) -%}
+{%- set src_ip = params.internal_subnet ~ "." ~ module.rand.number.integer(2, 254) -%}
+{%- set src_port = module.rand.number.integer(1024, 65535) -%}
+{%- set dns_id = module.rand.number.integer(1, 65535) -%}
+{%- set found = module.rand.chance(0.9) -%}
+{%- set flow_id = module.rand.number.integer(1000000000000000, 9999999999999999) -%}
+{%- set cid_input = (src_ip ~ ":" ~ (src_port | string) ~ "<>" ~ params.dns_server_ip ~ ":53/udp").encode() -%}
+{%- set community_id = "1:" ~ module.base64.b64encode(module.hashlib.sha1(cid_input).digest()).decode() -%}
+{%- set dns = {
+    "version": 3,
+    "type": "answer",
+    "id": dns_id,
+    "flags": "8180",
+    "qr": true,
+    "rd": true,
+    "ra": true,
+    "rcode": "NOERROR" if found else "NXDOMAIN",
+    "queries": [{"rrname": domain, "rrtype": "A"}]
+} -%}
+{%- if found -%}
+{%- do dns.update({"answers": [{"rrname": domain, "rrtype": "A", "ttl": module.rand.number.integer(30, 3600), "rdata": module.rand.network.ip_v4_public()}]}) -%}
+{%- endif -%}
+{%- set event = {
+    "timestamp": timestamp.strftime('%Y-%m-%dT%H:%M:%S.%f') ~ "+0000",
+    "flow_id": flow_id,
+    "in_iface": params.interface,
+    "event_type": "dns",
+    "src_ip": src_ip,
+    "src_port": src_port,
+    "dest_ip": params.dns_server_ip,
+    "dest_port": 53,
+    "proto": "UDP",
+    "community_id": community_id,
+    "app_proto": "dns",
+    "dns": dns
+} -%}
+{{ event | tojson }}
+```
+
+`dns.type` reads `answer` here — this template renders only the answer side of a DNS transaction, the richer of the two since it carries both the original query and the resolved (or unresolved) result. A real sensor also logs a separate `request` event when the query first goes out, sharing the same `flow_id` as its answer. `dns.version` reads `3` — Suricata 8.0 unified the DNS event shape used across `dns` events and the `dns` object nested inside alerts, naming that query-side event `request`. Older Suricata versions log a flatter shape instead, with `rrname` and `rrtype` sitting directly on the `dns` object and the query-side event named `query` rather than `request`. Suricata's own documentation is less consistent about the answer side's name at version 3 — the FAQ below covers what changed and what a parser should actually check for.
+
+`templates/flow.json.jinja` renders the third event type — the summary Suricata logs once a connection closes, `start` and `end` bracketing the same span `age` reports in seconds:
+
+```jinja title="generators/suricata-eve/templates/flow.json.jinja"
+{%- set profiles = [
+    {"proto": "http", "port": 80},
+    {"proto": "tls", "port": 443},
+    {"proto": "ssh", "port": 22}
+] -%}
+{%- set profile = module.rand.weighted_choice(profiles, [60, 30, 10]) -%}
+{%- set app_proto = profile['proto'] -%}
+{%- set dest_port = profile['port'] -%}
+{%- set src_ip = params.internal_subnet ~ "." ~ module.rand.number.integer(2, 254) -%}
+{%- set src_port = module.rand.number.integer(1024, 65535) -%}
+{%- set dest_ip = module.rand.network.ip_v4_public() -%}
+{%- set age = module.rand.number.integer(1, 300) -%}
+{%- set start = timestamp - module.datetime.timedelta(seconds=age) -%}
+{%- set flow_id = module.rand.number.integer(1000000000000000, 9999999999999999) -%}
+{%- set cid_input = (src_ip ~ ":" ~ (src_port | string) ~ "<>" ~ dest_ip ~ ":" ~ (dest_port | string) ~ "/tcp").encode() -%}
+{%- set community_id = "1:" ~ module.base64.b64encode(module.hashlib.sha1(cid_input).digest()).decode() -%}
+{%- set event = {
+    "timestamp": timestamp.strftime('%Y-%m-%dT%H:%M:%S.%f') ~ "+0000",
+    "flow_id": flow_id,
+    "in_iface": params.interface,
+    "event_type": "flow",
+    "src_ip": src_ip,
+    "src_port": src_port,
+    "dest_ip": dest_ip,
+    "dest_port": dest_port,
+    "proto": "TCP",
+    "community_id": community_id,
+    "app_proto": app_proto,
+    "flow": {
+        "pkts_toserver": module.rand.number.integer(2, 400),
+        "pkts_toclient": module.rand.number.integer(2, 400),
+        "bytes_toserver": module.rand.number.lognormal(7.0, 1.2) | round | int,
+        "bytes_toclient": module.rand.number.lognormal(8.5, 1.4) | round | int,
+        "start": start.strftime('%Y-%m-%dT%H:%M:%S.%f') ~ "+0000",
+        "end": timestamp.strftime('%Y-%m-%dT%H:%M:%S.%f') ~ "+0000",
+        "age": age,
+        "state": module.rand.weighted_choice(["closed", "established"], [80, 20]),
+        "reason": module.rand.weighted_choice(["timeout", "shutdown"], [50, 50]),
+        "alerted": module.rand.chance(0.05)
+    }
+} -%}
+{{ event | tojson }}
+```
+
+`flow` fields describe the connection Suricata just finished tracking, not a single packet — packet and byte counts split by direction, `state` and `reason` naming how the connection ended. None of the three templates share a `flow_id`, `src_ip`, or `community_id` with each other here — correlating an alert with the flow record for the same connection is a deeper technique than this lesson covers, not something EVE JSON's own shape requires.
+
+</Step>
+<Step>
+
+### Configure the generator
+
+[`mode: chance`](/docs/plugins/event/template/modes#chance) picks between the three templates per timestamp, weighted so flow and DNS activity dominate and the alert stays rarest, as on any real monitored network — though closer together here than a production sensor's ratio, so an alert shows up quickly in a short run. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [file](/docs/plugins/output/file) output writes each event to `output/eve.json` — the same filename Suricata itself writes by default — through the [json](/docs/plugins/formatters#json) formatter, one compact object per line:
+
+```yaml title="generators/suricata-eve/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: chance
+    params:
+      interface: eth0
+      internal_subnet: "192.168.1"
+      dns_server_ip: "192.168.1.1"
+    templates:
+      - alert:
+          template: templates/alert.json.jinja
+          chance: 15
+      - dns:
+          template: templates/dns.json.jinja
+          chance: 40
+      - flow:
+          template: templates/flow.json.jinja
+          chance: 45
+
+output:
+  - file:
+      path: output/eve.json
+      separator: "\n"
+      formatter:
+        format: json
+```
+
+<Callout type="warn">
+Leave `indent` at its default of `0` on the `json` formatter, the same rule the [NDJSON lesson](/docs/tutorials/formats/ndjson) covers in full — a pretty-printed value spreads one event across several physical lines, breaking the one-event-per-line shape `separator: "\n"` is there to produce.
+</Callout>
+
+</Step>
+</Steps>
+
+## The result
+
+Running the generator in [sample mode](/docs/core/concepts/generator#sample-mode) produced a steady stream, `event_type` switching line to line exactly the way a real sensor's own `eve.json` does. Seven consecutive lines from an actual run:
+
+```json title="output/eve.json"
+{"app_proto": "dns", "community_id": "1:dC/rvjgk+IK/cAhXl9gW82JZjVo=", "dest_ip": "192.168.1.1", "dest_port": 53, "dns": {"flags": "8180", "id": 42142, "qr": true, "queries": [{"rrname": "cdn.example.org", "rrtype": "A"}], "ra": true, "rcode": "NXDOMAIN", "rd": true, "type": "answer", "version": 3}, "event_type": "dns", "flow_id": 7207020877667736, "in_iface": "eth0", "proto": "UDP", "src_ip": "192.168.1.3", "src_port": 10560, "timestamp": "2026-07-17T18:49:11.000000+0000"}
+{"app_proto": "dns", "community_id": "1:KADPHSxsm9bhdt8447LsHDzWEKU=", "dest_ip": "192.168.1.1", "dest_port": 53, "dns": {"flags": "8180", "id": 27593, "qr": true, "queries": [{"rrname": "mail.example.com", "rrtype": "A"}], "ra": true, "rcode": "NXDOMAIN", "rd": true, "type": "answer", "version": 3}, "event_type": "dns", "flow_id": 2702901642521440, "in_iface": "eth0", "proto": "UDP", "src_ip": "192.168.1.99", "src_port": 1568, "timestamp": "2026-07-17T18:49:12.000000+0000"}
+{"alert": {"action": "allowed", "category": "Potentially Bad Traffic", "gid": 1, "metadata": {"attack_target": ["Client_Endpoint"], "signature_severity": ["Major"]}, "rev": 10, "severity": 2, "signature": "ET HUNTING GENERIC SUSPICIOUS POST to Dotted Quad with Fake Browser 1", "signature_id": 2018358}, "app_proto": "http", "community_id": "1:6BVTNcY4j2bsghS0UaWAAALxRA0=", "dest_ip": "142.29.169.216", "dest_port": 443, "event_type": "alert", "flow_id": 6839898014437394, "in_iface": "eth0", "proto": "TCP", "src_ip": "192.168.1.110", "src_port": 46119, "timestamp": "2026-07-17T18:49:13.000000+0000"}
+{"app_proto": "dns", "community_id": "1:/Bly0w0gc96i3m+Dcwi0L55HgYg=", "dest_ip": "192.168.1.1", "dest_port": 53, "dns": {"answers": [{"rdata": "159.17.190.233", "rrname": "update.example.com", "rrtype": "A", "ttl": 2595}], "flags": "8180", "id": 56411, "qr": true, "queries": [{"rrname": "update.example.com", "rrtype": "A"}], "ra": true, "rcode": "NOERROR", "rd": true, "type": "answer", "version": 3}, "event_type": "dns", "flow_id": 1172549065297974, "in_iface": "eth0", "proto": "UDP", "src_ip": "192.168.1.187", "src_port": 53560, "timestamp": "2026-07-17T18:49:14.000000+0000"}
+{"app_proto": "dns", "community_id": "1:9Ft+zL0dAMw6BOgp6itjVOO3llY=", "dest_ip": "192.168.1.1", "dest_port": 53, "dns": {"answers": [{"rdata": "192.125.227.241", "rrname": "update.example.com", "rrtype": "A", "ttl": 2347}], "flags": "8180", "id": 4772, "qr": true, "queries": [{"rrname": "update.example.com", "rrtype": "A"}], "ra": true, "rcode": "NOERROR", "rd": true, "type": "answer", "version": 3}, "event_type": "dns", "flow_id": 3491226459074512, "in_iface": "eth0", "proto": "UDP", "src_ip": "192.168.1.176", "src_port": 52804, "timestamp": "2026-07-17T18:49:15.000000+0000"}
+{"app_proto": "tls", "community_id": "1:+AbTlx0odOfbTj9Hte3BQsuoBNw=", "dest_ip": "199.218.49.47", "dest_port": 443, "event_type": "flow", "flow": {"age": 112, "alerted": false, "bytes_toclient": 242, "bytes_toserver": 2215, "end": "2026-07-17T18:49:16.000000+0000", "pkts_toclient": 283, "pkts_toserver": 312, "reason": "timeout", "start": "2026-07-17T18:47:24.000000+0000", "state": "closed"}, "flow_id": 6925782777063857, "in_iface": "eth0", "proto": "TCP", "src_ip": "192.168.1.19", "src_port": 8093, "timestamp": "2026-07-17T18:49:16.000000+0000"}
+{"app_proto": "dns", "community_id": "1:28AOvsUoQKKIVHcZVHFOcRw3mwk=", "dest_ip": "192.168.1.1", "dest_port": 53, "dns": {"answers": [{"rdata": "188.94.112.112", "rrname": "api.example.net", "rrtype": "A", "ttl": 745}], "flags": "8180", "id": 10348, "qr": true, "queries": [{"rrname": "api.example.net", "rrtype": "A"}], "ra": true, "rcode": "NOERROR", "rd": true, "type": "answer", "version": 3}, "event_type": "dns", "flow_id": 9727542245832573, "in_iface": "eth0", "proto": "UDP", "src_ip": "192.168.1.157", "src_port": 37779, "timestamp": "2026-07-17T18:49:17.000000+0000"}
+```
+
+`event_type` names a different record across this window. Two `dns` misses (`NXDOMAIN`) open it, then an `alert` carrying all five core fields plus `gid`, `rev`, and `metadata`. Two more `dns` answers resolve normally, a `flow` closes out a 112-second `tls` connection, and a final `dns` answer ends the window. Every line is independently valid JSON and carries exactly one of `alert`, `dns`, or `flow` here — this lesson's templates don't reproduce the extra protocol objects real extended alert logging can add to a line.
+
+A separate run's alert turned up the pairing the fields table above describes only in the abstract — the highest-severity signature in the pool, this time actually blocked:
+
+```json title="A blocked, severity-1 alert from a separate run"
+{"alert": {"action": "blocked", "category": "Attempted Administrator Privilege Gain", "gid": 1, "metadata": {"attack_target": ["Server"], "mitre_tactic_id": ["TA0001"], "mitre_technique_id": ["T1190"], "signature_severity": ["Critical"]}, "rev": 2, "severity": 1, "signature": "ET EXPLOIT Apache Log4j RCE Attempt - 2021-44228 (CVE-2021-44228)", "signature_id": 2034647}, "app_proto": "http", "community_id": "1:hoCHfciYPBWQ0sAFoXchwdkb0dc=", "dest_ip": "8.167.82.46", "dest_port": 443, "event_type": "alert", "flow_id": 9928557118489585, "in_iface": "eth0", "proto": "TCP", "src_ip": "192.168.1.171", "src_port": 24445, "timestamp": "2026-07-17T18:15:44.000000+0000"}
+```
+
+`severity: 1` and `action: blocked` are independent facts about the same event here, exactly as the alert event section above explains: this connection matched the pool's most serious signature, and this sensor happens to run that one as an inline drop rule.
+
+## FAQ
+
+<Accordions>
+<Accordion title="Does action: allowed mean the alert doesn't matter?">
+No — `allowed` only means Suricata didn't block the traffic, not that nothing happened. A passive IDS sensor can only ever write `allowed`, since it has no way to drop a packet in the first place; `action` reads `blocked` only when Suricata runs inline as an IPS and the specific signature that fired is also configured with the `drop` action. A signature with `severity: 1` and `action: allowed` is exactly as serious as the same signature would be if it had been blocked instead — `action` describes what the sensor did with the packet, `severity` describes how serious the detection is, and neither implies the other.
+</Accordion>
+<Accordion title="Why does a DNS event use type: request instead of query?">
+Suricata's DNS logging has gone through three EVE schema versions. The original names the query-side event `type: query`, with `rrname` and `rrtype` sitting directly on the `dns` object. Version 3 — introduced in Suricata 8.0 and unified with the `dns` object nested inside alert events — renames the query-side event to `type: request`. The answer side may have renamed too: Suricata's own migration notes for 8.0 state `answer` becomes `response` at version 3, but the main EVE JSON format reference page's own version-3 example still shows `type: answer`, the value this lesson generates. Suricata's documentation disagrees with itself here, so a parser should check what its own sensor actually writes rather than assume either name.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [formats field guide](/docs/tutorials/formats) covering every supported log and event shape
+- The [NDJSON lesson](/docs/tutorials/formats/ndjson) for the newline-delimited shape EVE JSON itself uses, independent of Suricata's own fields
+- The [ECS lesson](/docs/tutorials/formats/ecs) for the schema a real EVE line gets mapped into once an ingest pipeline parses it
+- The [detection-testing lesson](/docs/tutorials/detection-testing) for testing a Sigma rule or an ATT&CK-mapped detection against generated telemetry, the same evidence-over-intuition approach an alert-matching rule needs
+- The [OpenSearch delivery lesson](/docs/tutorials/delivery/opensearch) for indexing a generated EVE JSON stream into a real cluster instead of a local file
+- The [formatters](/docs/plugins/formatters) and [template event plugin](/docs/plugins/event/template) references for every field and format used above
+- The [security-suricata](/hub/security-suricata) generator in the Eventum Hub for the downstream ECS-mapped form of this same source

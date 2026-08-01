@@ -64,7 +64,7 @@ Yes. Three state scopes are available inside templates:
 {{ locals.n }}
 ```
 
-See [Producing events — State](/docs/core/concepts/producing#state) for details.
+See [Producing events — State](/docs/core/concepts/producing#state-management) for details.
 </Accordion>
 
 <Accordion title="What are picking modes?">
@@ -195,14 +195,14 @@ Use **sample mode** (`live_mode: false`). It generates events as fast as possibl
 ## Deployment and operations
 
 <Accordions>
-<Accordion title="How do I reload configuration without downtime?">
+<Accordion title="How do I apply a configuration change without restarting the process?">
 Send `SIGHUP` to the Eventum process:
 
 ```bash
 kill -HUP $(pidof eventum)
 ```
 
-This triggers a hot reload — all generators are stopped, configuration is re-read, and generators are re-started according to the updated config. The REST API and Studio remain available during the reload.
+This triggers a hot reload: the whole application stops and starts again from `eventum.yml` and `startup.yml`, without the process being replaced. The server stops with everything else, so the REST API and Studio are unreachable for a moment.
 </Accordion>
 
 <Accordion title="Can I start a generator later even though it has autostart: false?">
@@ -216,14 +216,14 @@ Within a single Eventum application — yes, through the `globals` variable, whi
 <Accordion title="How do I debug event production?">
 Several approaches, from fastest to most thorough:
 
-1. **Studio debugger** — open the [Event plugin debugger](/docs/studio/projects#debugger) in Studio, set a timestamp, and click Produce to see output instantly.
+1. **Studio debugger** — open the [event debugger](/docs/studio/projects#debugger) in the project console, set a timestamp, and click Produce to see output instantly.
 2. **Stdout output** — add a `stdout` output plugin and inspect events in the terminal.
 3. **Verbose logging** — run with `-vvvvv` to enable DEBUG-level logs on stderr.
 4. **Error counters** — check `produce_failed`, `format_failed`, and `write_failed` metrics via the REST API or Studio.
 </Accordion>
 
 <Accordion title="How do I monitor generator health in production?">
-- **Studio dashboard** — the [Overview page](/docs/studio/overview) shows system resources, flow statistics, and instance status in real time.
+- **Studio dashboard** — the [Monitoring page](/docs/studio/monitoring) shows pipeline flow, throughput, failures and resource usage in real time.
 - **REST API** — query per-instance metrics (generated, written, failed counters, EPS) programmatically.
 - **Logs** — structured JSON logs (`log.format: json` in `eventum.yml`) can be ingested by your existing log aggregation stack.
 </Accordion>
@@ -247,7 +247,7 @@ By default, output plugins write concurrently. Set `keep_order: true` in the gen
 1. Check the template in the [Studio debugger](/docs/studio/projects#debugger) — it shows the exact output for a given timestamp.
 2. Verify your Jinja2 syntax — missing `{{ }}` delimiters or incorrect filter usage are common issues.
 3. Check that sample data files exist and are in the expected format (CSV with headers, valid JSON).
-4. If using state (`locals`, `shared`, `globals`), use the [State tab](/docs/studio/projects#state) in Studio to inspect current values.
+4. If using state (`locals`, `shared`, `globals`), use the [State view](/docs/studio/projects#state) of the project console to inspect current values.
 </Accordion>
 
 <Accordion title="Events are being dropped">
@@ -269,6 +269,6 @@ Identify the bottleneck stage:
 - **Event production slow** — template rendering is expensive. Simplify templates, reduce sample dataset sizes, or use the `script` plugin for compute-heavy logic.
 - **Output slow** — the destination can't keep up. Increase `max_concurrency`, enlarge `batch.size`, add `batch.delay`, or check the destination's health.
 
-Monitor queue depths and EPS (events per second) in [Studio](/docs/studio/overview) to pinpoint which stage is falling behind.
+Monitor throughput and per-stage failures on the [Monitoring dashboard](/docs/studio/monitoring) to pinpoint which stage is falling behind.
 </Accordion>
 </Accordions>

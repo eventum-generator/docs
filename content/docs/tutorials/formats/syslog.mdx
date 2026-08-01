@@ -1,0 +1,213 @@
+---
+title: "syslog format: PRI, RFC 3164 vs RFC 5424"
+description: How the syslog PRI value encodes facility and severity, the RFC 3164 and RFC 5424 header fields, and generating valid syslog messages in both formats with Eventum.
+---
+
+Testing a collector's parsing rules, an rsyslog or syslog-ng ingestion pipeline, or a SIEM's syslog listener requires messages shaped like what a real server, network appliance, or application actually sends. A live host can produce them, but its output arrives on its own schedule, and most environments run a mix of two incompatible message shapes at once: an older format still emitted by routers, firewalls, and most Unix daemons by default, and a newer one used by modern applications, cloud logging agents, and SIEMs that want structured metadata attached to a message. A parser built or tested against only one of them breaks silently the day a device speaking the other one gets connected.
+
+Eventum renders both shapes directly from a template — the header fields in the exact order each format defines, the PRI value computed from a real facility and severity — and delivers the result over TCP or UDP to whatever the collector listens on, so the parsing rules for either format get tested with no real device plugged in to produce them.
+
+## The two syslog headers
+
+syslog is standardized twice, and both versions remain in active use. [RFC 3164](https://datatracker.ietf.org/doc/html/rfc3164) (2001) wrote down the format BSD Unix systems — and the network hardware that copied them — had already been using informally for years. [RFC 5424](https://datatracker.ietf.org/doc/html/rfc5424) (2009) replaces it with a stricter, extensible message meant to fix that older format's loosest edges: an unspecified character encoding, a timestamp with no year or time zone, and no structured way to carry metadata beyond free text. Both wrap a single line of text in the same bracketed PRI value, but everything after it — field order, what is mandatory, what a field is allowed to contain — differs enough that a parser built for one will mis-split or reject a message from the other.
+
+Every syslog message, either version, opens with the PRI value: a decimal number in angle brackets, `<PRI>`, encoding two things at once. Facility says what kind of process produced the message — the kernel, the mail system, an FTP daemon, one of eight generic slots reserved for local use — and severity says how urgent it is, from `0` (Emergency) down to `7` (Debug). The two combine through a single formula, shared by both RFCs:
+
+```text
+PRI = Facility * 8 + Severity
+```
+
+| Facility | Meaning |
+|----------|---------|
+| 0 | kernel messages |
+| 1 | user-level messages |
+| 2 | mail system |
+| 3 | system daemons |
+| 4 | security/authorization messages |
+| 5 | messages generated internally by syslogd |
+| 6 | line printer subsystem |
+| 7 | network news subsystem |
+| 8 | UUCP subsystem |
+| 9 | clock daemon |
+| 10 | security/authorization messages |
+| 11 | FTP daemon |
+| 12 | NTP subsystem |
+| 13 | log audit |
+| 14 | log alert |
+| 15 | clock daemon |
+| 16-23 | local use 0 through 7 |
+
+Facilities 4 and 10, and 9 and 15, share the same description in the specification's own table — not a mistake in the table above, just two device classes the RFCs never fully separated.
+
+| Severity | Level |
+|----------|-------|
+| 0 | Emergency: system is unusable |
+| 1 | Alert: action must be taken immediately |
+| 2 | Critical: critical conditions |
+| 3 | Error: error conditions |
+| 4 | Warning: warning conditions |
+| 5 | Notice: normal but significant condition |
+| 6 | Informational: informational messages |
+| 7 | Debug: debug-level messages |
+
+A failed SSH login is worth flagging but nowhere near an emergency: facility `4` (security/authorization messages) and severity `4` (Warning) give `PRI = 4 * 8 + 4 = 36`, written `<36>`. Both examples below reuse this exact combination.
+
+RFC 3164 documents what's typically called BSD syslog: the format nearly every router, firewall, and long-lived Unix daemon still emits by default. A message has three parts — PRI, then a HEADER carrying just a timestamp and a hostname, then a MSG that carries everything else as free text, conventionally shaped as a TAG followed by CONTENT:
+
+```text
+<PRI>Mmm dd hh:mm:ss HOSTNAME TAG: CONTENT
+```
+
+TIMESTAMP uses a fixed English month abbreviation, no year, and no time zone — local time, implicitly. A day of the month under 10 is padded with a space rather than a zero, so the 1st of July is `Jul  1`, not `Jul 01`. HOSTNAME is the device's bare name, never its domain. Everything after it is the MSG part, which the specification itself leaves unstructured: convention, not the RFC, shapes its first token as a TAG of alphanumeric characters naming the process, cut off at the first character that isn't alphanumeric — commonly a `:` or a `[` opening a PID — with everything from that character onward read as CONTENT.
+
+Applied to a failed SSH login from a gateway host:
+
+```text title="RFC 3164 (BSD) syslog message"
+<36>Jul 11 12:00:00 web-gw-03 sshd[8419]: Failed password for admin from 203.0.113.7 port 51422 ssh2
+```
+
+| Part | Value | Meaning |
+|------|-------|---------|
+| PRI | `<36>` | facility 4 (security/authorization messages) x8 + severity 4 (Warning) |
+| TIMESTAMP | `Jul 11 12:00:00` | `Mmm dd hh:mm:ss`, local time, no year, no zone |
+| HOSTNAME | `web-gw-03` | device name only, never a domain |
+| TAG | `sshd` | alphanumeric process name; stops at the first `[` |
+| CONTENT | `[8419]: Failed password for admin from 203.0.113.7 port 51422 ssh2` | PID convention plus the message text |
+
+TAG and CONTENT together are the MSG part.
+
+RFC 5424 replaces that free-text tail with a fully structured, positional header, plus an optional block of machine-parseable metadata ahead of the message:
+
+```text
+<PRI>VERSION TIMESTAMP HOSTNAME APP-NAME PROCID MSGID STRUCTURED-DATA MSG
+```
+
+VERSION is currently always `1`. TIMESTAMP is a full [RFC 3339](https://datatracker.ietf.org/doc/html/rfc3339) date and time — four-digit year, `T` as the date/time separator, up to six digits of sub-second precision, and an explicit offset (`Z` for UTC, or `+hh:mm` / `-hh:mm`) — a stricter, unambiguous replacement for RFC 3164's zoneless timestamp. HOSTNAME, APP-NAME, PROCID, and MSGID identify the device, the originating program, its process ID or instance, and an optional message-type identifier; the specification allows any of them, TIMESTAMP included, to be replaced with a single `-` — the NILVALUE — when the sender has nothing to put there.
+
+STRUCTURED-DATA, itself replaceable with `-` when empty, holds zero or more bracketed elements of machine-parseable metadata, each an ID followed by space-separated `key="value"` pairs:
+
+```text
+[SD-ID key1="value1" key2="value2"]
+```
+
+Multiple elements concatenate directly, `[id1 ...][id2 ...]`. A literal `"`, `\`, or `]` inside a value must be escaped as `\"`, `\\`, or `\]`, since left unescaped any of the three would be read as the end of the value or the element instead. The ID commonly carries a Private Enterprise Number after an `@` — `exampleSDID@32473` in the specification's own examples — so two vendors' element names never collide.
+
+The same login failure, now as RFC 5424:
+
+```text title="RFC 5424 syslog message"
+<36>1 2026-07-11T12:00:00+00:00 web-gw-03.example.com sshd 8419 - [sshAuth@32473 srcIp="203.0.113.7" user="admin" result="failed"] Failed password for admin from 203.0.113.7 port 51422 ssh2
+```
+
+| Part | Value | Meaning |
+|------|-------|---------|
+| PRI | `<36>` | same facility and severity as the 3164 version |
+| VERSION | `1` | fixed |
+| TIMESTAMP | `2026-07-11T12:00:00+00:00` | RFC 3339 profile: date, `T`, time, explicit UTC offset |
+| HOSTNAME | `web-gw-03.example.com` | FQDN is preferred here, unlike RFC 3164 |
+| APP-NAME | `sshd` | originating program |
+| PROCID | `8419` | OS process ID |
+| MSGID | `-` | NILVALUE — no message-type identifier assigned |
+| STRUCTURED-DATA | `[sshAuth@32473 srcIp="203.0.113.7" user="admin" result="failed"]` | one element, ID `sshAuth@32473`, three key-value pairs |
+| MSG | `Failed password for admin from 203.0.113.7 port 51422 ssh2` | free-text message, same content as the 3164 version |
+
+RFC 3164 is still what most infrastructure emits by default — routers, firewalls, and the syslog daemons on most Linux distributions send it unless reconfigured — so a collector aimed at a real environment has to accept it. RFC 5424 is the better target for anything new: cloud logging agents, modern application frameworks, and any SIEM integration that needs a real home for key-value metadata instead of a private convention bolted onto free text.
+
+## Generate syslog with Eventum
+
+The generator below simulates a gateway host's `sshd` reporting failed logins — the same underlying event, rendered as either an RFC 3164 line or an RFC 5424 line depending on which template is picked for a given timestamp.
+
+### The templates
+
+Both templates share the same facility and severity — `4` and `4`, the PRI `<36>` from the worked example above — computed inline rather than hardcoded, so changing either value in one place keeps the header correct. Fields are filled with [`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module.
+
+`templates/auth-failure-3164.jinja` renders the legacy header. Its timestamp uses Python's `%e` day-of-month directive, which pads a single-digit day with a space exactly as RFC 3164 requires, rather than `%d`, which would pad it with a zero:
+
+```jinja title="generators/syslog-auth/templates/auth-failure-3164.jinja"
+{%- set pri = 4 * 8 + 4 -%}
+{%- set host = "web-gw-03" -%}
+{%- set pid = module.rand.number.integer(1000, 65535) -%}
+{%- set user = module.rand.choice(["admin", "root", "deploy", "oracle"]) -%}
+{%- set src_ip = module.rand.network.ip_v4_public() -%}
+{%- set port = module.rand.number.integer(1024, 65535) -%}
+<{{ pri }}>{{ timestamp.strftime('%b %e %H:%M:%S') }} {{ host }} sshd[{{ pid }}]: Failed password for {{ user }} from {{ src_ip }} port {{ port }} ssh2
+```
+
+`templates/auth-failure-5424.jinja` renders the same event with the modern header. `timestamp` is already timezone-aware, so its own `isoformat()` is already a valid RFC 3339 TIMESTAMP — no manual formatting needed:
+
+```jinja title="generators/syslog-auth/templates/auth-failure-5424.jinja"
+{%- set pri = 4 * 8 + 4 -%}
+{%- set host = "web-gw-03.example.com" -%}
+{%- set pid = module.rand.number.integer(1000, 65535) -%}
+{%- set user = module.rand.choice(["admin", "root", "deploy", "oracle"]) -%}
+{%- set src_ip = module.rand.network.ip_v4_public() -%}
+{%- set port = module.rand.number.integer(1024, 65535) -%}
+<{{ pri }}>1 {{ timestamp.isoformat() }} {{ host }} sshd {{ pid }} - [sshAuth@32473 srcIp="{{ src_ip }}" user="{{ user }}" result="failed"] Failed password for {{ user }} from {{ src_ip }} port {{ port }} ssh2
+```
+
+### The generator config
+
+[`mode: chance`](/docs/plugins/event/template/modes#chance) picks one of the two templates per timestamp, weighted so the legacy format dominates — matching a real fleet where most devices still default to RFC 3164. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [udp](/docs/plugins/output/udp) output ships each line to the collector's syslog port:
+
+```yaml title="generators/syslog-auth/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: chance
+    templates:
+      - auth_failure_3164:
+          template: templates/auth-failure-3164.jinja
+          chance: 70
+      - auth_failure_5424:
+          template: templates/auth-failure-5424.jinja
+          chance: 30
+
+output:
+  - udp:
+      host: siem.example.com
+      port: 514
+      separator: "\n"
+```
+
+<Callout type="info">
+For reliable, ordered delivery instead of UDP's best-effort datagrams, replace `udp` with [`tcp`](/docs/plugins/output/tcp) and keep the same `host` and `port` — most rsyslog and syslog-ng installations listen on both by default. To inspect lines locally before pointing the generator at a real collector, replace the output with [`file`](/docs/plugins/output/file) or [`stdout: {}`](/docs/plugins/output/stdout).
+</Callout>
+
+## The result
+
+Running the generator above produces a mix of both formats, each line independently valid:
+
+```text
+<36>Jul 11 13:39:16 web-gw-03 sshd[10666]: Failed password for admin from 13.162.114.145 port 43966 ssh2
+```
+
+```text
+<36>1 2026-07-11T13:39:22+00:00 web-gw-03.example.com sshd 15350 - [sshAuth@32473 srcIp="192.1.17.245" user="root" result="failed"] Failed password for root from 192.1.17.245 port 35952 ssh2
+```
+
+Both carry the same PRI, `<36>` — facility `4` (security/authorization messages) x8 plus severity `4` (Warning) — because both describe the same kind of event; only the header shape around it differs. The first has no year or time zone and a bare hostname, true to RFC 3164. The second carries a version, an offset-qualified timestamp, an FQDN, and a structured-data element repeating the source IP and username the message text already states in prose — redundant here to show the syntax, but in a real integration this is exactly where fields a receiver should parse without scanning free text belong.
+
+## FAQ
+
+<Accordions>
+<Accordion title="Which RFC should I use?">
+RFC 5424 for anything new — it is unambiguous, timezone-aware, and gives structured metadata a real place to live instead of being crammed into free text. Reach for RFC 3164 only when the receiving collector or a downstream parser expects it specifically, which today mostly means older network hardware and its matching monitoring stack. The two are not equally tolerant of a mismatch: a strict RFC 5424 parser rejects a 3164 message outright, while a 3164-only parser accepts a 5424 message but mis-splits its fields, since RFC 3164 places no real constraint on what follows the PRI value.
+</Accordion>
+<Accordion title="How do I send this to rsyslog or syslog-ng?">
+Point the generator's output at UDP port 514 (or TCP, if the collector's input module is configured for it) on the host running rsyslog or syslog-ng, exactly as the [udp](/docs/plugins/output/udp) example above does. rsyslog accepts either format on the same listener without extra configuration: its default parser chain tries the RFC 5424 parser first, looking for the sequence `1` immediately after the PRI value, and falls back to the RFC 3164 parser — which accepts nearly any text as a valid message — the moment that check fails. syslog-ng also reads both, though its default source driver usually separates them by port rather than sniffing content the way rsyslog does; check the driver configuration if a collector needs to be pointed at a specific listener per format.
+</Accordion>
+<Accordion title="Which port — 514 vs 6514?">
+514 is the traditional port for plain-text syslog. UDP/514 is a formal IANA registration ([RFC 5426](https://datatracker.ietf.org/doc/html/rfc5426)); TCP/514 is convention only — [RFC 6587](https://datatracker.ietf.org/doc/html/rfc6587), which governs syslog over TCP, explicitly declines to assign it a port and notes that 514/TCP is actually allocated to the unrelated Shell protocol, but nearly every collector listens there anyway. 6514 is [RFC 5425](https://datatracker.ietf.org/doc/html/rfc5425)'s registered port for syslog over TLS, used when the transport itself needs to be encrypted and authenticated — regardless of whether RFC 3164 or RFC 5424 rides inside it. Eventum's [tcp](/docs/plugins/output/tcp) output supports `ssl` and certificate options for that case; [udp](/docs/plugins/output/udp) has no TLS equivalent, since UDP carries no connection to secure.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [formats field guide](/docs/tutorials/formats) covering every supported log and event shape
+- The [syslog over TCP/UDP delivery lesson](/docs/tutorials/delivery/syslog-transport) for the transport, framing, and TLS choices behind actually shipping these lines to a collector
+- The [CEF lesson](/docs/tutorials/formats/cef) for wrapping a CEF line inside a syslog header
+- The [LEEF lesson](/docs/tutorials/formats/leef) for wrapping a LEEF line inside a syslog header
+- The [detection testing lesson](/docs/tutorials/detection-testing) for generating attack-shaped telemetry to test Sigma rules

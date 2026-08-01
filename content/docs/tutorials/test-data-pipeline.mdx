@@ -1,0 +1,331 @@
+---
+title: "Test Data Pipeline End to End"
+description: Test data pipeline delivery end to end — generate a realistic event stream, deliver it the way production does, and confirm the backend actually received it.
+---
+
+A new log source, a rebuilt parser, and a schema migration all face the same test before they ship: real-looking events, flowing through the actual pipeline, landing where a dashboard or an alert expects to find them. Waiting for production traffic to run that test finds a broken parser or a rejected field mapping only after real data has already hit it — the most expensive place to discover either. A handful of sample documents pasted directly into a test index confirms that a query runs; it says nothing about whether the transport in front of that index survives a realistic volume of traffic, or whether the source's own event shape still matches what the parser expects.
+
+Testing the pipeline instead of just the endpoint means generating a realistic stream, sending it through the same input, transport, and backend production uses, and then confirming — not assuming — that the backend received it. Eventum generates that stream and delivers it with the same output plugins a live deployment would use, so the whole chain gets a rehearsal before real traffic runs it for the first time.
+
+## Test data pipeline before production
+
+A pipeline earns trust by handling realistic conditions correctly, not by having a few lines pasted into a test environment and called good. Three moments call for exactly that kind of rehearsal:
+
+- **Onboarding a new source** — a fresh integration, log format, or event schema needs to reach its destination correctly before it carries real traffic.
+- **Changing a parser or a mapping** — a regression here doesn't announce itself; it silently drops or reshapes fields until a dashboard comes up empty or a detection stops firing.
+- **Validating a dashboard or an alert at volume** — a panel or a rule that looks right against ten hand-written events can still fail against ten thousand, or against a shape of traffic those ten never represented.
+
+Synthetic data fits this job because none of it is real: no user data, credentials, or business records ever sit in a test cluster. It isn't a fixed sample either — the same generator reruns in CI on every change instead of going stale after one export — and nothing here is hand-authored, so its volume scales to whatever the test needs, from a dozen events to a sustained stream.
+
+## End-to-end data pipeline testing
+
+Testing a pipeline end to end means exercising all three of its stages together, not just the one under change, and then checking what came out the other side:
+
+<Mermaid chart={`graph LR
+    A["Generate<br/>a realistic stream"] --> B["Deliver<br/>the same transport production uses"]
+    B --> C["Confirm<br/>the backend actually received it"]`} />
+
+The first two stages are a single Eventum generator: an input plugin paces the timestamps, an event plugin — typically [template](/docs/plugins/event/template) — renders each one into a realistic event, and an output plugin delivers it through whatever transport the real pipeline uses: OpenSearch, Kafka, ClickHouse, or an HTTP endpoint. None of that is specific to testing; it's the same three-stage pipeline every Eventum generator runs.
+
+The third stage is what turns a generator run into a pipeline test: checking, after the run, that the destination actually holds what was sent, rather than inferring it from the fact that the generator didn't crash. Eventum's own per-plugin counters confirm its half of the handoff — that it handed a formatted event to the destination and didn't get an error back. A query against the backend confirms the other half — that the documents, rows, or messages it describes are actually there and intact.
+
+## What you'll build
+
+The generator below models connection events from a network perimeter — most connections allowed, a smaller share denied — and sends them to OpenSearch, chosen here because a document count is the simplest possible receipt check: index the events, then ask the cluster how many landed. The same method works unchanged against [Kafka](/docs/tutorials/delivery/kafka), [ClickHouse](/docs/tutorials/delivery/clickhouse), or [any HTTP endpoint](/docs/tutorials/delivery/http) — the pipeline layers section further down covers what changes when you swap backends.
+
+Two templates cover the two outcomes:
+
+- **Allowed** (the common case) — a connection with a realistic transport protocol and byte count.
+- **Denied** (the rare case) — the same shape, minus the transferred bytes, with a reason attached.
+
+A [`chance`](/docs/plugins/event/template/modes#chance) pick weights the two roughly 92/8, and a bounded [`static`](/docs/plugins/input/static) input produces a fixed batch instead of an open-ended stream — the shape a repeatable pipeline test actually wants, run the same way every time in a CI job or a terminal.
+
+## Prerequisites
+
+- [Eventum installed](/docs/core/introduction/installation)
+- An OpenSearch instance reachable over HTTP(S) *(optional — the generator also prints to stdout, so nothing here requires a live cluster)*
+
+## Project structure
+
+<Files>
+  <Folder name="network-events" defaultOpen>
+    <File name="generator.yml" />
+    <Folder name="templates" defaultOpen>
+      <File name="connection-allowed.jinja" />
+      <File name="connection-denied.jinja" />
+    </Folder>
+  </Folder>
+</Files>
+
+## Build it
+
+<Steps>
+<Step>
+### Create the project directory
+
+```bash
+mkdir -p network-events/templates
+cd network-events
+```
+
+</Step>
+<Step>
+### Write the event templates
+
+Both templates share the same ECS shape — [`event.category: ["network"]`](/docs/tutorials/formats/ecs), a source and destination, and a `related.ip` list for pivoting — so the only real difference between them is what happened to the connection.
+
+`templates/connection-allowed.jinja` covers the common case. [`module.rand.weighted_choice`](/docs/tutorials/realism/values) picks a destination port and transport with realistic odds, and a clamped [`lognormal`](/docs/tutorials/realism/values) draw gives the transferred bytes a skewed, realistic spread instead of a flat range:
+
+```jinja title="network-events/templates/connection-allowed.jinja"
+{%- set src_ip = module.rand.network.ip_v4_public() -%}
+{%- set dst_ip = module.rand.network.ip_v4_private_a() -%}
+{%- set src_port = module.rand.number.integer(1024, 65535) -%}
+{%- set dst_port = module.rand.weighted_choice({443: 70, 80: 20, 22: 8, 3389: 2}) -%}
+{%- set transport = module.rand.weighted_choice({"tcp": 85, "udp": 12, "icmp": 3}) -%}
+{%- set bytes_sent = module.rand.number.clamp(module.rand.number.lognormal(7.5, 0.8), 200, 50000) | round | int -%}
+{%- set event = {
+    "@timestamp": timestamp.isoformat(),
+    "ecs": {"version": "9.4.0"},
+    "event": {
+        "kind": "event",
+        "category": ["network"],
+        "type": ["allowed"],
+        "action": "connection-attempt",
+        "outcome": "success"
+    },
+    "network": {
+        "transport": transport,
+        "bytes": bytes_sent
+    },
+    "source": {"ip": src_ip, "port": src_port},
+    "destination": {"ip": dst_ip, "port": dst_port},
+    "host": {"name": "edge-fw-01"},
+    "related": {"ip": [src_ip, dst_ip]}
+} -%}
+{{ event | tojson }}
+```
+
+`templates/connection-denied.jinja` covers the rarer case — a different, riskier port distribution, no transferred bytes, and a reason:
+
+```jinja title="network-events/templates/connection-denied.jinja"
+{%- set src_ip = module.rand.network.ip_v4_public() -%}
+{%- set dst_ip = module.rand.network.ip_v4_private_a() -%}
+{%- set src_port = module.rand.number.integer(1024, 65535) -%}
+{%- set dst_port = module.rand.weighted_choice({3389: 40, 22: 30, 445: 20, 23: 10}) -%}
+{%- set transport = module.rand.weighted_choice({"tcp": 90, "udp": 10}) -%}
+{%- set event = {
+    "@timestamp": timestamp.isoformat(),
+    "ecs": {"version": "9.4.0"},
+    "event": {
+        "kind": "event",
+        "category": ["network"],
+        "type": ["denied"],
+        "action": "connection-attempt",
+        "outcome": "failure",
+        "reason": "no matching allow rule"
+    },
+    "network": {
+        "transport": transport
+    },
+    "source": {"ip": src_ip, "port": src_port},
+    "destination": {"ip": dst_ip, "port": dst_port},
+    "host": {"name": "edge-fw-01"},
+    "related": {"ip": [src_ip, dst_ip]}
+} -%}
+{{ event | tojson }}
+```
+
+</Step>
+<Step>
+### Configure the generator
+
+A [`static`](/docs/plugins/input/static) input produces a fixed batch of 1,000 timestamps at once — a rerunnable test dataset, not a live stream. [`mode: chance`](/docs/plugins/event/template/modes#chance) picks between the two templates, and the output fans out to both `stdout`, for a local, human-readable copy of everything generated, and [`opensearch`](/docs/tutorials/delivery/opensearch), for the real delivery:
+
+```yaml title="network-events/generator.yml"
+input:
+  - static:
+      count: 1000
+
+event:
+  template:
+    mode: chance
+    templates:
+      - connection_allowed:
+          template: templates/connection-allowed.jinja
+          chance: 92
+      - connection_denied:
+          template: templates/connection-denied.jinja
+          chance: 8
+
+output:
+  - stdout:
+      formatter:
+        format: json
+  - opensearch:
+      hosts:
+        - ${params.opensearch_host}
+      username: ${params.opensearch_user}
+      password: ${secrets.opensearch_password}
+      index: network-events
+      verify: false
+```
+
+Fan-out delivery is a core [output](/docs/core/concepts/output#fan-out-delivery) behavior, not a special case: every output plugin receives every event independently, so adding `stdout` alongside `opensearch` costs nothing and gives you a local copy of the exact stream being delivered.
+
+<Callout type="info">
+**No OpenSearch cluster?** You don't need to delete the `opensearch` block to follow along. This plugin only reaches out to the cluster when it actually has events to write, not when the generator starts, so an unreachable cluster doesn't stop the run — the `stdout` output above still prints every event either way. What you lose without a live cluster is delivery itself: writes to `opensearch` fail quietly in the background, counted as `write_failed` and logged, while the rest of the pipeline keeps going.
+</Callout>
+
+</Step>
+<Step>
+### Run it
+
+[`eventum generate`](/docs/core/cli/eventum-generate) runs a single generator without the application server — the quickest way to produce a batch and inspect it directly. [Sample mode](/docs/core/concepts/generator#execution-modes) (`--live-mode false`) releases the full batch immediately instead of pacing it against the clock:
+
+```bash
+eventum generate \
+  --path network-events/generator.yml \
+  --id network-events \
+  --live-mode false
+```
+
+The full 1,000-event batch prints and the command exits in under a second. A slice of an actual run — three allowed connections followed by a denied one:
+
+```json
+{"@timestamp": "2026-07-12T14:24:17.070047+00:00", "destination": {"ip": "10.162.7.193", "port": 80}, "ecs": {"version": "9.4.0"}, "event": {"action": "connection-attempt", "category": ["network"], "kind": "event", "outcome": "success", "type": ["allowed"]}, "host": {"name": "edge-fw-01"}, "network": {"bytes": 3345, "transport": "udp"}, "related": {"ip": ["171.164.170.62", "10.162.7.193"]}, "source": {"ip": "171.164.170.62", "port": 45881}}
+{"@timestamp": "2026-07-12T14:24:17.070047+00:00", "destination": {"ip": "10.164.61.141", "port": 443}, "ecs": {"version": "9.4.0"}, "event": {"action": "connection-attempt", "category": ["network"], "kind": "event", "outcome": "success", "type": ["allowed"]}, "host": {"name": "edge-fw-01"}, "network": {"bytes": 3459, "transport": "udp"}, "related": {"ip": ["86.129.32.16", "10.164.61.141"]}, "source": {"ip": "86.129.32.16", "port": 6037}}
+{"@timestamp": "2026-07-12T14:24:17.070047+00:00", "destination": {"ip": "10.83.158.120", "port": 443}, "ecs": {"version": "9.4.0"}, "event": {"action": "connection-attempt", "category": ["network"], "kind": "event", "outcome": "success", "type": ["allowed"]}, "host": {"name": "edge-fw-01"}, "network": {"bytes": 1756, "transport": "tcp"}, "related": {"ip": ["3.164.166.80", "10.83.158.120"]}, "source": {"ip": "3.164.166.80", "port": 18625}}
+{"@timestamp": "2026-07-12T14:24:17.070047+00:00", "destination": {"ip": "10.140.58.19", "port": 22}, "ecs": {"version": "9.4.0"}, "event": {"action": "connection-attempt", "category": ["network"], "kind": "event", "outcome": "failure", "reason": "no matching allow rule", "type": ["denied"]}, "host": {"name": "edge-fw-01"}, "network": {"transport": "tcp"}, "related": {"ip": ["192.139.130.16", "10.140.58.19"]}, "source": {"ip": "192.139.130.16", "port": 25701}}
+```
+
+Across that run, 942 of the 1,000 events came out allowed and 58 denied — close to the configured 92/8 split, with the small spread expected from a chance-weighted pick.
+
+</Step>
+</Steps>
+
+## Validate data pipeline end to end
+
+The run above already proves the first stage: a realistic, ECS-shaped stream came out the other end of the templates, matching what the `opensearch` block would deliver, since both outputs receive identical events from the same fan-out.
+
+The second stage, delivery, is the same generator run with a reachable cluster: nothing about the templates, the picking mode, or the batch changes, only whether `opensearch.hosts` resolves to something real. The [OpenSearch delivery lesson](/docs/tutorials/delivery/opensearch) covers connection, authentication, and TLS in depth.
+
+The third stage, confirming receipt, happens outside the generator, through two independent checks:
+
+**Eventum's own counters.** Every output plugin tracks `written`, `write_failed`, and `format_failed` for its own deliveries:
+
+| Counter | What it tells you |
+|---------|-------------------|
+| `written` | Events the plugin delivered successfully |
+| `write_failed` | Events the destination rejected (connection error, timeout, auth failure) |
+| `format_failed` | Events that failed formatting before delivery even started |
+
+A one-shot `eventum generate` run like the one above doesn't expose these — there's no running application to ask. List the generator in [`startup.yml`](/docs/core/config/startup-yml) and start the full application with [`eventum run`](/docs/core/cli/eventum-run) instead, and the counters become available live:
+
+```bash
+curl -u eventum:eventum http://localhost:9474/api/generators/network-events/stats
+```
+
+The response nests one entry per output plugin under `output`, each carrying the three counters above, alongside a `total_written` rollup — see the [Get Generator Stats](/docs/api/generators/id/stats/get) reference for the full response shape. Studio's [Instance metrics](/docs/studio/instances#instance-metrics) dialog shows the same numbers on a pipeline diagram, without a single `curl` call.
+
+**A query against the backend itself.** A plugin's `written` count only confirms that OpenSearch acknowledged the request — it doesn't rule out a mapping conflict or a dropped shard swallowing documents afterward. Asking the index directly closes that gap:
+
+```bash
+curl -u admin:<password> "https://localhost:9200/network-events/_count"
+```
+
+A count that matches `total_written` — or one that keeps climbing at the expected rate, for a long-running generator — is the actual proof: the pipeline generated the data, delivered it over the same transport production uses, and the backend genuinely holds it.
+
+## The pipeline, layer by layer
+
+This lesson connects four tracks, each covering one layer of the pipeline in depth:
+
+<Cards>
+  <Card
+    title="Delivery"
+    description="Send generated events to OpenSearch, Kafka, ClickHouse, or an HTTP endpoint — the transport your pipeline actually uses."
+    href="/docs/tutorials/delivery"
+  />
+  <Card
+    title="Formats"
+    description="Match the event shape to what the backend and its parsers expect — syslog, CEF, Windows Event Log, and more."
+    href="/docs/tutorials/formats"
+  />
+  <Card
+    title="Realism"
+    description="Shape timing, sessions, and values so the stream behaves like production traffic instead of a flat, mechanical tick."
+    href="/docs/tutorials/realism"
+  />
+  <Card
+    title="Foundations"
+    description="What synthetic event data is and where it fits before you build a pipeline test."
+    href="/docs/tutorials/foundations"
+  />
+</Cards>
+
+Not every destination behaves the same way when it's unreachable, which matters for a test built to run without one. OpenSearch and [HTTP](/docs/tutorials/delivery/http) only reach out when there's something to write, so a pipeline test still runs end to end without a live target — delivery just fails quietly, per event, as shown above. [Kafka](/docs/tutorials/delivery/kafka) and [ClickHouse](/docs/tutorials/delivery/clickhouse) connect as soon as the generator starts, so an unreachable broker or database stops the run before it produces anything. Neither behavior is wrong, but know which one your backend has before building a test around it.
+
+## What to run through the pipeline
+
+The method above — realistic stream, real transport, confirmed receipt — applies to any source. A few to start from:
+
+<Cards>
+  <Card
+    title="SIEM test data"
+    description="Windows Security Event Log sessions, modeled with a state machine, indexed into OpenSearch."
+    href="/docs/tutorials/siem-events"
+  />
+  <Card
+    title="Detection testing"
+    description="Security telemetry shaped to match what a specific detection rule looks for."
+    href="/docs/tutorials/detection-testing"
+  />
+  <Card
+    title="API load testing"
+    description="A burst of diverse request payloads at maximum throughput, for capacity rather than correctness."
+    href="/docs/tutorials/load-testing"
+  />
+  <Card
+    title="E-commerce CSV dataset"
+    description="A shaped transactions dataset for analytics, database seeding, or ML training."
+    href="/docs/tutorials/csv-dataset"
+  />
+</Cards>
+
+## What's next
+
+<Cards>
+  <Card
+    title="Output concepts"
+    description="Fan-out delivery, formatters, concurrency, and error tracking in depth."
+    href="/docs/core/concepts/output"
+  />
+  <Card
+    title="OpenSearch output reference"
+    description="Every connection, authentication, and TLS parameter for the opensearch plugin."
+    href="/docs/plugins/output/opensearch#parameters"
+  />
+  <Card
+    title="Get Generator Stats API"
+    description="The REST endpoint behind the receipt check above."
+    href="/docs/api/generators/id/stats/get"
+  />
+</Cards>
+
+## FAQ
+
+<Accordions>
+<Accordion title="How do I confirm the backend actually received the data?">
+Two independent checks, both covered above. Eventum's own `written`, `write_failed`, and `format_failed` counters, available through the [REST API](/docs/api/generators/id/stats/get) or [Studio](/docs/studio/instances#instance-metrics) once the generator runs under `eventum run`, confirm that Eventum handed the data off successfully. A direct query against the backend — a document count, a row count, a message offset — confirms the backend actually holds it, which catches failures the write-side counters can't see, such as a mapping conflict that surfaces after acknowledgement.
+</Accordion>
+<Accordion title="I don't have a real backend to test against — what changes?">
+Nothing about the templates, the picking mode, or the batch. Add a `stdout` output alongside (or instead of) the real one, as this lesson does, and every event that would have been delivered prints locally. For an OpenSearch or HTTP destination specifically, you don't even need to remove the block — an unreachable target doesn't stop the run, since neither plugin checks connectivity until it has something to write. Kafka and ClickHouse do check at startup, so those need either a reachable target or the block removed.
+</Accordion>
+<Accordion title="How is this different from load testing?">
+Not the same measurement. This lesson checks correctness — whether a realistic event reaches the destination intact, in the format it expects. [Load testing](/docs/tutorials/load-testing) checks capacity — how much throughput the destination or the API in front of it can sustain before it degrades. A pipeline that passes this lesson's check can still fall over under load, and a pipeline that survives a load test can still be silently dropping fields a correctness check would have caught.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [Scenarios pillar](/docs/tutorials/scenarios) for the wider picture of what synthetic data tests
+- The [Eventum Hub](/hub) for generators built for other pipelines and sources, ready to point at yours

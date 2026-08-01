@@ -1,0 +1,27 @@
+---
+title: "Introducing Eventum Learn: understanding log formats, data realism, and event generation"
+description: "Eventum's example tutorials have grown into a full learning section: the theory behind log formats and data realism, paired with a runnable generator for each."
+date: "2026-08-01T12:00:00"
+author: "Eventum Team"
+tags:
+  - announcement
+pinned: true
+---
+
+Eventum's docs already had a handful of example tutorials. They've now grown into a full learning section — **[Learn](/docs/tutorials)** — that pairs theory with practice: each lesson explains a concept, then generates it with a working generator you can run. It's for engineers who arrive with a concrete task — understand what a CEF line or an ECS event actually looks like, work out why production traffic is shaped the way it is, and produce realistic test data for it — without reading the whole reference first.
+
+## What it covers
+
+Learn is organized into five tracks, from first principles to complete projects:
+
+- **[Foundations](/docs/tutorials/foundations)** — what synthetic event and log data is, how logs, metrics, and events differ, structured logging, and streaming versus bulk output.
+- **[Formats](/docs/tutorials/formats)** — the shapes a log pipeline actually speaks: syslog, CEF, LEEF, NDJSON, ECS, OCSF, Windows Event Log, Apache and nginx access logs, AWS CloudTrail, Suricata EVE, and auditd. Each lesson shows the real format and generates it.
+- **[Realism](/docs/tutorials/realism)** — what separates data that behaves like production from data that only fills a schema: traffic timing, user sessions, correlated events, skewed values, and replaying captured logs.
+- **[Delivery](/docs/tutorials/delivery)** — getting events into a real backend: ClickHouse, Kafka, HTTP endpoints, OpenSearch, syslog over TCP or UDP, and picking the right output format per destination.
+- **[Scenarios](/docs/tutorials/scenarios)** — end-to-end projects built from an empty directory to working output: testing a data pipeline, SIEM and detection work, load testing, seeding a database, clickstream, IoT telemetry, and scheduled alerts.
+
+## Start reading
+
+Pick the track that matches what you're working on, or start from the top.
+
+**[Open Eventum Learn](/docs/tutorials)**

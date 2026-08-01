@@ -1,0 +1,153 @@
+---
+title: "NDJSON format: newline-delimited JSON"
+description: "How NDJSON (newline-delimited JSON, also called JSON Lines) differs from a JSON array, where log shippers and bulk-ingest APIs use it, and how to generate it with Eventum."
+---
+
+Testing a log shipper's tailing rules, a bulk-ingest endpoint, or a `jq` pipeline requires a sample file shaped exactly like the stream those tools expect to receive: one JSON record per line, not one record nested inside a single array. A JSON array holding the same events fails that shape on both ends — nothing can start processing it until its closing `]` arrives, and appending one more event means rewriting the file's punctuation rather than simply writing a new line. Hand-writing enough realistic-looking lines to fill that gap is slow, and every line tends to end up shaped identically, which defeats the point of testing against something resembling real, varied traffic.
+
+Eventum's [file](/docs/plugins/output/file) output, paired with its [json](/docs/plugins/formatters#json) formatter, writes exactly that shape directly from a template: every event lands on its own line as a compact, independently valid JSON object, with nothing wrapping the stream and no punctuation to rewrite as new events arrive — so a log shipper, a bulk-ingest endpoint, or a `jq` filter reads a realistic NDJSON stream with no live source behind it.
+
+## What is NDJSON?
+
+NDJSON stands for Newline Delimited JSON: a text stream holding one JSON value per line, each line separated from the next by a single `\n` character. Every line stands on its own as a complete, independently parseable JSON value — typically an object — instead of all of them sitting inside one shared array. The same convention also goes by JSON Lines, or JSONL for short; all three names describe the identical rule, and nothing meaningful separates them beyond which one a given tool or team happens to use.
+
+No IETF or ISO body standardizes NDJSON the way [RFC 5424](https://datatracker.ietf.org/doc/html/rfc5424) standardizes syslog. It is a de facto convention instead, written up independently under two names — NDJSON and JSON Lines — that describe essentially the same rule. Adoption comes from how widely tools already support the convention, not from a numbered standard behind it.
+
+NDJSON also says nothing about what fields belong inside each line, only about how the lines themselves are delimited. A schema convention such as [ECS](/docs/tutorials/formats/ecs) or [OCSF](/docs/tutorials/formats/ocsf) fills that separate gap by standardizing field names across sources; NDJSON is the transport underneath either one, or underneath no schema at all.
+
+## NDJSON example
+
+A JSON array holding two events nests both inside one shared structure:
+
+```json title="As a JSON array"
+[
+  {"user": "alice", "action": "login"},
+  {"user": "bob", "action": "logout"}
+]
+```
+
+The same two events as NDJSON drop the surrounding array and the comma between them; each line is already a complete JSON value on its own:
+
+```json title="As NDJSON"
+{"user": "alice", "action": "login"}
+{"user": "bob", "action": "logout"}
+```
+
+Visually the difference is small — a pair of brackets and a comma disappear — but it changes how the two shapes behave under everything covered next.
+
+## NDJSON vs JSON
+
+| | JSON array | NDJSON |
+|---|---|---|
+| Structure | One array wrapping every event | One JSON value per line, no wrapper |
+| Start processing | Only after the closing `]` arrives | As soon as the first line arrives |
+| Append one more event | Rewrite the closing bracket and add a comma | Write one more line |
+| Line-oriented tools (`grep`, `tail -f`, `wc -l`) | Operate on raw text, not on individual events | Operate on individual events directly, since one line is one record |
+| A crash mid-write | Can leave a truncated, invalid array | Leaves every complete line already written still valid; only a half-written final line is affected |
+
+Unlike a tabular format such as CSV, neither shape requires every record to carry the same fields — a property of JSON objects in general, not something the array or the newline adds or removes.
+
+The second and third rows are why log pipelines settle on NDJSON rather than a JSON array. Log shippers such as Filebeat and Fluent Bit tail a file and forward each new line as its own record the moment it appears, exactly the way they already handle a plain-text log. The `jq` command-line processor reads a stream of top-level JSON values by default, so it processes an NDJSON file exactly as it arrives, one line at a time; a JSON array is a single top-level value instead, so pulling its elements out one at a time means adding a `.[]` filter first. Bulk-ingest and bulk-load APIs use the same shape for the same reason: OpenSearch and Elasticsearch's bulk endpoint takes an NDJSON request body — an action line followed by a document line, repeated for every operation (see the [OpenSearch delivery lesson](/docs/tutorials/delivery/opensearch) for a generator that produces exactly that body) — and BigQuery's load-job API, for one, names newline-delimited JSON as a source format directly.
+
+## Generate NDJSON with Eventum
+
+The generator below simulates an API gateway's request log: a common successful-request event and a rarer error event, both landing in the same NDJSON file.
+
+### The templates
+
+Fields are filled with [`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module. Each template renders one compact JSON object directly — no array brackets, no trailing comma — since NDJSON's line-per-record shape comes from how the output stage writes events, not from anything the template itself needs to do. `templates/api-request.jinja` renders the common case, level `INFO`:
+
+```jinja title="generators/api-logs/templates/api-request.jinja"
+{%- set method = module.rand.weighted_choice({"GET": 70, "POST": 20, "PUT": 6, "DELETE": 4}) -%}
+{%- set path = module.rand.choice(["/api/users", "/api/orders", "/api/products", "/api/search"]) -%}
+{%- set status = module.rand.weighted_choice({200: 90, 201: 5, 304: 5}) -%}
+{%- set duration_ms = module.rand.number.integer(5, 250) -%}
+{"timestamp": "{{ timestamp.isoformat() }}", "level": "INFO", "service": "api-gateway", "method": "{{ method }}", "path": "{{ path }}", "status": {{ status }}, "duration_ms": {{ duration_ms }}}
+```
+
+`templates/api-error.jinja` renders the rarer failure, level `ERROR`, with `request_id` and `error` fields in place of `duration_ms`. Nothing requires the two templates to share a structure — each rendered line is independently valid JSON, so a success event and an error event can carry entirely different fields in the same stream:
+
+```jinja title="generators/api-logs/templates/api-error.jinja"
+{%- set method = module.rand.weighted_choice({"GET": 70, "POST": 30}) -%}
+{%- set path = module.rand.choice(["/api/users", "/api/orders", "/api/products", "/api/search"]) -%}
+{%- set status = module.rand.choice([500, 502, 503]) -%}
+{%- set request_id = module.rand.crypto.uuid4() -%}
+{%- set error = module.rand.choice(["upstream timeout", "database connection lost", "unhandled exception"]) -%}
+{"timestamp": "{{ timestamp.isoformat() }}", "level": "ERROR", "service": "api-gateway", "method": "{{ method }}", "path": "{{ path }}", "status": {{ status }}, "request_id": "{{ request_id }}", "error": "{{ error }}"}
+```
+
+### The generator config
+
+[mode: chance](/docs/plugins/event/template/modes#chance) picks one of the two templates per timestamp, weighted so successful requests dominate and errors stay rare. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [file](/docs/plugins/output/file) output writes each rendered event to `output/events.ndjson` through the [json](/docs/plugins/formatters#json) formatter:
+
+```yaml title="generators/api-logs/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: chance
+    templates:
+      - api_request:
+          template: templates/api-request.jinja
+          chance: 85
+      - api_error:
+          template: templates/api-error.jinja
+          chance: 15
+
+output:
+  - file:
+      path: output/events.ndjson
+      separator: "\n"
+      formatter:
+        format: json
+```
+
+The `json` formatter validates each event and compacts it to a single line; `file`'s own `separator` field is what then places each formatted event on its own line in the output file. `separator` defaults to the host operating system's line separator, which is `\n` on Linux and macOS but `\r\n` on Windows — setting it explicitly to `"\n"`, as above, keeps the file's line endings NDJSON-compliant regardless of which platform the generator runs on.
+
+<Callout type="warn">
+Leave `indent` at its default of `0` on the `json` formatter. A pretty-printed value (`indent` greater than `0`) spreads one event across several physical lines, and `file`'s separator only follows the whole formatted string — so the output would mix record boundaries with the JSON value's own internal line breaks, no longer one value per line.
+</Callout>
+
+<Callout type="info">
+Nothing in Eventum requires a particular file extension. `.ndjson` and `.jsonl` are both common choices that signal the file's line-delimited shape to whatever reads it next; `path` accepts either, or any other extension. To index this stream directly into OpenSearch or another destination instead of a local file, swap the `file` output for [opensearch](/docs/plugins/output/opensearch) or [kafka](/docs/plugins/output/kafka) and keep the same `json` formatter.
+</Callout>
+
+## The result
+
+Running the generator above for a short stretch produces a steady one-line-per-second stream, `api_request` events dominating and an `api_error` every so often at the configured 15% chance. Five consecutive lines from an actual run:
+
+```json title="output/events.ndjson"
+{"timestamp": "2026-07-11T22:17:24+00:00", "level": "INFO", "service": "api-gateway", "method": "GET", "path": "/api/products", "status": 200, "duration_ms": 184}
+{"timestamp": "2026-07-11T22:17:25+00:00", "level": "INFO", "service": "api-gateway", "method": "DELETE", "path": "/api/products", "status": 200, "duration_ms": 178}
+{"timestamp": "2026-07-11T22:17:26+00:00", "level": "ERROR", "service": "api-gateway", "method": "POST", "path": "/api/orders", "status": 503, "request_id": "9da8bf81-93bf-4e59-9541-0099997b8b1b", "error": "unhandled exception"}
+{"timestamp": "2026-07-11T22:17:27+00:00", "level": "INFO", "service": "api-gateway", "method": "GET", "path": "/api/search", "status": 200, "duration_ms": 214}
+{"timestamp": "2026-07-11T22:17:28+00:00", "level": "INFO", "service": "api-gateway", "method": "GET", "path": "/api/search", "status": 200, "duration_ms": 168}
+```
+
+Every line parses on its own as a complete JSON object, and the third line proves the point made earlier about shape: it carries `request_id` and `error` instead of `duration_ms`, and still sits in the same file as the `INFO` lines around it without breaking anything downstream that reads the file one line at a time.
+
+## FAQ
+
+<Accordions>
+<Accordion title="Is NDJSON valid JSON?">
+The file as a whole is not: JSON syntax allows exactly one top-level value, and a file with more than one line has more than one top-level value, which a standards-compliant JSON parser rejects once it reaches the second one. Each line on its own is a complete, valid JSON value, parsed independently — that independence is the entire point of the format.
+</Accordion>
+<Accordion title="NDJSON vs JSON Lines vs JSONL — what's the difference?">
+None. All three names describe the same convention: one JSON value per line, separated by `\n`. NDJSON and JSON Lines are two near-identical community write-ups of the same rule, and JSONL is simply the short form of "JSON Lines" commonly used as a file extension. Pick whichever name matches the tooling or team convention already in place; Eventum's output is identical either way.
+</Accordion>
+<Accordion title="Do all lines need to share the same fields?">
+No. Each line is independently valid JSON, so nothing requires the same keys from one line to the next — the result above demonstrates this directly: the `INFO` lines carry `duration_ms`, the `ERROR` line instead carries `request_id` and `error`, and both are equally valid NDJSON. A schema convention such as [ECS](/docs/tutorials/formats/ecs) or [OCSF](/docs/tutorials/formats/ocsf) can standardize field names across sources on top of NDJSON, but NDJSON itself never requires it.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [formats field guide](/docs/tutorials/formats) covering every supported log and event shape
+- The [structured logging lesson](/docs/tutorials/foundations/structured-logging) for JSON as a field structure, one layer below the wire shape covered here
+- The [OpenSearch delivery lesson](/docs/tutorials/delivery/opensearch) for the bulk API that consumes an NDJSON body directly
+- The [IoT test data](/docs/tutorials/iot-telemetry) tutorial for this same shape written through the `stdout` output instead of `file`
+- The [ECS](/docs/tutorials/formats/ecs) and [OCSF](/docs/tutorials/formats/ocsf) lessons for schemas that standardize the fields inside each line
+- The [formatters](/docs/plugins/formatters) and [file output](/docs/plugins/output/file) references for every field used above

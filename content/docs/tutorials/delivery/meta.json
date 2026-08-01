@@ -1,0 +1,3 @@
+{
+  "pages": ["index", "opensearch", "kafka", "clickhouse", "http", "syslog-transport", "formatters"]
+}

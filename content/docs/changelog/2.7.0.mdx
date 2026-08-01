@@ -1,0 +1,85 @@
+---
+title: 🚩 2.7.0
+description: Eventum 2.7.0 — a refreshed Eventum Studio with live dashboards, renaming for projects, instances, scenarios and secrets, and new MCP tools for scenarios, global state and instance control.
+---
+
+Released **August 1, 2026**
+
+Eventum Studio is refreshed across every screen on a single design system: the project page works as a development studio, the instance and Monitoring pages follow the pipeline live, and every list carries runtime stats and filters. Projects, instances, scenarios and secrets can now be renamed instead of recreated — from Studio, over the REST API, and through MCP, where agents also gain tools for scenarios, global state, settings and instance control.
+
+<Callout type="warn">
+Three changes alter how an existing setup behaves:
+
+- **Dot-separated keys in a generator configuration** are no longer expanded into nested blocks. Write `formatter: {format: plain}` instead of `formatter.format: plain`. The shorthand keeps working in `eventum.yml`, `startup.yml` and time-pattern files.
+- **TLS certificate verification** is on by default in the [`opensearch`](/docs/plugins/output/opensearch) and [`http`](/docs/plugins/output/http) outputs. For a self-signed or internal-CA certificate, set `ca_cert` to the issuing CA, or `verify: false` to connect without the check.
+- **`server.ui_enabled` and `server.api_enabled` are deprecated** in favour of [`server.ui.enabled` and `server.api.enabled`](/docs/core/config/eventum-yml). The flat keys warn at startup and go away in 2.8.
+</Callout>
+
+## 🚀 New features
+
+### Eventum Studio
+
+- **[Refreshed interface](/docs/studio)** — every screen follows one design system, with matched dark and light themes
+- **[Project page as a development studio](/docs/studio/projects)** — edit the configuration and every project file in one workspace, with the explorer, stage inspector and debug console docked around the editor and saved together
+- **[Live instance page](/docs/studio/instances#instance-page)** — watch throughput move through the pipeline with per-plugin counters, read status and uptime from the header, and stream the logs in the page
+- **[Monitoring dashboard](/docs/studio/monitoring)** — follow the pipeline flow, throughput and failure charts, each instance's share of the output load, and host resources on one screen
+- **[Management console](/docs/studio/settings#management)** — read the application and host identity, a resource snapshot and the application log without leaving the page
+- **[Runtime stats and filters in the tables](/docs/studio/instances#filtering-and-selection)** — sort instances by Flow, Errors and Written, and share a filtered view as a link
+- **[Renaming for projects, instances, scenarios and secrets](/docs/studio/instances#per-instance-actions)** — change the name of an object instead of recreating it
+- **[Instance cloning](/docs/studio/instances#per-instance-actions)** — create an instance from an existing one, reusing its project and parameters
+- **Link-based navigation** — open a record, a sidebar item or a breadcrumb in a new tab with a middle- or Ctrl/Cmd-click
+- **[File sizes in the project file tree](/docs/studio/projects#explorer)** — see how large a file is before opening it; anything over 10 MB stays out of the editor
+- **[Reworked editor search](/docs/studio/projects#editor)** — search a file from a compact panel that counts the matches and toggles case, regex and whole-word matching
+- **[Unsaved-changes guard](/docs/studio/projects#saving)** — confirm before navigating away, refreshing or closing a tab with unsaved work
+- **[Lit status indicator](/docs/studio/instances#statuses)** — tell a running, starting or stopping instance from one at rest at a glance
+
+### AI agents
+
+- **[Rename tools](/docs/mcp/tools)** — have an agent rename a project, generator, scenario or secret, and list the projects reading a secret before it does
+- **[Scenario, global state, settings and instance-control tools](/docs/mcp/tools)** — let an agent manage scenarios, read and edit the shared global state, read and patch the settings, and stop or restart the instance; write tools stay gated behind `server.mcp.allow_write`
+- **Bounded file reads** — page a large file through the agent instead of handing it over in one piece
+
+### API
+
+- **[Rename endpoints](/docs/api)** — rename a project, instance, scenario or secret over HTTP
+
+## 🐛 Bug fixes
+
+### Generators
+
+- A generator configuration is read exactly as written — a state machine condition, a template parameter or a sample name spelled with a dot works as it stands
+- `${params.*}` and `${secrets.*}` resolve a dotted name as a path of nested names
+- The [`clickhouse`](/docs/plugins/output/clickhouse), [`opensearch`](/docs/plugins/output/opensearch) and [`http`](/docs/plugins/output/http) outputs connect over certificate-based TLS — `ca_cert`, `client_cert` and `client_cert_key` take the path to the certificate (Thanks to [Sai Asish Y](https://github.com/SAY-5) for the PR!)
+- Events lost by an output or rejected by a formatter are counted in the failure metrics, so the gap between Produced and Written is accounted for
+- The [`http` input](/docs/plugins/input/http) reports a failed bind with the address and the exit code of its server
+- The `json-batch` formatter writes only what it accepts, and leaves the destination untouched when a whole batch is rejected
+- Generators run in parallel alongside the [`clickhouse` output](/docs/plugins/output/clickhouse), and several of them start reliably at the same moment
+
+### Eventum Studio
+
+- A large project file opens and uploads however long the transfer takes
+- A finished or failed instance is told apart from a running one at a glance
+- The MCP settings are editable in the Server section and keep their values when settings are saved
+- The [cron](/docs/plugins/input/cron) field reads seconds in the generator's order and accepts random values and `${params.*}`
+- The HTTP output form is validated against its own rules
+- The plugin switches show what a field resolves to
+- A project created with the name of a deleted one starts from a clean configuration
+- The Management page reports a restart and a stop
+- A long file name in the file tree is trimmed to the panel and shown in full on hover
+
+### Core and API
+
+- Ctrl+C exits at once with a live log view or a connected MCP client
+- The disk and network figures measure the Eventum process rather than the whole host
+- A file that a generator is writing to transfers in full — it arrives as it stood at the moment it was requested
+- A scenario page opens faster, however many generators it holds
+- The websocket API schema describes the running instance, and Eventum starts on a read-only filesystem
+
+## ⚡ Performance
+
+- The editor responds faster while typing, most noticeably in a large project file
+
+## 📝 Other changes
+
+- The status of an instance that has not run is now named **Idle**
+- The web UI and REST API toggles moved under [`server.ui.enabled` and `server.api.enabled`](/docs/core/config/eventum-yml), with the flat keys kept as deprecated aliases

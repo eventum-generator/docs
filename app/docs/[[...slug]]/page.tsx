@@ -11,9 +11,20 @@ import { notFound } from 'next/navigation';
 import { JsonLd } from '@/components/JsonLd';
 import { LLMCopyButton, ViewOptions } from '@/components/ai/page-actions';
 import { docsGitConfig } from '@/lib/layout.shared';
-import { breadcrumbSchema, canonicalPath } from '@/lib/seo';
+import { breadcrumbSchema, canonicalPath, courseSchema } from '@/lib/seo';
 import { getPageImage, source } from '@/lib/source';
 import { getMDXComponents } from '@/mdx-components';
+
+// Course JSON-LD belongs on course pillars only (overview + track
+// indexes), not on individual lessons.
+const COURSE_PILLARS = new Set([
+  '/docs/tutorials',
+  '/docs/tutorials/foundations',
+  '/docs/tutorials/formats',
+  '/docs/tutorials/realism',
+  '/docs/tutorials/delivery',
+  '/docs/tutorials/scenarios',
+]);
 
 export default async function Page(props: {
   params: Promise<{ slug?: string[] }>;
@@ -34,6 +45,15 @@ export default async function Page(props: {
           { name: page.data.title, path: page.url },
         ])}
       />
+      {COURSE_PILLARS.has(page.url) && (
+        <JsonLd
+          data={courseSchema({
+            name: page.data.title,
+            description: page.data.description ?? '',
+            path: page.url,
+          })}
+        />
+      )}
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription className="mb-0">
         {page.data.description}

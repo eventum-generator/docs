@@ -1,17 +1,36 @@
 ---
-title: Web Clickstream → ClickHouse
-description: Model user browsing sessions with a finite state machine and stream page views into ClickHouse for funnel analysis.
+title: Generate Clickstream Data for ClickHouse
+description: Generate clickstream data — user browsing sessions and bounces modeled with a finite state machine — and stream page views into ClickHouse for funnel analysis.
 ---
 
-Build a generator that models realistic user browsing sessions — landing, browsing, adding to cart, checkout, and exit — and streams the clickstream data into ClickHouse. Each session follows a probabilistic path through a finite state machine, producing the kind of data you'd use for funnel analysis, cohort queries, and conversion tracking.
+Clickstream data is the record of every page a visitor loads on their way through a site, in the order they loaded it — a landing page, a run of product pages, a cart, sometimes a checkout. A funnel report, a conversion-rate query, or a cohort analysis depends entirely on that order: how many sessions reached each stage, and how many dropped off before the next one. A stream of page-view events generated independently of each other can share a session id by coincidence. It cannot reproduce a visitor's journey — landing, browsing, cart — arriving in that order, which is the one property a funnel query actually reads.
+
+Eventum produces that order with the same finite-state-machine technique covered in [Modeling sessions](/docs/tutorials/realism/sessions): each stage of the journey is a template, and the template's own logic decides when a visitor is ready to advance. This lesson applies it to a five-stage browsing funnel instead of a three-stage login/action/logout cycle, adds a bounce path for visitors who browse but never buy, and streams the result into ClickHouse for funnel analysis.
+
+## Funnel test data and the bounce path
+
+Clickstream analytics reports on stages, not isolated page views: a funnel groups every session by the furthest stage it reached — landing, browsing, cart, checkout — and counts how many sessions made it to each one and how many dropped off before the next. That count only means what it claims to mean if every event in a session shares one identifier and arrives in the order a real visit takes; a checkout with no landing before it, or two unrelated visitors sharing a session id by coincidence, breaks exactly what the funnel is supposed to measure.
+
+A bounce is the funnel's simplest outcome: a visitor who lands, browses for a while, and leaves without adding anything to the cart. Modeling it needs the same session-scoped memory as the rest of the funnel — a generator has to track how long the current visitor has been browsing without converting, not just assign a flat percentage of sessions to "left immediately."
+
+<Mermaid chart={`stateDiagram-v2
+    [*] --> landing
+    landing --> browse: always
+    browse --> browse: still browsing
+    browse --> exit: bounced
+    browse --> add_to_cart: ready to add
+    add_to_cart --> browse: keep shopping
+    add_to_cart --> checkout: cart full
+    checkout --> exit: always
+    exit --> landing: always`} />
 
 ## What you'll build
 
 The generator uses:
 
-- [**time-patterns**](/docs/plugins/input/time-patterns) input — daily traffic curve with a peak at midday.
-- [**FSM**](/docs/core/concepts/producing#picking-modes) picking mode — five states modeling a user journey with probabilistic transitions.
-- [**locals state**](/docs/core/concepts/producing#state) — session ID and page view counter per session.
+- [**time-patterns**](/docs/plugins/input/time-patterns) input — a daily traffic curve peaking at midday, shaped with a beta distribution.
+- [**FSM**](/docs/core/concepts/producing#picking-modes) picking mode — five states modeling a user journey, each one deciding from its own state when the visitor is ready to advance.
+- [**shared state**](/docs/core/concepts/producing#state-management) — a session id, a cart count, and a browse counter, all reset at the start of every new session.
 - [**ClickHouse output**](/docs/plugins/output/clickhouse) — events inserted as JSON rows into a `page_views` table.
 
 ## Prerequisites
@@ -65,6 +84,8 @@ CREATE TABLE IF NOT EXISTS page_views (
 ORDER BY (timestamp, session_id);
 ```
 
+For the mechanics behind this insert — the HTTP interface, `JSONEachRow`, and connection pooling — see [Generate test data for ClickHouse](/docs/tutorials/delivery/clickhouse).
+
 ## Build it
 
 <Steps>
@@ -80,47 +101,49 @@ cd eventum
 <Step>
 ### Define the daily traffic pattern
 
-The traffic pattern uses a **triangular** distribution to concentrate page views during business hours — ramping up from morning, peaking around midday, and tapering off in the evening.
+The traffic pattern uses a beta distribution anchored to a full day, the same shape the [Windows Event Log lesson](/docs/tutorials/formats/windows-event-log) uses for a business-hours curve: equal shape parameters center the peak at midday and taper density toward both ends of the day, closer to how site traffic actually rises and falls than a hard-edged ramp.
 
 ```yaml title="generators/clickstream/patterns/daily-traffic.yml"
 label: Daily web traffic
 oscillator:
-  start: "now"
+  start: "00:00:00"
   end: "never"
   period: 1
-  unit: hours
+  unit: days
 multiplier:
-  ratio: 30
+  ratio: 2000
 randomizer:
-  deviation: 0.3
+  deviation: 0.25
   direction: mixed
 spreader:
-  distribution: triangular
+  distribution: beta
   parameters:
-    left: 0.1
-    mode: 0.5
-    right: 0.9
+    a: 4
+    b: 4
 ```
 
-This produces ~30 page views per hour with peak density in the middle of each hour. Over a full day, the hourly cycle creates a natural traffic rhythm.
+With `start` anchored to midnight and a one-day period, the equal shape parameters (`a: 4`, `b: 4`) put the peak at noon and thin traffic toward both ends of the day; `ratio: 2000` sets about 2,000 page-view timestamps per day before the randomizer's ±25% variance is applied.
 
 </Step>
 <Step>
 ### Write the session templates
 
-The FSM models a user journey through five pages. Each template generates a JSON page view event and manages session state.
+The FSM models a user journey through five stages. Each template renders one page-view event and decides, from its own state, whether the visitor is ready to move on — that decision never compares a running count directly inside a transition; each template computes its own threshold and records the outcome as a boolean flag in `shared` state, and the transition to the next stage only checks whether that flag is present.
 
-**Landing page** — the entry point. Initializes a new session with a random user agent and referrer.
+**Landing** — the entry point. Starts a new session: a fresh session id, an empty cart, and a browse counter reset to zero, plus a random user agent and referrer. It also clears every flag a previous session might have left behind, the same way [Modeling sessions](/docs/tutorials/realism/sessions)' `login` template clears `logout_ready` for the next visitor.
 
 ```jinja title="generators/clickstream/templates/landing.jinja"
-{% set session_id = module.rand.crypto.uuid4() %}
-{% do shared.set("session_id", session_id) %}
-{% do shared.set("page_views", 1) %}
-{% do shared.set("items_in_cart", 0) %}
-{% set ua = module.faker.locale.en.user_agent() %}
-{% do shared.set("user_agent", ua) %}
-{% set ref = module.rand.choice(["https://google.com", "https://bing.com", "https://twitter.com", "direct", "https://reddit.com"]) %}
-{% do shared.set("referrer", ref) %}
+{%- set session_id = module.rand.crypto.uuid4() -%}
+{%- do shared.set("session_id", session_id) -%}
+{%- do shared.set("items_in_cart", 0) -%}
+{%- do shared.set("browse_streak", 0) -%}
+{%- do shared.pop("ready_to_add", None) -%}
+{%- do shared.pop("ready_to_checkout", None) -%}
+{%- do shared.pop("session_done", None) -%}
+{%- set ua = module.faker.locale.en_US.user_agent() -%}
+{%- do shared.set("user_agent", ua) -%}
+{%- set ref = module.rand.choice(["https://google.com", "https://bing.com", "https://twitter.com", "direct", "https://reddit.com"]) -%}
+{%- do shared.set("referrer", ref) -%}
 {
   "timestamp": "{{ timestamp.strftime('%Y-%m-%d %H:%M:%S.%f') }}",
   "session_id": "{{ session_id }}",
@@ -133,11 +156,18 @@ The FSM models a user journey through five pages. Each template generates a JSON
 }
 ```
 
-**Browse** — product listing or detail pages. The user explores; the page view counter increments.
+**Browse** — product listing or detail pages. `browse_streak` counts pages viewed since the last landing or cart addition. Once it reaches 5 with an empty cart, the session is done — a bounce. From 2 pages onward, each additional page rolls a 50% chance of signaling readiness to add to the cart, so conversions land after a variable number of pages instead of a fixed one:
 
 ```jinja title="generators/clickstream/templates/browse.jinja"
-{% do shared.set("page_views", shared.get("page_views", 0) + 1) %}
-{% set pages = ["/products", "/products/wireless-mouse", "/products/usb-hub", "/products/keyboard", "/products/webcam", "/categories/electronics", "/categories/home"] %}
+{%- set browse_streak = shared.get("browse_streak", 0) + 1 -%}
+{%- do shared.set("browse_streak", browse_streak) -%}
+{%- set items_in_cart = shared.get("items_in_cart", 0) -%}
+{%- set pages = ["/products", "/products/wireless-mouse", "/products/usb-hub", "/products/keyboard", "/products/webcam", "/categories/electronics", "/categories/home"] -%}
+{%- if items_in_cart == 0 and browse_streak >= 5 -%}
+{%- do shared.set("session_done", true) -%}
+{%- elif browse_streak >= 2 and module.rand.chance(0.5) -%}
+{%- do shared.set("ready_to_add", true) -%}
+{%- endif -%}
 {
   "timestamp": "{{ timestamp.strftime('%Y-%m-%d %H:%M:%S.%f') }}",
   "session_id": "{{ shared.get('session_id') }}",
@@ -146,15 +176,22 @@ The FSM models a user journey through five pages. Each template generates a JSON
   "page": "{{ module.rand.choice(pages) }}",
   "page_type": "browse",
   "duration_ms": {{ module.rand.number.integer(1000, 15000) }},
-  "items_in_cart": {{ shared.get("items_in_cart", 0) }}
+  "items_in_cart": {{ items_in_cart }}
 }
 ```
 
-**Add to cart** — the user adds an item. Increments `items_in_cart`.
+A fixed page-count threshold would make every converting session the same length. Rolling a chance instead spreads conversions across a range of session lengths — some visitors add an item after two pages, others after four or five — the same way real browsing sessions vary, while the deterministic ceiling at 5 still guarantees a bounce for anyone who never converts at all.
+
+**Add to cart** — records the cart addition, then clears `ready_to_add` and resets `browse_streak` immediately. Unlike [Modeling sessions](/docs/tutorials/realism/sessions)' `logout_ready`, which fires once per session, `ready_to_add` here can fire again on a later loop through `browse` — up to the cart's two-item target. That's why the flag has to be cleared the moment it's consumed: otherwise the next stretch of browsing would fall straight back into `add-to-cart` on the stale value instead of earning it again from a fresh count:
 
 ```jinja title="generators/clickstream/templates/add-to-cart.jinja"
-{% do shared.set("page_views", shared.get("page_views", 0) + 1) %}
-{% do shared.set("items_in_cart", shared.get("items_in_cart", 0) + 1) %}
+{%- do shared.pop("ready_to_add", None) -%}
+{%- do shared.set("browse_streak", 0) -%}
+{%- set items_in_cart = shared.get("items_in_cart", 0) + 1 -%}
+{%- do shared.set("items_in_cart", items_in_cart) -%}
+{%- if items_in_cart >= 2 -%}
+{%- do shared.set("ready_to_checkout", true) -%}
+{%- endif -%}
 {
   "timestamp": "{{ timestamp.strftime('%Y-%m-%d %H:%M:%S.%f') }}",
   "session_id": "{{ shared.get('session_id') }}",
@@ -163,14 +200,14 @@ The FSM models a user journey through five pages. Each template generates a JSON
   "page": "/cart",
   "page_type": "add_to_cart",
   "duration_ms": {{ module.rand.number.integer(500, 3000) }},
-  "items_in_cart": {{ shared.get("items_in_cart") }}
+  "items_in_cart": {{ items_in_cart }}
 }
 ```
 
-**Checkout** — completes the purchase.
+**Checkout** — completes the purchase, clearing the flag that led here.
 
 ```jinja title="generators/clickstream/templates/checkout.jinja"
-{% do shared.set("page_views", shared.get("page_views", 0) + 1) %}
+{%- do shared.pop("ready_to_checkout", None) -%}
 {
   "timestamp": "{{ timestamp.strftime('%Y-%m-%d %H:%M:%S.%f') }}",
   "session_id": "{{ shared.get('session_id') }}",
@@ -183,7 +220,7 @@ The FSM models a user journey through five pages. Each template generates a JSON
 }
 ```
 
-**Exit** — the user leaves. The FSM transitions back to `landing` to start a new session.
+**Exit** — the session's last event, reached either after checkout or from a bounce. The FSM transitions back to `landing` to start a new session.
 
 ```jinja title="generators/clickstream/templates/exit.jinja"
 {
@@ -202,7 +239,7 @@ The FSM models a user journey through five pages. Each template generates a JSON
 <Step>
 ### Configure the generator
 
-The FSM transitions model conversion funnel probabilities:
+Every transition below checks a single boolean flag, or falls back to a transition that always fires:
 
 ```yaml title="generators/clickstream/generator.yml"
 input:
@@ -223,22 +260,19 @@ event:
       - browse:
           template: templates/browse.jinja
           transitions:
-            - to: browse
-              when:
-                and:
-                  - { lt: { "shared.page_views": 4 } }
-                  - { lt: { "shared.items_in_cart": 1 } }
             - to: exit
-              when: { ge: { "shared.page_views": 6 } }
+              when: { defined: shared.session_done }
             - to: add-to-cart
-              when: { ge: { "shared.page_views": 4 } }
+              when: { defined: shared.ready_to_add }
+            - to: browse
+              when: { always: }
       - add-to-cart:
           template: templates/add-to-cart.jinja
           transitions:
-            - to: browse
-              when: { lt: { "shared.items_in_cart": 2 } }
             - to: checkout
-              when: { ge: { "shared.items_in_cart": 2 } }
+              when: { defined: shared.ready_to_checkout }
+            - to: browse
+              when: { always: }
       - checkout:
           template: templates/checkout.jinja
           transitions:
@@ -267,17 +301,17 @@ The session flow:
 
 | From | To | Condition | Meaning |
 |------|----|-----------|---------|
-| landing | browse | `always` | Everyone browses first |
-| browse | browse | page_views &lt; 4 **and** cart empty | Keep browsing |
-| browse | exit | page_views &ge; 6 | Bounced without buying |
-| browse | add-to-cart | page_views &ge; 4 | Interested enough to add |
-| add-to-cart | browse | cart &lt; 2 items | Continue shopping |
-| add-to-cart | checkout | cart &ge; 2 items | Ready to buy |
+| landing | browse | `always` | Every visit starts with a landing page |
+| browse | exit | `defined: shared.session_done` | Bounced: browsed 5 pages with an empty cart |
+| browse | add-to-cart | `defined: shared.ready_to_add` | Ready to add an item |
+| browse | browse | `always` (fallback) | Keep browsing |
+| add-to-cart | checkout | `defined: shared.ready_to_checkout` | Cart reached its two-item target |
+| add-to-cart | browse | `always` (fallback) | Keep shopping |
 | checkout | exit | `always` | Session complete |
 | exit | landing | `always` | New session starts |
 
 <Callout type="info">
-Transitions are evaluated **in order** — the first matching condition wins. The exit check (`page_views >= 6`) must come before add-to-cart (`page_views >= 4`) so that long browsing sessions can bounce without buying.
+Transitions are evaluated **in order**, and the first one whose condition holds wins. On `browse` and `add-to-cart`, the flag checks are listed before the `always` fallback — reversing that order would make the fallback fire first every time, since `always` never fails, and Eventum would never reach the flag check at all.
 </Callout>
 
 </Step>
@@ -328,15 +362,38 @@ eventum-keyring set clickhouse_password
 eventum run -c eventum.yml
 ```
 
-Events stream to both stdout and ClickHouse. Each session produces 5–8 page views:
+<Callout type="info">
+The sessions below were produced by running this generator directly with [`eventum generate`](/docs/core/cli/eventum-generate) in [sample mode](/docs/tutorials/foundations/streaming-vs-bulk) (`--live-mode false`), with a short bound temporarily added to the traffic pattern so a handful of complete sessions render at once for inspection. `eventum run` in the application built above drops that bound and keeps `end: "never"`, pacing sessions to the traffic pattern's actual daily curve in [live mode](/docs/core/concepts/generator#live-mode-default) instead of producing them all at once.
+</Callout>
 
-```json
-{"timestamp":"2025-06-15 14:23:01.142000","session_id":"a1b2c3d4-...","page":"/","page_type":"landing","duration_ms":2340,"items_in_cart":0, ...}
-{"timestamp":"2025-06-15 14:23:03.891000","session_id":"a1b2c3d4-...","page":"/products/webcam","page_type":"browse","duration_ms":8920,"items_in_cart":0, ...}
-{"timestamp":"2025-06-15 14:23:05.204000","session_id":"a1b2c3d4-...","page":"/products","page_type":"browse","duration_ms":5430,"items_in_cart":0, ...}
-...
-{"timestamp":"2025-06-15 14:23:09.817000","session_id":"a1b2c3d4-...","page":"/checkout/complete","page_type":"checkout","duration_ms":7210,"items_in_cart":2, ...}
+A converting session — three pages, a first item, two more pages, a second item, then checkout:
+
+```json title="A converting session"
+{"timestamp": "2026-07-17 23:52:18.575101", "session_id": "e6199a85-3ed6-40b3-932c-3a0bff12b580", "user_agent": "Mozilla/5.0 (Windows; U; Windows NT 10.0) AppleWebKit/531.24.4 (KHTML, like Gecko) Version/4.0.1 Safari/531.24.4", "referrer": "https://twitter.com", "page": "/", "page_type": "landing", "duration_ms": 2690, "items_in_cart": 0}
+{"timestamp": "2026-07-17 23:57:40.974241", "session_id": "e6199a85-3ed6-40b3-932c-3a0bff12b580", "user_agent": "Mozilla/5.0 (Windows; U; Windows NT 10.0) AppleWebKit/531.24.4 (KHTML, like Gecko) Version/4.0.1 Safari/531.24.4", "referrer": "https://twitter.com", "page": "/products/webcam", "page_type": "browse", "duration_ms": 14323, "items_in_cart": 0}
+{"timestamp": "2026-07-18 00:05:33.659582", "session_id": "e6199a85-3ed6-40b3-932c-3a0bff12b580", "user_agent": "Mozilla/5.0 (Windows; U; Windows NT 10.0) AppleWebKit/531.24.4 (KHTML, like Gecko) Version/4.0.1 Safari/531.24.4", "referrer": "https://twitter.com", "page": "/products/webcam", "page_type": "browse", "duration_ms": 3793, "items_in_cart": 0}
+{"timestamp": "2026-07-18 00:21:50.329135", "session_id": "e6199a85-3ed6-40b3-932c-3a0bff12b580", "user_agent": "Mozilla/5.0 (Windows; U; Windows NT 10.0) AppleWebKit/531.24.4 (KHTML, like Gecko) Version/4.0.1 Safari/531.24.4", "referrer": "https://twitter.com", "page": "/products", "page_type": "browse", "duration_ms": 8547, "items_in_cart": 0}
+{"timestamp": "2026-07-18 00:40:17.632793", "session_id": "e6199a85-3ed6-40b3-932c-3a0bff12b580", "user_agent": "Mozilla/5.0 (Windows; U; Windows NT 10.0) AppleWebKit/531.24.4 (KHTML, like Gecko) Version/4.0.1 Safari/531.24.4", "referrer": "https://twitter.com", "page": "/cart", "page_type": "add_to_cart", "duration_ms": 2378, "items_in_cart": 1}
+{"timestamp": "2026-07-18 00:50:17.960856", "session_id": "e6199a85-3ed6-40b3-932c-3a0bff12b580", "user_agent": "Mozilla/5.0 (Windows; U; Windows NT 10.0) AppleWebKit/531.24.4 (KHTML, like Gecko) Version/4.0.1 Safari/531.24.4", "referrer": "https://twitter.com", "page": "/products/usb-hub", "page_type": "browse", "duration_ms": 11509, "items_in_cart": 1}
+{"timestamp": "2026-07-18 00:56:20.483416", "session_id": "e6199a85-3ed6-40b3-932c-3a0bff12b580", "user_agent": "Mozilla/5.0 (Windows; U; Windows NT 10.0) AppleWebKit/531.24.4 (KHTML, like Gecko) Version/4.0.1 Safari/531.24.4", "referrer": "https://twitter.com", "page": "/categories/home", "page_type": "browse", "duration_ms": 11637, "items_in_cart": 1}
+{"timestamp": "2026-07-18 00:57:13.339342", "session_id": "e6199a85-3ed6-40b3-932c-3a0bff12b580", "user_agent": "Mozilla/5.0 (Windows; U; Windows NT 10.0) AppleWebKit/531.24.4 (KHTML, like Gecko) Version/4.0.1 Safari/531.24.4", "referrer": "https://twitter.com", "page": "/cart", "page_type": "add_to_cart", "duration_ms": 1597, "items_in_cart": 2}
+{"timestamp": "2026-07-18 00:59:05.632261", "session_id": "e6199a85-3ed6-40b3-932c-3a0bff12b580", "user_agent": "Mozilla/5.0 (Windows; U; Windows NT 10.0) AppleWebKit/531.24.4 (KHTML, like Gecko) Version/4.0.1 Safari/531.24.4", "referrer": "https://twitter.com", "page": "/checkout/complete", "page_type": "checkout", "duration_ms": 2722, "items_in_cart": 2}
+{"timestamp": "2026-07-18 01:02:06.693648", "session_id": "e6199a85-3ed6-40b3-932c-3a0bff12b580", "user_agent": "Mozilla/5.0 (Windows; U; Windows NT 10.0) AppleWebKit/531.24.4 (KHTML, like Gecko) Version/4.0.1 Safari/531.24.4", "referrer": "https://twitter.com", "page": "/", "page_type": "exit", "duration_ms": 711, "items_in_cart": 2}
 ```
+
+Filtering the same run for a session that never added anything to its cart shows the bounce path: `browse_streak` reaches 5 with the cart still empty, and `session_done` sends it straight to `exit` instead of `add-to-cart`:
+
+```json title="A bounced session"
+{"timestamp": "2026-07-18 01:46:49.808270", "session_id": "a056e002-3805-4c65-b8b4-a17f6a7c10f9", "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 1_1_5 like Mac OS X) AppleWebKit/532.2 (KHTML, like Gecko) CriOS/63.0.875.0 Mobile/90Y946 Safari/532.2", "referrer": "https://reddit.com", "page": "/", "page_type": "landing", "duration_ms": 4311, "items_in_cart": 0}
+{"timestamp": "2026-07-18 01:48:51.048712", "session_id": "a056e002-3805-4c65-b8b4-a17f6a7c10f9", "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 1_1_5 like Mac OS X) AppleWebKit/532.2 (KHTML, like Gecko) CriOS/63.0.875.0 Mobile/90Y946 Safari/532.2", "referrer": "https://reddit.com", "page": "/products/usb-hub", "page_type": "browse", "duration_ms": 11673, "items_in_cart": 0}
+{"timestamp": "2026-07-18 01:49:14.151790", "session_id": "a056e002-3805-4c65-b8b4-a17f6a7c10f9", "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 1_1_5 like Mac OS X) AppleWebKit/532.2 (KHTML, like Gecko) CriOS/63.0.875.0 Mobile/90Y946 Safari/532.2", "referrer": "https://reddit.com", "page": "/products", "page_type": "browse", "duration_ms": 10861, "items_in_cart": 0}
+{"timestamp": "2026-07-18 01:49:48.756966", "session_id": "a056e002-3805-4c65-b8b4-a17f6a7c10f9", "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 1_1_5 like Mac OS X) AppleWebKit/532.2 (KHTML, like Gecko) CriOS/63.0.875.0 Mobile/90Y946 Safari/532.2", "referrer": "https://reddit.com", "page": "/products", "page_type": "browse", "duration_ms": 7044, "items_in_cart": 0}
+{"timestamp": "2026-07-18 01:59:13.147119", "session_id": "a056e002-3805-4c65-b8b4-a17f6a7c10f9", "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 1_1_5 like Mac OS X) AppleWebKit/532.2 (KHTML, like Gecko) CriOS/63.0.875.0 Mobile/90Y946 Safari/532.2", "referrer": "https://reddit.com", "page": "/products/webcam", "page_type": "browse", "duration_ms": 11445, "items_in_cart": 0}
+{"timestamp": "2026-07-18 02:02:56.904621", "session_id": "a056e002-3805-4c65-b8b4-a17f6a7c10f9", "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 1_1_5 like Mac OS X) AppleWebKit/532.2 (KHTML, like Gecko) CriOS/63.0.875.0 Mobile/90Y946 Safari/532.2", "referrer": "https://reddit.com", "page": "/products/wireless-mouse", "page_type": "browse", "duration_ms": 11214, "items_in_cart": 0}
+{"timestamp": "2026-07-18 02:03:05.691342", "session_id": "a056e002-3805-4c65-b8b4-a17f6a7c10f9", "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 1_1_5 like Mac OS X) AppleWebKit/532.2 (KHTML, like Gecko) CriOS/63.0.875.0 Mobile/90Y946 Safari/532.2", "referrer": "https://reddit.com", "page": "/categories/electronics", "page_type": "exit", "duration_ms": 459, "items_in_cart": 0}
+```
+
+Of the four sessions this run touched, two converted, one bounced, and one was still browsing when the bounded run ended. Small samples vary, but the chance roll's math puts the theoretical bounce rate at one session in eight — three independent 50% rolls have to fail in a row before the fifth unconverted page view forces the exit.
 
 Query the conversion funnel in ClickHouse:
 
@@ -355,7 +412,7 @@ ORDER BY views DESC;
 
 ## Going further
 
-- **Bounce rate** — add a direct `landing → exit` transition with a probability condition to model users who leave immediately.
+- **Tune the bounce rate** — raise or lower `browse.jinja`'s `browse_streak` ceiling or the chance roll's probability to match a real funnel's bounce rate; add a direct `landing → exit` transition for visitors who leave without browsing at all, a different and simpler bounce shape than the one built here.
 - **A/B testing** — use [tags](/docs/core/concepts/plugins#tags-input-plugins) to label timestamps as variant A or B, then branch the FSM based on `has_tags`.
 - **Multi-device sessions** — run two generators in `startup.yml` with different user agent pools (mobile vs. desktop) writing to the same table.
 - **Real-time dashboards** — connect Grafana to ClickHouse and build a live funnel dashboard showing conversion rates as events stream in.
@@ -379,3 +436,29 @@ ORDER BY views DESC;
     href="/docs/plugins/output/clickhouse"
   />
 </Cards>
+
+## FAQ
+
+<Accordions>
+<Accordion title="What counts as a bounce in this generator?">
+A session that lands, browses, and leaves without ever adding anything to the cart. `browse.jinja` tracks how many pages the current visitor has viewed since the session started, or since the last cart addition, and sets `session_done` once that count reaches 5 with the cart still empty, sending the FSM to `exit` instead of `add-to-cart` on the next check. A visitor who leaves from the landing page itself, before browsing at all, is a different and simpler bounce shape that this generator doesn't model directly.
+</Accordion>
+<Accordion title="Why does browse.jinja roll a random chance instead of comparing against a fixed page count?">
+So conversion timing varies between visitors instead of landing on the same page count every time — the reasoning is in `browse.jinja` above. What the chance keeps is the deterministic ceiling: once a visitor's streak hits 5, the funnel forces the outcome, so no session browses forever without either converting or bouncing.
+</Accordion>
+<Accordion title="Can this generator track more than one visitor browsing at the same time?">
+No. One `fsm` machine holds exactly one current session in `shared` state — the same limitation [Modeling sessions](/docs/tutorials/realism/sessions) has for its login/action/logout cycle — so sessions here play out one after another rather than concurrently. Modeling many visitors browsing at once needs the pool-in-state pattern from [Correlated events](/docs/tutorials/realism/correlated-events) instead: a dict of in-flight sessions keyed by session id, with each render advancing one entry from the pool.
+</Accordion>
+<Accordion title="How do I read the conversion rate out of this data in ClickHouse?">
+The query shown above already groups by `page_type` and counts distinct `session_id` values per stage; the conversion rate from landing to checkout is the `checkout` row's session count divided by the `landing` row's. Every event in a session carries that session's `session_id`, so the same grouping works for any stage pair — landing to add-to-cart, or add-to-cart to checkout — without a separate query per transition.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [Modeling sessions](/docs/tutorials/realism/sessions) lesson for the finite-state-machine and state-flag technique this funnel reuses, applied there to a three-stage login/action/logout cycle instead of a five-stage browsing session
+- The [Correlated events](/docs/tutorials/realism/correlated-events) lesson for tracking many concurrent visitors in a pool instead of one session at a time
+- The [Generate test data for ClickHouse](/docs/tutorials/delivery/clickhouse) lesson for the HTTP insert mechanics, connection pooling, and `generateRandom` comparison behind this output
+- The [Streaming vs bulk](/docs/tutorials/foundations/streaming-vs-bulk) lesson for live mode's continuous feed versus the bounded sample-mode batch used to inspect this generator
+- The [Scenarios track](/docs/tutorials/scenarios) for the broader set of scenarios synthetic data solves
+- The [Eventum Hub](/hub) for generators that already model common funnels, instead of starting the FSM from a blank state

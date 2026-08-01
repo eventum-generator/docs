@@ -1,0 +1,213 @@
+---
+title: "Apache & Nginx access logs: CLF and Combined"
+description: How the Apache log format — Common Log Format and Combined Log Format — lines up with nginx's matching defaults, and how to generate compliant access-log lines with Eventum.
+---
+
+A log shipper's parser, a WAF signature tuned against request-line shape, and a billing job that reconciles bytes served all expect access-log lines shaped exactly the way a real web server writes them. A live Apache or nginx instance can produce them, but its output arrives on whatever schedule its actual traffic sets, and standing one up just to capture a redirect, a 404, or a response with an empty body is slow for what it returns. Both vendors document the format precisely, but neither ships more than a single illustrative line — far short of the mix of status codes and body sizes a parser actually has to handle.
+
+Eventum renders that stream directly from a template — client address, request line, status, and byte count in the exact field order Apache's Combined Log Format defines, the same order nginx's matching default uses — and writes each line to a file exactly as produced. Any of the three can then be exercised against realistic access-log traffic without standing up a real web server.
+
+## Common Log Format and Combined Log Format
+
+[Apache's HTTP Server documentation](https://httpd.apache.org/docs/2.4/logs.html) defines Common Log Format (CLF) as a single `LogFormat` directive — the baseline nearly every access-log format since, nginx's included, has copied or extended:
+
+```text
+LogFormat "%h %l %u %t \"%r\" %>s %b" common
+```
+
+Every directive names one positional field, delimited by spaces; nothing here is optional or reorderable:
+
+| Field | Directive | Meaning |
+|-------|-----------|---------|
+| Remote host | `%h` | The client's IP address. |
+| Ident | `%l` | The client's RFC 1413 identity, as reported by `identd` on the client machine. Almost never available — see below. |
+| Authenticated user | `%u` | The username from HTTP authentication, or `-` when the request carries none. |
+| Time | `%t` | Receipt time, formatted `[day/Mon/yyyy:HH:MM:SS +zzzz]`. |
+| Request line | `"%r"` | The client's request line — method, path, and protocol version — quoted. |
+| Status | `%>s` | The final HTTP status code sent to the client. |
+| Bytes | `%b` | Response body size, excluding headers. `-` when the response carries no body; `%B` prints `0` for the same case instead. |
+
+Here is that example with every field labeled:
+
+```text title="Apache's reference CLF example"
+127.0.0.1 - frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326
+```
+
+| Segment | Value | Field |
+|---------|-------|-------|
+| 1 | `127.0.0.1` | Remote host (`%h`) |
+| 2 | `-` | Ident (`%l`) |
+| 3 | `frank` | Authenticated user (`%u`) |
+| 4 | `[10/Oct/2000:13:55:36 -0700]` | Time (`%t`) |
+| 5 | `"GET /apache_pb.gif HTTP/1.0"` | Request line (`%r`) |
+| 6 | `200` | Status (`%>s`) |
+| 7 | `2326` | Bytes (`%b`) |
+
+Combined Log Format is CLF with two more quoted fields appended — the same seven fields above, unchanged, plus the inbound `Referer` and `User-agent` request headers:
+
+```text
+LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-agent}i\"" combined
+```
+
+```text title="Apache's reference Combined example"
+127.0.0.1 - frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326 "http://www.example.com/start.html" "Mozilla/4.08 [en] (Win98; I ;Nav)"
+```
+
+`%{Referer}i` and `%{User-agent}i` both use Apache's general `%{header}i` directive, which reads any inbound request header by name — quoted because either value can legally contain a space. Combined is what a stock Apache install actually logs; CLF alone now mostly shows up in documentation and in parsers old enough to only expect the first seven fields.
+
+## Apache vs Nginx defaults
+
+nginx's own [`ngx_http_log_module`](https://nginx.org/en/docs/http/ngx_http_log_module.html) ships a predefined format also named `combined`, modeled directly on Apache's:
+
+```text
+log_format combined '$remote_addr - $remote_user [$time_local] '
+                    '"$request" $status $body_bytes_sent '
+                    '"$http_referer" "$http_user_agent"';
+```
+
+Rendered, the two formats produce the same nine fields in the same order:
+
+| # | Apache Combined | nginx `combined` | Holds |
+|---|------------------|-------------------|-------|
+| 1 | `%h` | `$remote_addr` | Client IP address |
+| 2 | `%l` | *(literal `-`)* | Ident — see caveat below |
+| 3 | `%u` | `$remote_user` | Authenticated username, `-` if none |
+| 4 | `%t` | `$time_local` | Receipt time, `[day/Mon/yyyy:HH:MM:SS +zzzz]` |
+| 5 | `"%r"` | `"$request"` | Request line, quoted |
+| 6 | `%>s` | `$status` | Final HTTP status code |
+| 7 | `%b` | `$body_bytes_sent` | Response body size — see caveat below |
+| 8 | `"%{Referer}i"` | `"$http_referer"` | Referer header, quoted |
+| 9 | `"%{User-agent}i"` | `"$http_user_agent"` | User-Agent header, quoted |
+
+Visually the two lines are indistinguishable. Three details underneath that surface still catch a parser written against only one vendor:
+
+- **Ident is a real field in Apache, a hardcoded character in nginx.** Apache's `%l` is a genuine positional field — an RFC 1413 lookup against `identd` on the client machine — that prints `-` because virtually no client runs `identd` any more, not because the field is fake. nginx's format string has no equivalent variable in that position at all: the `-` between `$remote_addr` and `[$time_local]` in the `log_format combined` definition above is a literal character baked into the format string, not a substitution.
+- **A zero-byte body prints differently.** Apache's `%b` prints `-` when the response carries no body — a `304 Not Modified`, most commonly. `%B`, a separate directive, prints `0` for that same case instead. nginx's `$body_bytes_sent` follows `%B`'s convention, not `%b`'s: [nginx's own variable reference](https://nginx.org/en/docs/http/ngx_http_core_module.html#var_body_bytes_sent) describes it as "compatible with the `%B` parameter of the `mod_log_config` Apache module," and it prints a literal `0`, never a dash. A parser that treats a bare `-` as the only valid empty-body marker silently mis-parses every zero-byte nginx line.
+- **Both defaults count body bytes only.** `%b` / `%B` and `$body_bytes_sent` all exclude response headers from the count — [nginx's docs](https://nginx.org/en/docs/http/ngx_http_core_module.html#var_body_bytes_sent) state it directly, describing the variable as "not counting the response header." Apache's `%O` (needs `mod_logio`) and nginx's `$bytes_sent` both count the full response, headers included, but neither ships in the respective vendor's default `combined` format — reconciling either byte count against a packet capture or a proxy's own counter needs the headers-inclusive variable explicitly, not the default.
+
+## Generate an access log with Eventum
+
+The generator that follows models a small storefront's traffic — page and asset requests that mostly succeed, a share of `304 Not Modified` responses from conditional requests, and a rarer mix of client and server errors — rendering each one as a single Combined-format line. Apache Combined and nginx's `combined` produce the same line for the same request, with one exception: a response with an empty body, where Apache's `%b` writes `-` and nginx's `$body_bytes_sent` writes `0` (the caveat above). Outside that one field, one template covers what either vendor would actually write.
+
+<Steps>
+<Step>
+
+### Write the Combined-format templates
+
+Values come from [`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module. `templates/access-success.jinja` renders the common case — mostly `200`s, a share of zero-byte `304`s that exercise the caveat above directly, and an occasional `301`:
+
+```jinja title="generators/access-logs/templates/access-success.jinja"
+{%- set client_ip = module.rand.network.ip_v4_public() -%}
+{%- set method = module.rand.weighted_choice({"GET": 85, "POST": 12, "HEAD": 3}) -%}
+{%- set path = module.rand.choice(["/", "/products", "/products/42", "/cart", "/api/search", "/static/app.css", "/static/logo.png"]) -%}
+{%- set status = module.rand.weighted_choice({200: 78, 304: 15, 301: 7}) -%}
+{%- set bytes = 0 if status == 304 else module.rand.number.lognormal(8.5, 1.0) | round | int -%}
+{%- set referer = module.rand.weighted_choice({"-": 40, "https://example.com/": 35, "https://www.google.com/": 25}) -%}
+{%- set user_agent = module.rand.choice([
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+]) -%}
+{{ client_ip }} - - [{{ timestamp.strftime('%d/%b/%Y:%H:%M:%S %z') }}] "{{ method }} {{ path }} HTTP/1.1" {{ status }} {{ "-" if bytes == 0 else bytes }} "{{ referer }}" "{{ user_agent }}"
+```
+
+The ident position is a hardcoded literal character — the first `-` right after `client_ip` — not a variable, since this storefront runs no `identd`; that matches the first caveat above exactly. The second `-`, authuser, is a genuine substitutable field in both vendors (`%u` / `$remote_user`), not a literal one — it renders as a dash here only because this storefront gates nothing behind HTTP authentication, so there's never a real username to substitute; that's a simplification of this generator's traffic, not the same real-vs-literal split as ident's. `bytes` is drawn from [`module.rand.number.lognormal`](/docs/plugins/event/template/modules), the right-skewed distribution the [realistic values lesson](/docs/tutorials/realism/values) recommends for response sizes, forced to `0` for every `304` — and the render line prints that `0` as a bare `-`, Apache's own convention for an empty body.
+
+`templates/access-error.jinja` renders the rarer case — `404`, `403`, and `500` responses, each with a real, non-zero error-page body:
+
+```jinja title="generators/access-logs/templates/access-error.jinja"
+{%- set client_ip = module.rand.network.ip_v4_public() -%}
+{%- set method = module.rand.weighted_choice({"GET": 80, "POST": 20}) -%}
+{%- set path = module.rand.choice(["/admin", "/wp-login.php", "/api/orders", "/.env", "/checkout"]) -%}
+{%- set status = module.rand.weighted_choice({404: 70, 403: 20, 500: 10}) -%}
+{%- set bytes = module.rand.number.integer(180, 620) -%}
+{%- set user_agent = module.rand.choice([
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "python-requests/2.31.0",
+    "Mozilla/5.0 (compatible; AhrefsBot/7.0; +http://ahrefs.com/robot/)"
+]) -%}
+{{ client_ip }} - - [{{ timestamp.strftime('%d/%b/%Y:%H:%M:%S %z') }}] "{{ method }} {{ path }} HTTP/1.1" {{ status }} {{ bytes }} "-" "{{ user_agent }}"
+```
+
+</Step>
+<Step>
+
+### Configure the generator
+
+Per timestamp, [`mode: chance`](/docs/plugins/event/template/modes#chance) chooses between the two templates, weighted so successful requests dominate and errors stay rare. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [file](/docs/plugins/output/file) output writes each rendered line to `output/access.log` through the [plain formatter](/docs/plugins/formatters#plain):
+
+```yaml title="generators/access-logs/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: chance
+    templates:
+      - access_success:
+          template: templates/access-success.jinja
+          chance: 85
+      - access_error:
+          template: templates/access-error.jinja
+          chance: 15
+
+output:
+  - file:
+      path: output/access.log
+      formatter:
+        format: plain
+```
+
+<Callout type="info">
+`plain` is `file`'s own default formatter, shown explicitly here to make the choice deliberate: each template already renders one complete, final access-log line, so nothing needs reshaping before it's written. The [`json` formatter](/docs/plugins/formatters#json) would be wrong for this output — it validates every event as a JSON value and rejects anything that isn't, and a Combined-format line never is one.
+</Callout>
+
+</Step>
+</Steps>
+
+## The result
+
+A short burst in [sample mode](/docs/core/concepts/generator#sample-mode) produced consistent Combined-format lines end to end. Seven consecutive lines from an actual run:
+
+```text title="output/access.log"
+1.110.236.55 - - [17/Jul/2026:16:30:22 +0000] "GET /static/logo.png HTTP/1.1" 200 24528 "https://example.com/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+55.89.112.41 - - [17/Jul/2026:16:30:23 +0000] "GET /static/app.css HTTP/1.1" 200 750 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+126.52.234.151 - - [17/Jul/2026:16:30:24 +0000] "POST /products HTTP/1.1" 200 1871 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+201.140.53.101 - - [17/Jul/2026:16:30:25 +0000] "POST /cart HTTP/1.1" 200 10066 "https://www.google.com/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+221.59.69.248 - - [17/Jul/2026:16:30:26 +0000] "GET /checkout HTTP/1.1" 403 513 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+77.56.158.118 - - [17/Jul/2026:16:30:27 +0000] "POST / HTTP/1.1" 200 20691 "https://www.google.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+192.138.23.154 - - [17/Jul/2026:16:30:28 +0000] "GET / HTTP/1.1" 304 - "https://example.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+```
+
+All nine Combined fields land in the order the tables above define: client address, the hardcoded `- -` for ident and authuser, the bracketed local timestamp, the quoted request line, status, bytes, and the two quoted headers. The fifth line is a `403` with a real body of `513` bytes; the seventh is a `304` — the bytes column prints a bare `-` instead of a number, exactly the empty-body convention Apache's `%b` defines, the same response nginx's `$body_bytes_sent` would instead print as a literal `0`.
+
+Substituting nginx's convention for that same request changes exactly one field:
+
+```text title="The same 304 as nginx would write it"
+192.138.23.154 - - [17/Jul/2026:16:30:28 +0000] "GET / HTTP/1.1" 304 0 "https://example.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+```
+
+Only the bytes column changes, from a bare `-` to a literal `0`; every other field is unchanged. The generator never rendered this line itself — it always follows Apache's `%b` convention — this is the same request rewritten by hand to show nginx's `$body_bytes_sent` convention instead.
+
+## FAQ
+
+<Accordions>
+<Accordion title="CLF or Combined — which should I generate?">
+Combined, in almost every real case. Referer and User-Agent are the two fields most bot-detection and log-analytics rules actually key on, and a stock install of either server writes Combined by default — bare CLF mostly shows up in documentation and in parsers old enough to only expect the first seven fields. Drop the two trailing quoted fields from the templates above to produce CLF instead; the first seven fields don't change shape between the two formats.
+</Accordion>
+<Accordion title="How do I tell whether a zero-byte line came from Apache or nginx?">
+Not from the bytes column alone. A bare `-` is Apache's convention (`%b`), a bare `0` is nginx's (`$body_bytes_sent`, compatible with Apache's own `%B`), but nothing in the line names which vendor produced it either way. That comes from whatever metadata already tags the file by host or service. A parser meant to handle both should treat `-` and `0` in that column as the same fact: a response with no body.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [formats field guide](/docs/tutorials/formats) covering every supported log and event shape
+- The [ECS lesson](/docs/tutorials/formats/ecs) for the schema-mapped shape a Filebeat or Elastic Agent module turns these lines into downstream
+- The [NDJSON lesson](/docs/tutorials/formats/ndjson) for emitting one JSON object per line instead of a raw text line
+- The [Stream to your stack](/docs/tutorials/delivery) lessons for shipping generated access logs to a real backend instead of a local file
+- The [Web clickstream](/docs/tutorials/web-clickstream) and [API load testing](/docs/tutorials/load-testing) scenarios for other generators built around web traffic
+- The [web-apache](/hub/web-apache) and [web-nginx](/hub/web-nginx) generators in the Eventum Hub for the downstream ECS-mapped form of these same servers
+- The [file output](/docs/plugins/output/file) and [formatters](/docs/plugins/formatters) references for every field used above

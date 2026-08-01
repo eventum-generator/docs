@@ -79,11 +79,11 @@ Any input plugin can attach **tags** — arbitrary string labels — to its time
 ```yaml
 input:
   - cron:
-      expression: "*/5 * * * * *"
+      expression: "* * * * * */5"
       count: 1
       tags: [heartbeat]
   - cron:
-      expression: "0 * * * * *"
+      expression: "* * * * *"
       count: 1
       tags: [minutely]
 ```

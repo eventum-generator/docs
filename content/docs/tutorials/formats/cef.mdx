@@ -1,0 +1,184 @@
+---
+title: "CEF format: header and extension"
+description: How CEF (Common Event Format) structures its header and extension, valid severity values, and escaping rules — plus generating compliant CEF logs with Eventum.
+---
+
+Validating a SIEM's CEF parser, or a detection rule written against CEF fields, requires CEF events shaped to exercise the exact case under test. A live firewall, intrusion detection system, or ArcSight SmartConnector can produce them, but standing one up is slow and its output arrives on its own schedule, not the tester's. Public examples are equally scarce: the authoritative specification is a vendor PDF, and most search results are forum threads with a few copied lines and no explanation of the structure behind them.
+
+Eventum generates CEF lines directly from a template — a correctly delimited header followed by a correctly escaped extension — and delivers them to whatever the collector listens on. The parser or the detection rule can be exercised against them without a real device in place.
+
+## What CEF looks like
+
+CEF (Common Event Format) is a text-based log format [defined by ArcSight](https://www.microfocus.com/documentation/arcsight/arcsight-smartconnectors-8.3/pdfdoc/cef-implementation-standard/cef-implementation-standard.pdf) — now part of OpenText — so that security products from any vendor could feed a single, predictable event shape into its SIEM. Firewalls, intrusion detection systems, endpoint agents, and other security appliances now emit it natively or through a mapping layer, and most SIEMs and log collectors other than IBM QRadar, which expects LEEF instead, parse it directly.
+
+A CEF message is a header followed by an extension, both riding inside a single line of text:
+
+```text
+CEF:Version|Device Vendor|Device Product|Device Version|Device Event Class ID|Name|Severity|Extension
+```
+
+Every field up to `Severity` is mandatory and positional, delimited by unescaped pipes (`|`). `Extension` is optional and carries the event's actual data as space-separated `key=value` pairs.
+
+| Field | Description |
+|-------|--------------|
+| Version | Format version — `0` or `1`. |
+| Device Vendor | Identifies the vendor of the device that produced the event. |
+| Device Product | Identifies the product. |
+| Device Version | The product's version string. |
+| Device Event Class ID | A unique identifier per event or signature type — commonly called the Signature ID. |
+| Name | A short, human-readable description. It should not repeat information already carried by another field: "Connection blocked", not "Connection from 198.51.100.7 blocked on port 22". |
+| Severity | The event's importance: 0–10, or one of `Unknown`, `Low`, `Medium`, `High`, `Very-High`. |
+
+Here is ArcSight's reference line, broken down field by field:
+
+```text title="ArcSight's reference example"
+CEF:0|Security|threatmanager|1.0|100|worm successfully stopped|10|src=10.0.0.1 dst=2.1.2.2 spt=1232
+```
+
+| Segment | Value | Field |
+|---------|-------|-------|
+| 1 | `0` | Version |
+| 2 | `Security` | Device Vendor |
+| 3 | `threatmanager` | Device Product |
+| 4 | `1.0` | Device Version |
+| 5 | `100` | Device Event Class ID |
+| 6 | `worm successfully stopped` | Name |
+| 7 | `10` | Severity |
+| — | `src=10.0.0.1 dst=2.1.2.2 spt=1232` | Extension |
+
+Severity accepts either form, and a numeric value maps to a string band:
+
+| Numeric range | String value |
+|---------------|--------------|
+| 0–3 | `Low` |
+| 4–6 | `Medium` |
+| 7–8 | `High` |
+| 9–10 | `Very-High` |
+
+`Unknown` is also valid as a string, with no corresponding integer.
+
+The Extension carries the event's data as `key=value` pairs, space-separated, in any order. Keys come from ArcSight's own Extension Dictionary — more than a hundred predefined names — of which a handful account for most events:
+
+| Key | Full name | Meaning |
+|-----|-----------|---------|
+| `src` / `dst` | sourceAddress / destinationAddress | Source / destination IPv4 or IPv6 address. |
+| `spt` / `dpt` | sourcePort / destinationPort | Source / destination port, 0–65535. |
+| `shost` / `dhost` | sourceHostName / destinationHostName | Source / destination hostname. |
+| `suser` / `duser` | sourceUserName / destinationUserName | Source / destination user name. |
+| `act` | deviceAction | Action taken by the device. |
+| `proto` | transportProtocol | Layer-4 protocol, e.g. `TCP` or `UDP`. |
+| `outcome` | eventOutcome | Usually `success` or `failure`. |
+| `cat` | deviceEventCategory | Vendor-assigned event category. |
+| `msg` | message | Free-text detail. Multi-line values use `\n` as the line separator. |
+| `rt` | deviceReceiptTime | When the event was received — `MMM dd yyyy HH:mm:ss` or epoch milliseconds. |
+| `cnt` | baseEventCount | Number of times this same event was observed; omitted when `1`. |
+| `cs1` through `cs6` / `cn1` through `cn3` | deviceCustomString* / deviceCustomNumber* | Custom string / numeric fields for data with no dedicated key, each paired with a matching `*Label` field. |
+
+The header and the extension enforce different escaping rules, and mixing them up produces a line the receiving parser splits incorrectly:
+
+- **Pipe (`|`)** must be escaped as `\|` when it appears inside a header value; the seven delimiter pipes themselves are never escaped. A pipe inside an extension value needs no escaping at all.
+- **Backslash (`\`)** must be escaped as `\\` wherever it appears — in the header and in the extension.
+- **Equals sign (`=`)** must be escaped as `\=` inside an extension value; a literal `=` inside a header field needs no such treatment.
+- **Newline** inside an extension value is encoded as a literal `\n` or `\r`; only extension values may span multiple lines this way, never header fields.
+
+A Windows file path exercises the backslash rule in both halves of the message at once, and a literal `=` inside an argument exercises the extension-only rule:
+
+```text title="Escaping backslash and equals"
+CEF:0|Acme|NetGuard|3.1|1007|Blocked path C:\\Temp\\payload.exe|6|act=blocked filePath=C:\\Temp\\payload.exe msg=argument was key\=value
+```
+
+Every backslash in `C:\Temp\payload.exe` becomes `\\`, in both the Name field and the `filePath` extension value. The `=` inside `key=value` is escaped as `\=` because it sits inside an extension value rather than acting as a delimiter.
+
+## Generate CEF with Eventum
+
+The setup below models a firewall — `Acme NetGuard` — producing two CEF event types: routine policy-blocked connections and rarer, higher-severity intrusion alerts.
+
+### The templates
+
+Each field is drawn from [`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module, so every run produces different but structurally valid lines. `templates/blocked-connection.jinja` renders the routine case, Severity `4` (Medium):
+
+```jinja title="generators/cef-firewall/templates/blocked-connection.jinja"
+{%- set src_ip = module.rand.network.ip_v4_public() -%}
+{%- set dst_ip = module.rand.network.ip_v4_private_c() -%}
+{%- set spt = module.rand.number.integer(1024, 65535) -%}
+{%- set dpt = module.rand.weighted_choice([22, 80, 443, 3389, 445], [10, 30, 35, 15, 10]) -%}
+{%- set rt = timestamp.strftime('%b %d %Y %H:%M:%S') -%}
+CEF:0|Acme|NetGuard|3.1|1000|Connection blocked by policy|4|rt={{ rt }} src={{ src_ip }} dst={{ dst_ip }} spt={{ spt }} dpt={{ dpt }} proto=TCP act=blocked outcome=failure
+```
+
+`templates/intrusion-detected.jinja` renders the rarer case, Severity `8` (High):
+
+```jinja title="generators/cef-firewall/templates/intrusion-detected.jinja"
+{%- set src_ip = module.rand.network.ip_v4_public() -%}
+{%- set dst_ip = module.rand.network.ip_v4_private_c() -%}
+{%- set dpt = module.rand.choice([22, 3389, 445, 1433]) -%}
+{%- set rt = timestamp.strftime('%b %d %Y %H:%M:%S') -%}
+{%- set attempts = module.rand.number.integer(15, 120) -%}
+CEF:0|Acme|NetGuard|3.1|2001|Possible port scan detected|8|rt={{ rt }} src={{ src_ip }} dst={{ dst_ip }} dpt={{ dpt }} proto=TCP act=alert cat=Intrusion/PortScan cnt={{ attempts }}
+```
+
+Neither template escapes anything, because the IP addresses, ports, and fixed strings above contain no pipe, backslash, or equals sign. A template that interpolates free-form text — a file path, a user-supplied query string — into `msg` or a custom field must apply the rules from the previous section itself before rendering.
+
+### The generator config
+
+[`mode: chance`](/docs/plugins/event/template/modes#chance) picks between the two templates per timestamp, weighted so blocked connections dominate and intrusions stay rare. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [tcp](/docs/plugins/output/tcp) output ships each rendered line to the collector's syslog port:
+
+```yaml title="generators/cef-firewall/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: chance
+    templates:
+      - blocked_connection:
+          template: templates/blocked-connection.jinja
+          chance: 85
+      - intrusion_detected:
+          template: templates/intrusion-detected.jinja
+          chance: 15
+
+output:
+  - tcp:
+      host: siem.example.com
+      port: 514
+      separator: "\n"
+```
+
+<Callout type="info">
+For UDP delivery, replace `tcp` with [`udp`](/docs/plugins/output/udp) and keep the same `host` and `port`. To inspect lines locally before pointing the generator at a real collector, replace the output with [`file`](/docs/plugins/output/file) or [`stdout: {}`](/docs/plugins/output/stdout).
+</Callout>
+
+## The result
+
+Running the generator above produces one CEF line per timestamp, alternating between the two event types:
+
+```text
+CEF:0|Acme|NetGuard|3.1|2001|Possible port scan detected|8|rt=Jul 11 2026 12:01:59 src=192.61.161.51 dst=192.168.14.85 dpt=3389 proto=TCP act=alert cat=Intrusion/PortScan cnt=86
+CEF:0|Acme|NetGuard|3.1|1000|Connection blocked by policy|4|rt=Jul 11 2026 12:02:00 src=5.115.188.144 dst=192.168.33.235 spt=61575 dpt=443 proto=TCP act=blocked outcome=failure
+```
+
+Both lines are valid CEF: seven pipe-delimited header fields followed by space-separated extension pairs, `rt` in the `MMM dd yyyy HH:mm:ss` format the specification defines, `src` drawn from outside any private range, and `dst` kept inside the internal network the firewall protects.
+
+## FAQ
+
+<Accordions>
+<Accordion title="CEF vs LEEF?">
+Both are pipe-delimited, vendor-neutral security event formats with a header followed by key-value data, but the header shapes differ. CEF's header carries seven fields, including `Name` and `Severity`; LEEF's carries five — `Version`, `Vendor`, `Product`, `Version`, `EventID` — with no `Name` or `Severity` field at all. The extension delimiter differs too: CEF pairs are space-separated, LEEF pairs are tab-separated by default. CEF is what ArcSight and most SIEMs other than IBM QRadar expect; QRadar uses LEEF. See the [LEEF lesson](/docs/tutorials/formats/leef) for the full structure and how to generate it with Eventum.
+</Accordion>
+<Accordion title="How do I ship CEF over syslog?">
+CEF is a message format, not a transport — it is usually carried inside a syslog message, though many collectors also accept the bare CEF line over TCP or UDP. Prepend a syslog header (an RFC 3164 `<priority>timestamp hostname` header, or an RFC 5424 header) to the `CEF:Version|...` line inside the same template, then send the result over [tcp](/docs/plugins/output/tcp) or [udp](/docs/plugins/output/udp) to the collector's syslog port — `514` for plain text, `6514` if the collector requires TLS. Some collectors accept the bare `CEF:Version|...` line directly, without any syslog header, which is the form the generator above produces. See the [syslog lesson](/docs/tutorials/formats/syslog) for both header formats.
+</Accordion>
+<Accordion title="What severity values are valid?">
+Either an integer from 0 to 10, or one of five strings: `Unknown`, `Low`, `Medium`, `High`, `Very-High`. When a number maps to a string, 0–3 is `Low`, 4–6 is `Medium`, 7–8 is `High`, and 9–10 is `Very-High`; nothing outside that range or set is valid.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [formats field guide](/docs/tutorials/formats) covering every supported log and event shape
+- The [LEEF lesson](/docs/tutorials/formats/leef) for IBM QRadar's equivalent format
+- The [syslog lesson](/docs/tutorials/formats/syslog) for wrapping any message in a standards-compliant syslog header
+- The [detection testing lesson](/docs/tutorials/detection-testing) for generating attack-shaped telemetry to test Sigma rules

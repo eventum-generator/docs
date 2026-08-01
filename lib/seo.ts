@@ -112,3 +112,18 @@ export function breadcrumbSchema(items: BreadcrumbItem[]): JsonLd {
     })),
   };
 }
+
+export function courseSchema(course: {
+  name: string;
+  description: string;
+  path: string;
+}): JsonLd {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Course',
+    name: course.name,
+    description: course.description,
+    url: pageUrl(course.path),
+    provider: ORGANIZATION,
+  };
+}

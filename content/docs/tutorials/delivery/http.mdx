@@ -1,0 +1,135 @@
+---
+title: Send test data to an API endpoint
+description: Send a continuous stream of realistic, varied test data to any HTTP endpoint, webhook receiver, or ingest API — batched or per event, not the same fixed payload a curl loop replays.
+---
+
+A webhook receiver only proves itself against requests that actually arrive on the wire, with payloads shaped like whatever a real integration sends and no two requests identical. The system that would normally produce that traffic — a payment processor, a client SDK, a partner's platform — is usually the one piece not available yet, and pointing a new receiver at a live integration just to see whether it parses a payload correctly is not a risk most teams take.
+
+Reaching for `curl` in a shell loop is the obvious shortcut, and it does put requests on the wire — but every iteration sends the exact same JSON body, at whatever interval a `sleep` between iterations happens to produce, which is not what traffic from an independent, real source looks like: neither the payload nor the pace varies from one request to the next.
+
+The `http` output plugin delivers every generated event as an HTTP request — individually, or batched into a single request per batch — continuously, in whatever shape the template renders. The receiver sees traffic that behaves like a real, independent event source instead of one payload replayed on a timer.
+
+## Test data for an API endpoint
+
+Every request the `http` output sends is built from the same handful of pieces: a target `url`, an HTTP `method` — `POST` by default, though `GET`, `PUT`, `PATCH`, `DELETE`, `HEAD`, and `OPTIONS` are all available — and `headers`. `headers` carries whatever the destination expects — typically a content type, plus a credential: a bearer token, or a username and password that Eventum turns into HTTP basic auth automatically. Whether a request counts as delivered comes down to one check: the response's status code against `success_code`, an expected value the plugin compares every response against. Anything else — a different `2xx`, a `4xx`, a `5xx`, or a request that times out before a response arrives — counts as a failed write rather than a successful one. That makes `success_code` a contract with the destination, not a cosmetic setting: it has to match exactly what the real endpoint returns for a call it accepts.
+
+That shape covers most of what a synthetic stream needs to reach over HTTP: a webhook receiver waiting on a payment processor's or a partner's event notifications, an ingest API accepting application or analytics events, an HTTP-based log collector such as a Fluentd or Logstash HTTP input, and an API endpoint being [load-tested](/docs/tutorials/load-testing) with realistic traffic instead of one hand-crafted request repeated at maximum speed.
+
+## Batch vs per-request delivery
+
+Every output plugin shapes events through a [formatter](/docs/plugins/formatters) before writing them, and for `http` the formatter decides something that matters more than usual: how many requests a batch of events turns into. The default, [`json-batch`](/docs/plugins/formatters#json-batch), validates every event in a batch as JSON, joins them into a single JSON array, and sends that array as the body of one request — a batch of fifty events becomes one `POST` carrying all fifty. Setting `formatter` to [`json`](/docs/plugins/formatters#json) instead keeps every event a separate JSON string and sends one request per event, so the same batch of fifty becomes fifty independent requests instead.
+
+How many events land in a batch to begin with is not something the `http` block controls. That comes from the generator's `batch.size` and `batch.delay` — the application default in [eventum.yml](/docs/core/config/eventum-yml#generation), a per-generator override in [startup.yml](/docs/core/config/startup-yml#overridable-generation-parameters), or `--batch.size`/`--batch.delay` flags on [`eventum generate`](/docs/core/cli/eventum-generate) — whichever limit is reached first flushes the accumulated events onward to every output plugin, `http` included.
+
+The choice of formatter also decides how a single bad response plays out: under `json-batch`, one request carries the whole batch, so a response that doesn't match `success_code` fails every event that batch was carrying at once; under `json`, each event's request stands on its own, so one failure doesn't touch the rest. More on that in the FAQ below.
+
+## Generate webhook test data with Eventum
+
+The generator below produces the kind of payload a customer-engagement platform's webhook delivers whenever a user signs up, starts a trial, upgrades, or churns — realistic enough to test a webhook receiver or an ingest integration before wiring it to the real platform, with a different, freshly generated user behind every event instead of one fixture replayed forever.
+
+### The template
+
+Each event is one lifecycle notification: an event type weighted toward the action that happens most often in a real product, an identifier, a timestamp, and the user behind it. [`module.rand`](/docs/plugins/event/template/modules) and [`module.faker`](/docs/plugins/event/template/modules#modulefaker) cover all of it.
+
+```jinja title="generators/user-events/templates/user_event.jinja"
+{%- set event_type = module.rand.weighted_choice({"feature_used": 60, "trial_started": 15, "user_signed_up": 12, "subscription_upgraded": 8, "user_churned": 5}) -%}
+{%- set plan = module.rand.choice(["free", "pro", "enterprise"]) -%}
+{
+  "event_id": "{{ module.rand.crypto.uuid4() }}",
+  "event_type": "{{ event_type }}",
+  "occurred_at": "{{ timestamp.isoformat() }}",
+  "user": {
+    "id": "{{ module.rand.crypto.uuid4() }}",
+    "email": "{{ module.faker.locale['en_US'].email() }}",
+    "plan": "{{ plan }}"
+  }
+}
+```
+
+`event_type` is weighted toward `feature_used` — ordinary usage, not a lifecycle milestone — rather than spread evenly across all five outcomes, which mirrors how lopsided a real product's event mix actually is; every other value stays a plausible but rarer milestone.
+
+### The generator config
+
+A [cron](/docs/plugins/input/cron) input ticks once a second, and the [http](/docs/plugins/output/http) output posts each rendered event to the ingest endpoint:
+
+```yaml title="generators/user-events/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: all
+    templates:
+      - user_event:
+          template: templates/user_event.jinja
+
+output:
+  - http:
+      url: https://api.example.com/ingest
+      method: POST
+      success_code: 200
+      headers:
+        Content-Type: application/json
+        Authorization: "Bearer ${secrets.api_token}"
+      formatter:
+        format: json-batch
+```
+
+`url` is the only field with no default — everything else here is shown for clarity even where it matches the plugin's own default. `method: POST` is that default; `success_code: 200` overrides the plugin's own default of `201`, matching an ingest endpoint that acknowledges a batch with a plain `200` instead of treating it as a single created resource. `headers` carries a bearer token pulled from the keyring through `${secrets.api_token}`, never written into the file as plain text. `formatter: json-batch` is, again, already the default — collecting whatever events this generator's `batch.size`/`batch.delay` accumulated into one JSON array and sending it as a single request body.
+
+<Callout type="info">
+No HTTP endpoint within reach yet? The `http` output creates its client lazily and does not test the `url` at startup, so an unreachable endpoint does not stop the run — every write simply fails in the background, logged rather than raised, and at the default verbosity that happens quietly. Swap the `http` block for `stdout` while checking a template and payload shape — paired with the same `json-batch` formatter, it renders the identical batched JSON array `http` would have sent as the request body, where you can see it directly. Point `url` at a real endpoint once one exists; nothing else in the config changes.
+</Callout>
+
+### Store the token in the keyring
+
+`headers.Authorization` above is a `${secrets.*}` reference, not a plaintext token. Set it once in the encrypted keyring before running the generator:
+
+```bash
+eventum-keyring set api_token
+# Enter password of `api_token`: ********
+```
+
+Then run the generator, pointing at the same cryptfile:
+
+```bash
+eventum generate --path generator.yml --id user-events --cryptfile ./cryptfile.cfg
+```
+
+If the secret is missing from the keyring, Eventum reports it and refuses to start rather than sending requests with an empty `Authorization` header. See [Secrets](/docs/core/config/secrets) for how the keyring and `${secrets.*}` substitution work.
+
+## The result
+
+A full run needs a reachable HTTP endpoint to actually receive these requests. The config and template above were validated by pointing the same generator at `stdout` instead of `http`, with a small `--batch.size 5` so one batch prints on a single line, since no endpoint was reachable while writing this lesson. One batch from an actual run, exactly as `json-batch` shaped it into a single request body:
+
+```json title="One batch, as it would ship in a single POST body"
+[{"event_id": "79175abd-5bf2-49c4-bc9e-f616a7684bd1", "event_type": "feature_used", "occurred_at": "2026-07-12T12:40:40+00:00", "user": {"id": "8dd8473d-effd-44b7-8279-a5e70ebc0d71", "email": "egraves@example.net", "plan": "pro"}}, {"event_id": "9dc1afcf-9047-445b-822e-a37611b68fa5", "event_type": "user_churned", "occurred_at": "2026-07-12T12:40:41+00:00", "user": {"id": "83d54093-eb4b-4526-a885-2e336f29a21e", "email": "gregory99@example.net", "plan": "pro"}}, {"event_id": "e8827d04-166f-4bc6-b5d0-755cc9b230e3", "event_type": "user_signed_up", "occurred_at": "2026-07-12T12:40:42+00:00", "user": {"id": "c27a0502-e195-4150-a477-730c21898a51", "email": "teresa27@example.com", "plan": "enterprise"}}, {"event_id": "c2d0f92d-b413-47b2-8fdc-6dd727c03e88", "event_type": "trial_started", "occurred_at": "2026-07-12T12:40:43+00:00", "user": {"id": "7414d44d-15ef-4054-bba8-d61a27e426a2", "email": "harriseric@example.net", "plan": "enterprise"}}, {"event_id": "cf2eec4a-c595-405a-a099-e8117b40dd1b", "event_type": "trial_started", "occurred_at": "2026-07-12T12:40:44+00:00", "user": {"id": "8a24e82c-5803-46ed-b947-2ba1bcc2e45e", "email": "lawrence19@example.com", "plan": "enterprise"}}]
+```
+
+The `http` output sends exactly this string as the body of one `POST https://api.example.com/ingest` request, with the configured headers attached. A `200` response counts all five of these events as delivered in one write; anything else fails all five at once — the same tradeoff `json-batch` makes at any batch size, fifty events or five.
+
+## FAQ
+
+<Accordions>
+<Accordion title="json-batch or json: which formatter should I use?">
+`json-batch` — the default — is the right choice whenever the destination accepts an array of records in one call, which most ingest APIs and modern webhook receivers document explicitly: fewer requests, lower overhead, and a batch that either lands as a whole or doesn't. Switch to [`json`](/docs/plugins/formatters#json) when the destination's API only accepts one record per call, or when each event's delivery outcome needs to be independent of the others — a `json` request that fails doesn't take the rest of the batch down with it, while a `json-batch` request that fails takes all of them. Either way, how many events end up in a batch comes from the generator's `batch.size`/`batch.delay`, not from the `http` output or its formatter.
+</Accordion>
+<Accordion title="How do I authenticate to the destination?">
+Three ways, matching whatever the destination expects. A bearer token goes in `headers` as `Authorization: "Bearer ${secrets.api_token}"` — shown above — resolved from the encrypted keyring at load time rather than written as plain text. HTTP basic auth uses the dedicated `username`/`password` fields instead, which can just as well be `${secrets.*}` references; Eventum attaches them as a standard `Authorization: Basic ...` header on every request. Beyond that, `client_cert`/`client_cert_key` cover mutual TLS, and `ca_cert` verifies the server's own certificate once `verify` is set to `true` (it defaults to `false`) — see the [http reference](/docs/plugins/output/http#parameters) for the rest, and [Secrets](/docs/core/config/secrets) for how the keyring stores every credential referenced with `${secrets.*}`.
+</Accordion>
+<Accordion title="What happens if the response doesn't match success_code?">
+Eventum compares the destination's actual response status code against `success_code` (`201` by default) for every request. A different `2xx`, a `4xx`, a `5xx`, or a timeout before any response arrives — all of these count as a failed write. Eventum logs the response body and does not retry automatically. Which events that failure touches depends on the formatter: under `json-batch`, one response covers the whole batch, so a single non-matching response fails every event that request was carrying; under `json`, only the one event whose request came back wrong fails, and the rest of the batch succeeds or fails independently. Set `success_code` to whatever the real endpoint actually returns on success — many ingest APIs answer a batch with a plain `200` or `202`, not the plugin's own `201` default, which assumes a single resource just got created.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [delivery track](/docs/tutorials/delivery) for streaming synthetic data to OpenSearch, Kafka, and ClickHouse alongside HTTP
+- The [OpenSearch delivery lesson](/docs/tutorials/delivery/opensearch) for indexing the same kind of stream into a search cluster instead of posting it to an endpoint
+- The [Kafka delivery lesson](/docs/tutorials/delivery/kafka) for producing it to a topic instead
+- The [ClickHouse delivery lesson](/docs/tutorials/delivery/clickhouse) for inserting it into an analytical table instead
+- The [API Load Testing](/docs/tutorials/load-testing) tutorial for pushing the same kind of HTTP traffic at maximum throughput instead of a steady rate
+- The [Alert simulation: scheduled Telegram alerts](/docs/tutorials/telegram-alerts) tutorial for a concrete scenario built on this mechanism — posting generated alerts to the Telegram Bot API on a cron schedule
+- The [http output reference](/docs/plugins/output/http) for every timeout, TLS, and proxy parameter

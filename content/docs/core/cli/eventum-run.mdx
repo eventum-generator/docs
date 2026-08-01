@@ -28,9 +28,9 @@ All other settings — server, logging, generation defaults, file paths — are 
 | Signal | Behavior |
 |--------|----------|
 | `SIGTERM`, `SIGINT` (Ctrl+C) | Stops all generators and the server, then exits. |
-| `SIGHUP` | **Hot reload** — stops all generators, re-reads the config file and startup list, and restarts with the updated configuration. The process stays alive. |
+| `SIGHUP` | **Hot reload** — stops the whole application and starts it again from the config file and the startup list. The process stays alive. |
 
-`SIGHUP` is useful for applying config changes without downtime:
+`SIGHUP` applies a config change without replacing the process. The server stops with everything else, so the API and Studio are unreachable for a moment:
 
 ```bash
 # Edit eventum.yml or startup.yml, then:

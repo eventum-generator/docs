@@ -1,0 +1,3 @@
+{
+  "pages": ["index", "logs-vs-metrics-events", "structured-logging", "streaming-vs-bulk"]
+}
