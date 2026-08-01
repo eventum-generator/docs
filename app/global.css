@@ -153,6 +153,102 @@ button {
   overflow-x: clip;
 }
 
+/* Screenshots: a monotone plate that fills the content column, and a
+   click-to-enlarge view over the blurred page. */
+.screenshot {
+  margin: 1.25rem 0;
+}
+
+.screenshot-plate {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  padding: 1rem;
+  border: 1px solid var(--color-fd-border);
+  border-radius: 0.75rem;
+  background-color: var(--color-fd-muted);
+  cursor: zoom-in;
+}
+
+.screenshot-image {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--color-fd-border);
+  border-radius: 0.5rem;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.06),
+    0 10px 28px rgb(0 0 0 / 0.09);
+}
+
+.screenshot-dialog {
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+.screenshot-dialog[open] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: screenshot-zoom-in 0.18s ease-out;
+}
+
+.screenshot-dialog::backdrop {
+  background-color: rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(12px);
+}
+
+.screenshot-dialog img {
+  max-width: 94vw;
+  max-height: 92dvh;
+  object-fit: contain;
+  border-radius: 0.5rem;
+  box-shadow: 0 24px 64px rgb(0 0 0 / 0.4);
+  cursor: zoom-out;
+}
+
+.screenshot-close {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid rgb(255 255 255 / 0.22);
+  border-radius: 9999px;
+  background-color: rgb(0 0 0 / 0.45);
+  color: #fff;
+}
+
+.screenshot-close:hover {
+  background-color: rgb(0 0 0 / 0.7);
+}
+
+@keyframes screenshot-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screenshot-dialog[open] {
+    animation: none;
+  }
+}
+
 /* Blog: staggered fade-in animation */
 @keyframes blog-fade-in {
   from {
