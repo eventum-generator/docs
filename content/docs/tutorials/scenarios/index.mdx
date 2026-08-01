@@ -1,0 +1,22 @@
+---
+title: "Synthetic test data: use cases"
+description: A complete project for every use of synthetic test data — pipeline testing, detection, load testing, database seeding — from an empty directory to working output.
+---
+
+Foundations, formats, realism, and delivery cover synthetic event and log data end to end — what it is, the shape it takes, how to make it realistic, and where it goes. A scenario puts them together into one complete project that solves a real job, from an empty directory to working output. This track covers the situations synthetic test data gets built for most often — proving a pipeline delivers data correctly, generating telemetry for SIEM and detection work, load-testing an API, seeding a database, tracking clickstream and IoT traffic, and firing scheduled alerts. Start with the end-to-end walkthrough below, then jump to whichever scenario matches your job.
+
+<Cards>
+  <Card title="Test data pipeline end to end" description="Generate a realistic event stream, deliver it the way production does, and confirm the backend actually received it." href="/docs/tutorials/test-data-pipeline" />
+  <Card title="SIEM test data: index Windows events in OpenSearch" description="Index Windows Security Event Log sessions into OpenSearch — for detection development, parser validation, and analyst training." href="/docs/tutorials/siem-events" />
+  <Card title="Test Sigma rules with synthetic attack telemetry" description="Generate benign and attack-shaped telemetry to test Sigma rules and ATT&CK-mapped detections." href="/docs/tutorials/detection-testing" />
+  <Card title="Seed a database with realistic test data" description="Generate a shaped e-commerce dataset of purchases, refunds, and chargebacks as CSV, ready to load into a dev or staging database." href="/docs/tutorials/csv-dataset" />
+  <Card title="API load testing" description="Generate realistic load test data — a weighted mix of request payloads — and fire it at a REST API to benchmark throughput and find its breaking point." href="/docs/tutorials/load-testing" />
+  <Card title="Generate clickstream data for ClickHouse" description="Model user browsing sessions and bounces as clickstream data, and stream page views into ClickHouse for funnel analysis." href="/docs/tutorials/web-clickstream" />
+  <Card title="IoT test data" description="Generate simulated sensor readings with realistic drift and noise, streamed as NDJSON." href="/docs/tutorials/iot-telemetry" />
+  <Card title="Alert simulation: scheduled Telegram alerts" description="Generate randomized-severity alerts on a cron schedule and deliver them to a Telegram chat through the Bot API, without waiting for a real incident." href="/docs/tutorials/telegram-alerts" />
+</Cards>
+
+## Related
+
+- The [log and event formats](/docs/tutorials/formats) field guide for the formats each scenario generates.
+- Ready-made generators for common data sources in the [Eventum Hub](/hub).

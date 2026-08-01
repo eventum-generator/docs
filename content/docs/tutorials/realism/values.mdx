@@ -1,0 +1,142 @@
+---
+title: "Generate realistic fake data: skewed values"
+description: How to generate realistic fake data in Eventum — log-normal and exponential distributions for skewed numbers, weighted random choice for categories, and Faker- or Mimesis-backed values instead of flat uniform noise.
+---
+
+A template field set with `module.rand.number.integer(a, b)` or `module.rand.choice(...)` treats every outcome in its range as equally likely, and production data almost never behaves that way. A response body clusters around a common size and occasionally runs ten times larger; a request usually finishes in tens of milliseconds and only rarely drags into the hundreds; a status code reads `200` the overwhelming majority of the time and `500` only on the rare failure. Spread any of those fields evenly across its range instead, and it reads as generated the moment more than a handful of values sit side by side.
+
+Eventum's [template](/docs/plugins/event/template) event plugin fills a field from the same shape the real value would take, not a flat range: [module.rand.number](/docs/plugins/event/template/modules) draws a size or a duration from a skewed distribution, `module.rand.weighted_choice` picks a category with the odds real traffic actually shows, and `module.faker`, `module.mimesis`, or a pre-built [sample](/docs/plugins/event/template/samples) supply a name, an address, or a product realistic enough to survive a second look.
+
+## Why uniform random values look synthetic
+
+Three kinds of field give away a generator that only picks uniformly. A size or a duration — a payload in bytes, a response time in milliseconds, a transaction amount — clusters around a typical case in real systems, with a long thinning tail of larger outliers; spread the same field evenly across its range and a value becomes just as likely to be extreme as typical, which real measurements never are. A category — a status code, a protocol, a log level — carries real-world odds: success, the expected protocol, and a routine log level are each the common case, and picking uniformly gives the rare exception the same odds as the norm. A name, an address, or a product has to look real — a run of random letters or digits fills the field, but nobody mistakes it for an actual customer.
+
+The generator built later in this lesson makes the difference concrete. Its `bytes_sent` field is drawn with `module.rand.number.lognormal(6.9, 0.6)` and clamped to a realistic floor and ceiling; across 200 generated checkouts, half landed under 1,031 bytes, the busiest tenth reached 2,187, and only one touched the 3,326-byte ceiling of that run. A `module.rand.number.integer(250, 3326)` field over the same 200 checkouts would spread just as many values near 3,000 as near 500 — flat where the real shape clusters low with a thinning tail toward the top.
+
+## Skewed distribution test data for realistic numbers
+
+Three distributions in [module.rand.number](/docs/plugins/event/template/modules) cover most skewed fields:
+
+| Function | Shape | Typical field |
+|---|---|---|
+| `lognormal(mu, sigma)` | Always positive, long right tail | Payload sizes, file sizes, transaction amounts |
+| `exponential(lambd)` | Many small values, a thinning tail toward large ones | Durations, wait times, time between events |
+| `gauss(mu, sigma)` | Symmetric bell centered on a mean | Scores, sensor readings, metrics that vary around a baseline |
+
+`lambd` is a rate, not a mean — pass `1 / <target average>` to center the distribution where you want it. Every one of these can, in theory, return a value past any realistic bound, so pair it with `clamp(value, min, max)` to enforce a floor or a ceiling the field can't cross: a byte count can't go negative, a fraud score can't exceed 100. Two more distributions in the same namespace cover shapes these three don't: `pareto(alpha, xmin)` for a heavier tail than `lognormal` gives, and `triangular(low, high, mode)` for a bounded value with a known typical case. The [modules reference](/docs/plugins/event/template/modules) has the full signature for each.
+
+## Weighted random data for realistic categories
+
+`module.rand.weighted_choice(items, weights)` picks one item with the odds you assign it, taking either two parallel sequences or a single dict of `{item: weight}` pairs. A status code that succeeds 90% of the time, fails outright rarely, and gets rejected occasionally reads as `module.rand.weighted_choice({200: 90, 402: 7, 500: 3})` — the same function fits any skewed category: a protocol mix mostly `tcp` with a trickle of `udp`, an HTTP method mostly `GET` with occasional `POST` and rare `DELETE`, a log level mostly `INFO` with `WARN` and `ERROR` further down. `weighted_choices(items, weights, n)` returns several picks at once when a template needs more than one. Base the weights on whatever the real source actually shows — vendor documentation, a sample of production traffic, an existing dataset for the same kind of system — rather than a round number picked for convenience; the point of weighting is to match odds that exist somewhere, not just to move away from uniform.
+
+## Domain values instead of synthetic noise
+
+[module.rand.string](/docs/plugins/event/template/modules) generates literal random characters — letters, digits, hex — which is exactly right for a token or an identifier and exactly wrong for a name or an address, where the field needs to look like a real one, not like noise. `module.faker` and `module.mimesis` fill that gap: `module.faker.locale['en_US'].name()` and `module.mimesis.locale['en'].address.city()` draw a fresh, realistic-looking value on every render, across hundreds of provider methods covering names, addresses, companies, products, and more.
+
+A [sample](/docs/plugins/event/template/samples) is the other option, for a smaller, fixed vocabulary instead of an unbounded stream of fresh values: a `csv` or `json` file loaded once at startup, picked from with `pick()` or, weighted the same way a category is, with `weighted_pick(weight)` — a services sample where `HTTP` outweighs `SSH` combines domain data and weighted choice in a single pick. Reach for a sample instead of `faker`/`mimesis` when a field should repeat a bounded, realistic set of values — the same fifty hostnames across a run — rather than a new one every time, or when picking from a pre-built list should cost less per event than generating a fresh value.
+
+None of these three techniques compute anything from data already produced — each draws a fresh, shaped value on its own, with nothing to aggregate and nothing to analyze first.
+
+## Building a realistic fake data generator in Eventum
+
+A checkout API is a natural place to combine all three techniques at once: a payload size and a processing time that should cluster and thin out rather than spread evenly, a status that succeeds far more often than it fails, and a customer name that should read like a real one.
+
+### The template
+
+```jinja title="generators/checkout-api/templates/checkout.jinja"
+{%- set status = module.rand.weighted_choice({200: 90, 402: 7, 500: 3}) -%}
+{#- Payload size: right-skewed, most responses small, a rare large one -#}
+{%- set bytes_sent = module.rand.number.clamp(module.rand.number.lognormal(6.9, 0.6), 250, 20000) | round | int -%}
+{#- Processing time: most requests fast, a thinning tail toward slow -#}
+{%- set duration_ms = module.rand.number.clamp(module.rand.number.exponential(1 / 85), 5, 3000) | round | int -%}
+{#- Fraud score: clusters around a low baseline with roughly symmetric variance -#}
+{%- set risk_score = module.rand.number.clamp(module.rand.number.gauss(18, 12), 0, 100) | round(1) -%}
+{%- set customer = module.faker.locale['en_US'].name() -%}
+{"timestamp": "{{ timestamp.isoformat() }}", "customer": "{{ customer }}", "status": {{ status }}, "bytes_sent": {{ bytes_sent }}, "duration_ms": {{ duration_ms }}, "risk_score": {{ risk_score }}}
+```
+
+- **status** — `weighted_choice` over a dict: 90% succeed, 7% get rejected, 3% fail outright.
+- **bytes_sent** — `lognormal(6.9, 0.6)` clamped to 250-20,000 bytes: a right-skewed payload size.
+- **duration_ms** — `exponential(1 / 85)` clamped to 5-3,000 milliseconds: a rate built around an 85ms mean, with most requests well under it.
+- **risk_score** — `gauss(18, 12)` clamped to 0-100: a fraud score centered low with roughly symmetric spread.
+- **customer** — `module.faker.locale['en_US'].name()`: a fresh, realistic name on every render.
+
+### The generator config
+
+```yaml title="generators/checkout-api/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: all
+    templates:
+      - checkout:
+          template: templates/checkout.jinja
+
+output:
+  - file:
+      path: output/events.jsonl
+      write_mode: overwrite
+      formatter:
+        format: json
+```
+
+<Callout type="info">
+The events below were produced by running this generator in [sample mode](/docs/core/concepts/generator#sample-mode) (`--live-mode false`) with a short bound added to the cron input, so two hundred checkouts render at once for inspection. A generator left running normally drops that bound and lets cron tick indefinitely in [live mode](/docs/core/concepts/generator#live-mode-default) instead.
+</Callout>
+
+## The result
+
+Running this generator for 200 simulated checkouts produced a realistic spread on every field instead of a flat one. `status` landed on `200` for 181 of them, `402` for 11, and `500` for 8 — close to, though not identical to, the 90/7/3 split the template configures, since `weighted_choice` picks with those odds rather than enforcing an exact count. `risk_score` ranged from the 0 floor up to 49.8, clustering low the way a Gaussian centered on 18 with a standard deviation of 12 is meant to. A representative run of nine consecutive checkouts:
+
+```json title="output/events.jsonl"
+{"timestamp": "2026-07-11T21:00:14+00:00", "customer": "Jessica Mcbride", "status": 200, "bytes_sent": 663, "duration_ms": 38, "risk_score": 23.6}
+{"timestamp": "2026-07-11T21:00:15+00:00", "customer": "Samantha Bowen", "status": 200, "bytes_sent": 684, "duration_ms": 40, "risk_score": 29.0}
+{"timestamp": "2026-07-11T21:00:16+00:00", "customer": "Gregory Mcdonald", "status": 200, "bytes_sent": 2066, "duration_ms": 166, "risk_score": 13.5}
+{"timestamp": "2026-07-11T21:00:17+00:00", "customer": "Frank Brown", "status": 200, "bytes_sent": 1659, "duration_ms": 61, "risk_score": 13.5}
+{"timestamp": "2026-07-11T21:00:18+00:00", "customer": "Jonathan Ho PhD", "status": 402, "bytes_sent": 1238, "duration_ms": 57, "risk_score": 6.2}
+{"timestamp": "2026-07-11T21:00:19+00:00", "customer": "Sandra Mclean", "status": 200, "bytes_sent": 639, "duration_ms": 18, "risk_score": 29.3}
+{"timestamp": "2026-07-11T21:00:20+00:00", "customer": "Christine Flores", "status": 200, "bytes_sent": 788, "duration_ms": 16, "risk_score": 30.3}
+{"timestamp": "2026-07-11T21:00:21+00:00", "customer": "Jacob Allen", "status": 200, "bytes_sent": 1529, "duration_ms": 13, "risk_score": 15.0}
+{"timestamp": "2026-07-11T21:00:22+00:00", "customer": "Jerry Terry", "status": 200, "bytes_sent": 309, "duration_ms": 147, "risk_score": 39.3}
+```
+
+Eight of the nine landed on `200` and one on `402`, matching the odds the template sets rather than an even split; `bytes_sent` ranges from 309 to 2,066 in this slice alone, and `duration_ms` from 13 to 166 — a spread no `integer()` field produces on purpose, and exactly the one `lognormal` and `exponential` are built for. Elsewhere in the same run, the rarer `500` case shows up too:
+
+```json title="output/events.jsonl"
+{"timestamp": "2026-07-11T21:00:34+00:00", "customer": "Cameron Marshall", "status": 500, "bytes_sent": 1855, "duration_ms": 177, "risk_score": 19.0}
+```
+
+## FAQ
+
+<Accordions>
+<Accordion title="Which distribution should I use for a given field?">
+Match the shape to what the field measures: `lognormal` for a size or an amount that's always positive and occasionally spikes far above typical, `exponential` for a duration or a wait time where most values are short and a few run long, `gauss` for a score or a reading that varies roughly symmetrically around a baseline. `pareto` and `triangular` in the same [module.rand.number](/docs/plugins/event/template/modules) namespace cover a heavier tail and a bounded typical-case value, for fields the first three don't fit well.
+</Accordion>
+<Accordion title="How do I stop a skewed distribution from producing an unrealistic outlier?">
+Wrap it in `module.rand.number.clamp(value, min, max)`, as `bytes_sent`, `duration_ms`, and `risk_score` all do in the template above. `lognormal`, `exponential`, and `gauss` are all theoretically unbounded on at least one side, so without a clamp a rare draw can land well past any value the field should realistically take.
+</Accordion>
+<Accordion title="Do the weights in weighted_choice need to add up to 100 or to 1?">
+No. `weighted_choice` and `weighted_choices` treat weights as relative, not as percentages of a fixed total — `{200: 90, 402: 7, 500: 3}` and `{200: 900, 402: 70, 500: 30}` pick with identical odds, since only the ratio between the weights matters. Add up to 100 anyway if it makes the config easier to read; Eventum doesn't require it.
+</Accordion>
+<Accordion title="When should I use a sample instead of faker or mimesis?">
+When the field should repeat a small, fixed set of realistic values instead of drawing a fresh one on every render — the same pool of usernames or hostnames appearing more than once across a run, the way a real fleet of a few dozen devices would. A [sample](/docs/plugins/event/template/samples) also costs less per event once loaded, since picking a row is cheaper than generating a new `faker` value from scratch, which starts to matter at high event rates.
+</Accordion>
+<Accordion title="Does Eventum calculate these distributions from data I provide?">
+No. As the intro to this section covers, each pick draws a fresh value from a distribution or a weighted set, not from a computation over prior events. That also keeps it cheap at scale: drawing event one million costs the same as drawing event one, since there's no growing history for a distribution or a weighted pick to scan.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [Realism](/docs/tutorials/realism) pillar for the other axes that make synthetic data behave like production
+- The [Realistic timing](/docs/tutorials/realism/timing) lesson for shaping when events happen, not just what they contain
+- The [Modeling sessions](/docs/tutorials/realism/sessions) lesson for tying a sequence of these events to one actor
+- The [IoT test data](/docs/tutorials/iot-telemetry) tutorial for a Gaussian step applied to value drift in a live sensor stream
+- The [Log and event formats](/docs/tutorials/formats) field guide for fitting these values into the field names and structures a real format expects
+- The [modules](/docs/plugins/event/template/modules) reference for every `rand`, `faker`, and `mimesis` function
+- The [samples](/docs/plugins/event/template/samples) reference for loading and picking from pre-built datasets
+- Ready-made generators in the [Eventum Hub](/hub)

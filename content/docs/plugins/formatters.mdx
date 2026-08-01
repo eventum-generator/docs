@@ -82,9 +82,9 @@ Events are validated and compacted to a single line:
 {"user": "bob",    "action": "logout", "ip": "10.0.0.2"}
 ```
 
-```json title="Output (2 strings, whitespace removed)"
-{"user":"alice","action":"login","ip":"10.0.0.1"}
-{"user":"bob","action":"logout","ip":"10.0.0.2"}
+```json title="Output (2 strings, collapsed to one line each)"
+{"user": "alice", "action": "login", "ip": "10.0.0.1"}
+{"user": "bob", "action": "logout", "ip": "10.0.0.2"}
 ```
 
 #### Pretty-printed JSON (indent: 2)

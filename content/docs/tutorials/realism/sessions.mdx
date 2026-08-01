@@ -1,0 +1,160 @@
+---
+title: "Simulate user sessions: state machines"
+description: How to simulate user sessions — a login, a stretch of activity, and a logout that share a session id and happen in order — using Eventum's finite state machine picking mode and per-session state.
+---
+
+A generator that fires isolated events — one random user logging an action here, an unrelated user somewhere else, each timestamp picked independently of the last — never produces the shape real activity actually takes. A person who uses a system logs in, does a handful of things, and eventually logs out, and every event in between belongs to that one visit: the same user, the same session id, in a fixed order, over a bounded stretch of time.
+
+Eventum models that shape with a state machine: each stage of a session — a login, an action, a logout — is a template, and the template's own logic decides when the machine is ready to move to the next stage. State shared across those templates carries whatever ties the sequence together, typically a session id and a running count of what has happened so far — the detail that turns a handful of otherwise disconnected-looking JSON lines into one traceable session.
+
+## What a login-to-logout sequence looks like
+
+A session is any stretch of related events tied to one actor, bounded by a clear start and a clear end, with a variable amount of activity in between. A web visit starts with a login and ends with a logout or a timeout; a support ticket opens, gets updated a few times, and closes; a device connects, reports for a while, and disconnects. What makes these sequences — rather than just a pile of events that happen to share a user id — is that each step depends on where the sequence currently stands: there is no logout without a prior login, and the number of actions in between is not fixed in advance.
+
+Nothing stops a generator that treats every timestamp as a fresh, independent random pick from emitting a logout with no matching login, or a burst of unrelated actions under session ids that each appear exactly once. Modeling a session means giving the generator memory: an idea of what stage the current sequence is in, and what has already happened since it started.
+
+## Modeling sessions with a state machine
+
+Eventum's [template](/docs/plugins/event/template) event plugin has a picking mode built for exactly this: [mode: fsm](/docs/plugins/event/template/modes#fsm) turns a set of templates into states of a finite state machine, one template per stage of the sequence. A three-state session — login, action, logout — maps directly onto three templates connected by transitions:
+
+<Mermaid chart={`stateDiagram-v2
+    [*] --> login
+    login --> action: always
+    action --> action: not enough actions yet
+    action --> logout: enough actions reached
+    logout --> login: always`} />
+
+Each timestamp renders the machine's current state and then checks that state's transitions in order; the first one whose condition holds moves the machine, and if none do, it stays put and renders the same state again on the next timestamp. A transition's condition inspects state that the current template set while rendering — a flag, a counter, anything the template chose to record — so the sequence advances only when the template itself signals it is ready, not on a fixed schedule.
+
+That state is also what correlates the sequence. Every state in the machine is a separate template, and `locals` — the per-template scope — belongs to exactly one of them: a value set in `login`'s locals never reaches `action`'s. `shared` is the one scope every state in the same generator reads and writes, so a session id and a running step count belong there: `login` sets them once, `action` and `logout` read and update them on every later render, and those same shared values tie every event below back to one session.
+
+## Simulate a login-to-logout session in Eventum
+
+### The templates
+
+`login.jinja` marks the start of a session: it draws a new session id and a user, records both in shared state together with a step counter reset to 1, and clears any leftover `logout_ready` flag from whatever session came before it.
+
+```jinja title="generators/user-sessions/templates/login.jinja"
+{%- set session_id = module.rand.crypto.uuid4() -%}
+{%- set user = module.rand.choice(["alice", "bob", "carol", "dave"]) -%}
+{%- do shared.set("session_id", session_id) -%}
+{%- do shared.set("user", user) -%}
+{%- do shared.set("step", 1) -%}
+{%- do shared.pop("logout_ready", None) -%}
+{"timestamp": "{{ timestamp.isoformat() }}", "session_id": "{{ session_id }}", "user": "{{ user }}", "event": "login", "step": 1}
+```
+
+`action.jinja` renders one step of activity: it reads the session id and user back out of shared state rather than generating its own, increments the step counter, and picks one of five actions at random. Once the counter reaches five, it sets `logout_ready` — the signal the state machine is waiting for to end the session:
+
+```jinja title="generators/user-sessions/templates/action.jinja"
+{%- set step = shared.get("step", 1) + 1 -%}
+{%- do shared.set("step", step) -%}
+{%- set action = module.rand.choice(["view_dashboard", "update_profile", "export_report", "search_records", "change_settings"]) -%}
+{%- if step >= 5 -%}
+{%- do shared.set("logout_ready", true) -%}
+{%- endif -%}
+{"timestamp": "{{ timestamp.isoformat() }}", "session_id": "{{ shared.get('session_id') }}", "user": "{{ shared.get('user') }}", "event": "action", "action": "{{ action }}", "step": {{ step }}}
+```
+
+`logout.jinja` closes the session out: one more step increment, then the same session id and user one last time, with nothing left for the next session to inherit but the state machine's position:
+
+```jinja title="generators/user-sessions/templates/logout.jinja"
+{%- set step = shared.get("step", 1) + 1 -%}
+{%- do shared.set("step", step) -%}
+{"timestamp": "{{ timestamp.isoformat() }}", "session_id": "{{ shared.get('session_id') }}", "user": "{{ shared.get('user') }}", "event": "logout", "step": {{ step }}}
+```
+
+### The generator config
+
+These three templates become the three states of an `fsm` machine, wired together by transitions:
+
+```yaml title="generators/user-sessions/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: fsm
+    templates:
+      - login:
+          template: templates/login.jinja
+          initial: true
+          transitions:
+            - to: action
+              when:
+                always:
+      - action:
+          template: templates/action.jinja
+          transitions:
+            - to: logout
+              when:
+                defined: shared.logout_ready
+            - to: action
+              when:
+                always:
+      - logout:
+          template: templates/logout.jinja
+          transitions:
+            - to: login
+              when:
+                always:
+
+output:
+  - file:
+      path: output/events.jsonl
+      write_mode: overwrite
+      formatter:
+        format: json
+```
+
+- **login** — marked `initial: true`, so the machine starts here; its only transition always fires, moving to `action` on the very next timestamp.
+- **action** — stays in `action` (the second, fallback transition) until its own template sets `shared.logout_ready`, at which point the first transition fires and the machine moves to `logout`. Transitions are checked in the order they are listed, so the `logout_ready` check has to come first.
+- **logout** — always returns to `login`, which starts the next session from scratch: a new session id, a new user, and the step counter reset to 1.
+
+<Callout type="info">
+The session below was produced by running this generator in [sample mode](/docs/core/concepts/generator#sample-mode) (`--live-mode false`) with a short bound added to the cron input, so a handful of sessions render at once for inspection. A generator left running normally drops that bound and lets cron tick indefinitely in [live mode](/docs/core/concepts/generator#live-mode-default), starting a fresh session every time the previous one logs out.
+</Callout>
+
+## The result
+
+Running this generator for 30 timestamps produced five complete sessions — 30 events in total, six per session: a login, four actions, and a logout, always in that order. One session in full, straight from the output file:
+
+```json title="output/events.jsonl"
+{"timestamp": "2026-07-11T20:20:09+00:00", "session_id": "6eaa3aa6-b086-41e8-923d-4cff3de6f6b2", "user": "alice", "event": "login", "step": 1}
+{"timestamp": "2026-07-11T20:20:10+00:00", "session_id": "6eaa3aa6-b086-41e8-923d-4cff3de6f6b2", "user": "alice", "event": "action", "action": "update_profile", "step": 2}
+{"timestamp": "2026-07-11T20:20:11+00:00", "session_id": "6eaa3aa6-b086-41e8-923d-4cff3de6f6b2", "user": "alice", "event": "action", "action": "view_dashboard", "step": 3}
+{"timestamp": "2026-07-11T20:20:12+00:00", "session_id": "6eaa3aa6-b086-41e8-923d-4cff3de6f6b2", "user": "alice", "event": "action", "action": "search_records", "step": 4}
+{"timestamp": "2026-07-11T20:20:13+00:00", "session_id": "6eaa3aa6-b086-41e8-923d-4cff3de6f6b2", "user": "alice", "event": "action", "action": "change_settings", "step": 5}
+{"timestamp": "2026-07-11T20:20:14+00:00", "session_id": "6eaa3aa6-b086-41e8-923d-4cff3de6f6b2", "user": "alice", "event": "logout", "step": 6}
+```
+
+Every line carries the same `session_id`, and `step` climbs from 1 to 6 without a gap or a repeat — the only order the machine's transitions allow, since `action` cannot reach `logout` before its own template sets `logout_ready`, and nothing but `login` ever clears that flag for the next session.
+
+## FAQ
+
+<Accordions>
+<Accordion title="Can a session have a different number of actions each time?">
+Yes. The fixed four-action session above keeps the example easy to follow, but a session's length is decided by the template, not by `mode: fsm` itself. A common variation: on every render, `action` rolls a random chance of ending the session (`module.rand.chance(0.1)` for roughly one in ten) and sets the same flag the moment that roll succeeds, instead of or alongside the step-count check — so some sessions run for two actions and others for fifteen, the same way real visits vary.
+</Accordion>
+<Accordion title="Can this generator model more than one session at the same time?">
+Not with the pattern above. One `fsm` machine tracks exactly one current state and one shared session id, so sessions here play out one after another — accurate for a single shared actor (one kiosk, one shared account, one audit trail per host), but not for many concurrent users. Modeling concurrent sessions needs a different design: a pool of in-flight session records tracked in shared state, with each render advancing one entry from that pool instead of a single session id.
+</Accordion>
+<Accordion title="Does session state persist if I restart the generator?">
+No. `shared` and `locals` live only in the running process's memory, so stopping and starting the generator again begins at the state marked `initial` with empty state — a fresh login for whatever timestamp comes next, not a continuation of whatever session was last active.
+</Accordion>
+<Accordion title="Can a state machine have more than three stages?">
+Yes. `mode: fsm` supports any number of templates as states, each with its own transitions — a three-state login/action/logout cycle and a ten-state pipeline follow exactly the same mechanism. Real sessions often split a single "action" stage into several more specific ones — a product page, a cart, a checkout — once each stage needs to render different content or transition on a different condition.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [Realism](/docs/tutorials/realism) pillar for the other axes that make synthetic data behave like production
+- The [Realistic timing](/docs/tutorials/realism/timing) lesson for shaping when these sessions start, not just what happens inside them
+- The [Correlated events](/docs/tutorials/realism/correlated-events) lesson for many concurrent threads tracked in a pool, instead of the one sequential session modeled here
+- The [Realistic values](/docs/tutorials/realism/values) lesson for shaping what each event contains, not just its place in a sequence
+- The [Web clickstream scenario](/docs/tutorials/web-clickstream) for the same technique applied to a five-state browsing session streamed into a real backend
+- The [FSM](/docs/plugins/event/template/fsm) and [state](/docs/plugins/event/template/state) references for the complete transition/condition catalog and every state method used above
+- Ready-made generators in the [Eventum Hub](/hub)

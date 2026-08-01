@@ -1,0 +1,199 @@
+---
+title: "LEEF format: header and delimiter"
+description: How LEEF structures its header and tab-delimited attributes, the 1.0-to-2.0 delimiter change, and generating valid LEEF events for QRadar with Eventum.
+---
+
+Testing a QRadar DSM (Device Support Module) mapping, or a correlation rule built against LEEF fields, requires LEEF events shaped to exercise the exact case under test. A live firewall, intrusion prevention system, or endpoint agent configured to forward LEEF can produce them, but standing one up just to generate test traffic is slow, and its output arrives on its own schedule, not the tester's. Public examples are scarce too: the authoritative specification is an IBM PDF guide, and nearly everything else that ranks for the format's name is vendor integration documentation that assumes the reader already knows the structure it depends on.
+
+Eventum renders LEEF lines from a template — header fields in order, attributes correctly delimited — and ships them to the QRadar log source directly, so the DSM mapping or the rule gets tested without standing up an appliance.
+
+## What LEEF looks like
+
+LEEF (Log Event Extended Format) is a text-based log format [defined by IBM](https://www.ibm.com/docs/en/SS42VS_DSM/pdf/b_Leef_format_guide.pdf) so that any vendor's product can send events straight into IBM Security QRadar without a custom parser: a device or application formats its output as LEEF, and QRadar's LEEF DSM already knows how to read it. Firewalls, endpoint agents, and other security products that ship a QRadar integration typically offer LEEF as one of their output formats, alongside syslog or CEF for every other SIEM. LEEF events are plain UTF-8 text.
+
+A LEEF message is a header followed by a set of delimited attributes, both riding inside a single line of text. LEEF 1.0's header has five pipe-delimited fields:
+
+```text
+LEEF:Version|Vendor|Product|Version|EventID|
+```
+
+LEEF 2.0 adds a sixth, optional field that lets the event declare its own attribute delimiter instead of accepting the default:
+
+```text
+LEEF:Version|Vendor|Product|Version|EventID|Delimiter|
+```
+
+Every field is mandatory and positional, delimited by unescaped pipes (`|`) — except `Delimiter`, which exists only in 2.0 and can be left empty.
+
+| Field | Description |
+|-------|--------------|
+| LEEF version | Format version, `1.0` or `2.0`, written as part of the literal `LEEF:` prefix. |
+| Vendor | Identifies the vendor of the device or application that produced the event. |
+| Product | Identifies the product. |
+| Product version | The product's version string. |
+| EventID | An identifier for the event or signature type — numeric or text, vendor-assigned. |
+| Delimiter | LEEF 2.0 only. The character that separates the attributes that follow. Empty, or omitted along with its trailing pipe, defaults to a tab. |
+
+IBM's format guide includes this LEEF 2.0 line as an example, using a caret instead of the tab default:
+
+```text title="From IBM's LEEF format guide"
+LEEF:2.0|Lancope|StealthWatch|1.0|41|^|src=10.0.1.8^dst=10.0.0.5^sev=5^srcPort=81^dstPort=21
+```
+
+| Segment | Value | Field |
+|---------|-------|-------|
+| 1 | `LEEF:2.0` | LEEF version |
+| 2 | `Lancope` | Vendor |
+| 3 | `StealthWatch` | Product |
+| 4 | `1.0` | Product version |
+| 5 | `41` | EventID |
+| 6 | `^` | Delimiter |
+| — | `src=10.0.1.8^dst=10.0.0.5^sev=5^srcPort=81^dstPort=21` | Attributes, separated by the `^` just declared |
+
+LEEF 1.0 hardcodes that separator to a tab character (`0x09`) — the format gives no way to change it. LEEF 2.0's `Delimiter` field exists specifically to lift that restriction: a vendor whose event data might itself contain a tab can declare a different character instead, as StealthWatch does above. The field accepts either a literal character or a hex value prefixed with `0x` or `x` and one to four hex digits, so the tab default can also be spelled out explicitly as `x09`. Leaving the field empty, or dropping it and its trailing pipe entirely, falls back to that same tab — the form most real LEEF 2.0 events actually use, since most attribute values have no reason to contain one.
+
+Attributes follow the header as `key=value` pairs, in any order, joined by whichever delimiter the header declares. LEEF defines a set of recommended keys so that QRadar can recognize common fields without vendor-specific configuration:
+
+| Key | Meaning |
+|-----|---------|
+| `devTime` | The event's own timestamp — preferred over the syslog header's timestamp when both are present. |
+| `devTimeFormat` | The pattern `devTime` is written in, e.g. `MMM dd yyyy HH:mm:ss`. Required whenever `devTime` is present. |
+| `sev` | Severity, an integer from `1` (lowest) to `10` (highest). |
+| `src` / `dst` | Source / destination IPv4 or IPv6 address. |
+| `srcPort` / `dstPort` | Source / destination port. |
+| `usrName` | The user name associated with the event. |
+| `proto` | Layer-4 protocol, e.g. `TCP` or `UDP`. |
+| `cat` | A vendor-assigned category for the event. |
+
+None of these keys are required, and LEEF places no limit on adding others beyond them — unlike CEF, which reserves a fixed set of custom slots (`cs1` through `cs6`, `cn1` through `cn3`) for data with no dedicated key. A LEEF vendor adds whatever keys its event carries; QRadar's DSM maps the recognized ones onto its own normalized fields and passes the rest through as-is.
+
+The header is where LEEF and CEF differ most. CEF's seven-field header always ends with `Name` and `Severity` — a short human-readable description and a mandatory severity value, both positional and always present. LEEF's header carries neither: there is no name field at all, and severity travels as the `sev` attribute alongside the rest of the event's data, present only if the vendor sends it. The two formats also default to a different attribute delimiter — CEF's extension is always space-separated with no way to change it, while LEEF's is tab-separated by default and, from 2.0 onward, configurable.
+
+QRadar recognizes an incoming line as LEEF by its `LEEF:` prefix and hands it to the DSM registered for that line's `Vendor` and `Product`. The DSM is what turns recognized attribute keys into QRadar's own searchable fields, which is why sticking to the recommended keys above — rather than inventing equivalents — is what makes a generated event behave like a real one once it reaches QRadar, instead of arriving as an unparsed raw log.
+
+## Generate LEEF for QRadar with Eventum
+
+The generator below models the same firewall as the [CEF lesson](/docs/tutorials/formats/cef) — `Acme NetGuard` — this time emitting LEEF for a QRadar log source instead of CEF for a general SIEM: routine policy-blocked connections and rarer, higher-severity intrusion alerts.
+
+### The templates
+
+Fields are filled with [`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module, exactly as in the CEF example. The one LEEF-specific difficulty is the delimiter: the header above declares `x09`, a tab, so every attribute pair must actually be joined by a tab and nothing else. Typing a literal tab character into a template file is fragile — an editor set to expand tabs to spaces, a code formatter, or a copy-paste through a chat window can silently turn it into something else, and the line stops matching its own header. Building the attributes as a list and joining them with the explicit escape sequence `"\t"` keeps the delimiter visible in the source and immune to that class of mistake.
+
+`templates/blocked-connection.jinja` renders the routine case, severity `4`:
+
+```jinja title="generators/leef-firewall/templates/blocked-connection.jinja"
+{%- set src_ip = module.rand.network.ip_v4_public() -%}
+{%- set dst_ip = module.rand.network.ip_v4_private_c() -%}
+{%- set src_port = module.rand.number.integer(1024, 65535) -%}
+{%- set dst_port = module.rand.weighted_choice([22, 80, 443, 3389, 445], [10, 30, 35, 15, 10]) -%}
+{%- set dev_time = timestamp.strftime('%b %d %Y %H:%M:%S') -%}
+{%- set attrs = [
+    "devTime=" ~ dev_time,
+    "devTimeFormat=MMM dd yyyy HH:mm:ss",
+    "sev=4",
+    "src=" ~ src_ip,
+    "dst=" ~ dst_ip,
+    "srcPort=" ~ src_port,
+    "dstPort=" ~ dst_port,
+    "proto=TCP",
+] -%}
+LEEF:2.0|Acme|NetGuard|3.1|1000|x09|{{ attrs | join("\t") }}
+```
+
+`templates/intrusion-detected.jinja` renders the rarer case, severity `8`:
+
+```jinja title="generators/leef-firewall/templates/intrusion-detected.jinja"
+{%- set src_ip = module.rand.network.ip_v4_public() -%}
+{%- set dst_ip = module.rand.network.ip_v4_private_c() -%}
+{%- set dst_port = module.rand.choice([22, 3389, 445, 1433]) -%}
+{%- set dev_time = timestamp.strftime('%b %d %Y %H:%M:%S') -%}
+{%- set attempts = module.rand.number.integer(15, 120) -%}
+{%- set attrs = [
+    "devTime=" ~ dev_time,
+    "devTimeFormat=MMM dd yyyy HH:mm:ss",
+    "sev=8",
+    "src=" ~ src_ip,
+    "dst=" ~ dst_ip,
+    "dstPort=" ~ dst_port,
+    "proto=TCP",
+    "attempts=" ~ attempts,
+] -%}
+LEEF:2.0|Acme|NetGuard|3.1|2001|x09|{{ attrs | join("\t") }}
+```
+
+`attempts` is not one of LEEF's recommended keys — the format places no restriction on additional keys, so this generator adds one of its own, exactly as a real vendor would for data the predefined set does not cover.
+
+### The generator config
+
+[`mode: chance`](/docs/plugins/event/template/modes#chance) picks one of the two templates per timestamp, weighted so blocked connections dominate and intrusions stay rare, same as the CEF generator. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [tcp](/docs/plugins/output/tcp) output ships each rendered line to QRadar's syslog listener:
+
+```yaml title="generators/leef-firewall/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: chance
+    templates:
+      - blocked_connection:
+          template: templates/blocked-connection.jinja
+          chance: 85
+      - intrusion_detected:
+          template: templates/intrusion-detected.jinja
+          chance: 15
+
+output:
+  - tcp:
+      host: qradar.example.com
+      port: 514
+      separator: "\n"
+```
+
+The default `utf_8` encoding on `tcp` already matches what LEEF requires, so nothing needs to change there.
+
+<Callout type="info">
+For UDP delivery, replace `tcp` with [`udp`](/docs/plugins/output/udp) and keep the same `host` and `port`. To inspect lines locally before pointing the generator at a real QRadar instance, replace the output with [`file`](/docs/plugins/output/file) or [`stdout: {}`](/docs/plugins/output/stdout).
+</Callout>
+
+## The result
+
+Running the generator above produces one LEEF line per timestamp, alternating between the two event types:
+
+```text
+LEEF:2.0|Acme|NetGuard|3.1|2001|x09|devTime=Jul 11 2026 13:07:32	devTimeFormat=MMM dd yyyy HH:mm:ss	sev=8	src=192.96.151.68	dst=192.168.155.81	dstPort=3389	proto=TCP	attempts=69
+LEEF:2.0|Acme|NetGuard|3.1|1000|x09|devTime=Jul 11 2026 13:07:33	devTimeFormat=MMM dd yyyy HH:mm:ss	sev=4	src=179.100.186.150	dst=192.168.161.82	srcPort=6025	dstPort=443	proto=TCP
+```
+
+The gaps between attributes above are not spaces — each is a single tab character, matching the `x09` the header declares. Marked explicitly, the first line reads:
+
+```text title="Same line with the tab delimiter marked"
+LEEF:2.0|Acme|NetGuard|3.1|2001|x09|devTime=Jul 11 2026 13:07:32→devTimeFormat=MMM dd yyyy HH:mm:ss→sev=8→src=192.96.151.68→dst=192.168.155.81→dstPort=3389→proto=TCP→attempts=69
+```
+
+Both lines are valid LEEF: six pipe-delimited header fields ending in the declared delimiter, tab-separated attributes that match it, `devTime` in the exact format `devTimeFormat` names, and `sev` inside the `1`–`10` range the spec defines.
+
+## FAQ
+
+<Accordions>
+<Accordion title="LEEF vs CEF?">
+Both are pipe-delimited, vendor-neutral security event formats with a header followed by key-value data, but the header shapes differ. LEEF's header carries five fields — `Version`, `Vendor`, `Product`, `Version`, `EventID` — plus an optional sixth, `Delimiter`, in LEEF 2.0; CEF's carries seven, including `Name` and `Severity`, which LEEF has no equivalent for. The attribute delimiter differs too: LEEF's are tab-separated by default and configurable from 2.0 onward, CEF's are always space-separated. LEEF is what IBM QRadar expects; CEF is what ArcSight and most other SIEMs expect. See the [CEF lesson](/docs/tutorials/formats/cef) for the full structure and how to generate it with Eventum.
+</Accordion>
+<Accordion title="Which QRadar versions, and LEEF 1.0 or 2.0?">
+QRadar parses both versions — there is no release where only one works. 2.0 is the better choice for a new integration, since it can declare a delimiter other than tab, which matters if the event data itself might contain one. Absent that need, a 1.0 event is just as valid, and QRadar reads its hardcoded tab delimiter the same way it reads an explicitly declared one.
+</Accordion>
+<Accordion title="What delimiter does LEEF use?">
+A tab (`0x09`) by default, in both versions. LEEF 2.0 can override it through the header's sixth field, using a literal character or a hex value (`0x` or `x` followed by one to four hex digits) — but unless the event data itself might contain a tab, there is no reason to. Whatever the field declares must exactly match what actually separates the attributes; a mismatch is what turns a well-formed line into a QRadar parsing failure.
+</Accordion>
+<Accordion title="How do I ship LEEF to QRadar over syslog?">
+LEEF has no transport of its own — like CEF, it typically rides inside a syslog message. Prepend a syslog header (an RFC 3164 `<priority>timestamp hostname` header, or an RFC 5424 header) to the `LEEF:Version|...` line inside the same template, then send the result over [tcp](/docs/plugins/output/tcp) or [udp](/docs/plugins/output/udp) to the port QRadar's log source listens on — `514` is the common default for plain syslog. Some log sources accept the bare `LEEF:Version|...` line directly, without any syslog header, which is the form the generator above produces. See the [syslog lesson](/docs/tutorials/formats/syslog) for both header formats.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [formats field guide](/docs/tutorials/formats) covering every supported log and event shape
+- The [CEF lesson](/docs/tutorials/formats/cef) for the format most other SIEMs expect instead
+- The [syslog lesson](/docs/tutorials/formats/syslog) for wrapping any message in a standards-compliant syslog header
+- The [detection testing lesson](/docs/tutorials/detection-testing) for generating attack-shaped telemetry to test Sigma rules

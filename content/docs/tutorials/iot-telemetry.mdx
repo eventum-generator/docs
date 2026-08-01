@@ -1,11 +1,19 @@
 ---
-title: IoT Sensor Telemetry
-description: Stream continuous sensor readings with realistic drift and noise as NDJSON — no server setup required.
+title: "IoT Test Data: Synthetic Sensor Telemetry"
+description: Generate IoT test data — simulated temperature, humidity, and pressure readings with realistic drift and noise — as a continuous NDJSON stream, no server setup required.
 ---
 
-Build a generator that simulates IoT sensor readings — temperature, humidity, and pressure — with realistic value drift and gaussian noise. The output is NDJSON (one JSON object per line), piped directly to stdout for use with `jq`, Kafka producers, log files, or any tool that consumes newline-delimited JSON.
+A device fleet does not ship until its readings have been tested against something — a dashboard's thresholds, a time-series pipeline's downsampling, an alert that should fire when a value drifts out of range. A flat random number won't exercise any of it: a real thermometer's next reading starts from wherever the last one left off and moves a small step, not a fresh roll every time. Sensor telemetry is only believable when consecutive readings relate to each other.
 
-This tutorial uses [`eventum generate`](/docs/core/cli/eventum-generate) — no `eventum.yml` or `startup.yml` needed. Just a generator directory and a single command.
+The generator below drifts three sensors — temperature, humidity, and pressure — each within a realistic range, and prints every reading as [NDJSON](/docs/tutorials/formats/ndjson) to standard output. One [`eventum generate`](/docs/core/cli/eventum-generate) command runs it — no `eventum.yml`, `startup.yml`, or backend to stand up first.
+
+## Sensor telemetry test data: drift instead of flat random
+
+A sensor reading is a **metric** in the sense [Logs vs metrics vs events](/docs/tutorials/foundations/logs-vs-metrics-events) uses the word — a numeric measurement sampled at an instant, without a log's descriptive sentence or a structured event's discrete triggering action. `temperature`, `humidity`, and `pressure` below are exactly that: a name, a value, a unit, a timestamp, and nothing else.
+
+What separates a believable stream of those readings from an obviously generated one is whether consecutive readings relate to each other. Picking each one fresh from a realistic range — `module.rand.number.gauss(22.0, 5.0)` for temperature, say — keeps every single reading plausible on its own, and still lets two readings five seconds apart land 15 degrees apart, something no real thermometer does. A real sensor's next reading starts from wherever the last one left off and moves a small step from there.
+
+The generator below reads each sensor's last value back out of [state](/docs/core/concepts/producing#state-management) before rendering the next one, nudges it by a small step, and clamps the result to the range a real sensor can physically report — the same drift pattern introduced in that lesson for a single CPU-usage metric, applied here across three independent sensors. Sizing that step is itself a distribution choice: [Generate realistic fake data](/docs/tutorials/realism/values) names `gauss` as the fit for exactly this kind of field — a reading that varies around a baseline — so each step below is drawn from a Gaussian centered on zero instead of spread evenly across a fixed range, keeping most ticks small and only rarely letting one run larger, the way real sensor noise actually clusters.
 
 ## What you'll build
 
@@ -13,8 +21,8 @@ The generator uses:
 
 - [**timer**](/docs/plugins/input/timer) input — emits a timestamp every 5 seconds.
 - [**spin**](/docs/core/concepts/producing#picking-modes) picking mode — cycles through three sensor templates round-robin.
-- [**locals state**](/docs/core/concepts/producing#state) — per-sensor value drift that persists across readings.
-- [**stdout output**](/docs/plugins/output/stdout) with `json` formatter — validates each event and outputs compact NDJSON.
+- [**locals state**](/docs/core/concepts/producing#state-management) — each sensor's last value persists between renders, nudged by a Gaussian step and clamped to a realistic range (see [Generate realistic fake data](/docs/tutorials/realism/values)).
+- [**stdout output**](/docs/plugins/output/stdout) with `json` formatter — validates each event and writes it as [NDJSON](/docs/tutorials/formats/ndjson), one compact JSON object per line.
 
 ## Prerequisites
 
@@ -48,15 +56,14 @@ cd iot-sensors
 <Step>
 ### Write the sensor templates
 
-Each template simulates a different sensor type. The key technique is **value drift**: instead of generating independent random values, each reading is based on the previous one plus a small random delta. This produces realistic time-series data where values change gradually.
+Each template simulates a different sensor type, using the drift technique above: read the sensor's last value from `locals`, nudge it with a Gaussian step, clamp the result to a realistic range, and write the new value back before rendering.
 
-**Temperature** — drifts around 22°C with ±0.3°C noise per reading.
+**Temperature** — drifts around 22°C, nudged by a Gaussian step (σ = 0.1) each reading.
 
 ```jinja title="templates/temperature.jinja"
 {% set prev = locals.get("value", 22.0) %}
-{% set delta = module.rand.number.floating(-0.3, 0.3) %}
-{% set value = prev + delta %}
-{% set value = [15.0, [value, 35.0] | min] | max %}
+{% set delta = module.rand.number.gauss(0, 0.1) %}
+{% set value = module.rand.number.clamp(prev + delta, 15.0, 35.0) %}
 {% do locals.set("value", value) %}
 {
   "sensor_id": "sensor-temp-01",
@@ -67,15 +74,14 @@ Each template simulates a different sensor type. The key technique is **value dr
 }
 ```
 
-The `[15.0, [value, 35.0] | min] | max` expression clamps the value between 15°C and 35°C, preventing unrealistic drift over long runs.
+`module.rand.number.clamp(value, 15.0, 35.0)` keeps the result between 15°C and 35°C regardless of how a run of same-direction steps would otherwise add up, preventing unrealistic drift over long runs.
 
-**Humidity** — drifts around 55% with ±1.5% noise.
+**Humidity** — drifts around 55%, nudged by a Gaussian step (σ = 0.5) each reading.
 
 ```jinja title="templates/humidity.jinja"
 {% set prev = locals.get("value", 55.0) %}
-{% set delta = module.rand.number.floating(-1.5, 1.5) %}
-{% set value = prev + delta %}
-{% set value = [20.0, [value, 90.0] | min] | max %}
+{% set delta = module.rand.number.gauss(0, 0.5) %}
+{% set value = module.rand.number.clamp(prev + delta, 20.0, 90.0) %}
 {% do locals.set("value", value) %}
 {
   "sensor_id": "sensor-hum-01",
@@ -86,13 +92,12 @@ The `[15.0, [value, 35.0] | min] | max` expression clamps the value between 15°
 }
 ```
 
-**Pressure** — drifts around 1013 hPa with ±0.5 hPa noise.
+**Pressure** — drifts around 1013 hPa, nudged by a Gaussian step (σ = 0.17) each reading.
 
 ```jinja title="templates/pressure.jinja"
 {% set prev = locals.get("value", 1013.0) %}
-{% set delta = module.rand.number.floating(-0.5, 0.5) %}
-{% set value = prev + delta %}
-{% set value = [990.0, [value, 1040.0] | min] | max %}
+{% set delta = module.rand.number.gauss(0, 0.17) %}
+{% set value = module.rand.number.clamp(prev + delta, 990.0, 1040.0) %}
 {% do locals.set("value", value) %}
 {
   "sensor_id": "sensor-pres-01",
@@ -109,7 +114,7 @@ Each sensor template has its own `locals` — the temperature drift is independe
 <Step>
 ### Configure the generator
 
-The `timer` input emits a timestamp every 5 seconds. With `spin` mode and three templates, each sensor reports once every 15 seconds (5 seconds × 3 templates per cycle).
+The `timer` input emits a timestamp every 5 seconds; with `spin` mode cycling through three templates, each sensor reports once every 15 seconds — one full cycle through temperature, humidity, and pressure every three ticks.
 
 ```yaml title="generator.yml"
 input:
@@ -134,7 +139,7 @@ output:
         format: json
 ```
 
-The `json` formatter validates each event as JSON and outputs it on a single line — standard NDJSON format.
+The `json` formatter validates each event and writes it on a single line — the [NDJSON](/docs/tutorials/formats/ndjson) shape.
 
 </Step>
 <Step>
@@ -146,17 +151,41 @@ No `eventum.yml` or `startup.yml` needed — [`eventum generate`](/docs/core/cli
 eventum generate --path generator.yml --id sensors
 ```
 
-Readings stream to stdout every 5 seconds, cycling through sensors:
+<Callout type="info">
+The readings below were captured by running this generator in [sample mode](/docs/core/concepts/generator#sample-mode) (`--live-mode false`) with a temporary `repeat` bound on the `timer` input, so the run completed immediately instead of pacing to the clock. The command above drops that bound and runs in [live mode](/docs/core/concepts/generator#live-mode-default) instead, so readings arrive every 5 seconds in real time rather than all at once.
+</Callout>
+
+Readings stream out, cycling through sensors:
 
 ```json
-{"sensor_id":"sensor-temp-01","metric":"temperature","value":22.15,"unit":"celsius","timestamp":"2025-06-15T14:00:00+00:00"}
-{"sensor_id":"sensor-hum-01","metric":"humidity","value":54.2,"unit":"percent","timestamp":"2025-06-15T14:00:05+00:00"}
-{"sensor_id":"sensor-pres-01","metric":"pressure","value":1013.3,"unit":"hPa","timestamp":"2025-06-15T14:00:10+00:00"}
-{"sensor_id":"sensor-temp-01","metric":"temperature","value":22.28,"unit":"celsius","timestamp":"2025-06-15T14:00:15+00:00"}
-{"sensor_id":"sensor-hum-01","metric":"humidity","value":53.8,"unit":"percent","timestamp":"2025-06-15T14:00:20+00:00"}
+{"sensor_id": "sensor-temp-01", "metric": "temperature", "value": 22.15, "unit": "celsius", "timestamp": "2026-07-18T12:38:09.150579+00:00"}
+{"sensor_id": "sensor-hum-01", "metric": "humidity", "value": 54.9, "unit": "percent", "timestamp": "2026-07-18T12:38:14.150579+00:00"}
+{"sensor_id": "sensor-pres-01", "metric": "pressure", "value": 1012.9, "unit": "hPa", "timestamp": "2026-07-18T12:38:19.150579+00:00"}
+{"sensor_id": "sensor-temp-01", "metric": "temperature", "value": 22.08, "unit": "celsius", "timestamp": "2026-07-18T12:38:24.150579+00:00"}
+{"sensor_id": "sensor-hum-01", "metric": "humidity", "value": 55.3, "unit": "percent", "timestamp": "2026-07-18T12:38:29.150579+00:00"}
 ```
 
-Notice how values change gradually — temperature drifts from 22.15 to 22.28, humidity from 54.2 to 53.8. This is the drift pattern at work.
+Temperature drifts from 22.15 to 22.08 across two readings fifteen seconds apart; humidity from 54.9 to 55.3 over the same span — small steps in both directions, never a jump. Across the full run, every reading from all three sensors stayed inside its clamp range.
+
+</Step>
+<Step>
+### Generate a finite dataset
+
+This generator's `timer` has no `repeat` set, so in live mode it never stops on its own — the same unbounded case [Streaming vs bulk](/docs/tutorials/foundations/streaming-vs-bulk) describes for a `cron` tick with no `end`: streaming, by design, for as long as the process keeps running. Turning it into a finite dataset takes the same two things that lesson names for any input — a bound, and sample mode to skip the wait:
+
+```yaml title="generator.yml"
+input:
+  - timer:
+      seconds: 5
+      count: 1
+      repeat: 900
+```
+
+```bash
+eventum generate --path generator.yml --id sensors-batch --live-mode false > dataset.ndjson
+```
+
+`repeat: 900` stops the timer after 900 ticks — 300 full cycles through the three sensors in `spin` order, 900 readings total — and `--live-mode false` produces all of them immediately instead of waiting out the 5-second interval between each one.
 
 </Step>
 <Step>
@@ -168,49 +197,67 @@ The NDJSON output works directly with standard Unix tools:
 # Filter by sensor type
 eventum generate --path generator.yml --id sensors | jq 'select(.metric == "temperature")'
 
-# Write to file for later analysis
+# Write the live stream to a file (Ctrl+C to stop)
 eventum generate --path generator.yml --id sensors > readings.ndjson
 
-# Count readings per sensor (run for a while, then Ctrl+C)
+# Count readings per sensor so far (run for a while, then Ctrl+C)
 eventum generate --path generator.yml --id sensors | jq -r '.sensor_id' | sort | uniq -c
-
-# Generate a finite dataset: 1000 readings in sample mode
-eventum generate --path generator.yml --id sensors-batch \
-  --live-mode false \
-  | head -1000 > dataset.ndjson
 ```
-
-<Callout type="info">
-For a finite dataset, use the `timer` plugin's `repeat` parameter. Set `repeat: 334` to generate 334 cycles × 3 sensors = 1,002 readings, then the generator stops automatically.
-</Callout>
 
 </Step>
 </Steps>
 
 ## Going further
 
-- **Anomaly injection** — use `module.rand.chance(0.02)` to occasionally spike a value far outside the normal range, simulating sensor faults.
-- **Multiple sensor sites** — run several generators with different sensor IDs and baseline values to simulate a multi-location deployment.
-- **Kafka integration** — pipe stdout to a Kafka producer: `eventum generate --path generator.yml --id sensors | kafka-console-producer --topic iot-readings --broker-list localhost:9092`.
-- **Historical dataset** — replace `timer` with [linspace](/docs/plugins/input/linspace) to generate a year of readings at 5-minute intervals in sample mode.
-- **Alert thresholds** — add a second generator that monitors the `globals` state (written by the sensor generator) and produces alerts when values exceed thresholds.
+- **Anomaly injection** — use `module.rand.chance(0.02)` to occasionally spike a value far outside its normal range, simulating a sensor fault.
+- **Multiple sensor sites** — run this generator several times with a different `--id` and a distinct `site` value baked into each template, simulating a fleet of installations instead of one.
+- **A real backend instead of standard output** — swap the `stdout` output for [kafka](/docs/plugins/output/kafka), [opensearch](/docs/plugins/output/opensearch), or any other output plugin; see [Stream synthetic data to your stack](/docs/tutorials/delivery) for wiring a generator directly to the systems you run.
+- **Historical dataset** — replace `timer` with [linspace](/docs/plugins/input/linspace) — `start`/`end` spanning a year, `count` set so consecutive timestamps land five minutes apart — to generate a full year of readings in sample mode.
+- **Alert thresholds** — swap `locals` for `globals` state, visible across every generator in the process, so a second generator can watch each sensor's latest value and produce alerts when it crosses a threshold.
 
 ## What's next
 
 <Cards>
   <Card
     title="timer reference"
-    description="Fixed-interval timestamp generation."
+    description="Fixed-interval timestamp generation, including the repeat bound."
     href="/docs/plugins/input/timer"
   />
   <Card
     title="State management"
     description="Locals, shared, and globals — persistent state in templates."
-    href="/docs/core/concepts/producing#state"
+    href="/docs/core/concepts/producing#state-management"
   />
   <Card
-    title="eventum generate"
-    description="Run a single generator from the command line."
-    href="/docs/core/cli/eventum-generate"
+    title="Template modules reference"
+    description="Every module.rand distribution and helper, including gauss and clamp."
+    href="/docs/plugins/event/template/modules"
   />
 </Cards>
+
+## FAQ
+
+<Accordions>
+<Accordion title="Why does each reading depend on the previous one instead of being generated fresh?">
+A value generated fresh every time — even a realistic one — has no relationship to the reading before it, so a chart of the stream can jump anywhere in the plausible range from one tick to the next, which no physical sensor does. Reading the last value out of `locals` and nudging it by a small step, as every template here does, keeps consecutive readings close together the way a real measurement actually behaves. [Logs vs metrics vs events](/docs/tutorials/foundations/logs-vs-metrics-events) covers the metric shape this generator produces, and [Generate realistic fake data](/docs/tutorials/realism/values) covers choosing a step's distribution — Gaussian here — instead of a flat range.
+</Accordion>
+<Accordion title="Can a reading ever cross its clamp range?">
+No. `module.rand.number.clamp(value, min, max)` runs on every render after the Gaussian step is added, so the value stored in `locals` can never leave the configured range no matter how many same-direction steps happen to land in a row. Widening or narrowing the range for a sensor only changes the two numbers passed to `clamp` — the drift and clamp mechanics stay the same.
+</Accordion>
+<Accordion title="How do I generate a finite dataset instead of a live stream?">
+Bound the `timer` input with `repeat` and run with `--live-mode false`, exactly as [Streaming vs bulk](/docs/tutorials/foundations/streaming-vs-bulk) describes for any input: a `timer` with no `repeat` keeps producing for as long as the process runs, and sample mode alone doesn't stop an input that never stops on its own — both the bound and the mode are needed together.
+</Accordion>
+<Accordion title="Can I simulate more than one sensor of the same type?">
+Yes. Add another template alias — `temperature_2`, say — with its own `sensor_id` and starting baseline; `locals` is scoped per template alias, so the new sensor drifts independently of `sensor-temp-01` without any extra configuration. Add it to `mode: spin`'s `templates` list and the cycle simply grows by one.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [Logs vs metrics vs events](/docs/tutorials/foundations/logs-vs-metrics-events) lesson for the metric shape this generator produces, and the single-sensor drift example this tutorial builds into a full three-sensor generator
+- The [Generate realistic fake data](/docs/tutorials/realism/values) lesson for Gaussian and other skewed distributions, and clamping a value to a realistic range
+- The [Streaming vs bulk](/docs/tutorials/foundations/streaming-vs-bulk) lesson for live mode's continuous feed versus a bounded sample-mode batch, the general rule behind this generator's finite-dataset step
+- The [Stream synthetic data to your stack](/docs/tutorials/delivery) pillar for delivering these readings to a real backend instead of standard output
+- The [NDJSON format](/docs/tutorials/formats/ndjson) lesson for the newline-delimited JSON shape this generator writes
+- The [Scenarios track](/docs/tutorials/scenarios) for the wider picture of applied synthetic data
+- Ready-made generators in the [Eventum Hub](/hub)

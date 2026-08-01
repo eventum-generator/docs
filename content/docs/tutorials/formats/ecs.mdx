@@ -1,0 +1,264 @@
+---
+title: "ECS fields: the Elastic Common Schema"
+description: How Elastic Common Schema (ECS) namespaces its event, host, and related fields, including the allowed event.category and event.type values, and how to generate ECS-compliant events with Eventum.
+---
+
+A firewall calls it `src_ip`. A cloud identity provider's API calls the same fact `sourceIpAddress`. A home-grown application logs it as `client.address`. All three name the exact same piece of data about the exact same login attempt, and a query, dashboard, or detection rule written against one of those field names finds nothing in the other two — not because the data disagrees, but because nothing forces different sources to agree on what to call it.
+
+Elastic Common Schema fixes the field names once, across every source that adopts it, so the same query keeps matching regardless of which source produced the event. Eventum generates events that already carry ECS's real field names and structure directly from a template, and its JSON formatter delivers them ready to index. An index mapping, a Kibana dashboard, or a detection rule built against ECS fields can be exercised against them without a live firewall, identity provider, or application in place.
+
+## What is Elastic Common Schema?
+
+[ECS](https://www.elastic.co/guide/en/ecs/current/index.html) is Elastic's open, versioned field-naming specification: instead of every log source inventing its own name for the same fact, every source that adopts ECS emits the same field name for the same kind of data. This lesson matches **ECS version 9.4.0**, the current release documented in the [ECS field reference](https://www.elastic.co/docs/reference/ecs/ecs-field-reference).
+
+ECS does not define fixed event "classes" the way some other normalization schemas do. Instead, it defines **field sets** — Base, Event, Host, User, Source, Related, and dozens more — and a single event mixes in whichever field sets its data actually has. A field set's name becomes a namespace: the Event field set's `category` field is named `event.category`, and once an event is rendered as JSON, that dotted name becomes a nested object, `{"event": {"category": [...]}}`, rather than a flat key:
+
+<Mermaid chart={`graph TD
+    EV["One ECS event, one JSON document"] --> BASE["Base fields<br/>@timestamp"]
+    EV --> ECSF["ecs fields<br/>ecs.version"]
+    EV --> EVENT["event fields<br/>category, type, action, outcome"]
+    EV --> HOST["host fields<br/>name, ip"]
+    EV --> USERF["user fields<br/>name, id"]
+    EV --> SRC["source fields<br/>ip, port"]
+    EV --> REL["related fields<br/>user, ip, hosts, hash"]`} />
+
+ECS's native home is the Elastic Stack: Elasticsearch stores the fields, and Kibana's dashboards and detection rules query them by name. OpenSearch, having forked from Elasticsearch and remaining compatible on the same document and bulk APIs, indexes and queries the identical ECS-shaped documents the same way, even though ECS itself is an Elastic-maintained specification rather than a formal OpenSearch one.
+
+## ECS fields
+
+`@timestamp` sits at the root of every event, outside any field set — the one required date field every ECS event carries, marking when the source produced the event.
+
+`ecs.version` is required on every event too. Its value names which ECS version the event's fields conform to — `9.4.0` for every event generated below.
+
+The **event** field set carries the fields that classify what happened. `event.kind` sets the broadest classification, one of eight allowed values. `event` — used by every example below — covers ordinary activity and is by far the most common; `alert` covers a detection firing; the remaining six (`metric`, `state`, `asset`, `enrichment`, `pipeline_error`, `signal`) cover narrower cases like numeric measurements and ingestion diagnostics. `event.category` and `event.type` narrow further, together, and both are constrained to closed lists rather than free text: `event.category` names one of 20 allowed broad buckets — `authentication`, `network`, `file`, `process`, `iam`, and 15 others — and `event.type` names one of 18 allowed sub-buckets within it, such as `start`, `end`, `info`, `creation`, or `deletion`. The two aren't independent: ECS documents which `event.type` values are expected for each `event.category`. The `authentication` category, for instance, expects only `start`, `end`, or `info` — a login attempt is the `start` of the challenge-response process regardless of how it turns out, and `end` marks a logoff. `event.action` stays free text, a short label for what specifically happened (`ssh_login`, `user-password-change`), and `event.outcome` closes the fact off with exactly one of three allowed values — `success`, `failure`, or `unknown`.
+
+`host.*` names the machine the event concerns. `host.name` and `host.ip` are the two fields nearly every event populates — `host.ip` is itself documented as an array, since a single host can carry more than one address.
+
+`related.*` exists purely to make an event pivotable. `related.user`, `related.ip`, `related.hosts`, and `related.hash` collect every user, address, hostname, or hash that appears anywhere else in the same event, so a search for one value finds it no matter which specific field it originally sat in. All four are documented as arrays, and that holds even when an event only has one of something: an event naming exactly one user still writes `related.user: ["alice"]`, never a bare string.
+
+## Generate an ECS authentication event with Eventum
+
+This section generates SSH access to a small fleet of Linux servers — ssh logs are one of the two sources ECS's own authentication category description names as typical, alongside Windows event logs — producing a common successful logon and a rarer failed attempt, each a complete ECS authentication event.
+
+### The templates
+
+Because an ECS event nests several field sets inside one document — `event`, `host`, `user`, `source`, `related` — each template below builds the event as a single Jinja mapping and serializes the whole structure at once with the built-in `tojson` filter, the same approach the [OCSF lesson](/docs/tutorials/formats/ocsf) uses for its own nested event shape. Every field inside it is drawn from [`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in randomization module.
+
+`templates/ssh-login-success.jinja` renders the common case:
+
+```jinja title="generators/ecs-ssh-auth/templates/ssh-login-success.jinja"
+{%- set user_name = module.rand.choice(["alice", "bob", "carol", "dave", "frank"]) -%}
+{%- set user_id = module.rand.number.integer(1000, 1010) -%}
+{%- set hostname = module.rand.choice(["web-prod-03", "app-prod-11", "db-prod-02", "cache-prod-05"]) -%}
+{%- set host_ip = module.rand.network.ip_v4_private_a() -%}
+{%- set src_ip = module.rand.network.ip_v4_public() -%}
+{%- set src_port = module.rand.number.integer(1024, 65535) -%}
+{%- set event = {
+    "@timestamp": timestamp.isoformat(),
+    "ecs": {"version": "9.4.0"},
+    "event": {
+        "kind": "event",
+        "category": ["authentication"],
+        "type": ["start"],
+        "action": "ssh_login",
+        "outcome": "success"
+    },
+    "host": {"name": hostname, "ip": [host_ip]},
+    "user": {"name": user_name, "id": user_id | string},
+    "source": {"ip": src_ip, "port": src_port},
+    "related": {
+        "user": [user_name],
+        "ip": [src_ip, host_ip],
+        "hosts": [hostname]
+    }
+} -%}
+{{ event | tojson }}
+```
+
+`templates/ssh-login-failure.jinja` renders the rarer case, the same category and type, a failed outcome and a reason instead:
+
+```jinja title="generators/ecs-ssh-auth/templates/ssh-login-failure.jinja"
+{%- set user_name = module.rand.choice(["alice", "bob", "carol", "dave", "frank"]) -%}
+{%- set hostname = module.rand.choice(["web-prod-03", "app-prod-11", "db-prod-02", "cache-prod-05"]) -%}
+{%- set host_ip = module.rand.network.ip_v4_private_a() -%}
+{%- set src_ip = module.rand.network.ip_v4_public() -%}
+{%- set src_port = module.rand.number.integer(1024, 65535) -%}
+{%- set reason = module.rand.choice(["invalid password", "no such user", "account locked", "connection closed by authenticating user"]) -%}
+{%- set event = {
+    "@timestamp": timestamp.isoformat(),
+    "ecs": {"version": "9.4.0"},
+    "event": {
+        "kind": "event",
+        "category": ["authentication"],
+        "type": ["start"],
+        "action": "ssh_login",
+        "outcome": "failure",
+        "reason": reason
+    },
+    "host": {"name": hostname, "ip": [host_ip]},
+    "user": {"name": user_name},
+    "source": {"ip": src_ip, "port": src_port},
+    "related": {
+        "user": [user_name],
+        "ip": [src_ip, host_ip],
+        "hosts": [hostname]
+    }
+} -%}
+{{ event | tojson }}
+```
+
+Both templates share `event.category: ["authentication"]` and `event.type: ["start"]` (see above) — only `event.outcome` tells them apart. The failure template adds `event.reason`, a free-text field naming why the action in `event.action` did not succeed. `related.user`, `related.ip`, and `related.hosts` collect the user, both addresses involved (the connecting client and the host being logged into), and the hostname named elsewhere in the same event — each as an array, per the rule above.
+
+<Callout type="info">
+Neither template populates `related.hash`, since a login event has no file or process hash to relate. Populate it the same way — as an array — on any event that does carry one.
+</Callout>
+
+### The generator config
+
+The template config uses [`mode: chance`](/docs/plugins/event/template/modes#chance) to pick between the two templates per timestamp, weighted so successful logons dominate and failures stay rare. A [cron](/docs/plugins/input/cron) input ticks once a second, and a [file](/docs/plugins/output/file) output writes each event through the [json](/docs/plugins/formatters#json) formatter with `indent: 2`, so the nested structure stays readable:
+
+```yaml title="generators/ecs-ssh-auth/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: chance
+    templates:
+      - login_success:
+          template: templates/ssh-login-success.jinja
+          chance: 85
+      - login_failure:
+          template: templates/ssh-login-failure.jinja
+          chance: 15
+
+output:
+  - file:
+      path: output/events.json
+      formatter:
+        format: json
+        indent: 2
+```
+
+## ECS example
+
+The generator above produces one authentication event per second, mostly successful logons and, at the configured 15% chance, an occasional failure. A successful logon from an actual run:
+
+```json title="A successful SSH logon"
+{
+  "@timestamp": "2026-07-12T11:02:19+00:00",
+  "ecs": {
+    "version": "9.4.0"
+  },
+  "event": {
+    "action": "ssh_login",
+    "category": [
+      "authentication"
+    ],
+    "kind": "event",
+    "outcome": "success",
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "ip": [
+      "10.154.76.9"
+    ],
+    "name": "cache-prod-05"
+  },
+  "related": {
+    "hosts": [
+      "cache-prod-05"
+    ],
+    "ip": [
+      "170.54.164.16",
+      "10.154.76.9"
+    ],
+    "user": [
+      "alice"
+    ]
+  },
+  "source": {
+    "ip": "170.54.164.16",
+    "port": 16974
+  },
+  "user": {
+    "id": "1007",
+    "name": "alice"
+  }
+}
+```
+
+A failed attempt from the same run:
+
+```json title="A failed SSH logon"
+{
+  "@timestamp": "2026-07-12T11:02:23+00:00",
+  "ecs": {
+    "version": "9.4.0"
+  },
+  "event": {
+    "action": "ssh_login",
+    "category": [
+      "authentication"
+    ],
+    "kind": "event",
+    "outcome": "failure",
+    "reason": "no such user",
+    "type": [
+      "start"
+    ]
+  },
+  "host": {
+    "ip": [
+      "10.255.237.80"
+    ],
+    "name": "db-prod-02"
+  },
+  "related": {
+    "hosts": [
+      "db-prod-02"
+    ],
+    "ip": [
+      "28.140.13.243",
+      "10.255.237.80"
+    ],
+    "user": [
+      "frank"
+    ]
+  },
+  "source": {
+    "ip": "28.140.13.243",
+    "port": 57738
+  },
+  "user": {
+    "name": "frank"
+  }
+}
+```
+
+Both events carry the same `event.category` and `event.type` — `authentication` and `start`, as before. Only `event.outcome` — and `event.reason` on the failed attempt — changes between the two events shown here. `related.ip` carries two addresses on every event, the connecting client and the host itself, and `related.user` and `related.hosts` still write their single value as a one-element array, exactly as the rule requires.
+
+## FAQ
+
+<Accordions>
+<Accordion title="ECS vs OCSF?">
+Both standardize field names across sources so one query or detection rule works against all of them, but they organize that standardization differently. ECS namespaces fields into dotted, composable field sets — `event.category`, `host.name`, `related.ip` — that mix into a JSON document as needed, native to the Elastic Stack and, through OpenSearch's API compatibility, usable there as well. [OCSF](/docs/tutorials/formats/ocsf) instead defines a fixed hierarchy of numbered categories, classes, and activities per kind of event, backed by a broader multi-vendor group under the Linux Foundation. Where ECS lets an authentication event mix in whatever field sets apply to it, OCSF instead requires that same event to conform to one predefined Authentication class — a fixed required-field envelope and enumerated values, with optional and recommended fields layered on top. Neither replaces the other universally — which one a pipeline targets usually follows from which backend receives the data.
+</Accordion>
+<Accordion title="Which ECS fields are required?">
+Only two, by ECS's own specification: `@timestamp` and `ecs.version`, which every event must carry regardless of what it describes. Everything else — including every `event.*`, `host.*`, and `related.*` field used above — is documented at a "core" or "extended" level, meaning it is expected wherever it applies rather than mandatory on every event; an event with no file involved simply omits `file.*` fields entirely. In practice, a usable authentication event needs more than the bare minimum to be worth generating — at least enough of `event.category`, `event.type`, and `event.outcome` to be found by a query written against them — but ECS itself only enforces the two root fields.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [formats field guide](/docs/tutorials/formats) covering every supported log and event shape
+- The [structured logging lesson](/docs/tutorials/foundations/structured-logging) for the field-per-event foundation ECS's naming layer builds on
+- The [OCSF lesson](/docs/tutorials/formats/ocsf) for the other widely adopted normalization schema
+- The [SIEM test data scenario](/docs/tutorials/siem-events) for a complete stateful Windows Security event stream indexed into OpenSearch
+- The [OpenSearch delivery lesson](/docs/tutorials/delivery/opensearch) for indexing generated events, ECS-shaped or otherwise, over the bulk API
+- The [Linux Auditd generator](/hub/linux-auditd) in the Eventum Hub for a real ECS-mapped authentication source across a full host fleet
+- The [template](/docs/plugins/event/template) event plugin and [formatters](/docs/plugins/formatters) reference for every field and format used above

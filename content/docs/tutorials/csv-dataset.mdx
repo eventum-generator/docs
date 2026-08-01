@@ -1,21 +1,35 @@
 ---
-title: E-Commerce Transactions → CSV
-description: Generate a shaped CSV dataset of purchases, refunds, and chargebacks for analytics, database seeding, or ML training.
+title: "Seed a Database with Realistic Test Data"
+description: Seed a database with realistic test data — generate a shaped e-commerce dataset of purchases, refunds, and chargebacks as CSV, ready to load into a dev or staging database instead of copying production.
 ---
 
-Build a generator that produces an e-commerce transaction dataset as a CSV file. Transactions include purchases, refunds, and chargebacks with realistic distributions — 80% purchases, 15% refunds, 5% chargebacks. The result is a ready-to-import CSV with correlated fields (customer, product, amount).
+A development database seeded with three hand-typed rows and a staging environment running against an empty table hide the same class of bug: a pagination control never tested past page one, a query that returns instantly against a dozen rows and takes seconds against ten thousand, an edge case that only exists because a real distribution has a long tail. Copying a snapshot of production data fixes the volume and shape problem but trades it for a worse one — real customer names, payment details, and order histories sitting in an environment that was never built to hold them, reachable by anyone with access to dev.
+
+Eventum closes that gap by generating the dataset instead of copying it. Build a generator that produces an e-commerce transaction dataset as a CSV file: purchases, refunds, and chargebacks in a realistic 80/15/5 mix, with correlated fields — customer, product, amount — instead of independently random values. The result is a file shaped like a real `transactions` export, ready to load into whatever database backs dev or staging today.
+
+## Seed dev database with realistic data
+
+Three rows of hand-typed fixture data confirm that a `transactions` table accepts the right columns and nothing more. They don't confirm that a paginated transaction list still responds quickly on page 40, that a monthly revenue report holds up once chargebacks and refunds are mixed in at their real, rare frequency instead of one of each by hand, or that a report which only ever saw positive amounts survives its first negative refund row. All three failure modes need the volume and the shape a handful of manual rows can't provide — which is exactly what the generator built below produces: ten thousand transactions with a realistic distribution, not ten thousand copies of the same row.
+
+Copying a production snapshot instead would supply that volume, but it drags real customer names, card details, and order histories into a database any developer on the team can query — a liability a synthetic dataset never carries, since none of it describes a real person or a real purchase. It also goes stale the moment it's taken; regenerating a synthetic dataset costs one command, not a new export.
+
+## Why CSV for database seeding
+
+A CSV file is the most portable way to get that dataset into a database, because every mainstream engine already has a bulk-import path built around it: PostgreSQL's `COPY`, MySQL's `LOAD DATA INFILE`, and the CSV import wizard built into most GUI database clients all read the same file format. The dataset generated below drops into whatever engine currently backs dev — no custom loader script, no per-database export format to maintain.
+
+A destination that accepts inserts directly instead of a file can skip the CSV step entirely. Eventum's [`clickhouse` output](/docs/tutorials/delivery/clickhouse) inserts each transaction into a table over HTTP as it's generated, so an analytical store built for that kind of write never needs a file in between — the Going further section revisits this once the CSV build below is in place.
 
 ## What you'll build
 
 The generator uses:
 
 - [**linspace**](/docs/plugins/input/linspace) input — 10,000 timestamps spread evenly across a date range.
-- [**chance**](/docs/core/concepts/producing#picking-modes) picking mode — weighted random selection between three transaction types.
-- [**file**](/docs/plugins/output/file) output with a [template formatter](/docs/plugins/formatters) — each event becomes a CSV row.
-- [**JSON samples**](/docs/plugins/event/template#samples) — product catalog loaded from a file.
-- [**shared state**](/docs/core/concepts/producing#state) — running revenue counter across all events.
+- [**chance**](/docs/plugins/event/template/modes#chance) picking mode — weighted random selection between three transaction types.
+- [**file**](/docs/plugins/output/file) output with the default [`plain` formatter](/docs/plugins/formatters#plain) — each template already renders a complete CSV row, so nothing needs reshaping before it's written.
+- [**JSON samples**](/docs/plugins/event/template/samples) — product catalog loaded from a file.
+- [**shared state**](/docs/core/concepts/producing#state-management) — running revenue counter across all events.
 
-The entire dataset is generated in one burst using [sample mode](/docs/core/concepts/scheduling#live-mode-vs-sample-mode) (`live_mode: false`), so 10,000 rows complete in seconds.
+The entire dataset is generated in one burst using [sample mode](/docs/core/concepts/generator#sample-mode) (`live_mode: false`), so 10,000 rows complete in seconds.
 
 ## Prerequisites
 
@@ -73,14 +87,14 @@ A JSON sample file with product names, categories, and price ranges. Each transa
 <Step>
 ### Write transaction templates
 
-Each template produces a single CSV row. All three templates share the same column order: `transaction_id, timestamp, type, customer_id, customer_name, product, category, amount, currency`.
+Each template produces a single CSV row. All three templates share the same column order: `transaction_id, timestamp, type, customer_id, customer_name, product, category, amount, currency`. The `{%- -%}` markers around each `set`/`do` line trim the newline that would otherwise follow it, so the rendered event is exactly one line — without them, every rendered row would carry three blank lines ahead of it.
 
 **Purchase** — the most common transaction. Picks a random product and generates a price within its range.
 
 ```jinja title="templates/purchase.jinja"
-{% set product = module.rand.choice(samples.products) %}
-{% set amount = module.rand.number.floating(product.min_price, product.max_price) %}
-{% do shared.set("revenue", shared.get("revenue", 0) + amount) %}
+{%- set product = module.rand.choice(samples.products) -%}
+{%- set amount = module.rand.number.floating(product.min_price, product.max_price) -%}
+{%- do shared.set("revenue", shared.get("revenue", 0) + amount) -%}
 {{ module.rand.crypto.uuid4() }},{{ timestamp.strftime("%Y-%m-%d %H:%M:%S") }},purchase,C-{{ module.rand.number.integer(10000, 99999) }},{{ module.faker.locale.en.name() }},{{ product.name }},{{ product.category }},{{ "%.2f" | format(amount) }},USD
 ```
 
@@ -89,18 +103,18 @@ JSON sample rows support named access via object keys: `product.name`, `product.
 **Refund** — returns a product. The amount is negative.
 
 ```jinja title="templates/refund.jinja"
-{% set product = module.rand.choice(samples.products) %}
-{% set amount = module.rand.number.floating(product.min_price, product.max_price) %}
-{% do shared.set("revenue", shared.get("revenue", 0) - amount) %}
+{%- set product = module.rand.choice(samples.products) -%}
+{%- set amount = module.rand.number.floating(product.min_price, product.max_price) -%}
+{%- do shared.set("revenue", shared.get("revenue", 0) - amount) -%}
 {{ module.rand.crypto.uuid4() }},{{ timestamp.strftime("%Y-%m-%d %H:%M:%S") }},refund,C-{{ module.rand.number.integer(10000, 99999) }},{{ module.faker.locale.en.name() }},{{ product.name }},{{ product.category }},-{{ "%.2f" | format(amount) }},USD
 ```
 
 **Chargeback** — disputed transaction. Rare (5% of total).
 
 ```jinja title="templates/chargeback.jinja"
-{% set product = module.rand.choice(samples.products) %}
-{% set amount = module.rand.number.floating(product.min_price, product.max_price) %}
-{% do shared.set("revenue", shared.get("revenue", 0) - amount) %}
+{%- set product = module.rand.choice(samples.products) -%}
+{%- set amount = module.rand.number.floating(product.min_price, product.max_price) -%}
+{%- do shared.set("revenue", shared.get("revenue", 0) - amount) -%}
 {{ module.rand.crypto.uuid4() }},{{ timestamp.strftime("%Y-%m-%d %H:%M:%S") }},chargeback,C-{{ module.rand.number.integer(10000, 99999) }},{{ module.faker.locale.en.name() }},{{ product.name }},{{ product.category }},-{{ "%.2f" | format(amount) }},USD
 ```
 
@@ -112,7 +126,7 @@ The `shared.set("revenue", ...)` call tracks a running total across all events. 
 <Step>
 ### Configure the generator
 
-The [chance](/docs/core/concepts/producing#picking-modes) picking mode assigns a probability to each template. The chances must sum to 1.0.
+The [chance](/docs/plugins/event/template/modes#chance) picking mode assigns each template a relative weight, distributing timestamps across the three transaction types.
 
 ```yaml title="generator.yml"
 input:
@@ -150,7 +164,8 @@ Key decisions:
 
 - **linspace** spreads 10,000 timestamps evenly across the entire year 2025 — about one transaction every 53 minutes.
 - **chance** mode: 80% of timestamps render the `purchase` template, 15% `refund`, 5% `chargeback`.
-- The file output uses `write_mode: overwrite` so each run starts fresh. The default `plain` formatter passes each CSV row through as-is.
+- **chance values are relative weights** — 0.80/0.15/0.05 need not sum to 1; only the ratio between them matters (see [chance picking mode](/docs/plugins/event/template/modes#chance)).
+- The file output uses `write_mode: overwrite` so each run starts fresh. The default [`plain` formatter](/docs/plugins/formatters#plain) passes each rendered template through unchanged — since every template already renders a full CSV row, there's nothing left to reshape.
 
 </Step>
 <Step>
@@ -168,32 +183,73 @@ Add a CSV header and check the output:
 
 ```bash
 sed -i '1i transaction_id,timestamp,type,customer_id,customer_name,product,category,amount,currency' transactions.csv
-head -5 transactions.csv
+head -6 transactions.csv
 ```
+
+A real run produced this — three purchases followed by two refunds:
 
 ```csv
 transaction_id,timestamp,type,customer_id,customer_name,product,category,amount,currency
-f47ac10b-58cc-4372-a567-0e02b2c3d479,2025-01-01 00:00:00,purchase,C-38472,John Smith,Wireless Mouse,Electronics,32.15,USD
-8a3b5c7d-1234-4e6f-9abc-def012345678,2025-01-01 00:53:00,purchase,C-91034,Maria Garcia,Webcam,Electronics,89.50,USD
-c9d1e2f3-4567-4890-abcd-ef1234567890,2025-01-01 01:46:00,refund,C-55219,Alex Johnson,Desk Lamp,Home,-42.30,USD
-a1b2c3d4-5678-4901-bcde-f12345678901,2025-01-01 02:39:00,purchase,C-72841,Sarah Williams,Backpack,Accessories,67.80,USD
+5d842291-9c9e-4c88-a9b0-76d3ae3e0ccb,2024-12-31 21:00:00,purchase,C-86918,Rachel Hill,Desk Lamp,Home,53.31,USD
+df9d7962-6a0d-467a-888b-7221ab42b51f,2024-12-31 22:45:07,purchase,C-94340,David Evans,Mechanical Keyboard,Electronics,168.20,USD
+c120dd12-cfe3-4e95-b585-d273e52b626e,2024-12-31 21:52:33,purchase,C-34622,Jacob Smith,Webcam,Electronics,71.57,USD
+8ef4f5d0-99a9-47d3-9920-e387d699987e,2024-12-31 23:37:41,refund,C-16314,Ricky Ewing DVM,Mechanical Keyboard,Electronics,-128.78,USD
+4fc84fe8-be85-4920-8681-f9c389e67b68,2025-01-01 00:30:15,refund,C-72557,Andrea Barnes,Wireless Mouse,Electronics,-43.52,USD
 ```
 
-You should see approximately 8,000 purchases, 1,500 refunds, and 500 chargebacks. Check the distribution:
+Elsewhere in the same run, the rarer chargeback case shows up too:
+
+```csv
+8b11c3e4-2c40-4d20-8063-82fcb0a7bc6d,2025-01-01 17:09:00,chargeback,C-36012,Justin Russell,Plant Pot,Home,-17.73,USD
+```
+
+Check the distribution across the full file:
 
 ```bash
 tail -n +2 transactions.csv | cut -d',' -f3 | sort | uniq -c | sort -rn
 ```
 
+```text
+   7977 purchase
+   1560 refund
+    463 chargeback
+```
+
+That's 79.8% / 15.6% / 4.6% against a configured 80/15/5 — close, with the small spread expected from a chance-weighted pick rather than a fixed count.
+
 </Step>
 </Steps>
+
+## Seed staging environment from the CSV
+
+The header written in the previous step already names every column a `transactions` table needs, so the file drops straight into a bulk-import command instead of a custom loader script.
+
+PostgreSQL reads it with `\copy`, the client-side form of `COPY` that works against a local file without needing server-side filesystem access:
+
+```sql
+\copy transactions FROM 'transactions.csv' WITH (FORMAT csv, HEADER true)
+```
+
+MySQL uses `LOAD DATA`:
+
+```sql
+LOAD DATA LOCAL INFILE 'transactions.csv'
+INTO TABLE transactions
+FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 LINES;
+```
+
+Most GUI database clients — pgAdmin, DBeaver, TablePlus, MySQL Workbench — wrap the same operation behind an "Import from CSV" wizard, for a one-off load that doesn't need a saved command.
+
+None of that changes when the target shifts: the same command seeds a staging environment exactly the way it seeds dev, pointed at a different connection string. Regenerating a fresh CSV whenever a schema change or a new test scenario calls for different data costs one command — waiting on the next production snapshot doesn't.
 
 ## Going further
 
 - **Add customer loyalty** — use `shared` state to track repeat customers by keeping a customer pool and reusing IDs with some probability.
 - **Seasonal patterns** — replace `linspace` with [time-patterns](/docs/plugins/input/time-patterns) using a triangular distribution to create Black Friday and holiday spikes.
 - **Multiple currencies** — add `params` for currency and run multiple generators in parallel with different currency settings.
-- **Database seeding** — swap the `file` output for [ClickHouse](/docs/plugins/output/clickhouse) to populate a transactions table directly.
+- **Seed an analytical store directly** — swap the `file` output for [ClickHouse](/docs/tutorials/delivery/clickhouse) and every transaction inserts straight into a table over HTTP as it's generated, with no CSV or import step in between.
 
 ## What's next
 
@@ -214,3 +270,25 @@ tail -n +2 transactions.csv | cut -d',' -f3 | sort | uniq -c | sort -rn
     href="/docs/plugins/output/file"
   />
 </Cards>
+
+## FAQ
+
+<Accordions>
+<Accordion title="Do the chance weights need to sum to 1?">
+No. `chance` values are relative weights, not percentages of a fixed total — Eventum's picker normalizes them internally, the same way Python's `random.choices` does, so `0.80`/`0.15`/`0.05` and `80`/`15`/`5` pick with identical odds. The only constraint is that each `chance` value must be greater than 0; what matters is the ratio between them, not what they add up to.
+</Accordion>
+<Accordion title="Is this dataset only useful for seeding a database?">
+No. The same shaped, correlated CSV works as an analytics fixture or an ML training set — anywhere a realistic file beats a handful of hand-written rows. Seeding a database just adds one step after generation, a bulk-import command; analytics and ML workloads typically read the file directly instead.
+</Accordion>
+<Accordion title="How is this different from a load test or a pipeline test?">
+A related question, but not the same one. [Load testing](/docs/tutorials/load-testing) measures how much request volume a target can sustain before it degrades. [Pipeline testing](/docs/tutorials/test-data-pipeline) measures whether one realistic event survives a specific transport and lands intact. Seeding, this lesson's subject, asks neither — it asks whether a database already holding realistic volume and distribution behaves correctly at rest: pagination past page one, query performance at scale, and reports that only break against a rare row a handful of fixtures never produce.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [Realistic values](/docs/tutorials/realism/values) lesson for the distributions and weighted choices behind the price ranges and the 80/15/5 transaction mix
+- The [ClickHouse delivery lesson](/docs/tutorials/delivery/clickhouse) for seeding an analytical database directly, with no CSV in between
+- The [Test data pipeline](/docs/tutorials/test-data-pipeline) lesson for testing transport correctness instead of seeding a database at rest
+- The [Scenarios pillar](/docs/tutorials/scenarios) for the course's other synthetic-data scenarios
+- The [Eventum Hub](/hub) for datasets already shaped for common sources, ready to load without building one first

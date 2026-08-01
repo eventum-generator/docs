@@ -1,0 +1,180 @@
+---
+title: "Correlated events: shared IDs and event.sequence"
+description: How Eventum correlates log events across a stream — a shared identifier and a strictly increasing event.sequence per host tie related events together, for concurrent flows and request-response pairs instead of one sequential session.
+---
+
+A generator that renders every timestamp on its own produces events that share a field by coincidence, not because they belong together. Real activity rarely works that way: a network connection opens, moves data across a handful of packets, and closes, all under one flow; a request gets exactly one response somewhere downstream; a lateral-movement attempt leaves a trail across three different hosts in the order it actually happened. None of that shows up in a stream of independently generated lines, however many fields they share, and a detection rule, a distributed trace, or a funnel query is built entirely around following the thread that ties events like these together.
+
+Eventum ties correlated events together the same way a real source does: a shared identifier, invented once and copied unchanged into every event that follows from it, plus a sequence number that orders them exactly, independent of whatever precision the timestamp itself happens to carry. Unlike a single actor moving through one fixed path, a correlated stream usually has several of these threads open at once, so the generator needs to track a whole pool of what is currently active, not just one running value.
+
+## What correlated events look like
+
+Three properties separate a correlated stream from one where events merely happen to share a field:
+
+- **A correlation id** — one value, invented once at the start and copied unchanged into everything that follows from it, whether it gets called a flow id, a request id, a trace id, or a session id.
+- **Causal order** — an open precedes every transfer that follows it, and a transfer precedes the close, because that is the order the underlying activity actually happened in, not an order the generator picked for convenience.
+- **Sequence numbers**, where a real source publishes them, climb per host or per source, giving a second, independent way to notice a gap or a reordering beyond whatever the timestamp alone can show.
+
+This lesson's shape is deliberately different from [Modeling sessions](/docs/tutorials/realism/sessions). A session follows one actor down one fixed path, one stage at a time, with only one session ever open in that generator's shared state. A correlated stream holds many threads open at the same time — several connections mid-transfer, several requests still waiting on a reply — interleaved in whatever order the generator happens to render them, and often spanning more than one host. The mechanism needs a whole pool of active threads, not a single current one, and on every render it picks which thread to advance.
+
+## Correlation identifiers and sequence numbers
+
+A correlation id is the simplest of the three properties: one value, generated when a thread starts — a UUID is the usual choice, since a fixed-format string only has to be unique, never meaningful — and copied into every event that follows from that start, unchanged. Nothing computes it or looks it up a second time; it is set once and carried, the same way a session id is set once at login and read back on every action afterward.
+
+`event.sequence` is [ECS](/docs/tutorials/formats/ecs)'s field for exactly this kind of ordering: a number that climbs strictly per host or per source, published by the source itself so a consumer can detect a gap or a reordering that a timestamp's precision might hide. That scope matters — the count belongs to the host or source, not to a correlation id or the stream as a whole. A gateway handling six connections at once still produces one running count for itself, shared across every one of those connections, while tracking how far along any single connection is stays an entirely separate concern.
+
+`related.*` fields close the loop for search: `related.ip`, `related.hosts`, `related.user`, and `related.hash` collect every address, hostname, user, or hash appearing anywhere else in the same event, always as an array — even an event naming exactly one host still writes `related.hosts: ["gw-eu-01"]`, never a bare string. A query against `related.ip` finds a value regardless of whether it turned up in `source.ip`, `destination.ip`, or somewhere else in the document entirely.
+
+## Correlate events in Eventum
+
+Modeling this in Eventum means keeping the pool of active threads in [shared](/docs/plugins/event/template/state) state — a dict keyed by correlation id — and deciding, on every render, whether to start a new thread or advance one already in the pool. [mode: fsm](/docs/plugins/event/template/modes#fsm) doesn't fit this shape: a state machine tracks exactly one current state, built for one sequential actor rather than many concurrent, interleaved ones. A single template under [mode: all](/docs/plugins/event/template/modes#all) that decides everything about its own render fits a pool of concurrent threads far better — exactly the alternative design [Modeling sessions](/docs/tutorials/realism/sessions) itself calls for, the moment more than one session needs to run at once.
+
+### The template
+
+`flow.jinja` models a network flow — a connection that opens, transfers data over one or more renders, and eventually closes — across a small fleet of gateways, with several flows open at once:
+
+```jinja title="generators/network-flows/templates/flow.jinja"
+{%- set hosts = ["gw-eu-01", "gw-eu-02", "gw-us-01"] -%}
+{%- set pool = shared.get("pool", {}) -%}
+{%- set open_ids = pool.keys() | list -%}
+{%- set pool_full = (open_ids | length) >= 6 -%}
+{%- set act_on_existing = open_ids and (pool_full or module.rand.chance(0.7)) -%}
+
+{%- if act_on_existing -%}
+{%- set flow_id = open_ids[0] if pool_full else module.rand.choice(open_ids) -%}
+{%- set flow = pool[flow_id] -%}
+{%- set host = flow["host"] -%}
+{%- set src_ip = flow["src_ip"] -%}
+{%- set dst_ip = flow["dst_ip"] -%}
+{%- set chunk = module.rand.number.integer(300, 4000) -%}
+{%- set total_bytes = flow["bytes"] + chunk -%}
+{%- set transfers = flow["transfers"] + 1 -%}
+{%- if pool_full or transfers >= 3 -%}
+{%- set action = "flow_close" -%}
+{%- do pool.pop(flow_id) -%}
+{%- else -%}
+{%- set action = "flow_transfer" -%}
+{%- do pool.update({flow_id: {"host": host, "src_ip": src_ip, "dst_ip": dst_ip, "transfers": transfers, "bytes": total_bytes}}) -%}
+{%- endif -%}
+{%- else -%}
+{%- set flow_id = module.rand.crypto.uuid4() -%}
+{%- set host = module.rand.choice(hosts) -%}
+{%- set src_ip = module.rand.network.ip_v4_private_a() -%}
+{%- set dst_ip = module.rand.network.ip_v4_public() -%}
+{%- set total_bytes = module.rand.number.integer(80, 200) -%}
+{%- set action = "flow_open" -%}
+{%- do pool.update({flow_id: {"host": host, "src_ip": src_ip, "dst_ip": dst_ip, "transfers": 0, "bytes": total_bytes}}) -%}
+{%- endif -%}
+{%- do shared.set("pool", pool) -%}
+
+{%- set seq_by_host = shared.get("seq_by_host", {}) -%}
+{%- set sequence = seq_by_host.get(host, 0) + 1 -%}
+{%- do seq_by_host.update({host: sequence}) -%}
+{%- do shared.set("seq_by_host", seq_by_host) -%}
+
+{%- set event = {
+    "timestamp": timestamp.isoformat(),
+    "flow_id": flow_id,
+    "event": {"action": action, "sequence": sequence},
+    "host": {"name": host},
+    "source": {"ip": src_ip},
+    "destination": {"ip": dst_ip},
+    "network": {"bytes": total_bytes},
+    "related": {"ip": [src_ip, dst_ip], "hosts": [host]}
+} -%}
+{{ event | tojson }}
+```
+
+- **`pool`** — the dict of every flow currently in flight, keyed by `flow_id`, read out of `shared` at the top of every render and written back at the end. Each entry carries the flow's host, both addresses, how many transfers it has had, and its running byte count.
+- **`act_on_existing`** — true when there is at least one flow to advance and either the pool is full or a 70% roll says to work an existing flow rather than open a new one; false, and a new flow opens instead, whenever the pool is empty or the remaining 30% roll lands.
+- **Advancing a flow** — `module.rand.choice(open_ids)` picks which one at random, or `open_ids[0]` — the oldest entry — once the pool is full (see below). Its running byte total grows by a random chunk; once its transfer count would reach three, this render closes the flow instead of transferring again, and removes it from the pool.
+- **Opening a flow** — a fresh `flow_id`, host, and address pair, added to the pool with zero transfers and a small initial byte count for the handshake.
+- **`pool_full`** — caps the pool at six flows in flight. Once that many are open, the render always advances the oldest entry (`open_ids[0]`, since dict keys preserve insertion order) and forces it to close instead of admitting a seventh — the same rule any long-lived pool needs: cap it before it grows unbounded, applied here by closing the oldest thread rather than silently dropping it.
+- **`seq_by_host`** — a second, separate counter from anything tracked per flow: one running count per host, incremented on every render regardless of which flow it belongs to or which stage that flow is in. This is what becomes `event.sequence`.
+
+The same pool-in-state pattern works with [globals](/docs/plugins/event/template/state) in place of `shared` when the correlated entities span more than one generator: thread-safe, and visible to every generator in the process rather than just one.
+
+### The generator config
+
+One template, [mode: all](/docs/plugins/event/template/modes#all), and a steady per-second tick — the config supplies the cadence, and the template's own state decides what actually renders on each one:
+
+```yaml title="generators/network-flows/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 1
+
+event:
+  template:
+    mode: all
+    templates:
+      - flow:
+          template: templates/flow.jinja
+
+output:
+  - file:
+      path: output/events.jsonl
+      write_mode: overwrite
+      formatter:
+        format: json
+```
+
+<Callout type="info">
+The events below were produced by running this generator in [sample mode](/docs/core/concepts/generator#sample-mode) (`--live-mode false`) with a short bound added to the cron input, so forty events render at once for inspection, and with `--keep-order true` so [output writes are serialized](/docs/core/concepts/output#concurrency) and each host's `event.sequence` reads in order top-to-bottom below. A generator left running normally drops both the bound and the ordering flag, ticking indefinitely in [live mode](/docs/core/concepts/generator#live-mode-default) with output writes running concurrently again — the sequence values are always correct, but only `keep_order: true` guarantees the file's physical line order matches them.
+</Callout>
+
+## The result
+
+Running this generator for forty timestamps opened twelve flows, closed eight of them, and left four still transferring when the bound was reached — no two ever collided on an identifier, since each is a freshly generated UUID. A slice from early in the run shows one flow open, transfer twice, and close on one gateway, then the other two gateways each open their first flow while a second flow starts back on the first:
+
+```json title="output/events.jsonl"
+{"destination": {"ip": "192.0.1.127"}, "event": {"action": "flow_open", "sequence": 1}, "flow_id": "44c711fc-182c-43e6-a7a5-c0dcb10c7932", "host": {"name": "gw-eu-02"}, "network": {"bytes": 93}, "related": {"hosts": ["gw-eu-02"], "ip": ["10.115.249.42", "192.0.1.127"]}, "source": {"ip": "10.115.249.42"}, "timestamp": "2026-07-17T14:09:47+00:00"}
+{"destination": {"ip": "192.0.1.127"}, "event": {"action": "flow_transfer", "sequence": 2}, "flow_id": "44c711fc-182c-43e6-a7a5-c0dcb10c7932", "host": {"name": "gw-eu-02"}, "network": {"bytes": 2241}, "related": {"hosts": ["gw-eu-02"], "ip": ["10.115.249.42", "192.0.1.127"]}, "source": {"ip": "10.115.249.42"}, "timestamp": "2026-07-17T14:09:48+00:00"}
+{"destination": {"ip": "192.0.1.127"}, "event": {"action": "flow_transfer", "sequence": 3}, "flow_id": "44c711fc-182c-43e6-a7a5-c0dcb10c7932", "host": {"name": "gw-eu-02"}, "network": {"bytes": 5416}, "related": {"hosts": ["gw-eu-02"], "ip": ["10.115.249.42", "192.0.1.127"]}, "source": {"ip": "10.115.249.42"}, "timestamp": "2026-07-17T14:09:49+00:00"}
+{"destination": {"ip": "192.0.1.127"}, "event": {"action": "flow_close", "sequence": 4}, "flow_id": "44c711fc-182c-43e6-a7a5-c0dcb10c7932", "host": {"name": "gw-eu-02"}, "network": {"bytes": 8559}, "related": {"hosts": ["gw-eu-02"], "ip": ["10.115.249.42", "192.0.1.127"]}, "source": {"ip": "10.115.249.42"}, "timestamp": "2026-07-17T14:09:50+00:00"}
+{"destination": {"ip": "2.236.12.0"}, "event": {"action": "flow_open", "sequence": 1}, "flow_id": "2d397e76-699d-48e9-a37f-68abce096415", "host": {"name": "gw-eu-01"}, "network": {"bytes": 91}, "related": {"hosts": ["gw-eu-01"], "ip": ["10.241.88.202", "2.236.12.0"]}, "source": {"ip": "10.241.88.202"}, "timestamp": "2026-07-17T14:09:51+00:00"}
+{"destination": {"ip": "112.150.73.240"}, "event": {"action": "flow_open", "sequence": 1}, "flow_id": "06db2745-ba87-4a55-a18c-2094d72350ec", "host": {"name": "gw-us-01"}, "network": {"bytes": 132}, "related": {"hosts": ["gw-us-01"], "ip": ["10.90.172.49", "112.150.73.240"]}, "source": {"ip": "10.90.172.49"}, "timestamp": "2026-07-17T14:09:52+00:00"}
+{"destination": {"ip": "2.236.12.0"}, "event": {"action": "flow_transfer", "sequence": 2}, "flow_id": "2d397e76-699d-48e9-a37f-68abce096415", "host": {"name": "gw-eu-01"}, "network": {"bytes": 434}, "related": {"hosts": ["gw-eu-01"], "ip": ["10.241.88.202", "2.236.12.0"]}, "source": {"ip": "10.241.88.202"}, "timestamp": "2026-07-17T14:09:53+00:00"}
+{"destination": {"ip": "70.156.64.89"}, "event": {"action": "flow_open", "sequence": 5}, "flow_id": "b5db8ad8-aa76-45b5-83fe-80dc1781fa44", "host": {"name": "gw-eu-02"}, "network": {"bytes": 117}, "related": {"hosts": ["gw-eu-02"], "ip": ["10.217.206.168", "70.156.64.89"]}, "source": {"ip": "10.217.206.168"}, "timestamp": "2026-07-17T14:09:54+00:00"}
+{"destination": {"ip": "70.156.64.89"}, "event": {"action": "flow_transfer", "sequence": 6}, "flow_id": "b5db8ad8-aa76-45b5-83fe-80dc1781fa44", "host": {"name": "gw-eu-02"}, "network": {"bytes": 3048}, "related": {"hosts": ["gw-eu-02"], "ip": ["10.217.206.168", "70.156.64.89"]}, "source": {"ip": "10.217.206.168"}, "timestamp": "2026-07-17T14:09:55+00:00"}
+{"destination": {"ip": "112.150.73.240"}, "event": {"action": "flow_transfer", "sequence": 2}, "flow_id": "06db2745-ba87-4a55-a18c-2094d72350ec", "host": {"name": "gw-us-01"}, "network": {"bytes": 1099}, "related": {"hosts": ["gw-us-01"], "ip": ["10.90.172.49", "112.150.73.240"]}, "source": {"ip": "10.90.172.49"}, "timestamp": "2026-07-17T14:09:56+00:00"}
+```
+
+Four different `flow_id` values interleave across these lines, each opened, continued, or closed independently of the others, yet `event.sequence` for `gw-eu-02` still climbs 1, 2, 3, 4, 5, 6 without a gap or a repeat — the count belongs to the host, not to any one flow, so it keeps incrementing across every flow passing through that host, including the second one that opens right after the first closes. `gw-eu-01` and `gw-us-01` each start their own count at 1 the moment their first flow opens, entirely independent of whatever `gw-eu-02` has already reached.
+
+Filtering the same run down to one `flow_id` shows the complete lifecycle a single connection went through — scattered across the file among other flows' lines, but tied together by the id every step repeats:
+
+```json title="output/events.jsonl — one flow_id, filtered from the run above"
+{"destination": {"ip": "61.173.247.170"}, "event": {"action": "flow_open", "sequence": 5}, "flow_id": "dca4021e-6f52-476b-b4a1-6e059e5715b6", "host": {"name": "gw-us-01"}, "network": {"bytes": 182}, "related": {"hosts": ["gw-us-01"], "ip": ["10.144.221.252", "61.173.247.170"]}, "source": {"ip": "10.144.221.252"}, "timestamp": "2026-07-17T14:10:01+00:00"}
+{"destination": {"ip": "61.173.247.170"}, "event": {"action": "flow_transfer", "sequence": 8}, "flow_id": "dca4021e-6f52-476b-b4a1-6e059e5715b6", "host": {"name": "gw-us-01"}, "network": {"bytes": 3514}, "related": {"hosts": ["gw-us-01"], "ip": ["10.144.221.252", "61.173.247.170"]}, "source": {"ip": "10.144.221.252"}, "timestamp": "2026-07-17T14:10:09+00:00"}
+{"destination": {"ip": "61.173.247.170"}, "event": {"action": "flow_transfer", "sequence": 9}, "flow_id": "dca4021e-6f52-476b-b4a1-6e059e5715b6", "host": {"name": "gw-us-01"}, "network": {"bytes": 5884}, "related": {"hosts": ["gw-us-01"], "ip": ["10.144.221.252", "61.173.247.170"]}, "source": {"ip": "10.144.221.252"}, "timestamp": "2026-07-17T14:10:11+00:00"}
+{"destination": {"ip": "61.173.247.170"}, "event": {"action": "flow_close", "sequence": 12}, "flow_id": "dca4021e-6f52-476b-b4a1-6e059e5715b6", "host": {"name": "gw-us-01"}, "network": {"bytes": 8505}, "related": {"hosts": ["gw-us-01"], "ip": ["10.144.221.252", "61.173.247.170"]}, "source": {"ip": "10.144.221.252"}, "timestamp": "2026-07-17T14:10:14+00:00"}
+```
+
+Every line carries `dca4021e-6f52-476b-b4a1-6e059e5715b6`, `network.bytes` climbs from 182 to 8,505 as the running total grows at every step from open through close, and this host's `event.sequence` advances 5, 8, 9, 12 for this flow specifically — the gaps belong to other flows' events interleaved in between, not to anything missing from this one. Elsewhere in the same run, as many as five flows were open across the three gateways at once at the busiest point, just short of the pool's configured ceiling of six.
+
+## FAQ
+
+<Accordions>
+<Accordion title="What is event.sequence?">
+`event.sequence` numbers a stream per host or per source, exactly as [ECS](/docs/tutorials/formats/ecs) defines it, so a consumer can catch a gap or a reordering that the timestamp's own precision might miss. Its scope is covered above: per host or source, never per correlation id or across the whole stream. In practice, a gap in this counter is often the more reliable signal, since a clock adjustment or two events landing in the same millisecond can hide inside a timestamp while a broken sequence stands out immediately.
+</Accordion>
+<Accordion title="Can I correlate events across multiple generators?">
+Yes, with [globals](/docs/plugins/event/template/state) instead of `shared` — the identical dict-keyed-by-correlation-id pattern works there too, thread-safe and visible to every generator in the process rather than just one. That fits a source split across several generators producing different vantage points on the same activity: a firewall generator and a NAT gateway generator, each logging the same connection from its own side, coordinated through one pool of correlation ids in `globals` instead of two that never agree. [Scenarios](/docs/studio/scenarios) in Eventum Studio visualizes that shared global state across generators at runtime.
+</Accordion>
+<Accordion title="How is this different from simulating sessions?">
+[Modeling sessions](/docs/tutorials/realism/sessions) tracks one actor moving through a fixed sequence of stages with a finite state machine — one session id active in shared state at a time, one login before one logout. A correlated stream instead holds many threads open at once, tracked as a dict keyed by correlation id rather than a single current value, with each render picking one entry from that pool to advance instead of following one path from a fixed starting state. Reach for a state machine when exactly one sequence is in progress at a time; reach for a keyed pool when there could be several, interleaved, possibly spanning more than one host.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [Realism](/docs/tutorials/realism) pillar for the other techniques that make synthetic data behave like production
+- The [Realistic timing](/docs/tutorials/realism/timing) lesson for shaping when these flows start, not just how they tie together
+- The [Modeling sessions](/docs/tutorials/realism/sessions) lesson for the single-actor, one-thread-at-a-time counterpart to the pool built here
+- The [Realistic values](/docs/tutorials/realism/values) lesson for shaping what each event contains, not just its place in a correlated thread
+- The [Sigma detection testing](/docs/tutorials/detection-testing) tutorial for attack telemetry correlated across several hosts
+- The [Web clickstream scenario](/docs/tutorials/web-clickstream) tutorial for a single-session FSM applied to a five-stage browsing funnel, instead of the concurrent pool built here
+- The [ECS fields](/docs/tutorials/formats/ecs) lesson for the complete field-naming conventions `event.sequence` and `related.*` belong to
+- The [state](/docs/plugins/event/template/state) reference for every method available on `shared` and `globals`
+- Ready-made generators in the [Eventum Hub](/hub)

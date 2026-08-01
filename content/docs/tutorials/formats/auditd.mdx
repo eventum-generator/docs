@@ -1,0 +1,190 @@
+---
+title: "auditd log format: multi-record events"
+description: auditd log format — the audit.log record syntax, multi-record events tied together by a shared audit ID, and hex-encoded fields — and how to generate audit.log entries with Eventum.
+---
+
+Validating a parser built against `/var/log/audit/audit.log`, or a detection rule written to catch a specific syscall or `execve` pattern, needs audit records shaped exactly the way Linux's own audit subsystem writes them — the `type=`/`msg=audit(...)` envelope, the several lines one logical action actually produces, and the hex-encoded fields mixed in among the plain ones. A real audited host produces the same records, but only after an audit rule is installed and the exact activity is run under it — captured once, from a single host, a single process, a single moment, nowhere near the volume or variety a parser or detection rule has to handle.
+
+Eventum renders auditd records directly from a template — the same `type=`/`msg=audit(...)` lines, the same audit ID stitching a multi-record event together, the same hex-encoded fields a real kernel writes — so a parser, a SIEM detection rule, or an ingestion pipeline built against raw `audit.log` syntax can be exercised against a realistic stream with no audited host, no triggered syscall, and no captured log file required.
+
+## The auditd record format
+
+Linux's audit subsystem — configured with `auditctl` or a persistent ruleset under `/etc/audit/rules.d/`, enforced inside the kernel, and written to disk by the `auditd` daemon — logs every matched event to `/var/log/audit/audit.log` as plain, line-oriented text: one record per line, never JSON, never a structured envelope of any kind. [Red Hat's own Auditing documentation](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/security_hardening/auditing-the-system_security-hardening) and the `auditd`/`ausearch` manual pages describe the same fixed shape every one of those lines follows:
+
+```text
+type=<TYPE> msg=audit(<epoch>.<ms>:<serial>): <key>=<value> <key>=<value> ...
+```
+
+| Part | Meaning |
+|------|---------|
+| `type` | The record's kind — `SYSCALL`, `EXECVE`, `CWD`, `PATH`, `PROCTITLE`, and dozens of others, each with its own set of fields. |
+| `msg=audit(<epoch>.<ms>:<serial>)` | The record's audit ID: `epoch.ms` is when the kernel logged it, to the millisecond; `serial` is a counter that only ever increases, one higher for every record the audit subsystem has logged since it started. |
+| `<key>=<value> ...` | The record's own fields, space-separated — a bare number or hex string, or a double-quoted string wherever a value might contain a space. |
+
+Which keys actually follow the colon depends entirely on `type`. A `SYSCALL` record's fields have nothing in common with a `PROCTITLE` record's beyond that shared envelope — and, as the next section covers, the two routinely describe the very same moment.
+
+## One event, several records
+
+A single logical action — one command executed, one file opened — rarely produces just one line in `audit.log`. The kernel's audit subsystem splits everything it knows about that action across several records, each a different `type`, and ties them back together with one unmistakable signal: every record belonging to the same event carries the exact same `audit(<epoch>.<ms>:<serial>)` id. Nothing else marks them as related — no shared index, no parent-child pointer — just that one repeated id, copy-pasted onto every line in the group.
+
+Running a binary an audit rule watches for — one matched on `execve`, tagged with a `key` so the rule that caught it is easy to find later — is the clearest case of this. It produces five distinct record types, six lines total, every one of them sharing the same audit ID:
+
+```text title="One auditd event: six lines, one shared audit ID"
+type=SYSCALL msg=audit(1784316035.000:24531): arch=c000003e syscall=59 success=yes exit=0 a0=300233cfb52a a1=76acd4955815 a2=08adee2a8c6d a3=c items=2 ppid=13835 pid=65496 auid=1001 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=pts4 ses=33 comm="cat" exe="/usr/bin/cat" subj=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 key="privileged_commands"
+type=EXECVE msg=audit(1784316035.000:24531): argc=2 a0="cat" a1="/etc/passwd"
+type=CWD msg=audit(1784316035.000:24531): cwd="/root"
+type=PATH msg=audit(1784316035.000:24531): item=0 name="/usr/bin/cat" inode=953387 dev=fd:00 mode=0100755 ouid=0 ogid=0 nametype=NORMAL
+type=PATH msg=audit(1784316035.000:24531): item=1 name="/lib64/ld-linux-x86-64.so.2" inode=384068 dev=fd:00 mode=0100755 ouid=0 ogid=0 nametype=NORMAL
+type=PROCTITLE msg=audit(1784316035.000:24531): proctitle=636174002F6574632F706173737764
+```
+
+Every field that matters for reading this block:
+
+| Record | Field | Meaning |
+|--------|-------|---------|
+| SYSCALL | `arch` | The CPU architecture the syscall table belongs to — `c000003e` for x86_64, needed to know which table `syscall` itself indexes into. |
+| SYSCALL | `syscall` | The syscall number — `59` is `execve` on x86_64; the same number names a different call entirely on another architecture. |
+| SYSCALL | `success` / `exit` | Whether the call completed, and its return value — `0` on a successful `execve`, a negative `errno` (`-13` is `EACCES`) when the kernel refused it. |
+| SYSCALL | `a0`-`a3` | The syscall's first four arguments, exactly as the kernel received them — raw hex, not decoded text (more on this below). |
+| SYSCALL | `uid` / `auid` | The process's current user ID, and its audit ID — `auid` is assigned once at login and never changes for the life of the session, surviving exactly the privilege change `uid` doesn't. |
+| SYSCALL | `pid` / `comm` / `exe` | The process ID, its short command name, and the resolved path of the binary that's actually running. |
+| SYSCALL | `key` | The label an administrator's own audit rule attached with `-k`, for finding every record that rule produces later. |
+| EXECVE | `argc` / `a0`, `a1`, ... | How many arguments the new program was given, followed by each one — `a0` is the program as invoked, `a1` onward its actual arguments. |
+| CWD | `cwd` | The process's working directory at the moment of the syscall — resolves any relative path a `PATH` record below might carry. |
+| PATH | `item` | Which path this is, when a syscall resolves more than one — `0`, `1`, and so on, matching the count `SYSCALL`'s own `items` field gives. |
+| PATH | `name` / `inode` | The resolved path itself, and the inode on disk it points to. |
+| PATH | `mode` / `ouid` | The path's Unix permission bits in octal, and the numeric ID of the user who owns it. |
+| PROCTITLE | `proctitle` | The process's own full command line — always hex, never plain text (below). |
+
+A few more fields round out the block without being central to reading it — `ppid`, `gid`, `euid`/`suid`/`fsuid`, `egid`/`sgid`/`fsgid`, `tty`, `ses`, and `subj` (the process's SELinux context) on `SYSCALL`; `dev`, `ogid`, and `nametype` on `PATH`. The Red Hat documentation and the `ausearch` manual page linked above cover the complete field set for every record type.
+
+Three fields above are hex instead of plain text, and each for a different reason. `SYSCALL`'s `a0`-`a3` are the syscall's raw arguments exactly as the kernel received them — for `execve`, that means raw memory addresses inside the calling process, meaningless without also reading that process's memory, so the kernel logs them as opaque hex rather than pretending they're readable text. `EXECVE`'s own `a0`, `a1`, and so on are different: they hold the actual decoded argument text (`a0="cat"` above is a plain quoted string), and stay that way unless one particular argument contains something a space-delimited log line can't carry safely — an embedded space, a quote, a non-printable byte — in which case only that argument switches to hex instead. `PROCTITLE`'s own `proctitle` field is hex unconditionally, on every record, with no plain-text form at all: it's the process's entire command line, its arguments joined with a null byte instead of a space, so `636174002F6574632F706173737764` above decodes to `cat`, a null byte, `/etc/passwd` — the same two arguments `EXECVE` already spelled out, just encoded end to end this time.
+
+`items=2` on the `SYSCALL` record above is what tells a reader, or a parser, to expect exactly two `PATH` records for this event — `item=0` for the binary that actually ran, `item=1` for the dynamic linker the kernel also had to resolve to load it. Nothing enforces that the six lines above even arrive in this order inside the log file; matching on the shared audit ID, not position, is what a real coalescer relies on instead — [go-libaudit's `aucoalesce` package](https://github.com/elastic/go-libaudit/blob/main/aucoalesce/normalizations.yaml), the library behind Elastic's own Auditbeat, groups records by exactly that id rather than the order they arrived in.
+
+<Callout type="info">
+Not every record type joins a group like this one. `USER_LOGIN`, `USER_AUTH`, `USER_CMD`, and the credential-lifecycle types PAM generates around a login or a `sudo` invocation (`CRED_ACQ`, `CRED_DISP`) typically stand alone as a single line under their own audit ID, with no `SYSCALL`/`EXECVE`/`PATH` group attached. The [linux-auditd Hub generator](/hub/linux-auditd) covers this wider set of record types too — see the FAQ below for the shape it actually produces.
+</Callout>
+
+## Generate auditd logs with Eventum
+
+What follows models a fleet of admins already elevated to root — each via an earlier `su` or `sudo` — reading `/etc/passwd` under a rule that tags every privileged command with `key="privileged_commands"`, the same event modeled above.
+
+<Steps>
+<Step>
+
+### Write the multi-record template
+
+Unlike the JSON-based format lessons elsewhere in this track, this template builds no data structure at all — it renders six literal text lines directly, computing the shared audit ID once and reusing it on every line. Randomization comes from [`module.rand`](/docs/plugins/event/template/modules), the [template](/docs/plugins/event/template) event plugin's built-in module; the audit ID's `serial` component persists across renders in [`shared`](/docs/plugins/event/template/state) state, the same technique the [linux-auditd Hub generator](/hub/linux-auditd) itself uses for its own per-host `event.sequence` counter.
+
+```jinja title="generators/auditd-raw/templates/privileged-command.jinja"
+{%- set admins = [
+    {"name": "jsmith", "auid": 1000},
+    {"name": "agarcia", "auid": 1001},
+    {"name": "mwilson", "auid": 1002}
+] -%}
+{%- set admin = module.rand.choice(admins) -%}
+{%- set pid = module.rand.number.integer(1000, 65535) -%}
+{%- set ppid = module.rand.number.integer(1000, 65535) -%}
+{%- set ses = module.rand.number.integer(1, 50) -%}
+{%- set tty = "pts" ~ module.rand.number.integer(0, 9) -%}
+{%- set a0 = module.rand.string.hex(12) -%}
+{%- set a1 = module.rand.string.hex(12) -%}
+{%- set a2 = module.rand.string.hex(12) -%}
+{%- set a3 = module.rand.string.hex(1) -%}
+{%- set inode_bin = module.rand.number.integer(100000, 999999) -%}
+{%- set inode_ld = module.rand.number.integer(100000, 999999) -%}
+{%- set allowed = module.rand.chance(0.9) -%}
+{%- set success = "yes" if allowed else "no" -%}
+{%- set exit_code = "0" if allowed else "-13" -%}
+{%- set serial = shared.get('serial', 24531) -%}
+{%- set epoch = "%.3f" | format(timestamp.timestamp()) -%}
+{%- set msg_id = "audit(" ~ epoch ~ ":" ~ serial ~ ")" -%}
+{%- set argv = ["cat", "/etc/passwd"] -%}
+{%- set nul = module.builtins.chr(0) -%}
+{%- set proctitle_hex = (argv | join(nul)).encode().hex().upper() -%}
+type=SYSCALL msg={{ msg_id }}: arch=c000003e syscall=59 success={{ success }} exit={{ exit_code }} a0={{ a0 }} a1={{ a1 }} a2={{ a2 }} a3={{ a3 }} items=2 ppid={{ ppid }} pid={{ pid }} auid={{ admin.auid }} uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty={{ tty }} ses={{ ses }} comm="cat" exe="/usr/bin/cat" subj=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 key="privileged_commands"
+type=EXECVE msg={{ msg_id }}: argc=2 a0="cat" a1="/etc/passwd"
+type=CWD msg={{ msg_id }}: cwd="/root"
+type=PATH msg={{ msg_id }}: item=0 name="/usr/bin/cat" inode={{ inode_bin }} dev=fd:00 mode=0100755 ouid=0 ogid=0 nametype=NORMAL
+type=PATH msg={{ msg_id }}: item=1 name="/lib64/ld-linux-x86-64.so.2" inode={{ inode_ld }} dev=fd:00 mode=0100755 ouid=0 ogid=0 nametype=NORMAL
+type=PROCTITLE msg={{ msg_id }}: proctitle={{ proctitle_hex }}
+{%- do shared.set('serial', serial + 1) -%}
+```
+
+`epoch` is formatted to exactly three decimal places with the `format` filter, matching the millisecond precision real `audit.log` timestamps carry. `serial` starts wherever `shared` last left it (`24531` the first time this template renders in a fresh generator) and is written back one higher at the very end, so every subsequent event's audit ID keeps climbing instead of resetting. `nul` reaches into Python's own `builtins` module — importable like any other package via `module` — for a literal null byte; `argv | join(nul)` then joins `["cat", "/etc/passwd"]` into one string with that null byte sitting between the two arguments, and `.encode().hex().upper()` turns the whole thing into the same uppercase hex a real kernel writes for `PROCTITLE`.
+
+</Step>
+<Step>
+
+### Configure the generator
+
+[`mode: any`](/docs/plugins/event/template/modes#any) is the simplest fit for a single template — every timestamp renders it, with no picking logic needed since there's nothing to pick between. A [cron](/docs/plugins/input/cron) input ticks once a second and emits five timestamps per tick, so each second produces five audit events — six lines each, thirty in total, every event under its own audit ID. A [file](/docs/plugins/output/file) output writes them through the [plain](/docs/plugins/formatters#plain) formatter:
+
+```yaml title="generators/auditd-raw/generator.yml"
+input:
+  - cron:
+      expression: "* * * * * *"
+      count: 5
+
+event:
+  template:
+    mode: any
+    templates:
+      - privileged_command:
+          template: templates/privileged-command.jinja
+
+output:
+  - file:
+      path: output/audit.log
+      formatter:
+        format: plain
+```
+
+<Callout type="warn">
+`plain` is what an already-correctly-shaped text format needs — it passes each event through untouched. Switching to `json` or `json-batch` here would not just be the wrong style choice: since a six-line `type=SYSCALL ...` block is not valid JSON, either formatter would reject every single event as a format error and write nothing to `output/audit.log` at all.
+</Callout>
+
+</Step>
+</Steps>
+
+## The result
+
+Running the generator above in [sample mode](/docs/core/concepts/generator#sample-mode) for a moment produced two consecutive events, the audit ID advancing from `:24531` to `:24532` between them and nothing else about the six-line shape changing:
+
+```text title="output/audit.log — two consecutive events, one allowed and one denied"
+type=SYSCALL msg=audit(1784316035.000:24531): arch=c000003e syscall=59 success=yes exit=0 a0=300233cfb52a a1=76acd4955815 a2=08adee2a8c6d a3=c items=2 ppid=13835 pid=65496 auid=1001 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=pts4 ses=33 comm="cat" exe="/usr/bin/cat" subj=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 key="privileged_commands"
+type=EXECVE msg=audit(1784316035.000:24531): argc=2 a0="cat" a1="/etc/passwd"
+type=CWD msg=audit(1784316035.000:24531): cwd="/root"
+type=PATH msg=audit(1784316035.000:24531): item=0 name="/usr/bin/cat" inode=953387 dev=fd:00 mode=0100755 ouid=0 ogid=0 nametype=NORMAL
+type=PATH msg=audit(1784316035.000:24531): item=1 name="/lib64/ld-linux-x86-64.so.2" inode=384068 dev=fd:00 mode=0100755 ouid=0 ogid=0 nametype=NORMAL
+type=PROCTITLE msg=audit(1784316035.000:24531): proctitle=636174002F6574632F706173737764
+type=SYSCALL msg=audit(1784316035.000:24532): arch=c000003e syscall=59 success=no exit=-13 a0=60d1787f47c3 a1=852e5a26fb25 a2=bf98aa9a9d60 a3=c items=2 ppid=32376 pid=17403 auid=1001 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=pts8 ses=15 comm="cat" exe="/usr/bin/cat" subj=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 key="privileged_commands"
+type=EXECVE msg=audit(1784316035.000:24532): argc=2 a0="cat" a1="/etc/passwd"
+type=CWD msg=audit(1784316035.000:24532): cwd="/root"
+type=PATH msg=audit(1784316035.000:24532): item=0 name="/usr/bin/cat" inode=676886 dev=fd:00 mode=0100755 ouid=0 ogid=0 nametype=NORMAL
+type=PATH msg=audit(1784316035.000:24532): item=1 name="/lib64/ld-linux-x86-64.so.2" inode=231381 dev=fd:00 mode=0100755 ouid=0 ogid=0 nametype=NORMAL
+type=PROCTITLE msg=audit(1784316035.000:24532): proctitle=636174002F6574632F706173737764
+```
+
+Every line in the first block carries `audit(1784316035.000:24531)`; every line in the second carries `:24532` instead — the exact grouping mechanism the previous section describes, not a special case invented for this example. Both events happen to trace to the same admin here (`auid=1001`), already root (`uid=0`), running the same command under the same `key="privileged_commands"` rule; the only fields that differ are `success` and `exit` — `yes`/`0` on the first, `no`/`-13` (`EACCES`) on the second, as if a policy such as SELinux enforcement let the path resolution complete both times but blocked the operation itself on the second attempt. A real system enforcing that policy would typically log a separate `type=AVC` record alongside a denial like this one, naming which policy rule refused it — a record type outside what this lesson covers.
+
+## FAQ
+
+<Accordions>
+<Accordion title="Why does the SYSCALL record carry both uid and auid?">
+Because they answer different questions, and only one of them changes when a session escalates privilege. `uid` (and `euid` alongside it) is the process's current user — `0` for the root session in the example above. `auid`, the login UID, is assigned once by `pam_loginuid` at the start of a session and stays fixed for its entire lifetime, immune to any later `su` or `sudo` — so a `SYSCALL` record with `uid=0` and `auid=1001` together mean exactly one thing: whoever holds `auid` 1001 escalated to root and is now running commands as it. Drop `auid` from a query or a detection rule built on these records, and every privilege escalation in the log looks identical to a process root started on its own.
+</Accordion>
+<Accordion title="How do I read audit.log without scanning raw key=value text?">
+`ausearch` is the standard tool for it, and it understands the multi-record grouping this page describes natively — `ausearch -k privileged_commands` returns every record sharing an audit ID with any record tagged that key, already grouped into events rather than loose lines. Add `-i` ("interpret") and it also decodes the hex fields this page covers — numeric `uid`/`auid` values resolved to usernames, and `PROCTITLE`'s hex resolved back to the plain command line — instead of leaving them for a human to decode by hand.
+</Accordion>
+</Accordions>
+
+## Related
+
+- The [formats field guide](/docs/tutorials/formats) covering every supported log and event shape
+- The [ECS lesson](/docs/tutorials/formats/ecs) for the normalized shape a real audit trail gets mapped into once Auditbeat coalesces and parses it
+- The [detection-testing lesson](/docs/tutorials/detection-testing) for testing a Sigma rule or an ATT&CK-mapped detection against generated syscall and execve telemetry
+- The [Stream to your stack](/docs/tutorials/delivery) lessons for delivering a generated log stream to a real collector instead of a local file
+- The [formatters](/docs/plugins/formatters) and [template event plugin](/docs/plugins/event/template) references for every field and format used above
+- The [linux-auditd](/hub/linux-auditd) generator in the Eventum Hub for the downstream ECS-mapped form of this same source
