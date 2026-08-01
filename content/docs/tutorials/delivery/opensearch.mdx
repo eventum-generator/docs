@@ -159,9 +159,6 @@ Yes. OpenSearch began as a fork of Elasticsearch 7.10.2 and remains compatible o
 <Accordion title="How do I handle TLS and authentication?">
 `username` and `password` are required on every request and sent as HTTP basic auth — keep the password in the keyring as shown above, never inline in the config. For TLS, `verify` controls whether the cluster's certificate is checked and defaults to `false`; set it to `true` and point `ca_cert` at your CA bundle once the cluster has a certificate from an internal or public CA. `client_cert` and `client_cert_key` add mutual TLS on top and must be set together. All of these, plus `proxy_url` for routing through an HTTP(S) proxy, are documented on the [plugin reference](/docs/plugins/output/opensearch#parameters).
 </Accordion>
-<Accordion title="What kind of data can I generate?">
-Anything a Jinja2 template can render as JSON — the access log above is one shape among many. The [formats field guide](/docs/tutorials/formats) covers every supported log and event shape, and the [SIEM test data lesson](/docs/tutorials/siem-events) builds a complete stateful Windows Security event stream on top of the same `opensearch` output. Either can swap in for the template and input used here.
-</Accordion>
 </Accordions>
 
 ## Related

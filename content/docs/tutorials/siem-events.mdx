@@ -403,9 +403,6 @@ A complete session: logon → privilege → 4 processes → logoff. Then a new s
 <Accordion title="Do I need a live SIEM or real attacks to use this?">
 No. The generator produces ordinary logon, privilege-use, process-creation, and logoff activity shaped like what a real Windows environment logs — nothing here simulates an exploit, a malicious payload, or an attacker technique. Point the output at any OpenSearch-compatible index, or swap it for `stdout: {}` to inspect events locally without a running cluster at all.
 </Accordion>
-<Accordion title="Which log sources can I generate for SIEM besides Windows Security?">
-This walkthrough builds a Windows Security generator, but the same input-template-output pattern applies to other sources. The [formats field guide](/docs/tutorials/formats) covers the Windows Event Log, CEF, syslog, and other shapes structurally, and the [Eventum Hub](/hub) ships ready-made generators for network, endpoint, identity, and cloud security telemetry alongside [windows-security](/hub/windows-security) and [windows-sysmon](/hub/windows-sysmon).
-</Accordion>
 <Accordion title="Can I index into Elasticsearch or another backend instead of OpenSearch?">
 Yes. OpenSearch is API-compatible with Elasticsearch on bulk indexing, so pointing `hosts` at an Elasticsearch cluster and adjusting credentials indexes the same events the same way — see the [OpenSearch delivery lesson](/docs/tutorials/delivery/opensearch) for TLS and authentication details. For a different backend entirely, replace the `opensearch` block in `generator.yml` with another output plugin and keep the input and templates unchanged.
 </Accordion>

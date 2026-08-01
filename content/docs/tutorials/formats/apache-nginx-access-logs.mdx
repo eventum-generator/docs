@@ -194,9 +194,6 @@ Only the bytes column changes, from a bare `-` to a literal `0`; every other fie
 ## FAQ
 
 <Accordions>
-<Accordion title="Does Eventum's Hub have an Apache or nginx generator?">
-Yes — the [web-apache](/hub/web-apache) and [web-nginx](/hub/web-nginx) generators model both servers in depth, including bot traffic, scanner probes, and correlated error entries. Neither one emits the raw text line this page teaches, though: both model the *downstream* shape a Filebeat or Elastic Agent module produces after parsing that line — an ECS-mapped JSON document tagged `apache.access` or `nginx.access` — since that's the form most log pipelines actually index. See the [ECS lesson](/docs/tutorials/formats/ecs) for what that parsed shape looks like, and use the templates above to generate the raw line itself.
-</Accordion>
 <Accordion title="CLF or Combined — which should I generate?">
 Combined, in almost every real case. Referer and User-Agent are the two fields most bot-detection and log-analytics rules actually key on, and a stock install of either server writes Combined by default — bare CLF mostly shows up in documentation and in parsers old enough to only expect the first seven fields. Drop the two trailing quoted fields from the templates above to produce CLF instead; the first seven fields don't change shape between the two formats.
 </Accordion>

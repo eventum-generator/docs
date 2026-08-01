@@ -291,9 +291,6 @@ The result is the same envelope [the section above](#the-cloudtrail-record-forma
 ## FAQ
 
 <Accordions>
-<Accordion title="Does Eventum's Hub have a CloudTrail generator?">
-Yes — the [cloud-aws-cloudtrail](/hub/cloud-aws-cloudtrail) generator models a multi-account organization's management events in depth, including four identity types, temporary-credential correlation, and injected errors. It does not emit the raw camelCase shape this page teaches, though: it produces the *downstream* shape the Elastic AWS integration's Filebeat module writes after parsing a real CloudTrail record — `aws.cloudtrail.*` fields, snake_case, keyed on ECS's `@timestamp` rather than `eventTime`, with no `Records` envelope anywhere in it. See the [ECS lesson](/docs/tutorials/formats/ecs) for what that parsed shape looks like in general, and the [OpenSearch delivery lesson](/docs/tutorials/delivery/opensearch) for indexing either shape into a real cluster — the Hub generator's own documentation describes an `opensearch` output for exactly that.
-</Accordion>
 <Accordion title="Why not use json-batch for the Records envelope?">
 `json-batch` collects a batch into a bare JSON array — `[{...}, {...}]` — with no key wrapping it, because it has no way to know what that key should be called. CloudTrail's own envelope is a JSON object with a `Records` field, not a bare array, so only a formatter that lets you author the wrapper yourself can reproduce it — which is exactly what `template-batch` is for. Any destination that already expects a bare array — an HTTP endpoint accepting a batch payload, among others — is what `json-batch` is for instead.
 </Accordion>

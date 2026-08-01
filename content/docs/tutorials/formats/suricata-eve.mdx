@@ -359,9 +359,6 @@ A separate run's alert turned up the pairing the fields table above describes on
 ## FAQ
 
 <Accordions>
-<Accordion title="Does Eventum's Hub have a Suricata generator?">
-Yes — the [security-suricata](/hub/security-suricata) generator models thirteen EVE templates in depth, including ET Open-style signatures with MITRE ATT&CK metadata and JA3/JA3S TLS fingerprints. It does not emit the raw root-level shape this page teaches, though: it produces the *downstream* shape the Elastic Suricata integration writes once its ingest pipeline parses a real EVE line — ECS fields such as `event.category` and `@timestamp` sit at the root, the original EVE content is preserved underneath a `suricata.eve.*` namespace instead of at the root, and `alert.action` is folded into `event.type` rather than appearing as its own field. See the [ECS lesson](/docs/tutorials/formats/ecs) for what that parsed shape looks like in general, and the [OpenSearch delivery lesson](/docs/tutorials/delivery/opensearch) for indexing either shape into a real cluster.
-</Accordion>
 <Accordion title="Does action: allowed mean the alert doesn't matter?">
 No — `allowed` only means Suricata didn't block the traffic, not that nothing happened. A passive IDS sensor can only ever write `allowed`, since it has no way to drop a packet in the first place; `action` reads `blocked` only when Suricata runs inline as an IPS and the specific signature that fired is also configured with the `drop` action. A signature with `severity: 1` and `action: allowed` is exactly as serious as the same signature would be if it had been blocked instead — `action` describes what the sensor did with the packet, `severity` describes how serious the detection is, and neither implies the other.
 </Accordion>

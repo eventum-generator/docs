@@ -172,9 +172,6 @@ Every line in the first block carries `audit(1784316035.000:24531)`; every line 
 ## FAQ
 
 <Accordions>
-<Accordion title="Does Eventum's Hub have an auditd generator?">
-Yes — the [linux-auditd](/hub/linux-auditd) generator models a 50-host Linux fleet's audit trail in depth: syscall tracing, PAM authentication, credential changes, sudo command execution, and systemd service management. It does not emit the raw `audit.log` syntax this page teaches, though: it produces the shape [Auditbeat](https://www.elastic.co/guide/en/beats/auditbeat/current/index.html)'s `auditd_manager` module writes once it reads and coalesces a real host's raw records — ECS fields at the root (`event.category`, `event.sequence`, `user.audit.id`), the untranslated raw fields folded under `auditd.data.*`, and no `msg=audit(...)` id anywhere, since the multi-record coalescing the previous section describes has already happened by the time that shape exists. Ordering across records is tracked with ECS's own `event.sequence` counter instead of a shared audit ID. See the [ECS lesson](/docs/tutorials/formats/ecs) for what that normalized shape looks like in general.
-</Accordion>
 <Accordion title="Why does the SYSCALL record carry both uid and auid?">
 Because they answer different questions, and only one of them changes when a session escalates privilege. `uid` (and `euid` alongside it) is the process's current user — `0` for the root session in the example above. `auid`, the login UID, is assigned once by `pam_loginuid` at the start of a session and stays fixed for its entire lifetime, immune to any later `su` or `sudo` — so a `SYSCALL` record with `uid=0` and `auid=1001` together mean exactly one thing: whoever holds `auid` 1001 escalated to root and is now running commands as it. Drop `auid` from a query or a detection rule built on these records, and every privilege escalation in the log looks identical to a process root started on its own.
 </Accordion>
