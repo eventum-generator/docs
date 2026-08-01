@@ -11,7 +11,7 @@
             "name": "Apache 2.0",
             "url": "https://github.com/eventum-generator/eventum/blob/master/LICENSE"
         },
-        "version": "2.6.0"
+        "version": "2.7.0"
     },
     "paths": {
         "/auth/login": {
@@ -7551,7 +7551,7 @@
                         "type": "string",
                         "title": "App Version",
                         "description": "Application version",
-                        "default": "2.6.0"
+                        "default": "2.7.0"
                     },
                     "python_version": {
                         "type": "string",
