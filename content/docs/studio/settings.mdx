@@ -1,95 +1,78 @@
 ---
 title: Settings and management
-description: Application settings, the encrypted secrets keyring, and the management console with instance identity, the live application log and lifecycle controls.
+description: Application configuration, the encrypted secrets keyring, and the management console with instance identity, the application log and lifecycle controls.
 ---
 
-Studio has three administrative pages for the application itself — **Settings** for its parameters, **Secrets** for encrypted credentials, and **Management** for what the process is doing and how to restart or stop it.
+Three pages administer the application itself rather than the generators running in it: **Settings** for its configuration, **Secrets** for the credentials that configuration refers to, and **Management** for what the process is doing.
 
 ## Settings
 
-The Settings page is a form over the application configuration — the same parameters [eventum.yml](/docs/core/config/eventum-yml) holds. Saving writes them back to that file.
+The Settings page edits the application configuration — the same parameters [eventum.yml](/docs/core/config/eventum-yml) holds, written back to that file on save.
 
-<ThemedImage
+<Screenshot
   lightSrc="/images/studio_ui/settings_server_light.png"
   darkSrc="/images/studio_ui/settings_server_dark.png"
   alt="The Server section of the Settings page in Eventum Studio"
-  className="rounded-lg border mt-2"
 />
 
-The rail on the left holds four sections, one form each:
+| Section | Covers |
+|---------|--------|
+| **Server** | How the instance is reached — API, web interface, TLS, authentication, MCP |
+| **Generation** | The defaults every generator inherits |
+| **Paths** | Where generators, logs, the startup file and the keyring live |
+| **Logging** | Level, format, rotation |
 
-| Section | What it covers |
-|---------|----------------|
-| **Server** | The REST API and the web interface, the bind address and port, TLS, basic authentication, and MCP access. |
-| **Generation** | Defaults applied to every generator — timezone, ordering, batching, queues and write concurrency. |
-| **Paths** | The filesystem locations this instance reads from and writes to. |
-| **Logging** | Severity, format and rotation of the logs. |
+A section holding unsaved edits is marked in the rail, so changes spread across several of them stay visible from wherever you are.
 
-A section with unsaved changes is marked with a dot in the rail, so edits spread across sections are still visible from wherever you are.
-
-<ThemedImage
+<Screenshot
   lightSrc="/images/studio_ui/settings_generation_light.png"
   darkSrc="/images/studio_ui/settings_generation_dark.png"
   alt="The Generation section of the Settings page in Eventum Studio"
-  className="rounded-lg border mt-2"
 />
 
-Batch size and queue depths decide how much memory generation holds at once, and the Generation section states the resulting figure as you change them rather than leaving it to be worked out.
+Batch size and queue depths decide how much memory generation holds at once. The Generation section works that figure out for you: give it an assumed event size and it reports what full queues will occupy for one generator.
 
-**Save** appears in the page header once anything is edited, and asks for confirmation first: these parameters are read when the application starts, so applying them restarts the instance and the interface is briefly unavailable.
+**Save** appears in the page header once anything is edited and asks for confirmation first. These parameters are read when the application starts, so applying them triggers the same [restart](#danger-zone) the Management page offers, and the interface is briefly unavailable.
 
 ---
 
 ## Secrets
 
-The Secrets page manages the encrypted keyring — the same secrets the [`eventum-keyring`](/docs/core/cli/eventum-keyring) CLI tool manages. A secret is referenced from any configuration as `${secrets.name}` and resolved when a generator loads.
+The Secrets page manages the encrypted keyring, the same one [`eventum-keyring`](/docs/core/cli/eventum-keyring) manages from the terminal. A secret is referenced from any configuration as `${secrets.name}` and resolved when a generator loads.
 
-<ThemedImage
+<Screenshot
   lightSrc="/images/studio_ui/secrets_light.png"
   darkSrc="/images/studio_ui/secrets_dark.png"
   alt="Secrets page in Eventum Studio"
-  className="rounded-lg border mt-2"
 />
 
-Each row is one secret, with its name and its value masked. The actions per row are:
-
-| Action | Description |
-|--------|-------------|
-| **Copy name** | Copies the name, which is what a configuration references. |
-| **Rename** | Gives the secret a new name. |
-| **Show** / **Hide** | Reveals the value, and hides it again. |
-| **Edit** | Makes the value editable, then saves it. |
-| **Remove** | Deletes the secret from the keyring, after a confirmation. |
-
-**Add secret** opens a row for a new **Name** and **Value**; once saved the secret is immediately available to generator configurations.
+Values stay masked until asked for. Secrets are added, edited and removed in place, and a new one is available to generator configurations immediately, with no restart.
 
 <Callout type="warn">
-Removing a secret is irreversible. Any configuration referencing `${secrets.name}` for it fails to load until the secret is created again.
+Removing a secret is irreversible. Any configuration referring to it fails to load until a secret of the same name exists again.
 </Callout>
 
 ---
 
 ## Management
 
-The Management page reports what this instance is and what it is doing, and holds the controls that end it.
-
-<ThemedImage
+<Screenshot
   lightSrc="/images/studio_ui/management_light.png"
   darkSrc="/images/studio_ui/management_dark.png"
   alt="Management page in Eventum Studio"
-  className="rounded-lg border mt-2"
 />
 
-Three cards describe the instance: **Application** (the Eventum version and the Python build it runs on), **Host** (hostname, address, platform and uptime), and **System load** (CPU and memory, with a link to the [Monitoring](/docs/studio/monitoring) dashboard for the history).
+The cards at the top identify the instance and the machine under it, and link through to [Monitoring](/docs/studio/monitoring) for the history behind the load.
 
-**Instance logs** is the application-wide log as it is written to disk, with line numbers and controls to jump to the start or follow the end. This is the log that records configuration loading, which generators were started, and which of them refused to start — the per-instance logs live on the [instance page](/docs/studio/instances#logs).
+**Instance logs** is the application-wide log: configuration loading, which generators were started, and which of them refused to. A single generator's own log is on its [instance page](/docs/studio/instances#logs).
 
 ### Danger zone
 
-| Action | Description |
-|--------|-------------|
-| **Restart** | Stops the generators, re-reads the configuration, and starts them again according to it. The interface is briefly unavailable. Equivalent to sending `SIGHUP` to the process. |
-| **Stop** | Stops the application. Generators are shut down gracefully and the process exits. |
+**Restart** rebuilds the whole instance rather than just its generators. It stops the generators and the HTTP server, re-reads [eventum.yml](/docs/core/config/eventum-yml) and [startup.yml](/docs/core/config/startup-yml) from disk, and brings everything back up from what it finds there: logging, the API, the web interface, MCP, and every generator the startup file lists. This is what `SIGHUP` does, and the way a change made to either file outside Studio is picked up.
+
+The operating system process stays the same one throughout, so anything supervising it sees no restart. The interface is unavailable while the server is down.
+
+**Stop** shuts the generators down gracefully and ends the process itself.
 
 <Callout type="warn">
 **Stop** ends the whole Eventum process, including the interface you are using. Starting it again means going back to the terminal and running `eventum run -c eventum.yml`.

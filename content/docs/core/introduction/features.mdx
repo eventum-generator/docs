@@ -21,11 +21,10 @@ Built-in data libraries make templates realistic out of the box:
 
 Templates also support **persistent state** — `locals` for per-template state, `shared` for cross-template state within a generator, and `globals` for state shared across all generators. This lets you build stateful sequences like user sessions or correlated event chains.
 
-<ThemedImage
+<Screenshot
   lightSrc="/images/home/template_light.png"
   darkSrc="/images/home/template_dark.png"
   alt="Template editor in Eventum Studio"
-  className="rounded-lg border mt-2"
 />
 
 <Callout type="info">
@@ -57,11 +56,10 @@ def produce(params: dict) -> str | list[str]:
     return json.dumps(event)
 ```
 
-<ThemedImage
+<Screenshot
   lightSrc="/images/home/script_light.png"
   darkSrc="/images/home/script_dark.png"
   alt="Script editor in Eventum Studio"
-  className="rounded-lg border mt-2"
 />
 
 ## Flexible scheduling
@@ -70,11 +68,10 @@ Eventum gives you precise control over *when* events happen. Choose from several
 
 You can combine multiple input plugins in a single generator — for example, a `cron` plugin for steady baseline traffic and a `time_patterns` plugin for periodic spikes. Each plugin can carry **tags** that propagate to templates, so you can conditionally vary event content based on the source.
 
-<ThemedImage
+<Screenshot
   lightSrc="/images/home/time_distribution_light.png"
   darkSrc="/images/home/time_distribution_dark.png"
   alt="Scheduling preview with time distribution histogram in Eventum Studio"
-  className="rounded-lg border mt-2"
 />
 
 ## Multiple output destinations
@@ -83,11 +80,10 @@ Every generator can send events to one or more [output plugins](/docs/plugins#ou
 
 All output plugins support [formatters](/docs/plugins/formatters) to transform events before delivery. You can also control **event ordering** — run outputs in parallel for throughput, or serialize them to maintain strict chronological order.
 
-<ThemedImage
-  lightSrc="/images/home/outputs_light.png"
-  darkSrc="/images/home/outputs_dark.png"
-  alt="Output plugin selection in Eventum Studio"
-  className="rounded-lg border mt-2"
+<Screenshot
+  lightSrc="/images/home/output_destinations_light.png"
+  darkSrc="/images/home/output_destinations_dark.png"
+  alt="A generator writing to four destinations, each with its own formatter"
 />
 
 ## Live and sample modes
@@ -167,11 +163,10 @@ Eventum ships with a built-in web interface called **Studio** for visual generat
 - Start, stop and watch generator instances, with live throughput and per-stage failure counts
 - Group generators into scenarios and see the state they exchange
 
-<ThemedImage
+<Screenshot
   lightSrc="/images/home/debug_light.png"
   darkSrc="/images/home/debug_dark.png"
   alt="Event debugger in Eventum Studio"
-  className="rounded-lg border mt-2"
 />
 
 ## REST API

@@ -1,15 +1,15 @@
 ---
 title: Scenarios
-description: Group generator instances into named scenarios for coordinated lifecycle control, a live view of the global state they exchange, and a diagram of the data flowing between them.
+description: Named groups of generator instances with coordinated lifecycle control, a diagram of the global state they exchange, and a live view of that state.
 ---
 
-A **scenario** is a named grouping of generator instances that work together as a logical unit. [Projects](/docs/studio/projects) define what a generator does; a scenario defines which instances collaborate at runtime.
+A **scenario** is a named group of generator instances that run as one unit. [Projects](/docs/studio/projects) define what a generator does; a scenario defines which instances belong together at runtime.
 
-For example, a corporate network simulation might have an authentication service tracking user sessions, a web proxy generating HTTP traffic for those users, a DNS resolver publishing the domains it refuses, and a firewall logging connections from the same population. These generators exchange data through [global state](/docs/plugins/event/template/state) and need coordinated lifecycle control. A scenario ties them together.
+A corporate network simulation, for example, may consist of an authentication service tracking user sessions, a web proxy generating traffic for those users, a DNS resolver publishing the domains it refuses, and a firewall logging connections from the same population. Those generators exchange data through [global state](/docs/plugins/event/template/state) and are started and stopped together.
 
 ## Configuration
 
-Scenarios are defined through the `scenarios` field in [startup.yml](/docs/core/config/startup-yml). Each generator can belong to one or more scenarios — just use the same name:
+Scenarios come from the `scenarios` field of each instance in [startup.yml](/docs/core/config/startup-yml). An instance can belong to several of them:
 
 ```yaml title="startup.yml"
 - id: corp-auth-service
@@ -35,72 +35,62 @@ Scenarios are defined through the `scenarios` field in [startup.yml](/docs/core/
     - security-monitoring
 ```
 
-Here `corporate-network` groups all four generators, and `security-monitoring` groups only the authentication service and the firewall. There is no separate scenario config file — a scenario exists as soon as any generator references the name.
+Here `corporate-network` groups all four instances and `security-monitoring` groups two of them. There is no separate scenario file: a scenario exists as soon as an instance names it.
 
-Scenarios can also be created and managed from Studio, and membership can be changed from an [instance](/docs/studio/instances#overview). Either way the change is written back to `startup.yml`.
+Studio writes the same field. Scenarios can be created on the Scenarios page, and membership can be changed from a scenario or from an [instance](/docs/studio/instances#overview).
 
 ## Scenario list
 
-<ThemedImage
+<Screenshot
   lightSrc="/images/studio_ui/scenarios_light.png"
   darkSrc="/images/studio_ui/scenarios_dark.png"
   alt="Scenarios page in Eventum Studio"
-  className="rounded-lg border mt-2"
 />
 
-The table lists every scenario with its instance count and the states those instances are in, so a scenario that is only half running is visible without opening it. Selecting rows enables **Start**, **Stop** and **Delete** for the whole selection. Each row carries the same lifecycle actions for itself, plus **Edit** to open the scenario, **Rename** and **Delete**.
+Each row holds the number of instances in a scenario and the states they are in, so one that is only half running is distinguishable from one that is fully up. Rows can be started, stopped or deleted one at a time or as a selection.
 
-**Create new** creates a scenario: pick a name and select the instances that belong to it. Deleting a scenario removes the grouping, never the instances.
+**Create new** takes a name and the instances that belong to it. Deleting a scenario removes the grouping and leaves the instances themselves registered.
 
 ## Scenario page
 
-<ThemedImage
+<Screenshot
   lightSrc="/images/studio_ui/scenario_light.png"
   darkSrc="/images/studio_ui/scenario_dark.png"
   alt="A scenario page in Eventum Studio"
-  className="rounded-lg border mt-2"
 />
 
-The header carries the scenario's aggregate status, how many of its instances are running, and **Start all** / **Stop all**, each disabled when there is nothing for it to act on. Where the [Instances](/docs/studio/instances) page treats instances one at a time, this is where a whole simulation is brought up or taken down in one action.
+The header carries the aggregate status of the group with **Start all** and **Stop all**. Where the [Instances](/docs/studio/instances) page acts on instances one at a time, this brings a whole simulation up or takes it down in one action.
 
 ### Data flow
 
-The diagram shows how the instances of the scenario interact through global state: which of them writes which key, and which reads it. It appears once any generator in the scenario uses `globals.set()` or `globals.get()` in its templates.
+The diagram maps the global state the instances exchange: which generator writes a key, and which ones read it. It is present once any generator in the scenario calls `globals.set()` or `globals.get()`.
 
-Hovering an instance or a key highlights the edges that touch it and dims the rest, which is how a key written by one generator and read by three others becomes legible. Clicking an instance in the diagram expands its card below. The diagram can be zoomed, panned and fitted.
+Hovering an instance or a key dims everything it does not touch, which keeps a key written by one generator and read by three others legible.
 
 ### Instances
 
-Each instance in the scenario is a card carrying its status, with a menu for **Start** / **Stop**, **Show metrics**, **Show logs**, **Edit instance**, **Go to project** and **Remove**. Removing takes the instance out of the grouping and leaves the instance itself alone.
+Each instance is a card with the actions the Instances page offers for it, plus **Remove**, which takes it out of the group without deleting it.
 
-<ThemedImage
+<Screenshot
   lightSrc="/images/studio_ui/scenario_expanded_light.png"
   darkSrc="/images/studio_ui/scenario_expanded_dark.png"
   alt="An expanded instance card on a scenario page"
-  className="rounded-lg border mt-2"
 />
 
-A card that uses global state expands to list its templates and, per template, the keys it writes and the keys it reads. Hovering an entry highlights the matching edge in the diagram above, which answers "where does this key come from" in one gesture.
+A card for a generator that uses global state expands into its templates and, for each of them, the keys it writes and the keys it reads. Hovering an entry highlights the matching edge in the diagram above.
 
-**Add** attaches an existing instance to the scenario.
+Opening a template name shows its source read-only, inside the card, at the place where `globals.set()` and `globals.get()` are called.
 
-### Template preview
-
-A template name in an expanded card opens its source read-only, under its own entry, so you can see how `globals.set()` and `globals.get()` are actually used without leaving the page.
-
-<ThemedImage
+<Screenshot
   lightSrc="/images/studio_ui/scenario_template_light.png"
   darkSrc="/images/studio_ui/scenario_template_dark.png"
   alt="Inline template preview on a scenario page"
-  className="rounded-lg border mt-2"
 />
 
-## Global state
+### Global state
 
-The panel on the right is a live key-value view of the `globals` dictionary, with a count of the keys and a search over both keys and values. Values are typed as object, array or scalar and expand rather than being cut short.
-
-Individual keys can be added, edited as JSON and deleted, **Sync** re-reads them, and **Clear** empties the dictionary.
+The panel on the right is the live `globals` dictionary the diagram describes, searchable over keys and values, with objects and arrays expandable rather than truncated. Keys can be added, edited as JSON and deleted, which puts a scenario into a state that would otherwise take a long run to reach.
 
 <Callout type="warn">
-Global state is application-wide — editing it affects every running instance, not only the ones in this scenario. Check the data flow diagram to understand what depends on a key before changing it.
+Global state is application-wide. Editing it affects every running instance, not only the ones in this scenario. Check the data flow diagram for what depends on a key before changing it.
 </Callout>

@@ -1,163 +1,125 @@
 ---
 title: Instances
-description: Managing generator instances in Studio — the instance table with live throughput and error counts, lifecycle controls, the metrics dialog, and the instance page with its live pipeline, settings and logs.
+description: The instance list with live throughput and error counts, lifecycle controls, the per-instance metrics diagram, and the instance page with its settings and logs.
 ---
 
-The Instances page is where you manage generator instances — the configured copies of your generator projects, each with its own parameters, metrics, logs and lifecycle.
+An **instance** is a registered copy of a [project](/docs/studio/projects) with its own identifier, its own runtime parameters and its own log. A project describes how events are generated; an instance is one running of it. Instances are held in [startup.yml](/docs/core/config/startup-yml), so they survive a restart of the application.
 
-<ThemedImage
+## Instance list
+
+<Screenshot
   lightSrc="/images/studio_ui/instances_light.png"
   darkSrc="/images/studio_ui/instances_dark.png"
   alt="Instances page in Eventum Studio"
-  className="rounded-lg border mt-2"
 />
 
-The heading counts the instances and how many of them are active, which is the fastest read on whether the application is doing what you expect.
+| Column | Contents |
+|--------|----------|
+| **Instance** | The identifier, unique across the application |
+| **Project** | The project it runs, with a link into its workspace |
+| **Status** | See below |
+| **Flow** | Events per second written, averaged over the time since the instance started |
+| **Errors** | Failures since that start — red once above zero |
+| **Written** | Events delivered since that start |
+| **Last start time** | When the instance was last started |
 
-## Instance table
+The last four columns are runtime figures and exist only while an instance runs. For the rest they are empty and sort last. Intentional drops are not failures and are not counted as errors.
 
-| Column | Description |
-|--------|-------------|
-| **Instance** | The unique id of the instance, from [startup.yml](/docs/core/config/startup-yml) or from creating one here. Opens the instance page. |
-| **Project** | The generator project the instance runs. Opens the project. |
-| **Status** | The current state of the instance — see below. |
-| **Flow** | Events per second currently leaving the output stage. |
-| **Errors** | Produce, write and format failures added up, in red once above zero. Intentional drops are not counted. |
-| **Written** | Events delivered by the output stage since the instance started. |
-| **Last start time** | When the instance was most recently started. |
-
-Every column is sortable. **Flow**, **Errors** and **Written** are served only for instances that are actually running; the rest show `-` and sort last.
+<Callout type="info">
+**Flow** is an average over the whole run, so a generator that produced a burst and went quiet keeps reporting a rate. For the rate right now, use the [Monitoring](/docs/studio/monitoring) dashboard, which measures over a moving window.
+</Callout>
 
 ### Statuses
 
 | Status | Meaning |
 |--------|---------|
-| **Active** | Running and generating. |
-| **Idle** | Registered, and not run yet. |
-| **Finished** | Ran to completion — the input stage exhausted its timestamps and the generator stopped on its own. |
-| **Failed** | Stopped because of an error. The instance log holds the reason. |
+| **Active** | Running and generating |
+| **Idle** | Registered, and not run yet |
+| **Finished** | Ran to completion — the input stage exhausted its timestamps and the generator stopped on its own |
+| **Failed** | Stopped because of an error; the reason is in the instance log |
 
-Two further states are transient and appear while a lifecycle action is in flight: **Starting** between the start request and the first event, and **Stopping** while the generator drains.
+**Starting** and **Stopping** appear while a lifecycle action is in flight.
 
-### Filtering
+### Filtering and selection
 
-- **Search by instance** — text filter on instance ids.
-- **Search by project** — text filter on project names.
-- **All / Active / Inactive** — restricts the list to running instances, or to everything that is not running.
+Search by instance or by project and separate what is running from what is not. The filters are held in the page address, so a filtered list can be bookmarked or passed on.
 
-Filters are held in the page address, so a filtered list can be bookmarked or shared.
+Selecting rows enables **Start**, **Stop** and **Delete** over the whole selection, so a simulation of a dozen generators comes up in one action. Stopping drains an instance rather than cutting it off.
 
-## Creating an instance
-
-**Create new** registers a new instance: give it an id and choose the project it runs. The instance is written to the startup configuration, so it survives a restart of the application.
-
-## Lifecycle controls
-
-Selecting rows with the checkboxes enables the toolbar buttons, which act on the whole selection at once:
-
-| Action | Description |
-|--------|-------------|
-| **Start** | Starts the selected instances that are not already running. |
-| **Stop** | Stops the selected instances, draining them gracefully. |
-| **Delete** | Removes the selected instances from the startup configuration, after a confirmation naming them. |
-
-**Refresh** re-reads the list and the runtime counters.
+**Create new** registers an instance: an identifier, the project it runs, and the parameters that project expects.
 
 ### Per-instance actions
 
-Each row carries its own menu.
-
-<ThemedImage
+<Screenshot
   lightSrc="/images/studio_ui/instances_row_menu_light.png"
   darkSrc="/images/studio_ui/instances_row_menu_dark.png"
   alt="The per-instance menu on the Instances page"
-  className="rounded-lg border mt-2"
 />
 
-| Action | Description |
-|--------|-------------|
-| **Edit** | Opens the instance page. |
-| **Rename** | Gives the instance a new id, keeping its parameters and scenario membership. |
-| **Clone** | Creates another instance on the same project, copying its parameters — the quickest way to run one generator at two rates or with two parameter sets. |
-| **Show metrics** | Opens the metrics dialog. |
-| **Show logs** | Opens the instance log. |
-| **Start** / **Stop** | Lifecycle control for this instance alone. |
-| **Delete** | Removes this instance, after a confirmation naming it. |
+| Action | Available |
+|--------|-----------|
+| **Edit** | Always — opens the instance page |
+| **Rename** | While stopped |
+| **Clone** | Always — copies the parameters onto a new instance of the same project |
+| **Show metrics** | While running |
+| **Show logs** | Always |
+| **Start** / **Stop** | According to the current state |
+| **Delete** | While stopped |
 
-**Rename** and **Delete** act on the startup configuration, so they are available only while the instance is stopped. **Show metrics** needs a running instance; **Show logs** and **Clone** work in any state.
+Cloning is the shortest way to run one project at two rates, or against two sets of parameters, at the same time.
 
 ## Instance metrics
 
-The metrics dialog reports the runtime counters of one instance as a diagram of its pipeline.
-
-<ThemedImage
+<Screenshot
   lightSrc="/images/studio_ui/instance_metrics_modal_light.png"
   darkSrc="/images/studio_ui/instance_metrics_modal_dark.png"
   alt="The instance metrics dialog"
-  className="rounded-lg border mt-2"
 />
 
-Above the diagram sit the start time, the uptime, and four totals: **Generated** timestamps, **Written** events, and the average **Input EPS** and **Output EPS** since the instance started.
+Totals for the instance sit above a diagram of its pipeline, laid out from the input plugins through the event plugin to the outputs. Each node carries its own counters, including what it lost: events dropped or failed while being produced, and events a destination refused or a formatter rejected.
 
-The diagram lays the pipeline out left to right — input plugins, the event plugin, output plugins — with each node carrying its own counters:
-
-- **Input plugins** — timestamps **Generated**.
-- **Event plugin** — events **Produced**, **Dropped**, and **Produce failed**.
-- **Output plugins** — events **Written**, **Format failed**, and **Write failed**.
-
-Failure counters turn red once above zero, which is what makes the diagram worth reading: it names the stage that is losing events instead of leaving you to infer it from a total. In the screenshot above, the event plugin produces normally while the output plugin cannot reach its destination, so nothing is written.
-
-The diagram can be zoomed, panned and fitted to the dialog — useful for a generator with a dozen plugins.
+The breakdown names the stage that is losing events instead of leaving it to be inferred from a total. In the dialog above the output writes everything it is handed and the event plugin fails on a fraction of its renders, so the whole gap between what the input enqueued and what was written belongs to the event stage.
 
 ---
 
 ## Instance page
 
-Clicking an instance id opens its own page. The header carries the id, the status, the uptime while it runs, and the lifecycle buttons — **Start**, or **Stop** and **Restart** for a running instance.
-
-The page has three tabs.
+An instance opens onto a page of its own, with the lifecycle controls in the header and three tabs below.
 
 ### Overview
 
-<ThemedImage
+<Screenshot
   lightSrc="/images/studio_ui/instance_overview_light.png"
   darkSrc="/images/studio_ui/instance_overview_dark.png"
   alt="The Overview tab of an instance"
-  className="rounded-lg border mt-2"
 />
 
-**Throughput** graphs input and output events per second over a moving window, and the pipeline diagram below it carries the same per-plugin counters as the metrics dialog, updating while you watch. For an instance that is not running, the panel says so instead of drawing an empty graph.
+While the instance runs, **Throughput** charts input against output over a moving window, and below it the same per-plugin pipeline the metrics dialog shows, updating while the page is open. A stopped instance leaves the section empty.
 
-**About** states the project, the emission mode, whether the instance starts automatically, its timezone, and when it last ran.
-
-**Scenarios** lists the [scenarios](/docs/studio/scenarios) the instance belongs to, and adds it to or removes it from one. Membership changes apply immediately — they are not part of the form below.
+**About** states the project, the emission mode, whether the instance starts with the application, its timezone and its last run. **Scenarios** changes which [scenarios](/docs/studio/scenarios) it belongs to.
 
 ### Settings
 
-<ThemedImage
+<Screenshot
   lightSrc="/images/studio_ui/instance_settings_light.png"
   darkSrc="/images/studio_ui/instance_settings_dark.png"
   alt="The Settings tab of an instance"
-  className="rounded-lg border mt-2"
 />
 
-The full configuration of this instance, as a form over the same fields [startup.yml](/docs/core/config/startup-yml) holds.
+The configuration of this instance, over the fields [startup.yml](/docs/core/config/startup-yml) holds.
 
-**Runtime** carries the emission mode — live, at the moments the timestamps name, or sample, as fast as the pipeline allows — whether past timestamps are skipped when starting in live mode, whether the instance starts with the application, and the **Parameters** that a configuration reads through `${params.name}`.
+**Runtime** decides how events are emitted — live, at the moments the timestamps name, or sample, as fast as the pipeline allows — whether past timestamps are skipped, whether the instance starts with the application, and the **Parameters** a configuration reads through `${params.name}`. One project serves several instances this way, differing only in a hostname or an output path.
 
-**Generation** overrides the application-wide generation defaults for this instance alone: batching, queue sizes, ordering and write concurrency.
+**Generation** overrides the application-wide defaults for this instance alone: batching, queue depths, ordering, write concurrency.
 
-The tab is marked with a dot while the form has unsaved changes, and **Save** appears in the header. Saving a running instance offers to restart it, because generation parameters are read when the generator starts.
+These values are read when a generator starts, so saving a running instance offers to restart it.
 
 ### Logs
 
-<ThemedImage
+<Screenshot
   lightSrc="/images/studio_ui/instance_logs_light.png"
   darkSrc="/images/studio_ui/instance_logs_dark.png"
   alt="The Logs tab of an instance"
-  className="rounded-lg border mt-2"
 />
 
-The log this instance writes, as it is written to disk. Entries carry a timestamp, a level, the message and the structured context that goes with it — the module, the plugin, and for a failure the reason and the event that caused it.
-
-This is where a **Failed** instance explains itself, and where a produce or write failure names the offending event rather than only incrementing a counter.
+The log this instance writes, as it is written to disk. A **Failed** instance explains itself here, and a rendering failure names the offending event and the line of the template that raised on it.

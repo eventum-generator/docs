@@ -1,55 +1,46 @@
 ---
 title: Monitoring
-description: The Studio dashboard — aggregate pipeline flow, throughput and failure charts, per-instance share of the output load, and host and process resource usage.
+description: The application dashboard — aggregate pipeline flow, throughput and failure charts, each instance's share of the load, and host and process resources.
 ---
 
-The Monitoring page is the dashboard for the whole application: every running instance added up, refreshed while the page is open.
+Monitoring is the dashboard for the whole application: every running instance added up. It polls every five seconds, and the charts hold the last thirty readings, so each of them covers roughly the last two and a half minutes. With nothing running, the live sections are replaced by a note pointing at [Instances](/docs/studio/instances).
 
-<ThemedImage
+<Screenshot
   lightSrc="/images/studio_ui/monitoring_light.png"
   darkSrc="/images/studio_ui/monitoring_dark.png"
   alt="The Monitoring dashboard in Eventum Studio"
-  className="rounded-lg border mt-2"
 />
-
-With nothing running the live sections are replaced by a note pointing at [Instances](/docs/studio/instances).
 
 ## Pipeline
 
-The three stages of generation as one line, with the totals since the instances started: timestamps **enqueued** by the input stage, events **produced** by the event plugins, and events **written** by the output plugins. Under the last two sit the losses that explain the difference — **dropped** and **failed** for the event stage, **write failed** and **format failed** for the output stage — in red once above zero.
+The three stages of generation as one row of totals, each carrying the losses that explain the gap to the next.
 
-Read left to right, the row answers where events are going missing without opening a single instance.
+| Stage | Total | Losses |
+|-------|-------|--------|
+| **Input** | Timestamps enqueued | — |
+| **Event** | Events produced | Dropped intentionally, and failed to render |
+| **Output** | Events written | Rejected by a destination, and rejected by a formatter |
 
-## Throughput
+Read left to right, the row locates where events are going missing without opening a single instance.
 
-Input and output events per second over a moving window of roughly two and a half minutes, with the current rates named above the graph. The two lines together show whether the output stage is keeping up with the timestamps the input stage is producing.
+## Throughput and failures
 
-## Failures
+**Throughput** charts input against output as rates measured between polls — the rate now, rather than the average since a generator started that the [Instances](/docs/studio/instances) table reports.
 
-The same window for failures, with event-stage and output-stage failures as separate lines. The section appears only while something is failing, so an empty dashboard means there is nothing to report rather than a chart nobody needs to read.
+**Failures** is the same window for failures, split into the event stage and the output stage. The section is present only while something is failing.
 
 ## Instance load
 
-Each instance's share of the total output rate, stacked over the same window, with a legend naming every instance, its current rate and its percentage of the total.
-
-<ThemedImage
+<Screenshot
   lightSrc="/images/studio_ui/monitoring_resources_light.png"
   darkSrc="/images/studio_ui/monitoring_resources_dark.png"
   alt="Instance load and resource usage on the Monitoring dashboard"
-  className="rounded-lg border mt-2"
 />
 
-This is where an instance that is dominating the pipeline, or has quietly stopped contributing to it, becomes obvious.
+Each instance's share of the total output rate, stacked over the same window. An instance that dominates the pipeline, or has quietly stopped contributing to it, shows up here.
 
 ## Resources
 
-Four tiles for the machine and the process, each with its own recent history:
+CPU and memory for the host, disk and network for the Eventum process, each with its recent history.
 
-| Tile | Scope | What it reports |
-|------|-------|-----------------|
-| **CPU** | host | Current utilization, with core count and clock. |
-| **Memory** | host | Used against total. |
-| **Disk I/O** | app | Read and write rates, and the totals since start. |
-| **Network** | app | Inbound and outbound rates, and the totals since start. |
-
-Reading these next to the throughput graph separates a slow generator from a saturated machine: a plateau in output that lines up with a CPU ceiling is a different problem from one that does not.
+Read next to the throughput chart, these separate a slow generator from a saturated machine: output that plateaus against a CPU ceiling is a different problem from output that plateaus with the machine idle.
