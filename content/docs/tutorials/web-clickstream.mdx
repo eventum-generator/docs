@@ -366,7 +366,7 @@ eventum run -c eventum.yml
 The sessions below were produced by running this generator directly with [`eventum generate`](/docs/core/cli/eventum-generate) in [sample mode](/docs/tutorials/foundations/streaming-vs-bulk) (`--live-mode false`), with a short bound temporarily added to the traffic pattern so a handful of complete sessions render at once for inspection. `eventum run` in the application built above drops that bound and keeps `end: "never"`, pacing sessions to the traffic pattern's actual daily curve in [live mode](/docs/core/concepts/generator#live-mode-default) instead of producing them all at once.
 </Callout>
 
-A converting session — three pages, a first item, three more pages, a second item, then checkout:
+A converting session — three pages, a first item, two more pages, a second item, then checkout:
 
 ```json title="A converting session"
 {"timestamp": "2026-07-17 23:52:18.575101", "session_id": "e6199a85-3ed6-40b3-932c-3a0bff12b580", "user_agent": "Mozilla/5.0 (Windows; U; Windows NT 10.0) AppleWebKit/531.24.4 (KHTML, like Gecko) Version/4.0.1 Safari/531.24.4", "referrer": "https://twitter.com", "page": "/", "page_type": "landing", "duration_ms": 2690, "items_in_cart": 0}

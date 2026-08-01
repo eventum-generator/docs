@@ -3,7 +3,7 @@ title: "Test Sigma Rules with Synthetic Attack Telemetry"
 description: Generate benign and attack-shaped telemetry to test Sigma rules and ATT&CK-mapped detections, without running a real attack or touching production.
 ---
 
-Shipping a detection rule means answering two questions with evidence, not intuition: does it fire on the activity it was written to catch, and does it stay silent on everything else. A live attack answers both, but only after standing up an isolated lab and running the technique for real — expensive to repeat, and never something to point at a production identity provider or domain controller. A static log sample pulled from a public repository answers the question once, for one host, one account, one moment, and stops answering it the day naming conventions, account names, or timing change.
+Shipping a detection rule means answering two questions with evidence, not intuition: does it fire on the activity it was written to catch, and does it stay silent on everything else. A live attack answers both, but only after standing up an isolated lab and running the technique itself — expensive to repeat, and never something to point at a production identity provider or domain controller. A static log sample pulled from a public repository answers the question once, for one host, one account, one moment, and stops answering it the day naming conventions, account names, or timing change.
 
 Eventum generates the telemetry a detection rule actually inspects — the event IDs, fields, and repetition a technique leaves behind — parameterized across as many source addresses, accounts, and volumes as a test needs, blended into the ordinary traffic the rule has to ignore.
 
