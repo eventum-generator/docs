@@ -1,0 +1,52 @@
+---
+title: "Eventum 2.7.0: The Studio Refresh"
+description: "Designing a generator, running it, and reading what it produces now happen in one interface — and the same ground is available to an AI agent over MCP."
+date: "2026-08-01T18:00:00"
+author: "Eventum Team"
+tags:
+  - release
+---
+
+Eventum 2.7.0 is out. The release moves the centre of gravity to **Eventum Studio**: designing a generator, running it and reading what it produces happen in one interface, and the same ground is now open to an AI agent over MCP.
+
+## One place for the whole job
+
+A generator is a configuration, the files it references, and the evidence that the two produce what you meant. Those used to live apart — an editor for the files, Studio for the configuration, a terminal for the run. The [project page](/docs/studio/projects) closes the loop: everything a generator is made of sits in one workspace, and the previews that prove it works run beside it on the real pipeline rather than on a simulation of it.
+
+<ThemedImage
+  lightSrc="/images/studio_ui/project_workspace_light.png"
+  darkSrc="/images/studio_ui/project_workspace_dark.png"
+  alt="The project workspace in Eventum Studio"
+  className="rounded-lg border mt-2"
+/>
+
+## Evidence while it runs
+
+A running deployment has one question to answer: is the data you asked for actually arriving. [Monitoring](/docs/studio/monitoring) answers it on a single screen — what each stage of the pipeline is moving, how much of the load each generator carries, and what the whole thing costs the host.
+
+<ThemedImage
+  lightSrc="/images/studio_ui/monitoring_light.png"
+  darkSrc="/images/studio_ui/monitoring_dark.png"
+  alt="The Monitoring dashboard in Eventum Studio"
+  className="rounded-lg border mt-2"
+/>
+
+The figures behind it are now complete. An event a destination refuses or a formatter rejects is counted as a failure instead of quietly going missing, so the distance between what a generator produced and what it delivered is always accounted for.
+
+## A deployment that survives its own growth
+
+Past a handful of generators, the cost of a synthetic-data setup is administrative. Projects, instances, scenarios and secrets can now be renamed, so an early naming decision is no longer permanent, and Eventum follows the references itself rather than leaving them to you. Instances clone from existing ones, and every list carries live figures and filters that survive in a link.
+
+## Agents operate the deployment
+
+Since 2.6 an agent could write a generator over MCP and start it. This release gives it the operational half: [scenarios, shared state, settings and the lifecycle of the instance itself](/docs/mcp/tools) — the work an operator does between builds. Everything that writes stays behind one flag and the server's authentication, and credentials remain outside the agent's reach.
+
+## Upgrade notes
+
+Three changes are worth reading before upgrading:
+
+- A generator configuration is taken exactly as written. Spell nested settings as blocks — `formatter: {format: plain}` rather than `formatter.format: plain`. The dotted shorthand keeps working in `eventum.yml`, `startup.yml` and time-pattern files.
+- The `opensearch` and `http` outputs verify TLS certificates by default. Point `ca_cert` at your issuing CA, or set `verify: false` to keep the connection unchecked.
+- `server.ui_enabled` and `server.api_enabled` are deprecated in favour of `server.ui.enabled` and `server.api.enabled`; the flat keys warn at startup and go away in 2.8.
+
+The release also settles a long list of smaller things across the generators, the interface and the API. The full list is in the [2.7.0 changelog](/docs/changelog/2.7.0).
