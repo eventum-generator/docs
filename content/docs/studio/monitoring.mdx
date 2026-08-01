@@ -1,32 +1,46 @@
 ---
 title: Monitoring
-description: Real-time system monitoring — resource gauges, event flow statistics, throughput charts, and instance status.
+description: The application dashboard — aggregate pipeline flow, throughput and failure charts, each instance's share of the load, and host and process resources.
 ---
 
-The Monitoring page is a real-time dashboard for the running Eventum instance. All values update automatically while the page is open.
+Monitoring is the dashboard for the whole application: every running instance added up. It polls every five seconds, and the charts hold the last thirty readings, so each of them covers roughly the last two and a half minutes. With nothing running, the live sections are replaced by a note pointing at [Instances](/docs/studio/instances).
 
-<ThemedImage
-  lightSrc="/images/studio_ui/monitoring_page_light.png"
-  darkSrc="/images/studio_ui/monitoring_page_dark.png"
-  alt="Monitoring dashboard in Eventum Studio"
-  className="rounded-lg border mt-2"
+<Screenshot
+  lightSrc="/images/studio_ui/monitoring_light.png"
+  darkSrc="/images/studio_ui/monitoring_dark.png"
+  alt="The Monitoring dashboard in Eventum Studio"
 />
 
-## Performance
+## Pipeline
 
-Four gauges show host-level resource usage: memory, CPU, network I/O, and disk I/O.
+The three stages of generation as one row of totals, each carrying the losses that explain the gap to the next.
 
-## Flow stats
+| Stage | Total | Losses |
+|-------|-------|--------|
+| **Input** | Timestamps enqueued | — |
+| **Event** | Events produced | Dropped intentionally, and failed to render |
+| **Output** | Events written | Rejected by a destination, and rejected by a formatter |
 
-Five counters summarize aggregate event throughput: **Generated** (timestamps from input plugins) → **Produced** (events from the event plugin) → **Written** (events delivered by output plugins), plus **Input EPS** and **Output EPS**.
+Read left to right, the row locates where events are going missing without opening a single instance.
 
-The difference between Generated, Produced, and Written reflects events lost to produce/write failures or still queued for processing.
+## Throughput and failures
 
-## Charts
+The **Throughput** chart plots input against output as rates measured between polls — the rate now, rather than the average since a generator started that the [Instances](/docs/studio/instances) table reports.
 
-- **Instances by produced events** — shows which generators are the most active.
-- **Instances by output EPS** — shows how output throughput is distributed across instances.
+The **Failures** chart covers the same window, split into the event stage and the output stage. It is present only while something is failing.
 
-## Instances sidebar
+## Instance load
 
-The right panel shows instance totals (active, inactive, failed) and a recent activity list with links to each instance's scenario and project.
+<Screenshot
+  lightSrc="/images/studio_ui/monitoring_resources_light.png"
+  darkSrc="/images/studio_ui/monitoring_resources_dark.png"
+  alt="Instance load and resource usage on the Monitoring dashboard"
+/>
+
+Each instance's share of the total output rate, stacked over the same window. An instance that dominates the pipeline, or has quietly stopped contributing to it, shows up here.
+
+## Resources
+
+CPU and memory for the host, disk and network for the Eventum process, each with its recent history.
+
+Read next to the throughput chart, these separate a slow generator from a saturated machine: output that plateaus against a CPU ceiling is a different problem from output that plateaus with the machine idle.

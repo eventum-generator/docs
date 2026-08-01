@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { MDXComponents } from 'mdx/types';
 
+import Screenshot from './components/Screenshot';
 import ThemedImage from './components/ThemedImage';
 import { APIPage } from './components/api-page';
 import { Mermaid } from './components/mdx/mermaid';
@@ -37,6 +38,7 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     Files,
     Folder,
     File,
+    Screenshot,
     ThemedImage,
     Mermaid,
     Bot,

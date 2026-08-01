@@ -28,12 +28,14 @@ Then open your browser at http://localhost:9474 (or whichever host/port you conf
 
 | Area | What it covers |
 |------|----------------|
-| [Overview](/docs/studio/overview) | Home screen — version info, quick actions, navigation cards, and recent projects |
-| [Monitoring](/docs/studio/monitoring) | Real-time dashboard — resource usage, flow statistics, throughput charts, instance status |
-| [Scenarios](/docs/studio/scenarios) | Named groups of generators — coordinated control, global state, data flow visualization |
-| [Instances](/docs/studio/instances) | Running and finished generators — start, stop, restart, view metrics and logs |
-| [Projects](/docs/studio/projects) | Generator configs — visual editors for input, event, and output plugins with live preview |
-| [Settings](/docs/studio/settings) | Application settings, secrets management, and server lifecycle controls |
+| [Home](/docs/studio/overview) | Where you left off, and whether anything is failing |
+| [Monitoring](/docs/studio/monitoring) | The whole application as one dashboard — flow, throughput, failures, load |
+| [Projects](/docs/studio/projects) | Building a generator: its files, its plugins, and a console for previewing each stage |
+| [Instances](/docs/studio/instances) | Running generators — lifecycle, live metrics, settings and logs |
+| [Scenarios](/docs/studio/scenarios) | Groups of generators that work together and share state |
+| [Settings](/docs/studio/settings) | The application itself — configuration, secrets, lifecycle |
+
+The sidebar follows the same split: the **Home** and **Monitoring** entries on their own, then a **Generators** group for day-to-day work and a **Management** group for the application.
 
 ## Enabling and disabling Studio
 
@@ -75,33 +77,33 @@ Studio supports light and dark themes. Toggle between them using the sun/moon ic
 
 <Cards>
   <Card
-    title="Overview"
-    description="Home screen — quick actions, navigation, and recent projects."
+    title="Home"
+    description="Recent projects, instance states at a glance, and quick navigation."
     href="/docs/studio/overview"
   />
   <Card
     title="Monitoring"
-    description="System resources, flow stats, throughput charts, and instance summary."
+    description="Pipeline flow, throughput and failure charts, instance load, resources."
     href="/docs/studio/monitoring"
   />
   <Card
-    title="Scenarios"
-    description="Group generators for coordinated control and global state."
-    href="/docs/studio/scenarios"
-  />
-  <Card
-    title="Instances"
-    description="Manage running generators — start, stop, metrics, and logs."
-    href="/docs/studio/instances"
-  />
-  <Card
     title="Projects"
-    description="Visual plugin editors with live preview and debugging."
+    description="Explorer, editor, plugin forms, and a console per pipeline stage."
     href="/docs/studio/projects"
   />
   <Card
+    title="Instances"
+    description="Start, stop and restart generators; live pipeline, settings and logs."
+    href="/docs/studio/instances"
+  />
+  <Card
+    title="Scenarios"
+    description="Group generators for coordinated control and shared global state."
+    href="/docs/studio/scenarios"
+  />
+  <Card
     title="Settings"
-    description="Application config, secrets, and server controls."
+    description="Application config, the secrets keyring, and the management console."
     href="/docs/studio/settings"
   />
 </Cards>

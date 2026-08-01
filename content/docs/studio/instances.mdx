@@ -1,134 +1,125 @@
 ---
 title: Instances
-description: Managing generator instances in Studio — the instance table, lifecycle controls, metrics dialog, and log viewer.
+description: The instance list with live throughput and error counts, lifecycle controls, the per-instance metrics diagram, and the instance page with its settings and logs.
 ---
 
-The Instances page is where you manage generator instances — the running (or finished) copies of your generator projects. Each instance represents a single execution of a generator with its own metrics, logs, and lifecycle.
+An **instance** is a registered copy of a [project](/docs/studio/projects) with its own identifier, its own runtime parameters and its own log. A project describes how events are generated; an instance is one running of it. Instances are held in [startup.yml](/docs/core/config/startup-yml), so they survive a restart of the application.
 
-<ThemedImage
-  lightSrc="/images/studio_ui/instances_page_light.png"
-  darkSrc="/images/studio_ui/instances_page_dark.png"
+## Instance list
+
+<Screenshot
+  lightSrc="/images/studio_ui/instances_light.png"
+  darkSrc="/images/studio_ui/instances_dark.png"
   alt="Instances page in Eventum Studio"
-  className="rounded-lg border mt-2"
 />
 
-## Instance table
+| Column | Contents |
+|--------|----------|
+| **Instance** | The identifier, unique across the application |
+| **Project** | The project it runs, with a link into its workspace |
+| **Status** | See below |
+| **Flow** | Events per second written, averaged over the time since the instance started |
+| **Errors** | Failures since that start — red once above zero |
+| **Written** | Events delivered since that start |
+| **Last start time** | When the instance was last started |
 
-The main area is a sortable, paginated table with the following columns:
+The last four columns are runtime figures and exist only while an instance runs. For the rest they are empty and sort last. Intentional drops are not failures and are not counted as errors.
 
-| Column | Description |
-|--------|-------------|
-| **Instance** | The unique ID of the instance (assigned in [startup.yml](/docs/core/config/startup-yml) or when creating a new instance). |
-| **Project** | The generator project this instance is running. Links to the project editor. |
-| **Status** | Current state — **Active** while the instance is generating, **Starting** or **Stopping** while it changes state, **Finished** once it completed, **Failed** if it stopped on an error, **Idle** if it has not run. |
-| **Last start time** | When the instance was most recently started (relative time, e.g. "2 minutes ago"). |
+<Callout type="info">
+The **Flow** column is an average over the whole run, so a generator that produced a burst and went quiet keeps reporting a rate. For the rate right now, use the [Monitoring](/docs/studio/monitoring) dashboard, which measures over a moving window.
+</Callout>
 
-Columns are sortable — click any column header to sort ascending or descending.
+### Statuses
 
-### Filtering
+| Status | Meaning |
+|--------|---------|
+| **Active** | Running and generating |
+| **Idle** | Registered, and not run yet |
+| **Finished** | Ran to completion — the input stage exhausted its timestamps and the generator stopped on its own |
+| **Failed** | Stopped because of an error; the reason is in the instance log |
 
-Above the table, three filters help you narrow the list:
+The **Starting** and **Stopping** statuses appear while a lifecycle action is in flight.
 
-- **Search by instance** — text filter on instance IDs.
-- **Search by project** — text filter on project names.
-- **Status** — **All**, **Active**, or **Inactive**; Inactive covers finished, failed and idle instances alike.
+### Filtering and selection
 
-## Creating an instance
+Search by instance or by project and separate what is running from what is not. The filters are held in the page address, so a filtered list can be bookmarked or passed on.
 
-Click the **Create new** button in the top right to register a new generator instance. You'll need to specify an instance ID and select which project it should run.
+Selecting rows enables the **Start**, **Stop** and **Delete** actions over the whole selection, so a simulation of a dozen generators comes up in one action. Stopping drains an instance rather than cutting it off.
 
-To create an instance from an existing one, open the row's three-dot menu and choose **Clone**. The new instance points at the same project and carries over all of the original's parameters — you only pick a name for it.
+The **Create new** button registers an instance: an identifier, the project it runs, and the parameters that project expects.
 
-To give an instance a different name, choose **Rename** in the same menu. The instance keeps its project, its parameters, and its scenario membership; only inactive instances can be renamed. Log entries written under the previous name stay in their own log file.
+### Per-instance actions
 
-## Lifecycle controls
+<Screenshot
+  lightSrc="/images/studio_ui/instances_row_menu_light.png"
+  darkSrc="/images/studio_ui/instances_row_menu_dark.png"
+  alt="The per-instance menu on the Instances page"
+/>
 
-The toolbar next to the "Create new" button provides bulk actions for selected instances (use the checkboxes in each row):
+| Action | Available |
+|--------|-----------|
+| **Edit** | Always — opens the instance page |
+| **Rename** | While stopped |
+| **Clone** | Always — copies the parameters onto a new instance of the same project |
+| **Show metrics** | While running |
+| **Show logs** | Always |
+| **Start** / **Stop** | According to the current state |
+| **Delete** | While stopped |
 
-| Action | Description |
-|--------|-------------|
-| **Delete** | Remove the selected instances from the startup configuration. |
-| **Refresh** | Refresh status of the instances. |
-| **Stop** | Stop the selected instances. Active generators are shut down gracefully. |
-| **Start** | Start the selected instances. Only works on instances that are currently inactive. |
-
-Each row also has a three-dot menu on the right for per-instance actions.
+Cloning is the shortest way to run one project at two rates, or against two sets of parameters, at the same time.
 
 ## Instance metrics
 
-Clicking the metrics option on an instance opens a modal with runtime metrics and a visual pipeline diagram.
-
-<ThemedImage
-  lightSrc="/images/studio_ui/instance_metrics_light.png"
-  darkSrc="/images/studio_ui/instance_metrics_dark.png"
-  alt="Instance metrics page in Eventum Studio"
-  className="rounded-lg border mt-2"
+<Screenshot
+  lightSrc="/images/studio_ui/instance_metrics_modal_light.png"
+  darkSrc="/images/studio_ui/instance_metrics_modal_dark.png"
+  alt="The instance metrics dialog"
 />
 
-### Summary counters
+Totals for the instance sit above a diagram of its pipeline, laid out from the input plugins through the event plugin to the outputs. Each node carries its own counters, including what it lost: events dropped or failed while being produced, and events a destination refused or a formatter rejected.
 
-The top of the page shows the instance name, start time, uptime, and four aggregate counters:
+The breakdown names the stage that is losing events instead of leaving it to be inferred from a total. In the dialog above the output writes everything it is handed and the event plugin fails on a fraction of its renders, so the whole gap between what the input enqueued and what was written belongs to the event stage.
 
-| Counter | Description |
-|---------|-------------|
-| **Generated** | Total timestamps generated by all input plugins. |
-| **Produced** | Total events produced by the event plugin. |
-| **Input EPS** | Current input events per second. |
-| **Output EPS** | Current output events per second. |
+---
 
-### Pipeline diagram
+## Instance page
 
-Below the counters, a visual diagram shows the full plugin pipeline of the instance — input plugins on the left, the event plugin in the center, and output plugins on the right, connected by flow lines.
+An instance opens onto a page of its own, with the lifecycle controls in the header and three tabs below.
 
-Each plugin node displays its own metrics:
+### Overview
 
-- **Input plugins** (e.g. "timer #1", "cron #1") — shows the **Generated** count for each plugin.
-- **Event plugin** (e.g. "template #1") — shows the **Produced** count and **Produce failed** count.
-- **Output plugins** (e.g. "file #1", "file #2") — shows the **Written** count, **Format failed** count, and **Write failed** count.
-
-The pipeline visualization makes it easy to trace event flow from generation to delivery and pinpoint which stage is dropping events.
-
-## Instance settings
-
-Opening an instance's settings shows the full configuration for that specific instance — the same fields available in [startup.yml](/docs/core/config/startup-yml), presented as a form.
-
-<ThemedImage
-  lightSrc="/images/studio_ui/instance_settings_page_light.png"
-  darkSrc="/images/studio_ui/instance_settings_page_dark.png"
-  alt="Instance settings page in Eventum Studio"
-  className="rounded-lg border mt-2"
+<Screenshot
+  lightSrc="/images/studio_ui/instance_overview_light.png"
+  darkSrc="/images/studio_ui/instance_overview_dark.png"
+  alt="The Overview tab of an instance"
 />
 
-### Generator parameters
+While the instance runs, the **Throughput** chart plots input against output over a moving window, and below it the same per-plugin pipeline the metrics dialog shows, updating while the page is open. A stopped instance leaves the section empty.
 
-The top section controls the instance's execution behavior:
+The **About** card states the project, the emission mode, whether the instance starts with the application, its timezone and its last run. The **Scenarios** card changes which [scenarios](/docs/studio/scenarios) it belongs to.
 
-| Field | Description |
-|-------|-------------|
-| **Live mode** | Toggle between live mode (real-time) and sample mode (as fast as possible). |
-| **Skip past** | Whether to skip timestamps that have already passed when starting in live mode. |
-| **Auto start** | Whether the instance starts automatically when Eventum launches. |
-| **Parameters** | A JSON editor for key-value pairs substituted into the generator config via `${params.name}`. |
+### Settings
 
-### Generation parameters
+<Screenshot
+  lightSrc="/images/studio_ui/instance_settings_light.png"
+  darkSrc="/images/studio_ui/instance_settings_dark.png"
+  alt="The Settings tab of an instance"
+/>
 
-Below the generator parameters, the generation settings allow you to override the application-level defaults for this specific instance.
+The configuration of this instance, over the fields [startup.yml](/docs/core/config/startup-yml) holds.
 
-Click **Save** to persist changes. Changes take effect on the next start of the instance.
+The **Runtime** section decides how events are emitted — live, at the moments the timestamps name, or sample, as fast as the pipeline allows — whether past timestamps are skipped, whether the instance starts with the application, and the **Parameters** a configuration reads through `${params.name}`. One project serves several instances this way, differing only in a hostname or an output path.
 
-## Instance logs
+The **Generation** section overrides the application-wide defaults for this instance alone: batching, queue depths, ordering, write concurrency.
 
-The log viewer shows the runtime log output for a specific instance. This is the same information written to the log files on disk, but accessible directly in the browser.
+These values are read when a generator starts, so saving a running instance offers to restart it.
 
-<ThemedImage
+### Logs
+
+<Screenshot
   lightSrc="/images/studio_ui/instance_logs_light.png"
   darkSrc="/images/studio_ui/instance_logs_dark.png"
-  alt="Instance logs viewer in Eventum Studio"
-  className="rounded-lg border mt-2"
+  alt="The Logs tab of an instance"
 />
 
-Logs are displayed as a scrollable text area with:
-
-- Structured log entries showing timestamp, level (INFO, DEBUG, WARNING, ERROR), message, and context fields.
-- The full startup sequence — config loading, plugin initialization, generator start.
-- Runtime events — generation progress, errors, and completion status.
+The log this instance writes, as it is written to disk. A **Failed** instance explains itself here, and a rendering failure names the offending event and the line of the template that raised on it.
