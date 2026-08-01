@@ -15,7 +15,7 @@ A **project** is a generator directory on disk: a [generator.yml](/docs/core/con
 
 Every project carries a badge for each [instance](/docs/studio/instances) registered against it, colored by that instance's status. The filters search by project name or by instance name, and narrow the list to projects that are in use or to those that no instance references.
 
-**Create new** creates a directory with a minimal `generator.yml` in it. Renaming a project also updates the instances that point at it; deleting one is refused while any instance still does.
+The **Create new** button writes a new directory with a minimal `generator.yml` in it. Renaming a project also updates the instances that point at it; deleting one is refused while any instance still does.
 
 ---
 
@@ -46,8 +46,8 @@ So is the work in the Console. Generated timestamps, a running debugger session 
 
 The configuration and the project's files are edited in one place but saved as separate things.
 
-- **Save** in the header writes the configuration together with every modified file. While anything is unsaved, the badge beside the button names what is pending — the configuration, a number of files, or both.
-- **Save file** in the Editor header, or `Ctrl/Cmd+S`, writes only the file currently in front of you.
+- The **Save** button in the header writes the configuration together with every modified file. While anything is unsaved, the badge beside the button names what is pending — the configuration, a number of files, or both.
+- The **Save file** button in the Editor header, or `Ctrl/Cmd+S`, writes only the file currently in front of you.
 
 Navigating away with anything unsaved asks for confirmation first.
 
@@ -55,7 +55,7 @@ Navigating away with anything unsaved asks for confirmation first.
 
 ## Explorer
 
-Files and directories are created from the panel header or from the right-click menu, and existing files are added with **Upload files** or by dropping them onto the tree from outside the browser — a drop lands in the directory under the cursor. Dragging an entry inside the tree moves it.
+Files and directories are created from the panel header or from the right-click menu, and existing files are added with the **Upload files** button or by dropping them onto the tree from outside the browser — a drop lands in the directory under the cursor. Dragging an entry inside the tree moves it.
 
 `generator.yml` is what makes the directory a project, so it cannot be renamed, moved or deleted here.
 
@@ -87,11 +87,11 @@ The Inspector holds the same three sections at every stage, filled from the stag
   alt="The Inspector panel showing plugins, parameters and the resulting configuration"
 />
 
-**Plugins** lists what the stage is configured with, and adds or removes entries. The input and output stages accept any number of plugins; the event stage accepts exactly one.
+The **Plugins** section lists what the stage is configured with, and adds or removes entries. The input and output stages accept any number of plugins; the event stage accepts exactly one.
 
-**Parameters** is the form for the selected plugin, validated against that [plugin's configuration](/docs/plugins) as you type. Fields that are not free text still accept `${params.name}` and `${secrets.name}` placeholders, which are resolved when an instance loads the configuration.
+The **Parameters** section holds the form for the selected plugin, validated against that [plugin's configuration](/docs/plugins) as you type. Fields that are not free text still accept `${params.name}` and `${secrets.name}` placeholders, which are resolved when an instance loads the configuration.
 
-**Configuration** is the YAML the form produces, exactly as it will be written into `generator.yml`.
+The **Configuration** section shows the YAML the form produces, exactly as it will be written into `generator.yml`.
 
 ---
 
@@ -116,7 +116,7 @@ The panel can be collapsed to its header, or maximized over the rest of the work
   alt="The timestamps preview in the Studio console"
 />
 
-**Generate** runs the input plugins and returns the timestamps they produce. **Plugins** chooses which of them take part: leaving it empty runs all of them merged, as a generator would, and selecting a subset isolates it. **Count** caps how many timestamps are generated, **Time span** sets the width of one histogram bin, and **Skip past** starts the result at the first timestamp that is not in the past.
+The **Generate** button runs the input plugins and returns the timestamps they produce. The fields beside it decide what takes part and how the result is shaped: the **Plugins** field selects which of them run — left empty it runs all of them merged, as a generator would, and a subset isolates it — **Count** caps how many timestamps are generated, **Time span** sets the width of one histogram bin, and the **Skip past** switch starts the result at the first timestamp that is not in the past.
 
 Each plugin has its own color in the distribution, stacked where they overlap. Four of them contribute to the run above: a workday curve, a per-minute heartbeat, an evenly spaced backfill and a burst at start. Beside the chart are the timestamps themselves; a long run lists the first and the last of them with the number skipped in between.
 
@@ -128,14 +128,14 @@ Each plugin has its own color in the distribution, stacked where they overlap. F
   alt="The event debugger in the Studio console"
 />
 
-**Start** starts an event plugin from the current configuration and keeps it running; **Produce** renders events with it.
+The **Start** button starts an event plugin from the current configuration and keeps it running; the **Produce** button renders events with it.
 
-**Event timestamp** and **Tags** stand in for what an input plugin would have supplied. A template that branches on the timestamp or on tags is exercised through these two fields. **Count** produces up to a hundred events from the same values in one run, and with **Auto** on the timestamp is reset to the current time afterwards.
+The **Event timestamp** and **Tags** fields stand in for what an input plugin would have supplied, so a template that branches on either is exercised through them. The **Count** field sets how many events one run produces from those same values, up to a hundred. With the **Auto** checkbox on, the timestamp is reset to the current time after each run.
 
 Produced events are listed on the left, with an optional syntax to highlight them by. Failures are listed on the right, each naming the event it happened on, the reason and the traceback.
 
 <Callout type="info">
-The plugin reads its templates when it starts and keeps them for the whole session. After editing a template, **Stop** and **Start** the debugger for the next run to use the new version.
+The plugin reads its templates when it starts and keeps them for the whole session. After editing a template, press **Stop** and then **Start** for the next run to use the new version.
 </Callout>
 
 ### Template state
@@ -168,7 +168,7 @@ Global state is shared with every running instance, not only the generator open 
   alt="The formatter preview in the Studio console"
 />
 
-Add raw events, choose a [format](/docs/plugins/formatters) with its options, and **Format** shows the payload a destination would receive, together with the errors the formatter raised and the event behind each of them.
+Add raw events, choose a [format](/docs/plugins/formatters) with its options, and the **Format** button shows the payload a destination would receive, together with the errors the formatter raised and the event behind each of them.
 
 <Callout type="info">
 The formatter is configured in the tool itself and is independent of the output plugins on this stage. The preview answers what a format does to an event, not what a particular destination is currently set to send.
@@ -186,4 +186,4 @@ The formatter is configured in the tool itself and is independent of the output 
 
 A `generator.yml` that fails to parse or validate leaves the stages with nothing to describe, so the pipeline strip, the Inspector and the Console are withdrawn and the workspace keeps the Explorer and the Editor. The alert reports what the validation rejected.
 
-Fix the file in the editor, save it, then **Reload** to bring the rest of the workspace back.
+Fix the file in the editor, save it, then press the **Reload** button to bring the rest of the workspace back.

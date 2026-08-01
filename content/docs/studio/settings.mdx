@@ -3,7 +3,7 @@ title: Settings and management
 description: Application configuration, the encrypted secrets keyring, and the management console with instance identity, the application log and lifecycle controls.
 ---
 
-Three pages administer the application itself rather than the generators running in it: **Settings** for its configuration, **Secrets** for the credentials that configuration refers to, and **Management** for what the process is doing.
+Three pages administer the application itself rather than the generators running in it: the **Settings** page for its configuration, the **Secrets** page for the credentials that configuration refers to, and the **Management** page for what the process is doing.
 
 ## Settings
 
@@ -32,7 +32,7 @@ A section holding unsaved edits is marked in the rail, so changes spread across 
 
 Batch size and queue depths decide how much memory generation holds at once. The Generation section works that figure out for you: give it an assumed event size and it reports what full queues will occupy for one generator.
 
-**Save** appears in the page header once anything is edited and asks for confirmation first. These parameters are read when the application starts, so applying them triggers the same [restart](#danger-zone) the Management page offers, and the interface is briefly unavailable.
+The **Save** button appears in the page header once anything is edited and asks for confirmation first. These parameters are read when the application starts, so applying them triggers the same [restart](#danger-zone) the Management page offers, and the interface is briefly unavailable.
 
 ---
 
@@ -64,14 +64,14 @@ Removing a secret is irreversible. Any configuration referring to it fails to lo
 
 The cards at the top identify the instance and the machine under it, and link through to [Monitoring](/docs/studio/monitoring) for the history behind the load.
 
-**Instance logs** is the application-wide log: configuration loading, which generators were started, and which of them refused to. A single generator's own log is on its [instance page](/docs/studio/instances#logs).
+The **Instance logs** panel holds the application-wide log: configuration loading, which generators were started, and which of them refused to. A single generator's own log is on its [instance page](/docs/studio/instances#logs).
 
 ### Danger zone
 
-**Restart** stops the whole application and starts it again from [eventum.yml](/docs/core/config/eventum-yml) and [startup.yml](/docs/core/config/startup-yml), without ending the process — what `SIGHUP` does, and the way a change made to either file outside Studio is picked up. The server stops with everything else, so the interface is unavailable for a moment.
+The **Restart** button stops the whole application and starts it again from [eventum.yml](/docs/core/config/eventum-yml) and [startup.yml](/docs/core/config/startup-yml), without ending the process — what `SIGHUP` does, and the way a change made to either file outside Studio is picked up. The server stops with everything else, so the interface is unavailable for a moment.
 
-**Stop** shuts the generators down gracefully and ends the process.
+The **Stop** button shuts the generators down gracefully and ends the process.
 
 <Callout type="warn">
-**Stop** ends the whole Eventum process, including the interface you are using. Starting it again means going back to the terminal and running `eventum run -c eventum.yml`.
+The **Stop** button ends the whole Eventum process, including the interface you are using. Starting it again means going back to the terminal and running `eventum run -c eventum.yml`.
 </Callout>

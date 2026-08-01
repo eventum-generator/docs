@@ -26,7 +26,7 @@ An **instance** is a registered copy of a [project](/docs/studio/projects) with 
 The last four columns are runtime figures and exist only while an instance runs. For the rest they are empty and sort last. Intentional drops are not failures and are not counted as errors.
 
 <Callout type="info">
-**Flow** is an average over the whole run, so a generator that produced a burst and went quiet keeps reporting a rate. For the rate right now, use the [Monitoring](/docs/studio/monitoring) dashboard, which measures over a moving window.
+The **Flow** column is an average over the whole run, so a generator that produced a burst and went quiet keeps reporting a rate. For the rate right now, use the [Monitoring](/docs/studio/monitoring) dashboard, which measures over a moving window.
 </Callout>
 
 ### Statuses
@@ -38,15 +38,15 @@ The last four columns are runtime figures and exist only while an instance runs.
 | **Finished** | Ran to completion — the input stage exhausted its timestamps and the generator stopped on its own |
 | **Failed** | Stopped because of an error; the reason is in the instance log |
 
-**Starting** and **Stopping** appear while a lifecycle action is in flight.
+The **Starting** and **Stopping** statuses appear while a lifecycle action is in flight.
 
 ### Filtering and selection
 
 Search by instance or by project and separate what is running from what is not. The filters are held in the page address, so a filtered list can be bookmarked or passed on.
 
-Selecting rows enables **Start**, **Stop** and **Delete** over the whole selection, so a simulation of a dozen generators comes up in one action. Stopping drains an instance rather than cutting it off.
+Selecting rows enables the **Start**, **Stop** and **Delete** actions over the whole selection, so a simulation of a dozen generators comes up in one action. Stopping drains an instance rather than cutting it off.
 
-**Create new** registers an instance: an identifier, the project it runs, and the parameters that project expects.
+The **Create new** button registers an instance: an identifier, the project it runs, and the parameters that project expects.
 
 ### Per-instance actions
 
@@ -94,9 +94,9 @@ An instance opens onto a page of its own, with the lifecycle controls in the hea
   alt="The Overview tab of an instance"
 />
 
-While the instance runs, **Throughput** charts input against output over a moving window, and below it the same per-plugin pipeline the metrics dialog shows, updating while the page is open. A stopped instance leaves the section empty.
+While the instance runs, the **Throughput** chart plots input against output over a moving window, and below it the same per-plugin pipeline the metrics dialog shows, updating while the page is open. A stopped instance leaves the section empty.
 
-**About** states the project, the emission mode, whether the instance starts with the application, its timezone and its last run. **Scenarios** changes which [scenarios](/docs/studio/scenarios) it belongs to.
+The **About** card states the project, the emission mode, whether the instance starts with the application, its timezone and its last run. The **Scenarios** card changes which [scenarios](/docs/studio/scenarios) it belongs to.
 
 ### Settings
 
@@ -108,9 +108,9 @@ While the instance runs, **Throughput** charts input against output over a movin
 
 The configuration of this instance, over the fields [startup.yml](/docs/core/config/startup-yml) holds.
 
-**Runtime** decides how events are emitted — live, at the moments the timestamps name, or sample, as fast as the pipeline allows — whether past timestamps are skipped, whether the instance starts with the application, and the **Parameters** a configuration reads through `${params.name}`. One project serves several instances this way, differing only in a hostname or an output path.
+The **Runtime** section decides how events are emitted — live, at the moments the timestamps name, or sample, as fast as the pipeline allows — whether past timestamps are skipped, whether the instance starts with the application, and the **Parameters** a configuration reads through `${params.name}`. One project serves several instances this way, differing only in a hostname or an output path.
 
-**Generation** overrides the application-wide defaults for this instance alone: batching, queue depths, ordering, write concurrency.
+The **Generation** section overrides the application-wide defaults for this instance alone: batching, queue depths, ordering, write concurrency.
 
 These values are read when a generator starts, so saving a running instance offers to restart it.
 
