@@ -29,7 +29,7 @@ These correspond to the `generation` section of [eventum.yml](/docs/core/config/
 |--------|------|---------|-------------|
 | `--timezone` | string | `"UTC"` | IANA timezone for timestamp generation (e.g. `UTC`, `America/New_York`, `Europe/London`). |
 | `--batch.size` | integer | `10000` | Maximum number of events per batch. At least one of `--batch.size` or `--batch.delay` must be set. |
-| `--batch.delay` | float | `1.0` | Maximum time span, in seconds, of the event timestamps one batch covers. At least one of `--batch.size` or `--batch.delay` must be set. |
+| `--batch.delay` | float | `1.0` | Maximum time span, in seconds, of the event timestamps one batch covers — see [Batching](/docs/core/concepts/generator#batching) for when it applies. At least one of `--batch.size` or `--batch.delay` must be set. |
 | `--queue.max-timestamp-batches` | integer | `10` | Maximum timestamp batches in the input→event queue. |
 | `--queue.max-event-batches` | integer | `10` | Maximum event batches in the event→output queue. |
 | `--keep-order` | boolean | `false` | Process output batches sequentially to preserve chronological order. Disables concurrent writes. |

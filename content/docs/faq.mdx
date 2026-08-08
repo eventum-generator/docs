@@ -179,7 +179,7 @@ Several knobs affect throughput:
 
 - **`count`** (input plugins) — how many timestamps per tick.
 - **`batch.size`** — how many events are grouped before passing to output. Larger batches reduce per-event overhead.
-- **`batch.delay`** — maximum time span of the event timestamps one batch covers. Timestamps that have already passed are grouped by `batch.size` instead.
+- **`batch.delay`** — maximum time span of the event timestamps one batch covers. It applies to timestamps still ahead of real time in live mode; timestamps that have already passed, and every timestamp in sample mode, are grouped by `batch.size` instead.
 - **`max_concurrency`** — limit on parallel output write operations.
 </Accordion>
 
