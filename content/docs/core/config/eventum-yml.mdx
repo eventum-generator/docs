@@ -179,17 +179,7 @@ Controls how events are grouped before being passed to output plugins:
 
 \*The defaults of `10000` and `1.0` apply as a pair when **neither** field is specified. If you set only one, the other defaults to `null`. At least one of `size` or `delay` must be set.
 
-`size` is the primary limit. `delay` limits how far a batch stretches along the timeline of the events it carries, which in [live mode](/docs/core/concepts/generator#live-mode-default) is the delivery lag batching adds: a batch is delivered once its last event comes due, so the first event of a batch waits at most `delay` seconds past its own timestamp. Where there is no such lag to bound, `delay` does not form the batch:
-
-| Configuration | Live, timestamps still ahead | Live, timestamps already passed | [Sample mode](/docs/core/concepts/generator#sample-mode) |
-|---------------|------------------------------|---------------------------------|-------------|
-| `size` only | `size` | `size` | `size` |
-| `size` and `delay` | whichever limit is reached first | `size` | `size` |
-| `delay` only | `delay` window | `delay` window | `delay` window |
-
-Timestamps that have already passed are delivered the moment they are read, and sample mode delivers on no schedule at all — in both cases `delay` would only cut the run into batches the size of the event rate, so batches are formed by `size`.
-
-The `delay`-only row is the exception: with no `size` set, `delay` is the only limit on how large a batch grows, so it always applies. Set `size` whenever a generator may run on past timestamps or in sample mode, otherwise the batches stay as small as the rate makes them.
+`size` is the primary limit. `delay` bounds the lag batching adds to delivery in [live mode](/docs/core/concepts/generator#live-mode-default), so it forms the batches of timestamps that are still ahead of real time; timestamps that have already passed, and every timestamp in [sample mode](/docs/core/concepts/generator#sample-mode), are grouped by `size`. With no `size` set, `delay` is the only limit on how large a batch grows and therefore always applies — see [Batching](/docs/core/concepts/generator#batching) for the full breakdown.
 
 ### generation.queue
 
