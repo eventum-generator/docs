@@ -175,9 +175,11 @@ Controls how events are grouped before being passed to output plugins:
 | Parameter | Type | Default | Constraints | Description |
 |-----------|------|---------|-------------|-------------|
 | `generation.batch.size` | integer or null | `10000`\* | >= 1 | Maximum number of events per batch. |
-| `generation.batch.delay` | float or null | `1.0`\* | >= 0.1 | Maximum seconds to wait before flushing a partial batch. |
+| `generation.batch.delay` | float or null | `1.0`\* | >= 0.1 | Maximum time span, in seconds, of the event timestamps one batch covers. |
 
 \*The defaults of `10000` and `1.0` apply as a pair when **neither** field is specified. If you set only one, the other defaults to `null`. At least one of `size` or `delay` must be set. When both are set, the batch is flushed when either limit is reached — whichever comes first.
+
+`delay` limits how far a batch stretches along the timeline of the events it carries. In live mode that is the delivery lag batching adds, since a batch is delivered once its last event comes due: the first event of a batch waits at most `delay` seconds past its own timestamp. Events whose timestamps have already passed — a generator started on a past time range with `skip_past` disabled, or one running behind real time — have no such lag left to bound, so a generator draining that backlog groups them by `size` alone.
 
 ### generation.queue
 

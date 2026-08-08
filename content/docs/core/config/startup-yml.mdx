@@ -81,9 +81,9 @@ Controls how events are grouped before being passed to output plugins:
 | Parameter | Type | Default | Constraints | Description |
 |-----------|------|---------|-------------|-------------|
 | `batch.size` | integer or null | `10000`\* | >= 1 | Maximum number of events per batch. |
-| `batch.delay` | float or null | `1.0`\* | >= 0.1 | Maximum seconds to wait before flushing a partial batch. |
+| `batch.delay` | float or null | `1.0`\* | >= 0.1 | Maximum time span, in seconds, of the event timestamps one batch covers. |
 
-\*The defaults of `10000` and `1.0` apply as a pair when **neither** field is specified. If you set only one, the other defaults to `null`. At least one of `size` or `delay` must be set. When both are set, the batch is flushed when either limit is reached — whichever comes first.
+\*The defaults of `10000` and `1.0` apply as a pair when **neither** field is specified. If you set only one, the other defaults to `null`. At least one of `size` or `delay` must be set. When both are set, the batch is flushed when either limit is reached — whichever comes first. See [eventum.yml — Generation](/docs/core/config/eventum-yml#generation) for what `delay` bounds while a generator catches up on past timestamps.
 
 #### queue
 
