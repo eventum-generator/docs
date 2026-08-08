@@ -160,8 +160,6 @@ Timestamps travel through the pipeline in batches, and a batch is the unit of wo
 | `size` and `delay` | sample mode | `size` is reached |
 | `delay` only | any mode | the `delay` window — with no `size` set it is the only limit on how large a batch grows |
 
-A generator catching up moves between the second and third rows on its own: while it drains the backlog batches are formed by `size`, and once it reaches real time `delay` starts bounding the lag again.
-
 Four things hold regardless of these settings:
 
 - **A batch spanning the current moment** — part of it in the past, part still ahead — is released when its last timestamp comes due, and is never merged with its neighbours. Its already-late events are not delayed any further than that.
