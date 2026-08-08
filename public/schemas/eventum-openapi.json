@@ -6760,6 +6760,10 @@
                         "title": "Start Time",
                         "description": "Start time of the generator"
                     },
+                    "resources": {
+                        "$ref": "#/components/schemas/ResourcesStats",
+                        "description": "Runtime resources occupied by the generator"
+                    },
                     "input": {
                         "items": {
                             "$ref": "#/components/schemas/InputPluginStats"
@@ -6816,6 +6820,7 @@
                 "required": [
                     "id",
                     "start_time",
+                    "resources",
                     "input",
                     "event",
                     "output",
@@ -9436,6 +9441,50 @@
                 "title": "QueueParameters",
                 "description": "Parameters of input plugins queue.\n\nAttributes\n----------\nmax_timestamp_batches : int, default=10\n    Maximum number of batches in timestamps queue.\n\nmax_event_batches : int, default=10\n    Maximum number of batches in events queue."
             },
+            "QueueStats": {
+                "properties": {
+                    "size": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Size",
+                        "description": "Number of batches waiting in the queue"
+                    },
+                    "maxsize": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Maxsize",
+                        "description": "Maximum number of batches the queue holds"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "size",
+                    "maxsize"
+                ],
+                "title": "QueueStats",
+                "description": "Fill level of a queue between two pipeline stages."
+            },
+            "QueuesStats": {
+                "properties": {
+                    "timestamps": {
+                        "$ref": "#/components/schemas/QueueStats",
+                        "description": "Queue between the input and the event stage"
+                    },
+                    "events": {
+                        "$ref": "#/components/schemas/QueueStats",
+                        "description": "Queue between the event and the output stage"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "timestamps",
+                    "events"
+                ],
+                "title": "QueuesStats",
+                "description": "Fill levels of the queues between the pipeline stages."
+            },
             "RenameGeneratorDirRequest": {
                 "properties": {
                     "new_name": {
@@ -9681,6 +9730,35 @@
                     "path"
                 ],
                 "title": "ReplayEventPluginConfig"
+            },
+            "ResourcesStats": {
+                "properties": {
+                    "thread_count": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Thread Count",
+                        "description": "Number of threads the generator runs"
+                    },
+                    "cpu_seconds": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "title": "Cpu Seconds",
+                        "description": "CPU time consumed by those threads since the generator started, growing over the lifetime of the generator"
+                    },
+                    "queues": {
+                        "$ref": "#/components/schemas/QueuesStats",
+                        "description": "Fill levels of the queues between the pipeline stages"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "thread_count",
+                    "cpu_seconds",
+                    "queues"
+                ],
+                "title": "ResourcesStats",
+                "description": "Runtime resources occupied by a generator.\n\nMemory is absent by nature: generators share the process heap, so\nthe share of it belonging to one generator is not observable. Queue\nfill levels stand in for it, since the queues hold the bulk of what\na generator keeps in flight."
             },
             "SSLParameters": {
                 "properties": {
