@@ -151,7 +151,7 @@ The two queues provide natural **backpressure**: if the event plugin is slower t
 | Parameter | Default | What it controls |
 |-----------|---------|-----------------|
 | `batch.size` | `10000` | Max timestamps per batch — larger batches reduce overhead but increase latency |
-| `batch.delay` | `1.0` | Max time span of the timestamps one batch covers — timestamps that have already passed are grouped by size instead |
+| `batch.delay` | `1.0` | Max time span of the timestamps one batch covers — applies to timestamps still ahead of real time in live mode, everything else is grouped by size |
 | `queue.max_timestamp_batches` | `10` | Timestamps queue depth — more buffering between input and event stages |
 | `queue.max_event_batches` | `10` | Events queue depth — more buffering between event and output stages |
 | `max_concurrency` | `100` | Max parallel output write operations |
