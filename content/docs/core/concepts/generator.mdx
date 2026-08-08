@@ -160,13 +160,6 @@ Timestamps travel through the pipeline in batches, and a batch is the unit of wo
 | `size` and `delay` | sample mode | `size` is reached |
 | `delay` only | any mode | the `delay` window — with no `size` set it is the only limit on how large a batch grows |
 
-Four things hold regardless of these settings:
-
-- **A batch spanning the current moment** — part of it in the past, part still ahead — is released when its last timestamp comes due, and is never merged with its neighbours. Its already-late events are not delayed any further than that.
-- **The [http](/docs/plugins/input/http) input** produces a timestamp the moment a request arrives and it is released immediately. Accumulating those into a full batch would hold an event back until the next request filled the batch.
-- **An exhausted input** releases the last incomplete batch instead of holding it, so nothing is left behind in a buffer.
-- **Several input plugins** are merged into one chronological stream before batching, so the limits apply to that stream rather than to each plugin separately.
-
 ### Tuning parameters
 
 | Parameter | Default | What it controls |
