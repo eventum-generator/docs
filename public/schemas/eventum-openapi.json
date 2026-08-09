@@ -7636,6 +7636,24 @@
                         "description": "Available RAM in bytes.",
                         "readOnly": true
                     },
+                    "process_memory_bytes": {
+                        "type": "integer",
+                        "title": "Process Memory Bytes",
+                        "description": "Resident memory of this application in bytes.",
+                        "readOnly": true
+                    },
+                    "process_open_fds": {
+                        "type": "integer",
+                        "title": "Process Open Fds",
+                        "description": "Number of file descriptors this application holds open.",
+                        "readOnly": true
+                    },
+                    "process_max_fds": {
+                        "type": "integer",
+                        "title": "Process Max Fds",
+                        "description": "Maximum number of file descriptors this application may open.",
+                        "readOnly": true
+                    },
                     "network_sent_bytes": {
                         "type": "integer",
                         "title": "Network Sent Bytes",
@@ -7676,6 +7694,9 @@
                     "memory_total_bytes",
                     "memory_used_bytes",
                     "memory_available_bytes",
+                    "process_memory_bytes",
+                    "process_open_fds",
+                    "process_max_fds",
                     "network_sent_bytes",
                     "network_received_bytes",
                     "disk_written_bytes",
@@ -9745,6 +9766,36 @@
                         "title": "Cpu Seconds",
                         "description": "CPU time consumed by those threads since the generator started, growing over the lifetime of the generator"
                     },
+                    "run_delay_seconds": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "title": "Run Delay Seconds",
+                        "description": "Time those threads spent ready to run while waiting for a processor since the generator started, growing over the lifetime of the generator; reported on Linux only"
+                    },
+                    "disk_read_bytes": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Disk Read Bytes",
+                        "description": "Number of bytes those threads read through the file system since the generator started; reported on Linux only"
+                    },
+                    "disk_written_bytes": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Disk Written Bytes",
+                        "description": "Number of bytes those threads wrote through the file system since the generator started; reported on Linux only"
+                    },
+                    "network_sent_bytes": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Network Sent Bytes",
+                        "description": "Number of bytes those threads sent over the network since the generator started"
+                    },
+                    "network_received_bytes": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Network Received Bytes",
+                        "description": "Number of bytes those threads received over the network since the generator started"
+                    },
                     "queues": {
                         "$ref": "#/components/schemas/QueuesStats",
                         "description": "Fill levels of the queues between the pipeline stages"
@@ -9755,6 +9806,11 @@
                 "required": [
                     "thread_count",
                     "cpu_seconds",
+                    "run_delay_seconds",
+                    "disk_read_bytes",
+                    "disk_written_bytes",
+                    "network_sent_bytes",
+                    "network_received_bytes",
                     "queues"
                 ],
                 "title": "ResourcesStats",
