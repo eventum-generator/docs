@@ -7257,6 +7257,19 @@
                             }
                         ],
                         "title": "Proxy Url"
+                    },
+                    "concurrency": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Concurrency",
+                        "default": 100
                     }
                 },
                 "additionalProperties": false,
@@ -7459,6 +7472,19 @@
                             }
                         ],
                         "title": "Proxy Url"
+                    },
+                    "concurrency": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Concurrency",
+                        "default": 100
                     }
                 },
                 "additionalProperties": false,

@@ -22,12 +22,14 @@ Sends events to an HTTP endpoint. By default, events are batched into a single J
 | `client_cert` | path or null | `null` | — | Path to client certificate. Must be provided together with `client_cert_key`. |
 | `client_cert_key` | path or null | `null` | — | Path to client certificate key. Must be provided together with `client_cert`. |
 | `proxy_url` | URL or null | `null` | Valid HTTP/HTTPS URL. | Proxy address. |
+| `concurrency` | integer | `100` | >= 1 | Maximum number of requests performed at a time. Also sets the size of the connection pool. |
 | `formatter` | [formatter](/docs/plugins/formatters) | `json-batch` | — | How events are serialized before sending. |
 
 ## Behavior
 
-- Events are batched by the generator's `batch.size` / `batch.delay` settings and sent as a single HTTP request per batch.
+- Events are batched by the generator's `batch.size` / `batch.delay` settings. How many requests a batch costs depends on the formatter: a batch formatter such as the default `json-batch` sends the whole batch in one request, while a formatter that serializes each event on its own (`plain`, `json`, `template`) sends one request per event.
 - The default `json-batch` formatter wraps all events in a JSON array — ideal for endpoints that accept batch payloads.
+- No more than `concurrency` requests are performed at a time; the rest wait for a free slot. Under a per-event formatter, keep `batch.size` within what the endpoint accepts before the generator's `write_timeout` cancels the write and counts its events as failed.
 - If the response code doesn't match `success_code`, the write is counted as failed.
 - On an `https://` URL the server's certificate is verified by default. For an endpoint with a self-signed or internal-CA certificate, set `ca_cert` to the issuing CA, or set `verify: false` to connect without the check.
 
