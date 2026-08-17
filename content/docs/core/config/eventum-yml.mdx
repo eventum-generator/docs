@@ -187,6 +187,11 @@ Controls the internal queues between pipeline stages. These act as backpressure 
 |-----------|------|---------|-------------|-------------|
 | `generation.queue.max_timestamp_batches` | integer | `10` | >= 1 | Maximum timestamp batches in the input→event queue. |
 | `generation.queue.max_event_batches` | integer | `10` | >= 1 | Maximum event batches in the event→output queue. |
+| `generation.queue.max_event_bytes` | integer or null | `268435456` | >= 1 | Maximum memory the event batches in the event→output queue occupy together, 256 MiB by default. `null` leaves it unlimited. |
+
+A batch is as large as the events in it, so the number of batches alone does not bound how much memory a generator holds: ten batches of ten thousand events come to twenty megabytes with small events and half a gigabyte with large ones. Both limits of the events queue apply, whichever is reached first, so `max_event_bytes` keeps that figure predictable no matter what the templates render. A single batch larger than the whole limit still passes through — holding it back would stall the pipeline — so keep `batch.size` in proportion to the size of an event.
+
+The memory each queue currently holds is reported on the instance page next to the batches it holds.
 
 ### Concurrency and ordering
 
@@ -205,6 +210,7 @@ generation:
   queue:
     max_timestamp_batches: 20
     max_event_batches: 20
+    max_event_bytes: 536870912
   keep_order: false
   max_concurrency: 200
   write_timeout: 30
@@ -255,6 +261,7 @@ generation:
   queue:
     max_timestamp_batches: 10
     max_event_batches: 10
+    max_event_bytes: 268435456
   keep_order: false
   max_concurrency: 100
   write_timeout: 10

@@ -9455,12 +9455,25 @@
                         "minimum": 1.0,
                         "title": "Max Event Batches",
                         "default": 10
+                    },
+                    "max_event_bytes": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Max Event Bytes",
+                        "default": 268435456
                     }
                 },
                 "additionalProperties": false,
                 "type": "object",
                 "title": "QueueParameters",
-                "description": "Parameters of input plugins queue.\n\nAttributes\n----------\nmax_timestamp_batches : int, default=10\n    Maximum number of batches in timestamps queue.\n\nmax_event_batches : int, default=10\n    Maximum number of batches in events queue."
+                "description": "Parameters of input plugins queue.\n\nAttributes\n----------\nmax_timestamp_batches : int, default=10\n    Maximum number of batches in timestamps queue.\n\nmax_event_batches : int, default=10\n    Maximum number of batches in events queue.\n\nmax_event_bytes : int | None, default=268435456\n    Maximum number of bytes the batches waiting in events queue\n    occupy together, `None` to leave their size unlimited.\n\nNotes\n-----\nBoth limits of the events queue apply, whichever is reached first.\nThe number of batches alone does not bound the memory a generator\nholds, since the size of an event is up to the templates; a batch\nlarger than the whole byte limit still passes, since holding it back\nwould stall the pipeline for good."
             },
             "QueueStats": {
                 "properties": {
@@ -9475,13 +9488,34 @@
                         "minimum": 1.0,
                         "title": "Maxsize",
                         "description": "Maximum number of batches the queue holds"
+                    },
+                    "size_bytes": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Size Bytes",
+                        "description": "Number of bytes the batches waiting in the queue occupy"
+                    },
+                    "max_bytes": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Max Bytes",
+                        "description": "Maximum number of bytes the queue holds, null if their size is not limited"
                     }
                 },
                 "additionalProperties": false,
                 "type": "object",
                 "required": [
                     "size",
-                    "maxsize"
+                    "maxsize",
+                    "size_bytes",
+                    "max_bytes"
                 ],
                 "title": "QueueStats",
                 "description": "Fill level of a queue between two pipeline stages."

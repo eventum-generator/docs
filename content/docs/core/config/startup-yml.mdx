@@ -93,6 +93,7 @@ Controls the internal queues between pipeline stages:
 |-----------|------|---------|-------------|-------------|
 | `queue.max_timestamp_batches` | integer | `10` | >= 1 | Maximum number of timestamp batches held in the input→event queue. Controls backpressure when the event plugin is slower than input. |
 | `queue.max_event_batches` | integer | `10` | >= 1 | Maximum number of event batches held in the event→output queue. Controls backpressure when output plugins are slower than event processing. |
+| `queue.max_event_bytes` | integer or null | `268435456` | >= 1 | Maximum memory the event batches in the event→output queue occupy together, 256 MiB by default. Applies alongside the limit on their number, whichever is reached first. `null` leaves it unlimited. |
 
 #### Concurrency and ordering
 
