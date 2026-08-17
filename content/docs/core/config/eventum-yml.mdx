@@ -146,6 +146,7 @@ Controls application logging — separate from the events that generators produc
 | Parameter | Type | Default | Constraints | Description |
 |-----------|------|---------|-------------|-------------|
 | `log.level` | string | `"info"` | `"debug"`, `"info"`, `"warning"`, `"error"`, or `"critical"` | Minimum severity level for log messages. |
+| `log.third_party_level` | string | `"warning"` | `"debug"`, `"info"`, `"warning"`, `"error"`, or `"critical"` | Minimum severity level for messages of third-party libraries. Independent of `log.level`, so running Eventum at `"debug"` doesn't bring the debug output of every dependency with it. |
 | `log.format` | string | `"plain"` | `"plain"` or `"json"` | Log output format. `"plain"` is human-readable, `"json"` is structured. |
 | `log.max_bytes` | integer | `10485760` (10 MiB) | >= 1024 | Maximum size per log file before rotation. |
 | `log.backups` | integer | `5` | >= 1 | Number of rotated log files to keep. |
@@ -153,10 +154,25 @@ Controls application logging — separate from the events that generators produc
 ```yaml
 log:
   level: info
+  third_party_level: warning
   format: json
   max_bytes: 52428800    # 50 MiB
   backups: 10
 ```
+
+### Log files
+
+Each message goes to one file in `path.logs`, named after the part of the application it came from. Standard output receives all of them, so `docker logs` stays the combined view.
+
+| File | Contents |
+|------|----------|
+| `main.log` | Application startup, shutdown and everything not attributed below. |
+| `server.log` | REST API and HTTP server, including its startup and errors. |
+| `server_access.log` | One line per HTTP request. |
+| `mcp.log` | MCP server. |
+| `generator_<id>.log` | Everything one generator does, including the delivery its output plugins perform. |
+
+With `log.format: json` the same files carry the `.json` extension instead.
 
 ---
 
@@ -175,9 +191,11 @@ Controls how events are grouped before being passed to output plugins:
 | Parameter | Type | Default | Constraints | Description |
 |-----------|------|---------|-------------|-------------|
 | `generation.batch.size` | integer or null | `10000`\* | >= 1 | Maximum number of events per batch. |
-| `generation.batch.delay` | float or null | `1.0`\* | >= 0.1 | Maximum seconds to wait before flushing a partial batch. |
+| `generation.batch.delay` | float or null | `1.0`\* | >= 0.1 | Maximum time span, in seconds, of the event timestamps one batch covers. |
 
-\*The defaults of `10000` and `1.0` apply as a pair when **neither** field is specified. If you set only one, the other defaults to `null`. At least one of `size` or `delay` must be set. When both are set, the batch is flushed when either limit is reached — whichever comes first.
+\*The defaults of `10000` and `1.0` apply as a pair when **neither** field is specified. If you set only one, the other defaults to `null`. At least one of `size` or `delay` must be set.
+
+`size` is the primary limit. `delay` bounds the lag batching adds to delivery in [live mode](/docs/core/concepts/generator#live-mode-default), so it forms the batches of timestamps that are still ahead of real time; timestamps that have already passed, and every timestamp in [sample mode](/docs/core/concepts/generator#sample-mode), are grouped by `size`. With no `size` set, `delay` is the only limit on how large a batch grows and therefore always applies — see [Batching](/docs/core/concepts/generator#batching) for the full breakdown.
 
 ### generation.queue
 

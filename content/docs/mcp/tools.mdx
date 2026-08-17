@@ -92,6 +92,7 @@ Available only over HTTP. They read and control the running instance itself.
 
 | Tool | Access | Description |
 |---|---|---|
+| `get_instance_logs` | Read | Return the recent log lines of one [log channel](/docs/core/config/eventum-yml#log-files) of the instance — its core, the server, the requests it served, or this MCP server. |
 | `update_settings` | Write | Patch the instance [settings](/docs/core/config/eventum-yml) file. Auth credentials cannot be changed, and the change applies on the next restart. |
 | `stop_instance` | Write | Stop the instance. |
 | `restart_instance` | Write | Restart the instance, applying any pending settings change. |

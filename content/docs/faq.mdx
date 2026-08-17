@@ -179,7 +179,7 @@ Several knobs affect throughput:
 
 - **`count`** (input plugins) — how many timestamps per tick.
 - **`batch.size`** — how many events are grouped before passing to output. Larger batches reduce per-event overhead.
-- **`batch.delay`** — maximum seconds before flushing a partial batch.
+- **`batch.delay`** — maximum time span of the event timestamps one batch covers. It applies to timestamps still ahead of real time in live mode; timestamps that have already passed, and every timestamp in sample mode, are grouped by `batch.size` instead.
 - **`max_concurrency`** — limit on parallel output write operations.
 </Accordion>
 
@@ -267,7 +267,7 @@ Identify the bottleneck stage:
 
 - **Input slow** — timestamp generation is the limiter. Simplify the scheduling pattern or reduce `count`.
 - **Event production slow** — template rendering is expensive. Simplify templates, reduce sample dataset sizes, or use the `script` plugin for compute-heavy logic.
-- **Output slow** — the destination can't keep up. Increase `max_concurrency`, enlarge `batch.size`, add `batch.delay`, or check the destination's health.
+- **Output slow** — the destination can't keep up. Increase `max_concurrency`, enlarge `batch.size`, raise or drop `batch.delay` so batches are not cut short of that size, or check the destination's health.
 
 Monitor throughput and per-stage failures on the [Monitoring dashboard](/docs/studio/monitoring) to pinpoint which stage is falling behind.
 </Accordion>
