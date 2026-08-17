@@ -146,6 +146,7 @@ Controls application logging — separate from the events that generators produc
 | Parameter | Type | Default | Constraints | Description |
 |-----------|------|---------|-------------|-------------|
 | `log.level` | string | `"info"` | `"debug"`, `"info"`, `"warning"`, `"error"`, or `"critical"` | Minimum severity level for log messages. |
+| `log.third_party_level` | string | `"warning"` | `"debug"`, `"info"`, `"warning"`, `"error"`, or `"critical"` | Minimum severity level for messages of third-party libraries. Independent of `log.level`, so running Eventum at `"debug"` doesn't bring the debug output of every dependency with it. |
 | `log.format` | string | `"plain"` | `"plain"` or `"json"` | Log output format. `"plain"` is human-readable, `"json"` is structured. |
 | `log.max_bytes` | integer | `10485760` (10 MiB) | >= 1024 | Maximum size per log file before rotation. |
 | `log.backups` | integer | `5` | >= 1 | Number of rotated log files to keep. |
@@ -153,10 +154,25 @@ Controls application logging — separate from the events that generators produc
 ```yaml
 log:
   level: info
+  third_party_level: warning
   format: json
   max_bytes: 52428800    # 50 MiB
   backups: 10
 ```
+
+### Log files
+
+Each message goes to one file in `path.logs`, named after the part of the application it came from. Standard output receives all of them, so `docker logs` stays the combined view.
+
+| File | Contents |
+|------|----------|
+| `main.log` | Application startup, shutdown and everything not attributed below. |
+| `server.log` | REST API and HTTP server, including its startup and errors. |
+| `server_access.log` | One line per HTTP request. |
+| `mcp.log` | MCP server. |
+| `generator_<id>.log` | Everything one generator does, including the delivery its output plugins perform. |
+
+With `log.format: json` the same files carry the `.json` extension instead.
 
 ---
 

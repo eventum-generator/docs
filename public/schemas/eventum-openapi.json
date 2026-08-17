@@ -8721,6 +8721,18 @@
                         "title": "Level",
                         "default": "info"
                     },
+                    "third_party_level": {
+                        "type": "string",
+                        "enum": [
+                            "debug",
+                            "info",
+                            "warning",
+                            "error",
+                            "critical"
+                        ],
+                        "title": "Third Party Level",
+                        "default": "warning"
+                    },
                     "format": {
                         "type": "string",
                         "enum": [
@@ -8746,7 +8758,7 @@
                 "additionalProperties": false,
                 "type": "object",
                 "title": "LogParameters",
-                "description": "Log parameters.\n\nAttributes\n----------\nlevel : Literal['debug', 'info', 'warning', 'error', 'critical'],        default='info'\n    Logging level.\n\nformat : Literal['plain', 'json'], default='plain'\n    Logging format.\n\nmax_bytes : int, default=10485760\n    Max bytes for log file before rotation.\n\nbackups : int, default=5\n    Number of rotated log files to keep."
+                "description": "Log parameters.\n\nAttributes\n----------\nlevel : Literal['debug', 'info', 'warning', 'error', 'critical'],        default='info'\n    Logging level.\n\nthird_party_level : Literal['debug', 'info', 'warning', 'error',        'critical'], default='warning'\n    Logging level of third-party libraries.\n\nformat : Literal['plain', 'json'], default='plain'\n    Logging format.\n\nmax_bytes : int, default=10485760\n    Max bytes for log file before rotation.\n\nbackups : int, default=5\n    Number of rotated log files to keep."
             },
             "Lt": {
                 "properties": {
