@@ -39,8 +39,27 @@ The **Failures** chart covers the same window, split into the event stage and th
 
 Each instance's share of the total output rate, stacked over the same window. An instance that dominates the pipeline, or has quietly stopped contributing to it, shows up here.
 
+## Instance resources
+
+What each running instance costs the host, heaviest first — the other half of the load question.
+
+| Column | Contents |
+|--------|----------|
+| **CPU** | Share of one processor core over the last poll |
+| **Wait** | Share of that time spent ready to run while waiting for a processor |
+| **Threads** | Threads the instance runs |
+| **Disk write** | Bytes per second written through the file system |
+| **Network out** | Bytes per second sent |
+| **Events queue** | Memory the batches waiting between the event and the output stage occupy, against the limit they may |
+
+**Wait** is what separates an instance the machine cannot keep up with from a slow one: a figure that climbs across every instance means more of them are running than the host has processors to run, while a single hot instance next to calm ones names the generator to stop.
+
+<Callout type="info">
+Outside Linux the operating system does not account for waiting or file system bytes per thread, so **Wait** and **Disk write** read as zero there. The rest are reported on every platform.
+</Callout>
+
 ## Resources
 
-CPU and memory for the host, disk and network for the Eventum process, each with its recent history.
+CPU and memory for the host, disk and network for the Eventum process, each with its recent history. The memory reading also names how much of the host's memory the Eventum process itself holds.
 
 Read next to the throughput chart, these separate a slow generator from a saturated machine: output that plateaus against a CPU ceiling is a different problem from output that plateaus with the machine idle.

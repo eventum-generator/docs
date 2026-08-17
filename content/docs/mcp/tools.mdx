@@ -50,7 +50,7 @@ Available only over HTTP. They control the generators the server manages, and re
 |---|---|---|
 | `list_generators_live` | Read | List the generators the server manages, with their status. |
 | `get_generator_status` | Read | Return the current status of one managed generator. |
-| `get_generator_stats` | Read | Return runtime statistics for one running generator. |
+| `get_generator_stats` | Read | Return runtime statistics for one running generator, including the resources it occupies. |
 | `start_generator` | Write | Start a managed generator. |
 | `stop_generator` | Write | Stop a managed generator. |
 | `register_generator` | Write | Register an authored generator with the running server, so it can be started and is restored after a server restart. |

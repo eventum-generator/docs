@@ -5,12 +5,12 @@ description: Execute shell commands from Jinja2 templates.
 
 The `subprocess` variable lets you execute shell commands from templates.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `command` | string | — | Shell command to execute. |
-| `cwd` | string | `None` | Working directory. |
-| `env` | mapping | `None` | Environment variables. |
-| `timeout` | float | `None` | Timeout in seconds. |
+| Name | Type | Default | Constraints | Description |
+|------|------|---------|-------------|-------------|
+| `command` | string | — | — | Shell command to execute. |
+| `cwd` | string | `None` | — | Working directory. |
+| `env` | mapping | `None` | — | Environment variables. |
+| `timeout` | float | `30.0` | Up to `300.0` | Timeout in seconds. A value that is not positive counts as omitted. |
 
 The `run` method returns a result object with three fields:
 
@@ -24,6 +24,15 @@ The `run` method returns a result object with three fields:
 {%- set result = subprocess.run('hostname', timeout=5.0) -%}
 {{ result.stdout | trim }}
 ```
+
+## Limits
+
+Commands run under fixed ceilings, so one template cannot stall the whole application or exhaust its memory:
+
+- Every call is bounded by a timeout — the requested one, 30 seconds when none is given, and 300 seconds at the most. A command that runs longer is terminated together with the processes it started.
+- Each output stream is captured up to 8 MiB. A command that writes more is terminated as well.
+
+In both cases the event is not produced and the reason is written to the generator log.
 
 <Callout type="warn">
 Subprocess calls run synchronously and block event production. Use short timeouts to avoid stalling the pipeline.

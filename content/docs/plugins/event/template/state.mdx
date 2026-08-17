@@ -25,16 +25,19 @@ All three scopes provide the same methods:
 | `as_dict` | `() → dict` | Get a shallow copy of the entire state. |
 | `[key]` | bracket access | Same as `get(key)`. |
 
-The `globals` scope has two additional methods for manual locking:
+The `globals` scope has three additional methods for manual locking:
 
 | Method | Description |
 |--------|-------------|
 | `acquire()` | Acquire the state lock. |
 | `release()` | Release the state lock. |
+| `release_if_held()` | Release every hold this template has on the state lock, and return how many were released. |
 
 <Callout type="warn">
 Individual `globals` operations (`get`, `set`, etc.) are already thread-safe. Use `acquire()` / `release()` only when you need multiple operations to execute atomically — for example, reading a counter and incrementing it without another generator modifying it in between.
 </Callout>
+
+The lock is never held between events: a hold left behind — including one left by a render that failed before reaching `release()` — is released once the event is over, so it cannot block other generators.
 
 <Callout type="info">
 Use [Scenarios](/docs/studio/scenarios) in Eventum Studio to visualize which generators read and write global state keys, and to manage global state values at runtime.
