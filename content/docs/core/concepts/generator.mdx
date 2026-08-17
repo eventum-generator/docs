@@ -146,6 +146,14 @@ graph LR
 
 The two queues provide natural **backpressure**: if the event plugin is slower than the input, the timestamps queue fills up and the input task pauses. If the output is slower than the event plugin, the events queue fills up and event production pauses. This prevents memory from growing unboundedly without dropping events.
 
+### How much memory a generator holds
+
+The memory a generator occupies follows the size of a batch rather than the rate of events. A batch is in more than one place at once — one is produced while the previous one is written — and each destination formats its own copy of what it delivers, so the total comes to several times the size of a single batch.
+
+For events of a few hundred bytes and the default batch of 10 000, a generator writing JSON to one destination settles around 20 MiB above what the process itself needs, and every further destination adds about 6 MiB. A batch of 1 000 events brings the whole figure under 2 MiB. Lower `batch.size` when a generator has to fit into a smaller footprint — `queue.max_event_bytes` bounds a different part, the batches that pile up in the queue when a destination stops keeping up.
+
+The memory reported for a process is the largest amount it has needed so far, so the figure climbs in steps while the first batches pass through and then stays level. A generator that reaches that level and holds it is behaving as expected.
+
 ### Tuning parameters
 
 | Parameter | Default | What it controls |
@@ -154,6 +162,7 @@ The two queues provide natural **backpressure**: if the event plugin is slower t
 | `batch.delay` | `1.0` | Max seconds to accumulate timestamps before flushing a partial batch |
 | `queue.max_timestamp_batches` | `10` | Timestamps queue depth — more buffering between input and event stages |
 | `queue.max_event_batches` | `10` | Events queue depth — more buffering between event and output stages |
+| `queue.max_event_bytes` | `268435456` | Memory the events queue may hold, 256 MiB by default — `null` leaves it unlimited |
 | `max_concurrency` | `100` | Max parallel output write operations |
 | `write_timeout` | `10` | Seconds before canceling a slow output write |
 | `keep_order` | `false` | When `true`, output writes are serialized to maintain strict chronological order (slower but ordered) |

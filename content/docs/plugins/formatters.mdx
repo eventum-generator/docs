@@ -365,6 +365,8 @@ formatter:
 
 Per-event formats produce one output string for each input event. Per-batch formats aggregate all events into a single output string, which reduces the number of I/O calls at the cost of sending larger payloads.
 
+Combining a batch into one string also costs memory while it happens — several times the size of the batch itself, since the events and the document assembled from them are held at the same time. Lower `batch.size` when that peak matters more than the number of requests; see [how much memory a generator holds](/docs/core/concepts/generator#how-much-memory-a-generator-holds).
+
 **When to use per-batch formats:**
 - The destination expects a single payload (e.g., HTTP API accepting a JSON array)
 - You want to reduce I/O overhead by writing once per batch
