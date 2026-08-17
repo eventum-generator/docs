@@ -19,14 +19,15 @@ An **instance** is a registered copy of a [project](/docs/studio/projects) with 
 | **Project** | The project it runs, with a link into its workspace |
 | **Status** | See below |
 | **Flow** | Events per second written, averaged over the time since the instance started |
+| **CPU** | Share of one processor core, averaged over that same time |
 | **Errors** | Failures since that start — red once above zero |
 | **Written** | Events delivered since that start |
 | **Last start time** | When the instance was last started |
 
-The last four columns are runtime figures and exist only while an instance runs. For the rest they are empty and sort last. Intentional drops are not failures and are not counted as errors.
+The last five columns are runtime figures and exist only while an instance runs. For the rest they are empty and sort last. Intentional drops are not failures and are not counted as errors.
 
 <Callout type="info">
-The **Flow** column is an average over the whole run, so a generator that produced a burst and went quiet keeps reporting a rate. For the rate right now, use the [Monitoring](/docs/studio/monitoring) dashboard, which measures over a moving window.
+The **Flow** and **CPU** columns are averages over the whole run, so a generator that produced a burst and went quiet keeps reporting both. For the figures right now, use the [Monitoring](/docs/studio/monitoring) dashboard, which measures over a moving window.
 </Callout>
 
 ### Statuses
