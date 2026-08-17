@@ -36,6 +36,8 @@ Four panels divide the workspace, and every divider between them can be dragged.
 | **Inspector** | The plugins of the selected stage and their parameters |
 | **Console** | Previewing the selected stage without running a generator |
 
+On a window narrower than 1200px the Explorer, the Editor and the Inspector stop sharing the row: one of them is shown at a time, chosen from a switcher above the workspace, and the Console starts collapsed to its header. Each panel keeps its contents while another one is on screen — open files, unsaved text and the work in the Console are all where they were on the way back. The dividers are unavailable in this layout.
+
 ### Pipeline stages
 
 The strip in the header is the generator's [three-stage pipeline](/docs/core/concepts/generator#the-three-stage-pipeline), and each entry names what the stage currently holds. Selecting a stage retargets the Inspector and the Console. Open files are unaffected.
