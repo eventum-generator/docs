@@ -45,7 +45,7 @@ Available on both transports. They operate on the generators in your generators 
 </Callout>
 
 <Callout type="warn">
-An archive travels inside the tool call, so it lands in the agent's context. `export_generator` and `import_generator` therefore refuse an archive over 128 KiB and point at the [REST API](/docs/api), which carries a project of any size.
+An archive travels inside the tool call, so it lands in the agent's context. An agent that can make HTTP requests and write files is better off taking the archive from the [REST API](/docs/api) instead, which moves it as a file and carries a project of any size. `export_generator` and `import_generator` say so themselves, and refuse an archive over 128 KiB, where the REST API is the only route left.
 </Callout>
 
 ## Live-management tools
