@@ -691,7 +691,7 @@
                     "Generator configs"
                 ],
                 "summary": "Get Generator File",
-                "description": "Read file from specified path inside generator directory with specified name.",
+                "description": "Read file from specified path inside generator directory with specified name. Set `download` to receive the file as an attachment instead of inline content.",
                 "operationId": "get_generator_file_generator_configs__name__file__filepath__get",
                 "parameters": [
                     {
@@ -714,6 +714,18 @@
                             "title": "Name"
                         },
                         "description": "Name of the generator directory"
+                    },
+                    {
+                        "name": "download",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Serve the file as an attachment saved under its name instead of content rendered inline",
+                            "default": false,
+                            "title": "Download"
+                        },
+                        "description": "Serve the file as an attachment saved under its name instead of content rendered inline"
                     }
                 ],
                 "responses": {
@@ -726,7 +738,7 @@
                         }
                     },
                     "403": {
-                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed\n\nPath is outside the generator directory;"
                     },
                     "404": {
                         "description": "Generator configuration does not exist\n\nFile does not exist;"
@@ -801,7 +813,7 @@
                         }
                     },
                     "403": {
-                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed\n\nPath is outside the generator directory;"
                     },
                     "404": {
                         "description": "Generator configuration does not exist"
@@ -879,7 +891,7 @@
                         }
                     },
                     "403": {
-                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed\n\nPath is outside the generator directory;"
                     },
                     "404": {
                         "description": "Generator configuration does not exist\n\nFile does not exist;"
@@ -944,7 +956,7 @@
                         }
                     },
                     "403": {
-                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed\n\nPath is outside the generator directory;"
                     },
                     "404": {
                         "description": "Generator configuration does not exist\n\nFile does not exist;"
@@ -1011,7 +1023,7 @@
                         }
                     },
                     "403": {
-                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed\n\nPath is outside the generator directory;"
                     },
                     "404": {
                         "description": "Generator configuration does not exist"
@@ -1093,7 +1105,7 @@
                         }
                     },
                     "403": {
-                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed\n\nPath is outside the generator directory;"
                     },
                     "404": {
                         "description": "Generator configuration does not exist\n\nSource file does not exist;"
@@ -1175,7 +1187,7 @@
                         }
                     },
                     "403": {
-                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed\n\nPath is outside the generator directory;"
                     },
                     "404": {
                         "description": "Generator configuration does not exist\n\nSource file does not exist;"
