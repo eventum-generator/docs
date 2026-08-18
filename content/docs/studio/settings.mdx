@@ -64,6 +64,8 @@ Removing a secret is irreversible. Any configuration referring to it fails to lo
 
 The cards at the top identify the instance and the machine under it, and link through to [Monitoring](/docs/studio/monitoring) for the history behind the load.
 
+The **Application** card also reports whether the GIL is enabled. Generators run on threads, so the [free-threaded build](/docs/core/introduction/requirements#python) is what lets them run in parallel, and on that build the GIL is normally disabled. It can be enabled back after the application starts — by the `PYTHON_GIL=1` environment variable, by the `-X gil=1` interpreter option, or by an extension module without free-threading support that a plugin imports. Generators keep running, but no longer in parallel, so the row reports that state as a warning. On a standard build the GIL is always enabled and the row is neutral.
+
 The **Instance logs** panel holds the application-wide log: configuration loading, which generators were started, and which of them refused to. A single generator's own log is on its [instance page](/docs/studio/instances#logs).
 
 ### Danger zone

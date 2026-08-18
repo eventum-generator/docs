@@ -7599,6 +7599,16 @@
                         "title": "Python Compiler",
                         "description": "Python compiler"
                     },
+                    "python_free_threaded": {
+                        "type": "boolean",
+                        "title": "Python Free Threaded",
+                        "description": "Whether Python is a free threaded build"
+                    },
+                    "python_gil_enabled": {
+                        "type": "boolean",
+                        "title": "Python Gil Enabled",
+                        "description": "Whether the GIL is currently enabled"
+                    },
                     "platform": {
                         "type": "string",
                         "title": "Platform",
