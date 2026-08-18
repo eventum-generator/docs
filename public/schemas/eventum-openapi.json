@@ -574,6 +574,138 @@
                 }
             }
         },
+        "/generator-configs/{name}/export": {
+            "get": {
+                "tags": [
+                    "Generator configs"
+                ],
+                "summary": "Export Generator Config",
+                "description": "Export generator directory with specified name as a ZIP archive. Entries named in `exclude` are left out with everything under them.",
+                "operationId": "export_generator_config_generator_configs__name__export_get",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "Name of the generator directory",
+                            "title": "Name"
+                        },
+                        "description": "Name of the generator directory"
+                    },
+                    {
+                        "name": "exclude",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Names of top level entries to leave out of the archive",
+                            "title": "Exclude"
+                        },
+                        "description": "Names of top level entries to leave out of the archive"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ZIP archive of the generator directory",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            },
+                            "application/zip": {}
+                        }
+                    },
+                    "403": {
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                    },
+                    "404": {
+                        "description": "Generator configuration does not exist"
+                    },
+                    "400": {
+                        "description": "Excluded entry is not a name of a top level entry, or is the generator configuration itself"
+                    },
+                    "500": {
+                        "description": "Configuration cannot be exported due to OS error"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/generator-configs/{name}/import": {
+            "post": {
+                "tags": [
+                    "Generator configs"
+                ],
+                "summary": "Import Generator Config",
+                "description": "Import generator directory with specified name from a ZIP archive. The archive must hold a generator configuration, and the directory holding it becomes the root of the imported generator.",
+                "operationId": "import_generator_config_generator_configs__name__import_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "Name of the generator directory",
+                            "title": "Name"
+                        },
+                        "description": "Name of the generator directory"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_import_generator_config_generator_configs__name__import_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                    },
+                    "409": {
+                        "description": "Configuration already exists\n\nDirectory already exists;"
+                    },
+                    "422": {
+                        "description": "Archive cannot be read or holds no generator configuration"
+                    },
+                    "500": {
+                        "description": "Configuration cannot be imported due to OS error"
+                    }
+                }
+            }
+        },
         "/generator-configs/{name}/path": {
             "get": {
                 "tags": [
@@ -4730,6 +4862,20 @@
                 ],
                 "title": "Before",
                 "description": "Check if event timestamp is before specific time."
+            },
+            "Body_import_generator_config_generator_configs__name__import_post": {
+                "properties": {
+                    "content": {
+                        "type": "string",
+                        "contentMediaType": "application/octet-stream",
+                        "title": "Content"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "content"
+                ],
+                "title": "Body_import_generator_config_generator_configs__name__import_post"
             },
             "Body_put_generator_file_generator_configs__name__file__filepath__put": {
                 "properties": {
@@ -10057,7 +10203,7 @@
                 "additionalProperties": false,
                 "type": "object",
                 "title": "ServerParameters",
-                "description": "Server parameters.\n\nAttributes\n----------\nui : UIParameters\n    Web UI service parameters.\n\napi : APIParameters\n    REST API service parameters.\n\nhost : str, default='0.0.0.0'\n    Bind address for server process.\n\nport : int, default=9474\n    Bind port for server process,\n\nssl : SSLParameters, default=SSLParameters(...)\n    SSL parameters.\n\nauth : AuthParameters\n    Auth parameters.\n\nmcp : MCPParameters\n    MCP service parameters."
+                "description": "Server parameters.\n\nAttributes\n----------\nui : UIParameters\n    Web UI service parameters.\n\napi : APIParameters\n    REST API service parameters.\n\nhost : str, default='0.0.0.0'\n    Bind address for server process.\n\nport : int, default=9474\n    Bind port for server process,\n\nssl : SSLParameters, default=SSLParameters(...)\n    SSL parameters.\n\nauth : AuthParameters\n    Auth parameters.\n\nmcp : MCPParameters\n    MCP service parameters.\n\nNotes\n-----\nThe flat `ui_enabled` and `api_enabled` keys are deprecated\naliases for `ui.enabled` and `api.enabled` and will be removed\nin version 2.8. They still work but emit a deprecation warning\nand cannot be combined with their nested counterparts."
             },
             "Settings-Input": {
                 "properties": {

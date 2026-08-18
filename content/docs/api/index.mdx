@@ -20,6 +20,8 @@ description: Eventum API reference
 <Card href="/docs/api/generator-configs/name/delete" title="Delete Generator Config" description="Delete whole generator configuration directory with specified name." />
 <Card href="/docs/api/generator-configs/name/put" title="Update Generator Config" description="Update generator configuration in the directory with specified name." />
 <Card href="/docs/api/generator-configs/name/rename/post" title="Rename Generator Config" description="Rename generator configuration directory. Instances that use the configuration are repointed at the new directory and must be stopped beforehand." />
+<Card href="/docs/api/generator-configs/name/export/get" title="Export Generator Config" description="Export generator directory with specified name as a ZIP archive. Entries named in `exclude` are left out with everything under them." />
+<Card href="/docs/api/generator-configs/name/import/post" title="Import Generator Config" description="Import generator directory with specified name from a ZIP archive. The archive must hold a generator configuration, and the directory holding it becomes the root of the imported generator." />
 <Card href="/docs/api/generator-configs/name/path/get" title="Get Generator Config Path" description="Get generator configuration path in the directory with specified name." />
 <Card href="/docs/api/generator-configs/name/file-tree/get" title="Get Generator File Tree" description="Get file tree of the generator directory with specified name." />
 <Card href="/docs/api/generator-configs/name/file/filepath/get" title="Get Generator File" description="Read file from specified path inside generator directory with specified name." />

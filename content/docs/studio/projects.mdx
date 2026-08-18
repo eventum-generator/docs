@@ -17,6 +17,12 @@ Every project carries a badge for each [instance](/docs/studio/instances) regist
 
 The **Create new** button writes a new directory with a minimal `generator.yml` in it. Renaming a project also updates the instances that point at it; deleting one is refused while any instance still does.
 
+### Moving a project between instances
+
+A project travels as a ZIP archive of its directory. **Export** in the row menu opens a dialog listing every entry at the top of the project with its size — untick the ones the archive should leave out, which is where the directories holding generated output usually go, and the archive downloads under the project's name.
+
+**Import** takes such an archive and unpacks it into a new project. The archive may hold `generator.yml` at its top level or nested in directories, so an archive downloaded from a repository imports as it is. The name is proposed from the file name and can be changed; an existing project is never overwritten.
+
 ---
 
 ## The workspace
