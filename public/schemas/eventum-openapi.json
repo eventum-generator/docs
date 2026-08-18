@@ -10067,7 +10067,7 @@
                 "additionalProperties": false,
                 "type": "object",
                 "title": "ServerParameters",
-                "description": "Server parameters.\n\nAttributes\n----------\nui : UIParameters\n    Web UI service parameters.\n\napi : APIParameters\n    REST API service parameters.\n\nhost : str, default='0.0.0.0'\n    Bind address for server process.\n\nport : int, default=9474\n    Bind port for server process,\n\nssl : SSLParameters, default=SSLParameters(...)\n    SSL parameters.\n\nauth : AuthParameters\n    Auth parameters.\n\nmcp : MCPParameters\n    MCP service parameters.\n\nNotes\n-----\nThe flat `ui_enabled` and `api_enabled` keys are deprecated\naliases for `ui.enabled` and `api.enabled` and will be removed\nin version 2.8. They still work but emit a deprecation warning\nand cannot be combined with their nested counterparts."
+                "description": "Server parameters.\n\nAttributes\n----------\nui : UIParameters\n    Web UI service parameters.\n\napi : APIParameters\n    REST API service parameters.\n\nhost : str, default='0.0.0.0'\n    Bind address for server process.\n\nport : int, default=9474\n    Bind port for server process,\n\nssl : SSLParameters, default=SSLParameters(...)\n    SSL parameters.\n\nauth : AuthParameters\n    Auth parameters.\n\nmcp : MCPParameters\n    MCP service parameters."
             },
             "Settings-Input": {
                 "properties": {
