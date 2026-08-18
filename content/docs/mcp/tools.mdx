@@ -33,6 +33,8 @@ Available on both transports. They operate on the generators in your generators 
 | `write_generator_file` | Write | Create or overwrite a file in a generator. |
 | `delete_generator_file` | Write | Delete a file from a generator. |
 | `delete_generator` | Write | Delete a whole generator and its files. |
+| `export_generator` | Read | Pack a whole generator into a ZIP archive. Named top-level entries can be left out, which is how generated output stays behind. |
+| `import_generator` | Write | Create a generator from a ZIP archive. An archive that wraps the generator in directories imports the same way as one holding it at the top level. |
 | `validate_generator` | Read | Validate a generator and return any errors. |
 | `preview_timestamps` | Read | Preview the timestamps a generator would produce. |
 | `preview_events` | Read | Preview the events a generator would produce. |
@@ -40,6 +42,10 @@ Available on both transports. They operate on the generators in your generators 
 
 <Callout type="info">
 `validate_generator` and the `preview_*` tools load the generator into the same pipeline a real run uses, so the agent sees exactly what a run would produce. See [how it works](/docs/mcp/how-it-works#the-loop).
+</Callout>
+
+<Callout type="warn">
+An archive travels inside the tool call, so it lands in the agent's context. An agent that can make HTTP requests and write files is better off taking the archive from the [REST API](/docs/api) instead, which moves it as a file and carries a project of any size. `export_generator` and `import_generator` say so themselves, and refuse an archive over 128 KiB, where the REST API is the only route left.
 </Callout>
 
 ## Live-management tools
