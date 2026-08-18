@@ -21,7 +21,7 @@ The **Create new** button writes a new directory with a minimal `generator.yml` 
 
 A project travels as a ZIP archive of its directory. **Export** in the row menu opens a dialog listing every entry at the top of the project with its size — untick the ones the archive should leave out, which is where the directories holding generated output usually go, and the archive downloads under the project's name.
 
-**Import** takes such an archive and unpacks it into a new project. The archive may hold `generator.yml` at its top level or nested in directories, so an archive downloaded from a repository imports as it is. The name is proposed from the file name and can be changed; an existing project is never overwritten.
+**Import** takes such an archive - dropped onto the dialog or chosen from disk - and unpacks it into a new project. The archive may hold `generator.yml` at its top level or nested in directories, so an archive downloaded from a repository imports as it is. The name of the project is proposed from the directory the archive carries it in, falling back to the file name, and can be changed; a name already taken is reported before the import starts, and an existing project is never overwritten.
 
 ---
 
