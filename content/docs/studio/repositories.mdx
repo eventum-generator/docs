@@ -33,7 +33,7 @@ Add the access token to the keyring before connecting the repository, either on 
 
 The same repository may be connected more than once to follow two of its branches; what is refused is a name already taken, or that repository at a branch or tag already connected — the address is compared by what it points at, so `…/packs` and `…/packs.git` count as one.
 
-Each repository carries a badge for whether it answered the last time it was asked: **Reachable**, **Unreachable** with the reason, or **Not checked** until the page asks. The check is a request for the references the repository publishes and transfers nothing of it.
+Each repository carries a badge for whether it answered the last time it was asked: **Reachable**, **Unreachable** with the reason, or **Not checked** until the page asks. Reading a catalog counts as an answer, so a refresh keeps the badge current. The check is a request for the references the repository publishes and transfers nothing of it.
 
 **Disconnect** removes a repository from the list. Generators already installed from it stay in the workspace, and each of them keeps the record of where it came from, so connecting the repository again marks them as installed once more.
 
@@ -61,7 +61,7 @@ The entry is named after its directory. Its title and the sentence describing it
 
 Opening a repository reads its catalog. The reading is a fetch of the repository, so it happens on request rather than in the background, and what was read is kept for as long as the instance runs.
 
-The line above the table names how many generators the repository publishes, the revision the catalog was read from with its author and date, and the moment it was read. The search beside it narrows the table by name, title and summary. **Refresh** reads the catalog again, which is how a generator added to the repository after the catalog was first read appears in the list.
+The line above the table names how many generators the repository publishes, the revision the catalog was read from with its author, and the moment it was read. The search beside it narrows the table by name, title and summary. **Refresh** reads the catalog again, which is how a generator added to the repository after the catalog was first read appears in the list.
 
 Selecting a generator opens what the repository states about it: its size and file count, the path it lives at with a link to it on GitHub or GitLab, the commit the catalog was read from, and the projects it is already installed as.
 
@@ -71,7 +71,7 @@ Selecting a generator opens what the repository states about it: its size and fi
 
 A generator the workspace already holds is marked **installed** and offers **Open** instead, which goes to the project it was installed as. Installing it a second time is a step deeper, in the card of the generator: **Install another copy** writes a separate project beside the first, under a free name, and leaves the one you have untouched. That is also how a generator the repository has changed is taken — the new version arrives as its own project, to be compared against the one in use rather than overwriting it.
 
-What the repository publishes is written into the workspace under the same rules as an [imported archive](/docs/studio/projects#moving-a-project-between-instances): only regular files are installed, so a symbolic link or a submodule the repository carries is left behind rather than followed, and the same size limits apply.
+What the repository publishes is written into the workspace under the same rules as an [imported archive](/docs/studio/projects#moving-a-project-between-instances): only regular files are installed, so a symbolic link or a submodule the repository carries is left behind rather than followed, and a generator holding more than 10 000 files or unpacking to more than 512 MiB is refused.
 
 The installed project is a copy like any other. It can be edited, renamed, run and exported, and a later change in the repository does not reach it — install it again under another name to compare.
 
@@ -79,7 +79,7 @@ The installed project is a copy like any other. It can be edited, renamed, run a
 
 An installed project carries a `.eventum-source.yml` file naming where it came from: the repository, the generator, the commit, and the content of that generator at that commit. The catalog reads it back, so a generator already in the workspace is recognized by its origin rather than by a name that happens to match — a project renamed afterwards is still recognized, and an unrelated project sharing a name is not mistaken for one.
 
-What the workspace already holds is marked beside the name of the generator: **installed**, or **update available** when the repository publishes it with content the installed project does not hold. The card names the projects it is installed as, each with whether it is still up to date and a link that opens it.
+What the workspace already holds is marked beside the name of the generator: **installed**, or **update available** when the repository publishes the generator with content different from what was installed. The mark follows the repository, not the project — editing an installed project never raises it. The card names the projects it is installed as, each with whether it is still up to date and a link that opens it.
 
 ```yaml title=".eventum-source.yml"
 repository: content-packs
@@ -108,4 +108,4 @@ The connected repositories are kept in a file of their own, `repositories.yml` n
   secret: internal_git_token
 ```
 
-The file can be written by hand as well; the list is read on every request, so an instance picks up an edit without a restart.
+The file can be written by hand as well; the list is read on every request, so an instance picks up an edit without a restart. Two things are worth knowing before editing it: connecting or disconnecting a repository from Studio rewrites the whole file, which does not preserve comments or the order of keys, and a file that no longer parses fails the whole Repositories page rather than being partly read.

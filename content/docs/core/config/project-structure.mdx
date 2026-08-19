@@ -36,7 +36,7 @@ When running Eventum as a full application with `eventum run`, the project root 
 |------|---------|
 | [`eventum.yml`](/docs/core/config/eventum-yml) | Main application config — server settings, default generation parameters, logging, and file paths. |
 | [`startup.yml`](/docs/core/config/startup-yml) | List of generators to load at startup, with per-generator overrides for execution parameters. |
-| `repositories.yml` | Repositories of ready-made generators the instance is [connected to](/docs/studio/repositories). Written when the first one is connected — an instance that connects none never has it. |
+| `repositories.yml` | Repositories of ready-made generators the instance is [connected to](/docs/studio/repositories). Written when the first one is connected — an instance that connects none never has it. Its location is `path.repositories`, defaulting to the directory of `startup.yml`. |
 | `generators/` | Directory containing generator subdirectories. Each subdirectory holds a self-contained generator. |
 | `logs/` | Application log files (path configurable in `eventum.yml`). |
 

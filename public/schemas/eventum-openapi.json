@@ -4525,7 +4525,10 @@
                         "description": "Repositories cannot be read or written"
                     },
                     "502": {
-                        "description": "Repository cannot be fetched or publishes no catalog"
+                        "description": "Repository cannot be reached, or does not publish a catalog that can be read"
+                    },
+                    "424": {
+                        "description": "Secret the repository authenticates with is missing in the keyring"
                     },
                     "409": {
                         "description": "Repository with this name, or the same repository at the same branch or tag, is already connected"
@@ -4581,6 +4584,9 @@
                     },
                     "404": {
                         "description": "Repository is not connected"
+                    },
+                    "424": {
+                        "description": "Secret the repository authenticates with is missing in the keyring"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -4673,7 +4679,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Catalog"
+                                    "$ref": "#/components/schemas/CatalogResponse"
                                 }
                             }
                         }
@@ -4685,7 +4691,7 @@
                         "description": "Repository is not connected"
                     },
                     "502": {
-                        "description": "Repository cannot be fetched or publishes no catalog"
+                        "description": "Repository cannot be reached, or does not publish a catalog that can be read"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -4728,7 +4734,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Catalog"
+                                    "$ref": "#/components/schemas/CatalogResponse"
                                 }
                             }
                         }
@@ -4740,7 +4746,10 @@
                         "description": "Repository is not connected"
                     },
                     "502": {
-                        "description": "Repository cannot be fetched or publishes no catalog"
+                        "description": "Repository cannot be reached, or does not publish a catalog that can be read"
+                    },
+                    "424": {
+                        "description": "Secret the repository authenticates with is missing in the keyring"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -4802,18 +4811,20 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Successful Response",
+                        "description": "Generator directory that was written",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "$ref": "#/components/schemas/InstalledGeneratorResponse"
+                                }
                             }
                         }
                     },
                     "500": {
                         "description": "Repositories cannot be read or written"
                     },
-                    "502": {
-                        "description": "Repository cannot be fetched or publishes no catalog"
+                    "424": {
+                        "description": "Secret the repository authenticates with is missing in the keyring"
                     },
                     "400": {
                         "description": "Requested directory name is not allowed"
@@ -4824,8 +4835,18 @@
                     "409": {
                         "description": "Directory already exists"
                     },
+                    "502": {
+                        "description": "Repository cannot be reached, or publishes a generator that holds no generator configuration or exceeds the size limits"
+                    },
                     "422": {
-                        "description": "Published generator holds no generator configuration or exceeds the size limits"
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -5359,62 +5380,17 @@
                 "title": "CSVSampleConfig",
                 "description": "Configuration of csv sample.\n\nAttributes\n----------\ntype : Literal[SampleType.CSV]\n    Discriminator field for sample configuration.\n\nheader : bool, default=False\n    Whether the provided csv sample includes header.\n\ndelimiter : str, default=','\n    Delimiter for csv values.\n\nquotechar : str, default='\"'\n    Character used to quote fields containing the delimiter\n    or newlines (RFC 4180).\n\nsource : Path\n    Path to csv file."
             },
-            "Catalog": {
-                "properties": {
-                    "revision": {
-                        "type": "string",
-                        "title": "Revision"
-                    },
-                    "refreshed_at": {
-                        "type": "string",
-                        "format": "date-time",
-                        "title": "Refreshed At"
-                    },
-                    "committed_at": {
-                        "type": "string",
-                        "format": "date-time",
-                        "title": "Committed At"
-                    },
-                    "author": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Author"
-                    },
-                    "entries": {
-                        "items": {
-                            "$ref": "#/components/schemas/CatalogEntry"
-                        },
-                        "type": "array",
-                        "title": "Entries"
-                    }
-                },
-                "additionalProperties": false,
-                "type": "object",
-                "required": [
-                    "revision",
-                    "refreshed_at",
-                    "committed_at",
-                    "author",
-                    "entries"
-                ],
-                "title": "Catalog",
-                "description": "Generators published by a connected repository.\n\nAttributes\n----------\nrevision : str\n    Commit hash the catalog was read from.\n\nrefreshed_at : datetime\n    Moment the catalog was read at.\n\ncommitted_at : datetime\n    Moment the commit the catalog was read from was authored at.\n\nauthor : str | None\n    Author of that commit.\n\nentries : list[CatalogEntry]\n    Published generators, ordered by name."
-            },
-            "CatalogEntry": {
+            "CatalogEntryResponse": {
                 "properties": {
                     "name": {
                         "type": "string",
-                        "title": "Name"
+                        "title": "Name",
+                        "description": "Name of the generator directory in the repository"
                     },
                     "path": {
                         "type": "string",
-                        "title": "Path"
+                        "title": "Path",
+                        "description": "Path of the generator directory inside the repository"
                     },
                     "title": {
                         "anyOf": [
@@ -5425,7 +5401,8 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Title"
+                        "title": "Title",
+                        "description": "Title taken from the readme of the generator"
                     },
                     "summary": {
                         "anyOf": [
@@ -5436,19 +5413,18 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Summary"
+                        "title": "Summary",
+                        "description": "Summary taken from the readme of the generator"
                     },
                     "file_count": {
                         "type": "integer",
-                        "title": "File Count"
+                        "title": "File Count",
+                        "description": "Number of files the generator consists of"
                     },
                     "size": {
                         "type": "integer",
-                        "title": "Size"
-                    },
-                    "tree": {
-                        "type": "string",
-                        "title": "Tree"
+                        "title": "Size",
+                        "description": "Total size of the generator files in bytes"
                     },
                     "installed_as": {
                         "items": {
@@ -5456,7 +5432,7 @@
                         },
                         "type": "array",
                         "title": "Installed As",
-                        "default": []
+                        "description": "Projects of the workspace this generator is installed as"
                     }
                 },
                 "additionalProperties": false,
@@ -5468,10 +5444,62 @@
                     "summary",
                     "file_count",
                     "size",
-                    "tree"
+                    "installed_as"
                 ],
-                "title": "CatalogEntry",
-                "description": "Generator published by a connected repository.\n\nAttributes\n----------\nname : str\n    Name of the generator directory in the repository.\n\npath : str\n    Path of the generator directory inside the repository.\n\ntitle : str | None\n    Title of the generator, taken from the heading of its readme.\n\nsummary : str | None\n    Summary of the generator, taken from the first paragraph of\n    its readme.\n\nfile_count : int\n    Number of files the generator consists of.\n\nsize : int\n    Total size of the generator files in bytes.\n\ntree : str\n    Content hash of the generator directory, which changes exactly\n    when what the generator consists of changes.\n\ninstalled_as : tuple[InstalledProject, ...], default=()\n    Projects of the workspace this generator is installed as."
+                "title": "CatalogEntryResponse",
+                "description": "Generator published by a connected repository."
+            },
+            "CatalogResponse": {
+                "properties": {
+                    "revision": {
+                        "type": "string",
+                        "title": "Revision",
+                        "description": "Commit hash the catalog was read from"
+                    },
+                    "refreshed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Refreshed At",
+                        "description": "Moment the catalog was read at"
+                    },
+                    "committed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Committed At",
+                        "description": "Moment that commit was authored at"
+                    },
+                    "author": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Author",
+                        "description": "Author of that commit"
+                    },
+                    "entries": {
+                        "items": {
+                            "$ref": "#/components/schemas/CatalogEntryResponse"
+                        },
+                        "type": "array",
+                        "title": "Entries",
+                        "description": "Published generators, ordered by name"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "revision",
+                    "refreshed_at",
+                    "committed_at",
+                    "author",
+                    "entries"
+                ],
+                "title": "CatalogResponse",
+                "description": "Generators published by a connected repository."
             },
             "ClickhouseOutputPluginConfig-Input": {
                 "properties": {
@@ -8311,6 +8339,28 @@
                 "title": "InstallGeneratorRequest",
                 "description": "Request of installing a published generator.\n\nAttributes\n----------\nname : str\n    Name of the generator directory to install into."
             },
+            "InstalledGeneratorResponse": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name",
+                        "description": "Name of the generator directory that was written"
+                    },
+                    "file_count": {
+                        "type": "integer",
+                        "title": "File Count",
+                        "description": "Number of files it holds"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "name",
+                    "file_count"
+                ],
+                "title": "InstalledGeneratorResponse",
+                "description": "Project a published generator was installed as.\n\nAttributes\n----------\nname : str\n    Name of the generator directory that was written.\n\nfile_count : int\n    Number of files it holds."
+            },
             "InstalledProject": {
                 "properties": {
                     "project": {
@@ -8340,7 +8390,7 @@
                     "outdated"
                 ],
                 "title": "InstalledProject",
-                "description": "Project a published generator is installed as.\n\nAttributes\n----------\nproject : str\n    Name of the project directory.\n\nrevision : str\n    Commit the project was installed from.\n\ninstalled_at : datetime\n    Moment of the installation.\n\noutdated : bool\n    Whether the repository publishes the generator with content\n    different from what the project holds."
+                "description": "Project a published generator is installed as.\n\nAttributes\n----------\nproject : str\n    Name of the project directory.\n\nrevision : str\n    Commit the project was installed from.\n\ninstalled_at : datetime\n    Moment of the installation.\n\noutdated : bool\n    Whether the repository publishes the generator with content\n    different from what was installed. It says nothing about\n    changes made to the project since."
             },
             "InstanceInfo": {
                 "properties": {
