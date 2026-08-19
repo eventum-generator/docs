@@ -95,7 +95,7 @@ The configuration file for a single generator. Defines the input plugin(s), even
 
 #### Globals
 
-A state scope shared across all generators in the application. Accessible as `globals` in templates. Thread-safe — reads and writes are synchronized. Useful for cross-generator coordination. See [Producing events — State](/docs/core/concepts/producing#state-management).
+A state scope shared across all generators in the application. Accessible as `globals` in templates and in the `produce` function of the `script` plugin. Thread-safe — reads and writes are synchronized. Useful for cross-generator coordination. See [Producing events — State](/docs/core/concepts/producing#state-management).
 
 ## H
 

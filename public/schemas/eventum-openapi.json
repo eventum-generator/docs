@@ -1619,7 +1619,7 @@
                             "schema": {
                                 "type": "array",
                                 "items": {
-                                    "$ref": "#/components/schemas/ProduceParams"
+                                    "$ref": "#/components/schemas/ProduceParamsRequest"
                                 },
                                 "description": "List of timestamps and input plugins tags to use for producing events",
                                 "title": "Params List"
@@ -2174,14 +2174,14 @@
                 }
             }
         },
-        "/preview/{name}/event-plugin/template/state/global": {
+        "/preview/{name}/event-plugin/state/global": {
             "get": {
                 "tags": [
                     "Preview"
                 ],
-                "summary": "Get Template Event Plugin Global State",
-                "description": "Get global state of template event plugin",
-                "operationId": "get_template_event_plugin_global_state_preview__name__event_plugin_template_state_global_get",
+                "summary": "Get Event Plugin Global State",
+                "description": "Get global state shared across all event plugins",
+                "operationId": "get_event_plugin_global_state_preview__name__event_plugin_state_global_get",
                 "parameters": [
                     {
                         "name": "name",
@@ -2203,7 +2203,7 @@
                                 "schema": {
                                     "type": "object",
                                     "additionalProperties": true,
-                                    "title": "Response Get Template Event Plugin Global State Preview  Name  Event Plugin Template State Global Get"
+                                    "title": "Response Get Event Plugin Global State Preview  Name  Event Plugin State Global Get"
                                 }
                             }
                         }
@@ -2215,7 +2215,7 @@
                         "description": "Generator configuration does not exist"
                     },
                     "400": {
-                        "description": "Event plugin was not previously initialized\n\nCurrently used plugin is inappropriate for this operation;"
+                        "description": "Event plugin was not previously initialized"
                     },
                     "500": {
                         "description": "Failed to serialize plugin state"
@@ -2236,9 +2236,9 @@
                 "tags": [
                     "Preview"
                 ],
-                "summary": "Update Template Event Plugin Global State",
-                "description": "Patch global state of template event plugin",
-                "operationId": "update_template_event_plugin_global_state_preview__name__event_plugin_template_state_global_patch",
+                "summary": "Update Event Plugin Global State",
+                "description": "Patch global state shared across all event plugins",
+                "operationId": "update_event_plugin_global_state_preview__name__event_plugin_state_global_patch",
                 "parameters": [
                     {
                         "name": "name",
@@ -2281,7 +2281,7 @@
                         "description": "Generator configuration does not exist"
                     },
                     "400": {
-                        "description": "Event plugin was not previously initialized\n\nCurrently used plugin is inappropriate for this operation;"
+                        "description": "Event plugin was not previously initialized"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -2299,9 +2299,9 @@
                 "tags": [
                     "Preview"
                 ],
-                "summary": "Clear Template Event Plugin Global State",
-                "description": "Clear global state of template event plugin",
-                "operationId": "clear_template_event_plugin_global_state_preview__name__event_plugin_template_state_global_delete",
+                "summary": "Clear Event Plugin Global State",
+                "description": "Clear global state shared across all event plugins",
+                "operationId": "clear_event_plugin_global_state_preview__name__event_plugin_state_global_delete",
                 "parameters": [
                     {
                         "name": "name",
@@ -2331,7 +2331,7 @@
                         "description": "Generator configuration does not exist"
                     },
                     "400": {
-                        "description": "Event plugin was not previously initialized\n\nCurrently used plugin is inappropriate for this operation;"
+                        "description": "Event plugin was not previously initialized"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -2346,14 +2346,14 @@
                 }
             }
         },
-        "/preview/{name}/event-plugin/template/state/global/{key}": {
+        "/preview/{name}/event-plugin/state/global/{key}": {
             "delete": {
                 "tags": [
                     "Preview"
                 ],
-                "summary": "Delete Template Event Plugin Global State Key",
-                "description": "Delete a key from global state of template event plugin",
-                "operationId": "delete_template_event_plugin_global_state_key_preview__name__event_plugin_template_state_global__key__delete",
+                "summary": "Delete Event Plugin Global State Key",
+                "description": "Delete a key from global state shared across all event plugins",
+                "operationId": "delete_event_plugin_global_state_key_preview__name__event_plugin_state_global__key__delete",
                 "parameters": [
                     {
                         "name": "key",
@@ -2394,7 +2394,7 @@
                         "description": "Generator configuration does not exist"
                     },
                     "400": {
-                        "description": "Event plugin was not previously initialized\n\nCurrently used plugin is inappropriate for this operation;"
+                        "description": "Event plugin was not previously initialized"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -3820,7 +3820,7 @@
                     "Scenarios"
                 ],
                 "summary": "Get globals usage for a generator in a scenario",
-                "description": "Detect globals.set/get usage in Jinja2 templates via AST analysis.",
+                "description": "Detect globals usage in Jinja2 templates and Python scripts via AST analysis.",
                 "operationId": "get_generator_globals_usage_scenarios__name__generators__generator_name__globals_usage_get",
                 "parameters": [
                     {
@@ -4002,7 +4002,7 @@
                     "Scenarios"
                 ],
                 "summary": "Get Scenario Global State",
-                "description": "Get global state shared across all template event plugins",
+                "description": "Get global state shared across all event plugins",
                 "operationId": "get_scenario_global_state_scenarios__name__globals_get",
                 "parameters": [
                     {
@@ -4054,7 +4054,7 @@
                     "Scenarios"
                 ],
                 "summary": "Update Scenario Global State",
-                "description": "Update global state shared across all template event plugins",
+                "description": "Update global state shared across all event plugins",
                 "operationId": "update_scenario_global_state_scenarios__name__globals_patch",
                 "parameters": [
                     {
@@ -4112,7 +4112,7 @@
                     "Scenarios"
                 ],
                 "summary": "Clear Scenario Global State",
-                "description": "Clear global state shared across all template event plugins",
+                "description": "Clear global state shared across all event plugins",
                 "operationId": "clear_scenario_global_state_scenarios__name__globals_delete",
                 "parameters": [
                     {
@@ -7035,18 +7035,18 @@
                         "type": "string",
                         "title": "Key"
                     },
-                    "template": {
+                    "path": {
                         "type": "string",
-                        "title": "Template"
+                        "title": "Path"
                     }
                 },
                 "type": "object",
                 "required": [
                     "key",
-                    "template"
+                    "path"
                 ],
                 "title": "GlobalsReferenceResponse",
-                "description": "A single reference to globals in a template."
+                "description": "A single reference to globals in a generator file."
             },
             "GlobalsUsageResponse": {
                 "properties": {
@@ -7079,7 +7079,7 @@
                     "warnings"
                 ],
                 "title": "GlobalsUsageResponse",
-                "description": "Detected globals usage across all templates in a generator."
+                "description": "Detected globals usage across all files of a generator."
             },
             "GlobalsWarningResponse": {
                 "properties": {
@@ -7087,15 +7087,15 @@
                         "type": "string",
                         "title": "Type"
                     },
-                    "template": {
+                    "path": {
                         "type": "string",
-                        "title": "Template"
+                        "title": "Path"
                     }
                 },
                 "type": "object",
                 "required": [
                     "type",
-                    "template"
+                    "path"
                 ],
                 "title": "GlobalsWarningResponse",
                 "description": "A warning about globals usage that cannot be fully detected."
@@ -9592,7 +9592,7 @@
                 "title": "ProduceEventErrorInfo",
                 "description": "Information about errors related to events producing.\n\nAttributes\n----------\nindex : int\n    Index of params object from params list used to produce events\n    for which producing is failed.\n\nmessage : str\n    Error message.\n\ncontext : dict[str, Any]\n    Error context."
             },
-            "ProduceParams": {
+            "ProduceParamsRequest": {
                 "properties": {
                     "timestamp": {
                         "type": "string",
@@ -9607,13 +9607,14 @@
                         "title": "Tags"
                     }
                 },
+                "additionalProperties": false,
                 "type": "object",
                 "required": [
                     "timestamp",
                     "tags"
                 ],
-                "title": "ProduceParams",
-                "description": "Params for `produce` method of `EventPlugin`.\n\nAttributes\n----------\ntimestamp : str\n    Timestamp of event.\n\ntags : tuple[str, ...]\n    Tags from input plugin that generated timestamp."
+                "title": "ProduceParamsRequest",
+                "description": "Request model with parameters of producing a single event.\n\nAttributes\n----------\ntimestamp : datetime\n    Timestamp of event.\n\ntags : tuple[str, ...]\n    Tags of the input plugin that generated the timestamp."
             },
             "ProducedEventsInfo": {
                 "properties": {

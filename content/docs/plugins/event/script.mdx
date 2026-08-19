@@ -15,7 +15,7 @@ For most use cases, the [template](/docs/plugins/event/template) plugin is simpl
 
 ## Function signature
 
-The script must define a `produce` function. It receives a dictionary with the current timestamp and tags and returns one or more event strings:
+The script must define a `produce` function. It receives a dictionary with the current timestamp, tags and global state, and returns one or more event strings:
 
 ```python title="scripts/produce.py"
 from datetime import datetime
@@ -34,6 +34,7 @@ The `params` dictionary contains:
 |-----|------|-------------|
 | `timestamp` | `datetime` | Timezone-aware datetime of the current event. |
 | `tags` | `tuple[str, ...]` | Tags attached by the input plugin. |
+| `globals` | `MultiThreadState` | [Global state](/docs/plugins/event/template/state) shared with every generator in the application. |
 
 **Return type:** a single `str` (treated as one event) or a `list[str]` (each element is a separate event). An empty list means no events are produced for this timestamp.
 
@@ -226,6 +227,51 @@ Over time, sessions overlap and interact:
 {"timestamp": "...", "event": "page_view", "session_id": "a1b2...", "user": "user_1", "page": "/cart", "total_views": 3}
 {"timestamp": "...", "event": "page_view", "session_id": "c3d4...", "user": "user_2", "page": "/home", "total_views": 1}
 ```
+
+### Correlating with other generators through global state
+
+Module-level variables live inside one generator. To coordinate with other generators — a payment stream consuming the orders a storefront generator emits, for example — use the `globals` state, which every generator in the application shares. The same state is available to templates, so a script and a template can exchange keys.
+
+```python title="scripts/payments.py"
+import json
+import random
+from datetime import datetime
+
+METHODS = ['card', 'wallet', 'transfer']
+
+
+def produce(params: dict) -> str | list[str]:
+    ts: datetime = params['timestamp']
+    state = params['globals']
+
+    # orders published by the storefront generator
+    orders = state.get('recent_orders', [])
+    if not orders:
+        return []
+
+    # count payments across generators without losing an increment
+    state.acquire()
+    try:
+        sequence = state.get('payment_sequence', 0) + 1
+        state.set('payment_sequence', sequence)
+    finally:
+        state.release()
+
+    return json.dumps({
+        'timestamp': ts.isoformat(),
+        'event': 'payment',
+        'sequence': sequence,
+        'order_id': random.choice(orders),
+        'method': random.choice(METHODS),
+        'amount': round(random.uniform(5, 500), 2),
+    })
+```
+
+Individual operations (`get`, `set`, `pop`) are already thread-safe. `acquire()` and `release()` are needed only when several operations must run as one, as above. A hold left behind — including one left by a call that raised before reaching `release()` — is released once the event is over, so it cannot block other generators.
+
+<Callout type="info">
+The keys a script reads and writes appear in the data flow diagram of [Scenarios](/docs/studio/scenarios), next to those of the templates, as long as they are written as literals — a key built at runtime is reported as a caveat instead. The values themselves are in the global state panel of a scenario the generator belongs to.
+</Callout>
 
 ### Distributed tracing — correlated microservice spans
 

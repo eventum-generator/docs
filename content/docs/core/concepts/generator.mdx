@@ -185,7 +185,7 @@ These parameters are set either via CLI flags (`eventum generate --batch.size 50
 
 ## Running multiple generators
 
-When you need more than one generator — different event types, different schedules, different destinations — use `eventum run` to launch the full application. Each generator runs in its own thread with independent pipelines, queues, and plugins. They don't share state unless you explicitly use the `globals` variable in templates.
+When you need more than one generator — different event types, different schedules, different destinations — use `eventum run` to launch the full application. Each generator runs in its own thread with independent pipelines, queues, and plugins. They don't share state unless you explicitly use the [`globals`](/docs/plugins/event/template/state) state, available to templates and scripts alike.
 
 The [startup config](/docs/core/config/files/startup-yml) lists all generators and lets you override parameters per generator:
 
