@@ -11,6 +11,8 @@ Templates can store and retrieve values that persist across renders. State is or
 | Shared | `shared` | All templates in one generator | Single-threaded | Cross-template coordination, session tracking |
 | Global | `globals` | All generators in the application | Thread-safe (RLock) | Global counters, inter-generator data |
 
+`locals` and `shared` belong to templates. `globals` does not: it is the state of the whole event stage, and the [script](/docs/plugins/event/script) plugin receives the same object in its `produce` function, so a template and a script coordinate through the same keys.
+
 ### State API
 
 All three scopes provide the same methods:
@@ -31,16 +33,20 @@ The `globals` scope has three additional methods for manual locking:
 |--------|-------------|
 | `acquire()` | Acquire the state lock. |
 | `release()` | Release the state lock. |
-| `release_if_held()` | Release every hold this template has on the state lock, and return how many were released. |
+| `release_if_held()` | Release every hold the calling thread has on the state lock, and return how many were released. |
 
 <Callout type="warn">
 Individual `globals` operations (`get`, `set`, etc.) are already thread-safe. Use `acquire()` / `release()` only when you need multiple operations to execute atomically — for example, reading a counter and incrementing it without another generator modifying it in between.
 </Callout>
 
-The lock is never held between events: a hold left behind — including one left by a render that failed before reaching `release()` — is released once the event is over, so it cannot block other generators.
+The lock is never held between events: a hold left behind — including one left by a render that failed before reaching `release()` — is released once the event is over, so it cannot block other generators. The same holds for every plugin that takes the lock, not only templates.
 
 <Callout type="info">
 Use [Scenarios](/docs/studio/scenarios) in Eventum Studio to visualize which generators read and write global state keys, and to manage global state values at runtime.
+</Callout>
+
+<Callout type="warn">
+Previewing events — in Studio, over the API or through MCP — runs against this same state, so a preview that writes a key changes what running generators read. Values written by a preview persist until they are overwritten or cleared.
 </Callout>
 
 ### Examples

@@ -63,7 +63,7 @@ The header carries the aggregate status of the group with the **Start all** and 
 
 ### Data flow
 
-The diagram maps the global state the instances exchange: which generator writes a key, and which ones read it. It is present once any generator in the scenario calls `globals.set()` or `globals.get()`.
+The diagram maps the global state the instances exchange: which generator writes a key, and which ones read it. It is present once any generator in the scenario calls `globals.set()` or `globals.get()` in a template. Keys a `script` plugin reads or writes are not mapped, though their values appear in the global state panel.
 
 Hovering an instance or a key dims everything it does not touch, which keeps a key written by one generator and read by three others legible.
 
