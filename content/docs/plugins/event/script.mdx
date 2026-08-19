@@ -270,7 +270,7 @@ def produce(params: dict) -> str | list[str]:
 Individual operations (`get`, `set`, `pop`) are already thread-safe. `acquire()` and `release()` are needed only when several operations must run as one, as above. A hold left behind — including one left by a call that raised before reaching `release()` — is released once the event is over, so it cannot block other generators.
 
 <Callout type="info">
-Global state written by a script is not shown in the data flow diagram of [Scenarios](/docs/studio/scenarios), which is built from templates. The values themselves appear in the global state panel of a scenario the generator belongs to.
+The keys a script reads and writes appear in the data flow diagram of [Scenarios](/docs/studio/scenarios), next to those of the templates, as long as they are written as literals — a key built at runtime is reported as a caveat instead. The values themselves are in the global state panel of a scenario the generator belongs to.
 </Callout>
 
 ### Distributed tracing — correlated microservice spans

@@ -63,7 +63,7 @@ The header carries the aggregate status of the group with the **Start all** and 
 
 ### Data flow
 
-The diagram maps the global state the instances exchange: which generator writes a key, and which ones read it. It is present once any generator in the scenario calls `globals.set()` or `globals.get()` in a template. Keys a `script` plugin reads or writes are not mapped, though their values appear in the global state panel.
+The diagram maps the global state the instances exchange: which generator writes a key, and which ones read it. It is present once any generator in the scenario reads or writes a key — from a Jinja template or from the script of a `script` event plugin, both of which are analysed the same way.
 
 Hovering an instance or a key dims everything it does not touch, which keeps a key written by one generator and read by three others legible.
 
@@ -77,9 +77,9 @@ Each instance is a card with the actions the Instances page offers for it, plus 
   alt="An expanded instance card on a scenario page"
 />
 
-A card for a generator that uses global state expands into its templates and, for each of them, the keys it writes and the keys it reads. Hovering an entry highlights the matching edge in the diagram above.
+A card for a generator that uses global state expands into its templates and scripts and, for each file, the keys it writes and the keys it reads. Hovering an entry highlights the matching edge in the diagram above.
 
-Opening a template name shows its source read-only, inside the card, at the place where `globals.set()` and `globals.get()` are called.
+Opening a file name shows its source read-only, inside the card, at the place where the state is read and written.
 
 <Screenshot
   lightSrc="/images/studio_ui/scenario_template_light.png"
