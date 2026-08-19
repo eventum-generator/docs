@@ -4451,6 +4451,315 @@
                     }
                 }
             }
+        },
+        "/repositories/": {
+            "get": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "List Repositories",
+                "description": "List connected generator repositories.",
+                "operationId": "list_repositories_repositories__get",
+                "responses": {
+                    "200": {
+                        "description": "Connected repositories",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/Repository"
+                                    },
+                                    "type": "array",
+                                    "title": "Response List Repositories Repositories  Get"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Add Repository",
+                "description": "Connect a generator repository. The catalog it publishes is read on the first request for it.",
+                "operationId": "add_repository_repositories__post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Repository",
+                                "description": "Repository to connect"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "409": {
+                        "description": "Repository with this name is connected"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/repositories/{name}": {
+            "delete": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Remove Repository",
+                "description": "Disconnect the repository with specified name. Generators installed from it are left in place.",
+                "operationId": "remove_repository_repositories__name__delete",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Name of the connected repository",
+                            "title": "Name"
+                        },
+                        "description": "Name of the connected repository"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "404": {
+                        "description": "Repository is not connected"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/repositories/{name}/catalog": {
+            "get": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Get Catalog",
+                "description": "Get the catalog of generators published by the repository with specified name. The repository is fetched when it has not been fetched yet.",
+                "operationId": "get_catalog_repositories__name__catalog_get",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Name of the connected repository",
+                            "title": "Name"
+                        },
+                        "description": "Name of the connected repository"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Catalog of the repository",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Catalog"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "404": {
+                        "description": "Repository is not connected"
+                    },
+                    "502": {
+                        "description": "Repository cannot be fetched or publishes no catalog"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/repositories/{name}/refresh": {
+            "post": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Refresh Catalog",
+                "description": "Fetch the repository with specified name and read its catalog anew.",
+                "operationId": "refresh_catalog_repositories__name__refresh_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Name of the connected repository",
+                            "title": "Name"
+                        },
+                        "description": "Name of the connected repository"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Catalog of the repository",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Catalog"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "404": {
+                        "description": "Repository is not connected"
+                    },
+                    "502": {
+                        "description": "Repository cannot be fetched or publishes no catalog"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/repositories/{name}/catalog/{entry}/install": {
+            "post": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Install Generator",
+                "description": "Install the published generator with specified name as a generator directory of the workspace.",
+                "operationId": "install_generator_repositories__name__catalog__entry__install_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Name of the connected repository",
+                            "title": "Name"
+                        },
+                        "description": "Name of the connected repository"
+                    },
+                    {
+                        "name": "entry",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Name of the published generator",
+                            "title": "Entry"
+                        },
+                        "description": "Name of the published generator"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/InstallGeneratorRequest",
+                                "description": "Generator directory to install into"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "502": {
+                        "description": "Repository cannot be fetched or publishes no catalog"
+                    },
+                    "400": {
+                        "description": "Requested directory name is not allowed"
+                    },
+                    "404": {
+                        "description": "Repository is not connected or publishes no such generator"
+                    },
+                    "409": {
+                        "description": "Directory already exists"
+                    },
+                    "422": {
+                        "description": "Published generator holds no generator configuration or exceeds the size limits"
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -4980,6 +5289,84 @@
                 ],
                 "title": "CSVSampleConfig",
                 "description": "Configuration of csv sample.\n\nAttributes\n----------\ntype : Literal[SampleType.CSV]\n    Discriminator field for sample configuration.\n\nheader : bool, default=False\n    Whether the provided csv sample includes header.\n\ndelimiter : str, default=','\n    Delimiter for csv values.\n\nquotechar : str, default='\"'\n    Character used to quote fields containing the delimiter\n    or newlines (RFC 4180).\n\nsource : Path\n    Path to csv file."
+            },
+            "Catalog": {
+                "properties": {
+                    "revision": {
+                        "type": "string",
+                        "title": "Revision"
+                    },
+                    "refreshed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Refreshed At"
+                    },
+                    "entries": {
+                        "items": {
+                            "$ref": "#/components/schemas/CatalogEntry"
+                        },
+                        "type": "array",
+                        "title": "Entries"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "revision",
+                    "refreshed_at",
+                    "entries"
+                ],
+                "title": "Catalog",
+                "description": "Generators published by a connected repository.\n\nAttributes\n----------\nrevision : str\n    Commit hash the catalog was read from.\n\nrefreshed_at : datetime\n    Moment the catalog was read at.\n\nentries : list[CatalogEntry]\n    Published generators, ordered by name."
+            },
+            "CatalogEntry": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "title": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Title"
+                    },
+                    "summary": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Summary"
+                    },
+                    "file_count": {
+                        "type": "integer",
+                        "title": "File Count"
+                    },
+                    "size": {
+                        "type": "integer",
+                        "title": "Size"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "name",
+                    "title",
+                    "summary",
+                    "file_count",
+                    "size"
+                ],
+                "title": "CatalogEntry",
+                "description": "Generator published by a connected repository.\n\nAttributes\n----------\nname : str\n    Name of the generator directory in the repository.\n\ntitle : str | None\n    Title of the generator, taken from the heading of its readme.\n\nsummary : str | None\n    Summary of the generator, taken from the first paragraph of\n    its readme.\n\nfile_count : int\n    Number of files the generator consists of.\n\nsize : int\n    Total size of the generator files in bytes."
             },
             "ClickhouseOutputPluginConfig-Input": {
                 "properties": {
@@ -7732,6 +8119,24 @@
                 "title": "InputPluginStats",
                 "description": "Input plugin statistics."
             },
+            "InstallGeneratorRequest": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 1,
+                        "title": "Name",
+                        "description": "Name of the generator directory to install into"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "title": "InstallGeneratorRequest",
+                "description": "Request of installing a published generator.\n\nAttributes\n----------\nname : str\n    Name of the generator directory to install into."
+            },
             "InstanceInfo": {
                 "properties": {
                     "app_version": {
@@ -9547,6 +9952,18 @@
                         "format": "path",
                         "title": "Keyring Cryptfile"
                     },
+                    "repositories": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "path"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Repositories"
+                    },
                     "generator_config_filename": {
                         "type": "string",
                         "format": "path",
@@ -9563,7 +9980,7 @@
                     "keyring_cryptfile"
                 ],
                 "title": "PathParameters",
-                "description": "Path parameters.\n\nAttributes\n----------\nlogs : Path\n    Absolute path to logs directory.\n\nstartup : Path\n    Absolute path to file with list of generators to run at startup.\n\ngenerators_dir : Path\n    Absolute path to directory with generators configuration files.\n\nkeyring_cryptfile : Path\n    Absolute path to keyring encrypted file with stored secrets\n\ngenerator_config_filename : Path, default='generator.yml'\n    Filename for generator configurations. This parameter is used\n    by the API for detection directories with generator\n    configurations. Directory with generator configuration named\n    other than this parameter value will not be operable using API\n    endpoints."
+                "description": "Path parameters.\n\nAttributes\n----------\nlogs : Path\n    Absolute path to logs directory.\n\nstartup : Path\n    Absolute path to file with list of generators to run at startup.\n\ngenerators_dir : Path\n    Absolute path to directory with generators configuration files.\n\nkeyring_cryptfile : Path\n    Absolute path to keyring encrypted file with stored secrets\n\nrepositories : Path | None, default=None\n    Absolute path to file with list of connected generator\n    repositories. When not provided, the file named\n    \"repositories.yml\" next to the startup file is used.\n\ngenerator_config_filename : Path, default='generator.yml'\n    Filename for generator configurations. This parameter is used\n    by the API for detection directories with generator\n    configurations. Directory with generator configuration named\n    other than this parameter value will not be operable using API\n    endpoints."
             },
             "ProduceEventErrorInfo": {
                 "properties": {
@@ -9989,6 +10406,71 @@
                     "path"
                 ],
                 "title": "ReplayEventPluginConfig"
+            },
+            "Repository": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "pattern": "^[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?$",
+                        "title": "Name"
+                    },
+                    "url": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "minLength": 1,
+                        "title": "Url"
+                    },
+                    "ref": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._/-]*$"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Ref"
+                    },
+                    "username": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 255,
+                                "minLength": 1
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Username"
+                    },
+                    "secret": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 255,
+                                "minLength": 1
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Secret"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "name",
+                    "url"
+                ],
+                "title": "Repository",
+                "description": "Connected generator repository.\n\nAttributes\n----------\nname : str\n    Name the repository is referred to by, unique across the\n    connected ones.\n\nurl : str\n    URL the repository is fetched from.\n\nref : str | None, default=None\n    Branch or tag to fetch. The default branch of the repository\n    is fetched when not provided.\n\nusername : str | None, default=None\n    User name to authenticate with.\n\nsecret : str | None, default=None\n    Name of the keyring secret holding the password or access\n    token to authenticate with."
             },
             "ResourcesStats": {
                 "properties": {

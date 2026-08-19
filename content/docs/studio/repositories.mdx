@@ -1,0 +1,85 @@
+---
+title: Repositories
+description: Connect a git repository of ready-made generators, browse what it publishes, and install a generator into the workspace as a project.
+---
+
+A **connected repository** is a git repository that publishes ready-made generators. Studio reads the catalog it offers and installs any entry of that catalog as a [project](/docs/studio/projects) under `path.generators_dir` — without cloning the repository by hand and pointing the CLI at a path inside it.
+
+The repository Eventum publishes is [content-packs](https://github.com/eventum-generator/content-packs), the source of the generators listed in the [Hub](/hub). Any repository laid out the same way works the same.
+
+<Screenshot
+  lightSrc="/images/studio_ui/repositories_light.png"
+  darkSrc="/images/studio_ui/repositories_dark.png"
+  alt="Repositories page in Eventum Studio"
+/>
+
+## Connecting a repository
+
+**Connect** asks for the address of the repository and, for a private one, the credentials to reach it.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Name** | Yes | The name the repository is listed under. Letters, digits, `-`, `_` and `.`. |
+| **URL** | Yes | The address the repository is fetched from. Only `http://` and `https://` are accepted. |
+| **Branch or tag** | No | What to fetch. The default branch of the repository when left empty. |
+| **User name** | No | The user name of a private repository. |
+| **Secret** | No | The [secret](/docs/core/config/secrets) holding the password or access token of a private repository. |
+
+The password itself is never part of the connection: the **Secret** field names a secret in the keyring, and its value is read only for the duration of a fetch. For the same reason a URL carrying credentials — `https://user:token@host/repo.git` — is rejected; give the two parts separately.
+
+<Callout type="info">
+Add the access token to the keyring before connecting the repository, either on the [Secrets](/docs/core/config/secrets) page or with `eventum-keyring set`. GitHub and GitLab both accept a personal access token in place of a password.
+</Callout>
+
+**Disconnect** removes a repository from the list. Generators already installed from it stay in the workspace — an installed project is a copy, with no link back to where it came from.
+
+## What a repository publishes
+
+A repository publishes its generators from a `generators` directory at its root. Every subdirectory holding a generator configuration is one catalog entry; a subdirectory without one is ignored, so documentation and tooling can live alongside.
+
+```text
+content-packs/
+├── generators/
+│   ├── web-nginx/
+│   │   ├── generator.yml
+│   │   ├── README.md
+│   │   ├── templates/
+│   │   └── samples/
+│   └── linux-auditd/
+│       ├── generator.yml
+│       └── ...
+└── README.md
+```
+
+The entry is named after its directory. Its title and the sentence describing it come from the `README.md` of the generator — the first heading and the paragraph under it — and its size is the size of the files it consists of.
+
+## Reading the catalog
+
+Opening a repository reads its catalog. The reading is a fetch of the repository, so it happens on request rather than in the background, and what was read is kept for as long as the instance runs.
+
+The line above the table names the revision the catalog was read from and the moment it was read. **Refresh** reads it again, which is how a generator added to the repository after the catalog was first read appears in the list.
+
+## Installing a generator
+
+**Install** asks for the name of the project to install into and writes the generator there. The name is proposed from the entry and can be changed; a name already taken is reported before anything is written, and an existing project is never overwritten.
+
+What the repository publishes is written into the workspace under the same rules as an [imported archive](/docs/studio/projects#moving-a-project-between-instances): only regular files are installed, so a symbolic link or a submodule the repository carries is left behind rather than followed, and the same size limits apply.
+
+The installed project is a copy like any other. It can be edited, renamed, run and exported, and a later change in the repository does not reach it — install it again under another name to compare.
+
+## Where the list is kept
+
+The connected repositories are kept in a file of their own, `repositories.yml` next to the [startup file](/docs/core/config/startup-yml) unless `path.repositories` in [eventum.yml](/docs/core/config/eventum-yml#path) names another location:
+
+```yaml title="repositories.yml"
+- name: content-packs
+  url: https://github.com/eventum-generator/content-packs.git
+
+- name: internal
+  url: https://git.example.com/platform/generators.git
+  ref: stable
+  username: eventum
+  secret: internal_git_token
+```
+
+The file can be written by hand as well; the list is read on every request, so an instance picks up an edit without a restart.

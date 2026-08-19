@@ -1,5 +1,5 @@
 {
   "root": true,
   "icon": "AppWindow",
-  "pages": ["index", "overview", "monitoring", "projects", "instances", "scenarios", "settings"]
+  "pages": ["index", "overview", "monitoring", "projects", "instances", "scenarios", "repositories", "settings"]
 }

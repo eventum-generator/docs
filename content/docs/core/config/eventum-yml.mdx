@@ -122,6 +122,7 @@ File system paths used by the application. All paths must be **absolute**.
 | `path.startup` | path | — | Required. Must be an absolute path. | Path to the [startup.yml](/docs/core/config/startup-yml) file. |
 | `path.generators_dir` | path | — | Required. Must be an absolute path. | Directory containing generator subdirectories. Generator paths in `startup.yml` are resolved relative to this directory. |
 | `path.keyring_cryptfile` | path | — | Required. Must be an absolute path. | Path to the encrypted keyring file used for [secrets](/docs/core/config/secrets). |
+| `path.repositories` | path | `null` | Must be an absolute path when set. | Path to the file listing the [connected repositories](/docs/studio/repositories). Defaults to `repositories.yml` next to `path.startup`. |
 | `path.generator_config_filename` | path | `"generator.yml"` | Single filename. Must end with `.yml` or `.yaml`. | The expected config filename inside each generator directory. Used by the API to auto-detect valid generator directories. |
 
 ```yaml
