@@ -4451,6 +4451,481 @@
                     }
                 }
             }
+        },
+        "/repositories/": {
+            "get": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "List Repositories",
+                "description": "List connected generator repositories, each with the result of the last check made in this process.",
+                "operationId": "list_repositories_repositories__get",
+                "responses": {
+                    "200": {
+                        "description": "Connected repositories",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ConnectedRepository"
+                                    },
+                                    "title": "Response List Repositories Repositories  Get"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Add Repository",
+                "description": "Connect a generator repository. The repository is checked before it is connected, and the catalog it publishes is read on the first request for it.",
+                "operationId": "add_repository_repositories__post",
+                "parameters": [
+                    {
+                        "name": "verify",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Whether to check that the repository answers before connecting it",
+                            "default": true,
+                            "title": "Verify"
+                        },
+                        "description": "Whether to check that the repository answers before connecting it"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Repository",
+                                "description": "Repository to connect"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "502": {
+                        "description": "Repository cannot be reached, or does not publish a catalog that can be read"
+                    },
+                    "424": {
+                        "description": "Secret the repository authenticates with is missing in the keyring"
+                    },
+                    "409": {
+                        "description": "Repository with this name, or the same repository at the same branch or tag, is already connected"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/repositories/discover": {
+            "get": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Discover Repositories",
+                "description": "Search the repositories that publish generators in the open. A repository appears in the list by carrying the topic that defines it, and the content of a listed repository is not reviewed.",
+                "operationId": "discover_repositories_repositories_discover_get",
+                "parameters": [
+                    {
+                        "name": "query",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "maxLength": 100
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Words to narrow the list with",
+                            "title": "Query"
+                        },
+                        "description": "Words to narrow the list with"
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 10,
+                            "minimum": 1,
+                            "description": "Page of the results",
+                            "default": 1,
+                            "title": "Page"
+                        },
+                        "description": "Page of the results"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Published repositories",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Discovery"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "429": {
+                        "description": "Searching is refused until the quota of this instance resets"
+                    },
+                    "502": {
+                        "description": "Repositories cannot be searched"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/repositories/{name}/check": {
+            "post": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Check Repository",
+                "description": "Check that the repository with specified name answers and publishes the branch or tag it names.",
+                "operationId": "check_repository_repositories__name__check_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Name of the connected repository",
+                            "title": "Name"
+                        },
+                        "description": "Name of the connected repository"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Result of the check",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RepositoryStatus"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "404": {
+                        "description": "Repository is not connected"
+                    },
+                    "424": {
+                        "description": "Secret the repository authenticates with is missing in the keyring"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/repositories/{name}": {
+            "delete": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Remove Repository",
+                "description": "Disconnect the repository with specified name. Generators installed from it are left in place.",
+                "operationId": "remove_repository_repositories__name__delete",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Name of the connected repository",
+                            "title": "Name"
+                        },
+                        "description": "Name of the connected repository"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "404": {
+                        "description": "Repository is not connected"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/repositories/{name}/catalog": {
+            "get": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Get Catalog",
+                "description": "Get the catalog of generators published by the repository with specified name. The repository is fetched when it has not been fetched yet.",
+                "operationId": "get_catalog_repositories__name__catalog_get",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Name of the connected repository",
+                            "title": "Name"
+                        },
+                        "description": "Name of the connected repository"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Catalog of the repository",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CatalogResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "404": {
+                        "description": "Repository is not connected"
+                    },
+                    "502": {
+                        "description": "Repository cannot be reached, or does not publish a catalog that can be read"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/repositories/{name}/refresh": {
+            "post": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Refresh Catalog",
+                "description": "Fetch the repository with specified name and read its catalog anew.",
+                "operationId": "refresh_catalog_repositories__name__refresh_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Name of the connected repository",
+                            "title": "Name"
+                        },
+                        "description": "Name of the connected repository"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Catalog of the repository",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CatalogResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "404": {
+                        "description": "Repository is not connected"
+                    },
+                    "502": {
+                        "description": "Repository cannot be reached, or does not publish a catalog that can be read"
+                    },
+                    "424": {
+                        "description": "Secret the repository authenticates with is missing in the keyring"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/repositories/{name}/catalog/{entry}/install": {
+            "post": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Install Generator",
+                "description": "Install the published generator with specified name as a generator directory of the workspace.",
+                "operationId": "install_generator_repositories__name__catalog__entry__install_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Name of the connected repository",
+                            "title": "Name"
+                        },
+                        "description": "Name of the connected repository"
+                    },
+                    {
+                        "name": "entry",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Name of the published generator",
+                            "title": "Entry"
+                        },
+                        "description": "Name of the published generator"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/InstallGeneratorRequest",
+                                "description": "Generator directory to install into"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Generator directory that was written",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InstalledGeneratorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "424": {
+                        "description": "Secret the repository authenticates with is missing in the keyring"
+                    },
+                    "400": {
+                        "description": "Requested directory name is not allowed"
+                    },
+                    "404": {
+                        "description": "Repository is not connected or publishes no such generator"
+                    },
+                    "409": {
+                        "description": "Directory already exists"
+                    },
+                    "502": {
+                        "description": "Repository cannot be reached, or publishes a generator that holds no generator configuration or exceeds the size limits"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -4980,6 +5455,127 @@
                 ],
                 "title": "CSVSampleConfig",
                 "description": "Configuration of csv sample.\n\nAttributes\n----------\ntype : Literal[SampleType.CSV]\n    Discriminator field for sample configuration.\n\nheader : bool, default=False\n    Whether the provided csv sample includes header.\n\ndelimiter : str, default=','\n    Delimiter for csv values.\n\nquotechar : str, default='\"'\n    Character used to quote fields containing the delimiter\n    or newlines (RFC 4180).\n\nsource : Path\n    Path to csv file."
+            },
+            "CatalogEntryResponse": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name",
+                        "description": "Name of the generator directory in the repository"
+                    },
+                    "path": {
+                        "type": "string",
+                        "title": "Path",
+                        "description": "Path of the generator directory inside the repository"
+                    },
+                    "title": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Title",
+                        "description": "Title taken from the readme of the generator"
+                    },
+                    "summary": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Summary",
+                        "description": "Summary taken from the readme of the generator"
+                    },
+                    "file_count": {
+                        "type": "integer",
+                        "title": "File Count",
+                        "description": "Number of files the generator consists of"
+                    },
+                    "size": {
+                        "type": "integer",
+                        "title": "Size",
+                        "description": "Total size of the generator files in bytes"
+                    },
+                    "installed_as": {
+                        "items": {
+                            "$ref": "#/components/schemas/InstalledProject"
+                        },
+                        "type": "array",
+                        "title": "Installed As",
+                        "description": "Projects of the workspace this generator is installed as"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "name",
+                    "path",
+                    "title",
+                    "summary",
+                    "file_count",
+                    "size",
+                    "installed_as"
+                ],
+                "title": "CatalogEntryResponse",
+                "description": "Generator published by a connected repository."
+            },
+            "CatalogResponse": {
+                "properties": {
+                    "revision": {
+                        "type": "string",
+                        "title": "Revision",
+                        "description": "Commit hash the catalog was read from"
+                    },
+                    "refreshed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Refreshed At",
+                        "description": "Moment the catalog was read at"
+                    },
+                    "committed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Committed At",
+                        "description": "Moment that commit was authored at"
+                    },
+                    "author": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Author",
+                        "description": "Author of that commit"
+                    },
+                    "entries": {
+                        "items": {
+                            "$ref": "#/components/schemas/CatalogEntryResponse"
+                        },
+                        "type": "array",
+                        "title": "Entries",
+                        "description": "Published generators, ordered by name"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "revision",
+                    "refreshed_at",
+                    "committed_at",
+                    "author",
+                    "entries"
+                ],
+                "title": "CatalogResponse",
+                "description": "Generators published by a connected repository."
             },
             "ClickhouseOutputPluginConfig-Input": {
                 "properties": {
@@ -5827,6 +6423,75 @@
                     }
                 ]
             },
+            "ConnectedRepository": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "pattern": "^[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?$",
+                        "title": "Name"
+                    },
+                    "url": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "minLength": 1,
+                        "title": "Url"
+                    },
+                    "ref": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._/-]*$"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Ref"
+                    },
+                    "username": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 255,
+                                "minLength": 1
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Username"
+                    },
+                    "secret": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 255,
+                                "minLength": 1
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Secret"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/RepositoryStatus"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "name",
+                    "url",
+                    "status"
+                ],
+                "title": "ConnectedRepository",
+                "description": "Connected repository with the result of its last check.\n\nAttributes\n----------\nstatus : RepositoryStatus\n    Result of the last check of the repository."
+            },
             "Contains": {
                 "properties": {
                     "contains": {
@@ -5931,6 +6596,185 @@
                 ],
                 "title": "Defined",
                 "description": "Check if state has specified key."
+            },
+            "DiscoveredRepository": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "title": "Name"
+                    },
+                    "full_name": {
+                        "type": "string",
+                        "maxLength": 512,
+                        "title": "Full Name"
+                    },
+                    "url": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "title": "Url"
+                    },
+                    "page_url": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "title": "Page Url"
+                    },
+                    "owner": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "title": "Owner"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 1000
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Description"
+                    },
+                    "topics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "maxItems": 32,
+                        "title": "Topics",
+                        "default": []
+                    },
+                    "stars": {
+                        "type": "integer",
+                        "title": "Stars",
+                        "default": 0
+                    },
+                    "updated_at": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Updated At"
+                    },
+                    "license": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 64
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "License"
+                    },
+                    "archived": {
+                        "type": "boolean",
+                        "title": "Archived",
+                        "default": false
+                    },
+                    "official": {
+                        "type": "boolean",
+                        "title": "Official",
+                        "default": false
+                    },
+                    "connected": {
+                        "type": "boolean",
+                        "title": "Connected",
+                        "default": false
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "name",
+                    "full_name",
+                    "url",
+                    "page_url",
+                    "owner"
+                ],
+                "title": "DiscoveredRepository",
+                "description": "Repository publishing generators in the open.\n\nEverything but `connected` is what the repository states about\nitself, republished as it was read - nothing here is reviewed.\n\nAttributes\n----------\nname : str\n    Name of the repository.\n\nfull_name : str\n    Name of the repository with the owner it belongs to.\n\nurl : str\n    URL the repository is fetched from.\n\npage_url : str\n    URL of the page the repository is presented on.\n\nowner : str\n    Owner the repository belongs to.\n\ndescription : str | None, default=None\n    What the repository says it holds.\n\ntopics : tuple[str, ...], default=()\n    Topics the repository carries.\n\nstars : int, default=0\n    Number of stars the repository has.\n\nupdated_at : datetime | None, default=None\n    Moment the repository was last pushed to.\n\nlicense : str | None, default=None\n    License the repository is published under.\n\narchived : bool, default=False\n    Whether the repository is archived by its owner.\n\nofficial : bool, default=False\n    Whether the repository is published by Eventum itself.\n\nconnected : bool, default=False\n    Whether this instance is already connected to the repository."
+            },
+            "Discovery": {
+                "properties": {
+                    "topic": {
+                        "type": "string",
+                        "title": "Topic"
+                    },
+                    "query": {
+                        "type": "string",
+                        "title": "Query"
+                    },
+                    "entries": {
+                        "items": {
+                            "$ref": "#/components/schemas/DiscoveredRepository"
+                        },
+                        "type": "array",
+                        "title": "Entries"
+                    },
+                    "total_count": {
+                        "type": "integer",
+                        "title": "Total Count"
+                    },
+                    "refreshed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Refreshed At"
+                    },
+                    "rate": {
+                        "$ref": "#/components/schemas/DiscoveryRate"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "topic",
+                    "query",
+                    "entries",
+                    "total_count",
+                    "refreshed_at",
+                    "rate"
+                ],
+                "title": "Discovery",
+                "description": "Repositories published in the open, as read at a moment.\n\nAttributes\n----------\ntopic : str\n    Topic a repository carries to appear in the list.\n\nquery : str\n    Words the list was narrowed with, empty when it was not.\n\nentries : tuple[DiscoveredRepository, ...]\n    Repositories that were found, the ones published by Eventum\n    first and the rest by the stars they carry.\n\ntotal_count : int\n    Number of repositories matching in total, of which this is one\n    page.\n\nrefreshed_at : datetime\n    Moment the list was read at.\n\nrate : DiscoveryRate\n    Quota left for searching again."
+            },
+            "DiscoveryRate": {
+                "properties": {
+                    "remaining": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Remaining"
+                    },
+                    "reset_at": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Reset At"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "DiscoveryRate",
+                "description": "Quota left for searching the published repositories.\n\nAttributes\n----------\nremaining : int | None, default=None\n    Number of searches left before the quota is spent.\n\nreset_at : datetime | None, default=None\n    Moment the quota is restored at."
             },
             "Encoding": {
                 "type": "string",
@@ -7731,6 +8575,77 @@
                 ],
                 "title": "InputPluginStats",
                 "description": "Input plugin statistics."
+            },
+            "InstallGeneratorRequest": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 1,
+                        "title": "Name",
+                        "description": "Name of the generator directory to install into"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "title": "InstallGeneratorRequest",
+                "description": "Request of installing a published generator.\n\nAttributes\n----------\nname : str\n    Name of the generator directory to install into."
+            },
+            "InstalledGeneratorResponse": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name",
+                        "description": "Name of the generator directory that was written"
+                    },
+                    "file_count": {
+                        "type": "integer",
+                        "title": "File Count",
+                        "description": "Number of files it holds"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "name",
+                    "file_count"
+                ],
+                "title": "InstalledGeneratorResponse",
+                "description": "Project a published generator was installed as.\n\nAttributes\n----------\nname : str\n    Name of the generator directory that was written.\n\nfile_count : int\n    Number of files it holds."
+            },
+            "InstalledProject": {
+                "properties": {
+                    "project": {
+                        "type": "string",
+                        "title": "Project"
+                    },
+                    "revision": {
+                        "type": "string",
+                        "title": "Revision"
+                    },
+                    "installed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Installed At"
+                    },
+                    "outdated": {
+                        "type": "boolean",
+                        "title": "Outdated"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "project",
+                    "revision",
+                    "installed_at",
+                    "outdated"
+                ],
+                "title": "InstalledProject",
+                "description": "Project a published generator is installed as.\n\nAttributes\n----------\nproject : str\n    Name of the project directory.\n\nrevision : str\n    Commit the project was installed from.\n\ninstalled_at : datetime\n    Moment of the installation.\n\noutdated : bool\n    Whether the repository publishes the generator with content\n    different from what was installed. It says nothing about\n    changes made to the project since."
             },
             "InstanceInfo": {
                 "properties": {
@@ -9547,6 +10462,18 @@
                         "format": "path",
                         "title": "Keyring Cryptfile"
                     },
+                    "repositories": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "path"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Repositories"
+                    },
                     "generator_config_filename": {
                         "type": "string",
                         "format": "path",
@@ -9563,7 +10490,7 @@
                     "keyring_cryptfile"
                 ],
                 "title": "PathParameters",
-                "description": "Path parameters.\n\nAttributes\n----------\nlogs : Path\n    Absolute path to logs directory.\n\nstartup : Path\n    Absolute path to file with list of generators to run at startup.\n\ngenerators_dir : Path\n    Absolute path to directory with generators configuration files.\n\nkeyring_cryptfile : Path\n    Absolute path to keyring encrypted file with stored secrets\n\ngenerator_config_filename : Path, default='generator.yml'\n    Filename for generator configurations. This parameter is used\n    by the API for detection directories with generator\n    configurations. Directory with generator configuration named\n    other than this parameter value will not be operable using API\n    endpoints."
+                "description": "Path parameters.\n\nAttributes\n----------\nlogs : Path\n    Absolute path to logs directory.\n\nstartup : Path\n    Absolute path to file with list of generators to run at startup.\n\ngenerators_dir : Path\n    Absolute path to directory with generators configuration files.\n\nkeyring_cryptfile : Path\n    Absolute path to keyring encrypted file with stored secrets\n\nrepositories : Path | None, default=None\n    Absolute path to file with list of connected generator\n    repositories. When not provided, the file named\n    \"repositories.yml\" next to the startup file is used.\n\ngenerator_config_filename : Path, default='generator.yml'\n    Filename for generator configurations. This parameter is used\n    by the API for detection directories with generator\n    configurations. Directory with generator configuration named\n    other than this parameter value will not be operable using API\n    endpoints."
             },
             "ProduceEventErrorInfo": {
                 "properties": {
@@ -9990,6 +10917,114 @@
                     "path"
                 ],
                 "title": "ReplayEventPluginConfig"
+            },
+            "Repository": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "pattern": "^[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?$",
+                        "title": "Name"
+                    },
+                    "url": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "minLength": 1,
+                        "title": "Url"
+                    },
+                    "ref": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._/-]*$"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Ref"
+                    },
+                    "username": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 255,
+                                "minLength": 1
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Username"
+                    },
+                    "secret": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 255,
+                                "minLength": 1
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Secret"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "name",
+                    "url"
+                ],
+                "title": "Repository",
+                "description": "Connected generator repository.\n\nAttributes\n----------\nname : str\n    Name the repository is referred to by, unique across the\n    connected ones.\n\nurl : str\n    URL the repository is fetched from.\n\nref : str | None, default=None\n    Branch or tag to fetch. The default branch of the repository\n    is fetched when not provided.\n\nusername : str | None, default=None\n    User name to authenticate with.\n\nsecret : str | None, default=None\n    Name of the keyring secret holding the password or access\n    token to authenticate with."
+            },
+            "RepositoryStatus": {
+                "properties": {
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "unknown",
+                            "available",
+                            "unavailable"
+                        ],
+                        "title": "State"
+                    },
+                    "checked_at": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Checked At"
+                    },
+                    "reason": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Reason"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "state"
+                ],
+                "title": "RepositoryStatus",
+                "description": "Result of the last check of a repository.\n\nAttributes\n----------\nstate : Literal['unknown', 'available', 'unavailable']\n    Whether the repository answered the last check. A repository\n    that has not been checked in this process is unknown.\n\nchecked_at : datetime | None, default=None\n    Moment of the last check.\n\nreason : str | None, default=None\n    Why the repository did not answer."
             },
             "ResourcesStats": {
                 "properties": {

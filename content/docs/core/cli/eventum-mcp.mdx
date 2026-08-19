@@ -17,6 +17,7 @@ eventum mcp --generators-dir <path> [OPTIONS]
 |--------|------|---------|-------------|
 | `--generators-dir` | path | — | **Required.** Directory holding generator subdirectories. The agent reads and writes generators here. Must be an existing directory. |
 | `--config-filename` | string | `generator.yml` | Name of the config file inside each generator directory. Set it when your generators use a non-default filename. |
+| `--repositories` | path | `repositories.yml` beside the generators directory | File listing the [connected repositories](/docs/studio/repositories) the agent reads and installs generators from. The default is where an instance keeps it, since that file lives next to the startup file. |
 | `--read-only` | flag | `false` | Block all writes. The agent can discover, validate, and preview, but cannot create or modify files. |
 | `--keyring-cryptfile` | path | — | Path to the [keyring](/docs/core/config/secrets) cryptfile. When set, `list_secret_names` reports the **names** of stored secrets (never their values); without it, `list_secret_names` returns nothing. |
 | `--log-level` | choice | `WARNING` | Log verbosity on `stderr`: `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL`. |
@@ -33,6 +34,12 @@ Expose generators read-only — discovery, validation, and preview, but no chang
 
 ```bash
 eventum mcp --generators-dir ./generators --read-only
+```
+
+Read the connected repositories from a file of your own:
+
+```bash
+eventum mcp --generators-dir ./generators --repositories ./repositories.yml
 ```
 
 Point at a keyring so the agent can list the names of stored secrets:

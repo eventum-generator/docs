@@ -48,6 +48,21 @@ Available on both transports. They operate on the generators in your generators 
 An archive travels inside the tool call, so it lands in the agent's context. An agent that can make HTTP requests and write files is better off taking the archive from the [REST API](/docs/api) instead, which moves it as a file and carries a project of any size. `export_generator` and `import_generator` say so themselves, and refuse an archive over 128 KiB, where the REST API is the only route left.
 </Callout>
 
+## Repository tools
+
+Available on both transports. They read the [connected repositories](/docs/studio/repositories) of the instance — git repositories that publish ready-made generators — and install what one of them publishes into your generators directory.
+
+| Tool | Access | Description |
+|---|---|---|
+| `list_repositories` | Read | List the connected repositories, each with whether it answered the last time it was asked. The secret a private repository authenticates with is named, never read. |
+| `discover_repositories` | Read | List the repositories that publish generators in the open, so the agent can name one for the user to connect. The content of a listed repository is not reviewed. |
+| `get_repository_catalog` | Read | List the generators one repository publishes — what each of them produces, what it consists of, and the projects it is already installed as. Reads the repository anew on request. |
+| `install_generator` | Write | Install a published generator as a project of the generators directory. An existing project is never overwritten. |
+
+<Callout type="info">
+Connecting and disconnecting repositories is deliberately not exposed: it names credentials and decides what the instance trusts. Do it on the [Repositories](/docs/studio/repositories) page of Studio, or in the repositories file itself. Over stdio the agent reads that same file — `repositories.yml` next to the generators directory, or the one [`--repositories`](/docs/core/cli/eventum-mcp) names.
+</Callout>
+
 ## Live-management tools
 
 Available only over HTTP. They control the generators the server manages, and rename the objects an instance holds.
