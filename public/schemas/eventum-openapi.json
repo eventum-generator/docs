@@ -4458,7 +4458,7 @@
                     "Repositories"
                 ],
                 "summary": "List Repositories",
-                "description": "List connected generator repositories.",
+                "description": "List connected generator repositories, each with the result of the last check made in this process.",
                 "operationId": "list_repositories_repositories__get",
                 "responses": {
                     "200": {
@@ -4466,10 +4466,10 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "items": {
-                                        "$ref": "#/components/schemas/Repository"
-                                    },
                                     "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ConnectedRepository"
+                                    },
                                     "title": "Response List Repositories Repositories  Get"
                                 }
                             }
@@ -4485,9 +4485,24 @@
                     "Repositories"
                 ],
                 "summary": "Add Repository",
-                "description": "Connect a generator repository. The catalog it publishes is read on the first request for it.",
+                "description": "Connect a generator repository. The repository is checked before it is connected, and the catalog it publishes is read on the first request for it.",
                 "operationId": "add_repository_repositories__post",
+                "parameters": [
+                    {
+                        "name": "verify",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Whether to check that the repository answers before connecting it",
+                            "default": true,
+                            "title": "Verify"
+                        },
+                        "description": "Whether to check that the repository answers before connecting it"
+                    }
+                ],
                 "requestBody": {
+                    "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
@@ -4495,8 +4510,7 @@
                                 "description": "Repository to connect"
                             }
                         }
-                    },
-                    "required": true
+                    }
                 },
                 "responses": {
                     "201": {
@@ -4510,8 +4524,63 @@
                     "500": {
                         "description": "Repositories cannot be read or written"
                     },
+                    "502": {
+                        "description": "Repository cannot be fetched or publishes no catalog"
+                    },
                     "409": {
-                        "description": "Repository with this name is connected"
+                        "description": "Repository with this name, or the same repository at the same branch or tag, is already connected"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/repositories/{name}/check": {
+            "post": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Check Repository",
+                "description": "Check that the repository with specified name answers and publishes the branch or tag it names.",
+                "operationId": "check_repository_repositories__name__check_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Name of the connected repository",
+                            "title": "Name"
+                        },
+                        "description": "Name of the connected repository"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Result of the check",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RepositoryStatus"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "404": {
+                        "description": "Repository is not connected"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -5301,6 +5370,22 @@
                         "format": "date-time",
                         "title": "Refreshed At"
                     },
+                    "committed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Committed At"
+                    },
+                    "author": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Author"
+                    },
                     "entries": {
                         "items": {
                             "$ref": "#/components/schemas/CatalogEntry"
@@ -5314,16 +5399,22 @@
                 "required": [
                     "revision",
                     "refreshed_at",
+                    "committed_at",
+                    "author",
                     "entries"
                 ],
                 "title": "Catalog",
-                "description": "Generators published by a connected repository.\n\nAttributes\n----------\nrevision : str\n    Commit hash the catalog was read from.\n\nrefreshed_at : datetime\n    Moment the catalog was read at.\n\nentries : list[CatalogEntry]\n    Published generators, ordered by name."
+                "description": "Generators published by a connected repository.\n\nAttributes\n----------\nrevision : str\n    Commit hash the catalog was read from.\n\nrefreshed_at : datetime\n    Moment the catalog was read at.\n\ncommitted_at : datetime\n    Moment the commit the catalog was read from was authored at.\n\nauthor : str | None\n    Author of that commit.\n\nentries : list[CatalogEntry]\n    Published generators, ordered by name."
             },
             "CatalogEntry": {
                 "properties": {
                     "name": {
                         "type": "string",
                         "title": "Name"
+                    },
+                    "path": {
+                        "type": "string",
+                        "title": "Path"
                     },
                     "title": {
                         "anyOf": [
@@ -5354,19 +5445,33 @@
                     "size": {
                         "type": "integer",
                         "title": "Size"
+                    },
+                    "tree": {
+                        "type": "string",
+                        "title": "Tree"
+                    },
+                    "installed_as": {
+                        "items": {
+                            "$ref": "#/components/schemas/InstalledProject"
+                        },
+                        "type": "array",
+                        "title": "Installed As",
+                        "default": []
                     }
                 },
                 "additionalProperties": false,
                 "type": "object",
                 "required": [
                     "name",
+                    "path",
                     "title",
                     "summary",
                     "file_count",
-                    "size"
+                    "size",
+                    "tree"
                 ],
                 "title": "CatalogEntry",
-                "description": "Generator published by a connected repository.\n\nAttributes\n----------\nname : str\n    Name of the generator directory in the repository.\n\ntitle : str | None\n    Title of the generator, taken from the heading of its readme.\n\nsummary : str | None\n    Summary of the generator, taken from the first paragraph of\n    its readme.\n\nfile_count : int\n    Number of files the generator consists of.\n\nsize : int\n    Total size of the generator files in bytes."
+                "description": "Generator published by a connected repository.\n\nAttributes\n----------\nname : str\n    Name of the generator directory in the repository.\n\npath : str\n    Path of the generator directory inside the repository.\n\ntitle : str | None\n    Title of the generator, taken from the heading of its readme.\n\nsummary : str | None\n    Summary of the generator, taken from the first paragraph of\n    its readme.\n\nfile_count : int\n    Number of files the generator consists of.\n\nsize : int\n    Total size of the generator files in bytes.\n\ntree : str\n    Content hash of the generator directory, which changes exactly\n    when what the generator consists of changes.\n\ninstalled_as : tuple[InstalledProject, ...], default=()\n    Projects of the workspace this generator is installed as."
             },
             "ClickhouseOutputPluginConfig-Input": {
                 "properties": {
@@ -6213,6 +6318,75 @@
                         "$ref": "#/components/schemas/Not-Output"
                     }
                 ]
+            },
+            "ConnectedRepository": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "pattern": "^[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?$",
+                        "title": "Name"
+                    },
+                    "url": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "minLength": 1,
+                        "title": "Url"
+                    },
+                    "ref": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._/-]*$"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Ref"
+                    },
+                    "username": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 255,
+                                "minLength": 1
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Username"
+                    },
+                    "secret": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 255,
+                                "minLength": 1
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Secret"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/RepositoryStatus"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "name",
+                    "url",
+                    "status"
+                ],
+                "title": "ConnectedRepository",
+                "description": "Connected repository with the result of its last check.\n\nAttributes\n----------\nstatus : RepositoryStatus\n    Result of the last check of the repository."
             },
             "Contains": {
                 "properties": {
@@ -8136,6 +8310,37 @@
                 ],
                 "title": "InstallGeneratorRequest",
                 "description": "Request of installing a published generator.\n\nAttributes\n----------\nname : str\n    Name of the generator directory to install into."
+            },
+            "InstalledProject": {
+                "properties": {
+                    "project": {
+                        "type": "string",
+                        "title": "Project"
+                    },
+                    "revision": {
+                        "type": "string",
+                        "title": "Revision"
+                    },
+                    "installed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Installed At"
+                    },
+                    "outdated": {
+                        "type": "boolean",
+                        "title": "Outdated"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "project",
+                    "revision",
+                    "installed_at",
+                    "outdated"
+                ],
+                "title": "InstalledProject",
+                "description": "Project a published generator is installed as.\n\nAttributes\n----------\nproject : str\n    Name of the project directory.\n\nrevision : str\n    Commit the project was installed from.\n\ninstalled_at : datetime\n    Moment of the installation.\n\noutdated : bool\n    Whether the repository publishes the generator with content\n    different from what the project holds."
             },
             "InstanceInfo": {
                 "properties": {
@@ -10471,6 +10676,49 @@
                 ],
                 "title": "Repository",
                 "description": "Connected generator repository.\n\nAttributes\n----------\nname : str\n    Name the repository is referred to by, unique across the\n    connected ones.\n\nurl : str\n    URL the repository is fetched from.\n\nref : str | None, default=None\n    Branch or tag to fetch. The default branch of the repository\n    is fetched when not provided.\n\nusername : str | None, default=None\n    User name to authenticate with.\n\nsecret : str | None, default=None\n    Name of the keyring secret holding the password or access\n    token to authenticate with."
+            },
+            "RepositoryStatus": {
+                "properties": {
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "unknown",
+                            "available",
+                            "unavailable"
+                        ],
+                        "title": "State"
+                    },
+                    "checked_at": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Checked At"
+                    },
+                    "reason": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Reason"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "state"
+                ],
+                "title": "RepositoryStatus",
+                "description": "Result of the last check of a repository.\n\nAttributes\n----------\nstate : Literal['unknown', 'available', 'unavailable']\n    Whether the repository answered the last check. A repository\n    that has not been checked in this process is unknown.\n\nchecked_at : datetime | None, default=None\n    Moment of the last check.\n\nreason : str | None, default=None\n    Why the repository did not answer."
             },
             "ResourcesStats": {
                 "properties": {

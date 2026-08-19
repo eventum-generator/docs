@@ -15,7 +15,7 @@ The repository Eventum publishes is [content-packs](https://github.com/eventum-g
 
 ## Connecting a repository
 
-**Connect** asks for the address of the repository and, for a private one, the credentials to reach it.
+**Connect** asks for the address of the repository and, for a private one, the credentials to reach it. The repository is checked before it is connected, so an address that leads nowhere, a branch that does not exist and credentials the host refuses are reported in the form rather than when the catalog is first read. A repository that is temporarily out of reach can be connected anyway from the same dialog.
 
 | Field | Required | Description |
 |-------|----------|-------------|
@@ -23,7 +23,7 @@ The repository Eventum publishes is [content-packs](https://github.com/eventum-g
 | **URL** | Yes | The address the repository is fetched from. Only `http://` and `https://` are accepted. |
 | **Branch or tag** | No | What to fetch. The default branch of the repository when left empty. |
 | **User name** | No | The user name of a private repository. |
-| **Secret** | No | The [secret](/docs/core/config/secrets) holding the password or access token of a private repository. |
+| **Secret** | No | The [secret](/docs/core/config/secrets) holding the password or access token of a private repository. The field names a secret of the keyring — not its value, and not a `${secrets.*}` reference. |
 
 The password itself is never part of the connection: the **Secret** field names a secret in the keyring, and its value is read only for the duration of a fetch. For the same reason a URL carrying credentials — `https://user:token@host/repo.git` — is rejected; give the two parts separately.
 
@@ -31,7 +31,11 @@ The password itself is never part of the connection: the **Secret** field names 
 Add the access token to the keyring before connecting the repository, either on the [Secrets](/docs/core/config/secrets) page or with `eventum-keyring set`. GitHub and GitLab both accept a personal access token in place of a password.
 </Callout>
 
-**Disconnect** removes a repository from the list. Generators already installed from it stay in the workspace — an installed project is a copy, with no link back to where it came from.
+The same repository may be connected more than once to follow two of its branches; what is refused is a name already taken, or that repository at a branch or tag already connected — the address is compared by what it points at, so `…/packs` and `…/packs.git` count as one.
+
+Each repository carries a badge for whether it answered the last time it was asked: **Reachable**, **Unreachable** with the reason, or **Not checked** until the page asks. The check is a request for the references the repository publishes and transfers nothing of it.
+
+**Disconnect** removes a repository from the list. Generators already installed from it stay in the workspace, and each of them keeps the record of where it came from, so connecting the repository again marks them as installed once more.
 
 ## What a repository publishes
 
@@ -57,7 +61,9 @@ The entry is named after its directory. Its title and the sentence describing it
 
 Opening a repository reads its catalog. The reading is a fetch of the repository, so it happens on request rather than in the background, and what was read is kept for as long as the instance runs.
 
-The line above the table names the revision the catalog was read from and the moment it was read. **Refresh** reads it again, which is how a generator added to the repository after the catalog was first read appears in the list.
+The line above the table names how many generators the repository publishes, the revision the catalog was read from with its author and date, and the moment it was read. The search beside it narrows the table by name, title and summary. **Refresh** reads the catalog again, which is how a generator added to the repository after the catalog was first read appears in the list.
+
+Selecting a generator opens what the repository states about it: its size and file count, the path it lives at with a link to it on GitHub or GitLab, the commit the catalog was read from, and the projects it is already installed as.
 
 ## Installing a generator
 
@@ -66,6 +72,24 @@ The line above the table names the revision the catalog was read from and the mo
 What the repository publishes is written into the workspace under the same rules as an [imported archive](/docs/studio/projects#moving-a-project-between-instances): only regular files are installed, so a symbolic link or a submodule the repository carries is left behind rather than followed, and the same size limits apply.
 
 The installed project is a copy like any other. It can be edited, renamed, run and exported, and a later change in the repository does not reach it — install it again under another name to compare.
+
+## What a project remembers
+
+An installed project carries a `.eventum-source.yml` file naming where it came from: the repository, the generator, the commit, and the content of that generator at that commit. The catalog reads it back, so a generator already in the workspace is marked **installed** by its origin rather than by a name that happens to match — a project renamed afterwards keeps the mark, and an unrelated project sharing a name does not get one.
+
+The content is what tells the two apart: when the repository publishes the generator differently from what the project holds, the entry is marked **update available**. Installing it again under another name puts the two side by side; nothing overwrites the project you already have.
+
+```yaml title=".eventum-source.yml"
+repository: content-packs
+url: https://github.com/eventum-generator/content-packs.git
+ref: null
+entry: web-nginx
+revision: 29b728c556c04f9d1c8a8e9aaa2a5a27bdfdee17
+tree: 1b2071b4d4997c29a2f223b5242a4d553c66d7ff
+installed_at: '2026-08-19T18:30:44.198256Z'
+```
+
+Deleting the file only takes the mark away; the project itself is unaffected.
 
 ## Where the list is kept
 

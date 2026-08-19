@@ -87,8 +87,9 @@ description: Eventum API reference
 <Card href="/docs/api/secrets/get" title="List Secret Names" description="List all secrets names" />
 <Card href="/docs/api/secrets/name/references/get" title="List Secret References" description="List projects whose configuration references the secret as `${secrets.<name>}`" />
 <Card href="/docs/api/secrets/name/rename/post" title="Rename Secret Value" description="Rename secret in keyring. References to the secret in generator configurations are not rewritten." />
-<Card href="/docs/api/repositories/get" title="List Repositories" description="List connected generator repositories." />
-<Card href="/docs/api/repositories/post" title="Add Repository" description="Connect a generator repository. The catalog it publishes is read on the first request for it." />
+<Card href="/docs/api/repositories/get" title="List Repositories" description="List connected generator repositories, each with the result of the last check made in this process." />
+<Card href="/docs/api/repositories/post" title="Add Repository" description="Connect a generator repository. The repository is checked before it is connected, and the catalog it publishes is read on the first request for it." />
+<Card href="/docs/api/repositories/name/check/post" title="Check Repository" description="Check that the repository with specified name answers and publishes the branch or tag it names." />
 <Card href="/docs/api/repositories/name/delete" title="Remove Repository" description="Disconnect the repository with specified name. Generators installed from it are left in place." />
 <Card href="/docs/api/repositories/name/catalog/get" title="Get Catalog" description="Get the catalog of generators published by the repository with specified name. The repository is fetched when it has not been fetched yet." />
 <Card href="/docs/api/repositories/name/refresh/post" title="Refresh Catalog" description="Fetch the repository with specified name and read its catalog anew." />
