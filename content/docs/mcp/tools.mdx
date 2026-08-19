@@ -55,6 +55,7 @@ Available on both transports. They read the [connected repositories](/docs/studi
 | Tool | Access | Description |
 |---|---|---|
 | `list_repositories` | Read | List the connected repositories, each with whether it answered the last time it was asked. The secret a private repository authenticates with is named, never read. |
+| `discover_repositories` | Read | List the repositories that publish generators in the open, so the agent can name one for the user to connect. What is listed is published by its authors and reviewed by nobody. |
 | `get_repository_catalog` | Read | List the generators one repository publishes — what each of them produces, what it consists of, and the projects it is already installed as. Reads the repository anew on request. |
 | `install_generator` | Write | Install a published generator as a project of the generators directory. An existing project is never overwritten. |
 

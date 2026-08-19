@@ -4546,6 +4546,82 @@
                 }
             }
         },
+        "/repositories/discover": {
+            "get": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Discover Repositories",
+                "description": "Search the repositories that publish generators in the open. A repository appears in the list by carrying the topic that defines it, so what is listed is published by its authors and reviewed by nobody.",
+                "operationId": "discover_repositories_repositories_discover_get",
+                "parameters": [
+                    {
+                        "name": "query",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "maxLength": 100
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Words to narrow the list with",
+                            "title": "Query"
+                        },
+                        "description": "Words to narrow the list with"
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 10,
+                            "minimum": 1,
+                            "description": "Page of the results",
+                            "default": 1,
+                            "title": "Page"
+                        },
+                        "description": "Page of the results"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Published repositories",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Discovery"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "429": {
+                        "description": "Searching is refused until the quota of this instance resets"
+                    },
+                    "502": {
+                        "description": "Repositories cannot be searched"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/repositories/{name}/check": {
             "post": {
                 "tags": [
@@ -6520,6 +6596,185 @@
                 ],
                 "title": "Defined",
                 "description": "Check if state has specified key."
+            },
+            "DiscoveredRepository": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "title": "Name"
+                    },
+                    "full_name": {
+                        "type": "string",
+                        "maxLength": 512,
+                        "title": "Full Name"
+                    },
+                    "url": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "title": "Url"
+                    },
+                    "page_url": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "title": "Page Url"
+                    },
+                    "owner": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "title": "Owner"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 1000
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Description"
+                    },
+                    "topics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "maxItems": 32,
+                        "title": "Topics",
+                        "default": []
+                    },
+                    "stars": {
+                        "type": "integer",
+                        "title": "Stars",
+                        "default": 0
+                    },
+                    "updated_at": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Updated At"
+                    },
+                    "license": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 64
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "License"
+                    },
+                    "archived": {
+                        "type": "boolean",
+                        "title": "Archived",
+                        "default": false
+                    },
+                    "official": {
+                        "type": "boolean",
+                        "title": "Official",
+                        "default": false
+                    },
+                    "connected": {
+                        "type": "boolean",
+                        "title": "Connected",
+                        "default": false
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "name",
+                    "full_name",
+                    "url",
+                    "page_url",
+                    "owner"
+                ],
+                "title": "DiscoveredRepository",
+                "description": "Repository publishing generators in the open.\n\nEverything but `connected` is what the repository states about\nitself, republished as it was read - nothing here is reviewed.\n\nAttributes\n----------\nname : str\n    Name of the repository.\n\nfull_name : str\n    Name of the repository with the owner it belongs to.\n\nurl : str\n    URL the repository is fetched from.\n\npage_url : str\n    URL of the page the repository is presented on.\n\nowner : str\n    Owner the repository belongs to.\n\ndescription : str | None, default=None\n    What the repository says it holds.\n\ntopics : tuple[str, ...], default=()\n    Topics the repository carries.\n\nstars : int, default=0\n    Number of stars the repository has.\n\nupdated_at : datetime | None, default=None\n    Moment the repository was last pushed to.\n\nlicense : str | None, default=None\n    License the repository is published under.\n\narchived : bool, default=False\n    Whether the repository is archived by its owner.\n\nofficial : bool, default=False\n    Whether the repository is published by Eventum itself.\n\nconnected : bool, default=False\n    Whether this instance is already connected to the repository."
+            },
+            "Discovery": {
+                "properties": {
+                    "topic": {
+                        "type": "string",
+                        "title": "Topic"
+                    },
+                    "query": {
+                        "type": "string",
+                        "title": "Query"
+                    },
+                    "entries": {
+                        "items": {
+                            "$ref": "#/components/schemas/DiscoveredRepository"
+                        },
+                        "type": "array",
+                        "title": "Entries"
+                    },
+                    "total_count": {
+                        "type": "integer",
+                        "title": "Total Count"
+                    },
+                    "refreshed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Refreshed At"
+                    },
+                    "rate": {
+                        "$ref": "#/components/schemas/DiscoveryRate"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "topic",
+                    "query",
+                    "entries",
+                    "total_count",
+                    "refreshed_at",
+                    "rate"
+                ],
+                "title": "Discovery",
+                "description": "Repositories published in the open, as read at a moment.\n\nAttributes\n----------\ntopic : str\n    Topic a repository carries to appear in the list.\n\nquery : str\n    Words the list was narrowed with, empty when it was not.\n\nentries : tuple[DiscoveredRepository, ...]\n    Repositories that were found, the ones published by Eventum\n    first and the rest by the stars they carry.\n\ntotal_count : int\n    Number of repositories matching in total, of which this is one\n    page.\n\nrefreshed_at : datetime\n    Moment the list was read at.\n\nrate : DiscoveryRate\n    Quota left for searching again."
+            },
+            "DiscoveryRate": {
+                "properties": {
+                    "remaining": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Remaining"
+                    },
+                    "reset_at": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Reset At"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "DiscoveryRate",
+                "description": "Quota left for searching the published repositories.\n\nAttributes\n----------\nremaining : int | None, default=None\n    Number of searches left before the quota is spent.\n\nreset_at : datetime | None, default=None\n    Moment the quota is restored at."
             },
             "Encoding": {
                 "type": "string",
