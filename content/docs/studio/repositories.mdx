@@ -75,6 +75,8 @@ What the repository publishes is written into the workspace under the same rules
 
 The installed project is a copy like any other. It can be edited, renamed, run and exported, and a later change in the repository does not reach it — install it again under another name to compare.
 
+An agent connected over [MCP](/docs/mcp) installs from the same repositories: it lists what is connected, reads a catalog and installs an entry, while connecting a repository stays here. See [Tools & resources](/docs/mcp/tools#repository-tools).
+
 ## What a project remembers
 
 An installed project carries a `.eventum-source.yml` file naming where it came from: the repository, the generator, the commit, and the content of that generator at that commit. The catalog reads it back, so a generator already in the workspace is recognized by its origin rather than by a name that happens to match — a project renamed afterwards is still recognized, and an unrelated project sharing a name is not mistaken for one.
