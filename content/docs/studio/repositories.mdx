@@ -69,15 +69,17 @@ Selecting a generator opens what the repository states about it: its size and fi
 
 **Install** asks for the name of the project to install into and writes the generator there. The name is proposed from the entry and can be changed; a name already taken is reported before anything is written, and an existing project is never overwritten.
 
+A generator the workspace already holds offers **Install again** instead. Installing it writes another project beside the one you have — the proposed name steps aside to a free one, and the project you already installed is left untouched. That is also how a generator the repository has changed is taken: the new version arrives as a separate project, to be compared against the one in use rather than overwriting it.
+
 What the repository publishes is written into the workspace under the same rules as an [imported archive](/docs/studio/projects#moving-a-project-between-instances): only regular files are installed, so a symbolic link or a submodule the repository carries is left behind rather than followed, and the same size limits apply.
 
 The installed project is a copy like any other. It can be edited, renamed, run and exported, and a later change in the repository does not reach it — install it again under another name to compare.
 
 ## What a project remembers
 
-An installed project carries a `.eventum-source.yml` file naming where it came from: the repository, the generator, the commit, and the content of that generator at that commit. The catalog reads it back, so a generator already in the workspace is marked **installed** by its origin rather than by a name that happens to match — a project renamed afterwards keeps the mark, and an unrelated project sharing a name does not get one.
+An installed project carries a `.eventum-source.yml` file naming where it came from: the repository, the generator, the commit, and the content of that generator at that commit. The catalog reads it back, so a generator already in the workspace is recognized by its origin rather than by a name that happens to match — a project renamed afterwards is still recognized, and an unrelated project sharing a name is not mistaken for one.
 
-The content is what tells the two apart: when the repository publishes the generator differently from what the project holds, the entry is marked **update available**. Installing it again under another name puts the two side by side; nothing overwrites the project you already have.
+What the workspace already holds is stated by the action of the row — **Install again** rather than **Install** — so nothing repeats it beside the name. The one thing the action cannot say is marked instead: when the repository publishes the generator with content the installed project does not hold, the row carries **update available**.
 
 ```yaml title=".eventum-source.yml"
 repository: content-packs
