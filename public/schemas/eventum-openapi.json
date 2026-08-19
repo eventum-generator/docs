@@ -1619,7 +1619,7 @@
                             "schema": {
                                 "type": "array",
                                 "items": {
-                                    "$ref": "#/components/schemas/ProduceParams"
+                                    "$ref": "#/components/schemas/ProduceParamsRequest"
                                 },
                                 "description": "List of timestamps and input plugins tags to use for producing events",
                                 "title": "Params List"
@@ -9592,7 +9592,7 @@
                 "title": "ProduceEventErrorInfo",
                 "description": "Information about errors related to events producing.\n\nAttributes\n----------\nindex : int\n    Index of params object from params list used to produce events\n    for which producing is failed.\n\nmessage : str\n    Error message.\n\ncontext : dict[str, Any]\n    Error context."
             },
-            "ProduceParams": {
+            "ProduceParamsRequest": {
                 "properties": {
                     "timestamp": {
                         "type": "string",
@@ -9607,13 +9607,14 @@
                         "title": "Tags"
                     }
                 },
+                "additionalProperties": false,
                 "type": "object",
                 "required": [
                     "timestamp",
                     "tags"
                 ],
-                "title": "ProduceParams",
-                "description": "Params for `produce` method of `EventPlugin`.\n\nAttributes\n----------\ntimestamp : str\n    Timestamp of event.\n\ntags : tuple[str, ...]\n    Tags from input plugin that generated timestamp."
+                "title": "ProduceParamsRequest",
+                "description": "Request model with parameters of producing a single event.\n\nAttributes\n----------\ntimestamp : datetime\n    Timestamp of event.\n\ntags : tuple[str, ...]\n    Tags of the input plugin that generated the timestamp."
             },
             "ProducedEventsInfo": {
                 "properties": {
