@@ -4002,7 +4002,7 @@
                     "Scenarios"
                 ],
                 "summary": "Get Scenario Global State",
-                "description": "Get global state shared across all template event plugins",
+                "description": "Get global state shared across all event plugins",
                 "operationId": "get_scenario_global_state_scenarios__name__globals_get",
                 "parameters": [
                     {
@@ -4054,7 +4054,7 @@
                     "Scenarios"
                 ],
                 "summary": "Update Scenario Global State",
-                "description": "Update global state shared across all template event plugins",
+                "description": "Update global state shared across all event plugins",
                 "operationId": "update_scenario_global_state_scenarios__name__globals_patch",
                 "parameters": [
                     {
@@ -4112,7 +4112,7 @@
                     "Scenarios"
                 ],
                 "summary": "Clear Scenario Global State",
-                "description": "Clear global state shared across all template event plugins",
+                "description": "Clear global state shared across all event plugins",
                 "operationId": "clear_scenario_global_state_scenarios__name__globals_delete",
                 "parameters": [
                     {
