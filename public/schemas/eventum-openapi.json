@@ -4439,7 +4439,7 @@
                         "description": "Secret is missing in keyring"
                     },
                     "409": {
-                        "description": "Secret with the new name already exists"
+                        "description": "The new name is taken - by another secret, or by a connected repository authenticating with it"
                     },
                     "500": {
                         "description": "Failed to rename secret, or the repositories using it cannot be repointed. The detail names which of the two happened, and whether the secret was left renamed"

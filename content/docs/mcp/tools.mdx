@@ -80,7 +80,7 @@ Available only over HTTP. They control the generators the server manages, and re
 | `get_generator_logs` | Read | Return the recent log lines for a managed generator, to diagnose a run. |
 | `list_startup_generators` | Read | List the generators configured to start with the server. |
 | `rename_generator_config` | Write | Rename a project, moving its directory and repointing the generators that use it. All of them must be stopped first. |
-| `rename_secret` | Write | Rename a secret, keeping its value under the new name. Connected repositories authenticating with it are repointed at the new name; generator configurations are not rewritten — check `list_secret_references` first. |
+| `rename_secret` | Write | Rename a secret, keeping its value under the new name. Connected repositories authenticating with it are repointed at the new name; generator configurations are not rewritten — check `list_secret_references` first. Refused when a repository already authenticates with the new name. |
 
 ## Scenario tools
 
