@@ -33,12 +33,12 @@ The search is anonymous — nothing is configured, and no token is asked for. Gi
 | **URL** | Yes | The address the repository is fetched from. Only `http://` and `https://` are accepted. |
 | **Branch or tag** | No | What to fetch. The default branch of the repository when left empty. |
 | **User name** | No | The user name of a private repository. |
-| **Secret** | No | The [secret](/docs/core/config/secrets) holding the password or access token of a private repository. The field names a secret of the keyring — not its value, and not a `${secrets.*}` reference. |
+| **Password** | No | The password or access token of a private repository, either as the value itself or as a `${secrets.<name>}` [reference](/docs/core/config/secrets) read from the keyring. The key beside the field writes the reference of a stored secret. |
 
-The password itself is never part of the connection: the **Secret** field names a secret in the keyring, and its value is read only for the duration of a fetch. For the same reason a URL carrying credentials — `https://user:token@host/repo.git` — is rejected; give the two parts separately.
+A reference keeps the token out of the repositories file: the keyring is read for the duration of a fetch and nothing else holds the value. A password written as the value is kept in the file as it is written, and is the reason the list shows `***` in its place rather than what was typed. Either way a URL carrying credentials — `https://user:token@host/repo.git` — is rejected; give the two parts separately.
 
 <Callout type="info">
-Add the access token to the keyring before connecting the repository, either on the [Secrets](/docs/core/config/secrets) page or with `eventum-keyring set`. GitHub and GitLab both accept a personal access token in place of a password.
+Add the access token to the keyring before connecting the repository, either on the [Secrets](/docs/core/config/secrets) page or with `eventum-keyring set`, and the key beside the **Password** field offers it by name. GitHub and GitLab both accept a personal access token in place of a password.
 </Callout>
 
 The same repository may be connected more than once to follow two of its branches; what is refused is a name already taken, or that repository at a branch or tag already connected — the address is compared by what it points at, so `…/packs` and `…/packs.git` count as one.
@@ -135,7 +135,7 @@ The connected repositories are kept in a file of their own, `repositories.yml` n
   url: https://git.example.com/platform/generators.git
   ref: stable
   username: eventum
-  secret: internal_git_token
+  password: ${secrets.internal_git_token}
 ```
 
 The file can be written by hand as well; the list is read on every request, so an instance picks up an edit without a restart. Two things are worth knowing before editing it: connecting or disconnecting a repository from Studio rewrites the whole file, which does not preserve comments or the order of keys, and a file that no longer parses fails the whole Repositories page rather than being partly read.

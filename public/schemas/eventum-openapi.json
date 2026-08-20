@@ -4458,7 +4458,7 @@
                     "Repositories"
                 ],
                 "summary": "List Repositories",
-                "description": "List connected generator repositories, each with the result of the last check made in this process.",
+                "description": "List connected generator repositories, each with the result of the last check made in this process. A password naming a keyring secret is answered as written, while one holding the credential itself is answered redacted.",
                 "operationId": "list_repositories_repositories__get",
                 "responses": {
                     "200": {
@@ -4528,7 +4528,7 @@
                         "description": "Repository cannot be reached, or does not publish a catalog that can be read"
                     },
                     "424": {
-                        "description": "Secret the repository authenticates with is missing in the keyring"
+                        "description": "Secret the password of the repository refers to is missing in the keyring"
                     },
                     "409": {
                         "description": "Repository with this name, or the same repository at the same branch or tag, is already connected"
@@ -4662,7 +4662,7 @@
                         "description": "Repository is not connected"
                     },
                     "424": {
-                        "description": "Secret the repository authenticates with is missing in the keyring"
+                        "description": "Secret the password of the repository refers to is missing in the keyring"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -4825,7 +4825,7 @@
                         "description": "Repository cannot be reached, or does not publish a catalog that can be read"
                     },
                     "424": {
-                        "description": "Secret the repository authenticates with is missing in the keyring"
+                        "description": "Secret the password of the repository refers to is missing in the keyring"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -4900,7 +4900,7 @@
                         "description": "Repositories cannot be read or written"
                     },
                     "424": {
-                        "description": "Secret the repository authenticates with is missing in the keyring"
+                        "description": "Secret the password of the repository refers to is missing in the keyring"
                     },
                     "400": {
                         "description": "Requested directory name is not allowed"
@@ -6465,18 +6465,17 @@
                         ],
                         "title": "Username"
                     },
-                    "secret": {
+                    "password": {
                         "anyOf": [
                             {
                                 "type": "string",
-                                "maxLength": 255,
                                 "minLength": 1
                             },
                             {
                                 "type": "null"
                             }
                         ],
-                        "title": "Secret"
+                        "title": "Password"
                     },
                     "status": {
                         "$ref": "#/components/schemas/RepositoryStatus"
@@ -6490,7 +6489,7 @@
                     "status"
                 ],
                 "title": "ConnectedRepository",
-                "description": "Connected repository with the result of its last check.\n\nAttributes\n----------\nstatus : RepositoryStatus\n    Result of the last check of the repository."
+                "description": "Connected repository with the result of its last check.\n\nThis is the repository as it is shown rather than as it is kept:\na password holding the credential itself reads as `***`, while one\nnaming a keyring secret reads as written. Nothing authenticates\nwith it.\n\nAttributes\n----------\nstatus : RepositoryStatus\n    Result of the last check of the repository."
             },
             "Contains": {
                 "properties": {
@@ -10960,18 +10959,17 @@
                         ],
                         "title": "Username"
                     },
-                    "secret": {
+                    "password": {
                         "anyOf": [
                             {
                                 "type": "string",
-                                "maxLength": 255,
                                 "minLength": 1
                             },
                             {
                                 "type": "null"
                             }
                         ],
-                        "title": "Secret"
+                        "title": "Password"
                     }
                 },
                 "additionalProperties": false,
@@ -10981,7 +10979,7 @@
                     "url"
                 ],
                 "title": "Repository",
-                "description": "Connected generator repository.\n\nAttributes\n----------\nname : str\n    Name the repository is referred to by, unique across the\n    connected ones.\n\nurl : str\n    URL the repository is fetched from.\n\nref : str | None, default=None\n    Branch or tag to fetch. The default branch of the repository\n    is fetched when not provided.\n\nusername : str | None, default=None\n    User name to authenticate with.\n\nsecret : str | None, default=None\n    Name of the keyring secret holding the password or access\n    token to authenticate with."
+                "description": "Connected generator repository.\n\nAttributes\n----------\nname : str\n    Name the repository is referred to by, unique across the\n    connected ones.\n\nurl : str\n    URL the repository is fetched from.\n\nref : str | None, default=None\n    Branch or tag to fetch. The default branch of the repository\n    is fetched when not provided.\n\nusername : str | None, default=None\n    User name to authenticate with.\n\npassword : str | None, default=None\n    Password or access token to authenticate with, either as the\n    value itself or as a `${secrets.<name>}` reference resolved\n    from the keyring when the repository is reached."
             },
             "RepositoryStatus": {
                 "properties": {
