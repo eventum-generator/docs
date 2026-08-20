@@ -48,8 +48,10 @@ The Secrets page manages the encrypted keyring, the same one [`eventum-keyring`]
 
 Values stay masked until asked for. Secrets are added, edited and removed in place, and a new one is available to generator configurations immediately, with no restart.
 
+Renaming a secret states what refers to it first, since the two kinds of referrer are affected differently. A [connected repository](/docs/studio/repositories) authenticating with the secret is repointed at the new name, so it keeps working; a project reading it as `${secrets.name}` keeps the old name in its configuration and has to be edited.
+
 <Callout type="warn">
-Removing a secret is irreversible. Any configuration referring to it fails to load until a secret of the same name exists again.
+Removing a secret is irreversible. Any configuration referring to it fails to load until a secret of the same name exists again, and a repository authenticating with it stops answering.
 </Callout>
 
 ---

@@ -85,8 +85,8 @@ description: Eventum API reference
 <Card href="/docs/api/secrets/name/delete" title="Delete Secret Value" description="Delete secret with specified name to keyring" />
 <Card href="/docs/api/secrets/name/put" title="Set Secret Value" description="Put secret with specified name to keyring" />
 <Card href="/docs/api/secrets/get" title="List Secret Names" description="List all secrets names" />
-<Card href="/docs/api/secrets/name/references/get" title="List Secret References" description="List projects whose configuration references the secret as `${secrets.<name>}`" />
-<Card href="/docs/api/secrets/name/rename/post" title="Rename Secret Value" description="Rename secret in keyring. References to the secret in generator configurations are not rewritten." />
+<Card href="/docs/api/secrets/name/references/get" title="List Secret References" description="List what refers to the secret - the projects whose configuration reads it as `${secrets.<name>}`, and the connected repositories authenticating with it" />
+<Card href="/docs/api/secrets/name/rename/post" title="Rename Secret Value" description="Rename secret in keyring. Connected repositories authenticating with the secret are repointed at the new name; references in generator configurations are not rewritten." />
 <Card href="/docs/api/repositories/get" title="List Repositories" description="List connected generator repositories, each with the result of the last check made in this process." />
 <Card href="/docs/api/repositories/post" title="Add Repository" description="Connect a generator repository. The repository is checked before it is connected, and the catalog it publishes is read on the first request for it." />
 <Card href="/docs/api/repositories/discover/get" title="Discover Repositories" description="Search the repositories that publish generators in the open. A repository appears in the list by carrying the topic that defines it, and the content of a listed repository is not reviewed." />
