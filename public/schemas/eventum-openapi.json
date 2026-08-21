@@ -4393,7 +4393,7 @@
                     "Secrets"
                 ],
                 "summary": "Rename Secret Value",
-                "description": "Rename secret in keyring. Connected repositories authenticating with the secret are repointed at the new name; references in generator configurations are not rewritten.",
+                "description": "Rename secret in keyring. Everything referring to the secret follows: the `${secrets.<name>}` token is rewritten in the configuration of every project reading it, and every connected repository authenticating with it is repointed at the new name.",
                 "operationId": "rename_secret_value_secrets__name__rename_post",
                 "parameters": [
                     {
@@ -4422,15 +4422,11 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Names of the repositories that were repointed",
+                        "description": "Referrers carried over to the new name, by kind",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    },
-                                    "title": "Response Rename Secret Value Secrets  Name  Rename Post"
+                                    "$ref": "#/components/schemas/RenamedReferencesResponse"
                                 }
                             }
                         }
@@ -4442,7 +4438,7 @@
                         "description": "The new name is taken - by another secret, or by a connected repository authenticating with it"
                     },
                     "500": {
-                        "description": "Failed to rename secret, or the repositories using it cannot be repointed. The detail names which of the two happened, and whether the secret was left renamed"
+                        "description": "The keyring, the repositories or the configurations could not be written. The detail names which of them happened, and whether the secret was left renamed"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -10742,6 +10738,33 @@
                 ],
                 "title": "RenameSecretRequest",
                 "description": "New name for an existing secret."
+            },
+            "RenamedReferencesResponse": {
+                "properties": {
+                    "projects": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Projects",
+                        "description": "Names of the projects whose configuration was rewritten for the new name"
+                    },
+                    "repositories": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Repositories",
+                        "description": "Names of the connected repositories that were repointed at the new name"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "projects",
+                    "repositories"
+                ],
+                "title": "RenamedReferencesResponse",
+                "description": "Referrers a rename carried over to the new name, by kind.\n\nAttributes\n----------\nprojects : list[str]\n    Names of the projects whose configuration was rewritten.\n\nrepositories : list[str]\n    Names of the repositories that were repointed."
             },
             "ReplayEventPluginConfig-Output": {
                 "properties": {
