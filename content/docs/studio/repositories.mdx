@@ -33,7 +33,7 @@ The search is anonymous — nothing is configured, and no token is asked for. Gi
 | **URL** | Yes | The address the repository is fetched from. Only `http://` and `https://` are accepted. |
 | **Branch or tag** | No | What to fetch. The default branch of the repository when left empty. |
 | **User name** | No | The user name of a private repository. |
-| **Password** | No | The password or access token of a private repository, either as the value itself or as a `${secrets.<name>}` [reference](/docs/core/config/secrets) read from the keyring. The key beside the field writes the reference of a stored secret. |
+| **Password** | No | The password or access token of a private repository, either as the value itself or as a `${secrets.<name>}` [reference](/docs/core/config/secrets) read from the keyring. |
 
 A reference keeps the token out of the repositories file: the keyring is read for the duration of a fetch and nothing else holds the value. A password written as the value is kept in the file as it is written, and is the reason the list shows `***` in its place rather than what was typed. Either way a URL carrying credentials — `https://user:token@host/repo.git` — is rejected; give the two parts separately.
 
