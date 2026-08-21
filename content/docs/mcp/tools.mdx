@@ -19,7 +19,7 @@ Read-only, and available on both transports. They let the agent learn what Event
 | `get_formatter_schema` | Return the configuration schema for one formatter. |
 | `describe_sample` | Describe a CSV or JSON [sample](/docs/plugins/event/template/samples) file used by a generator. |
 | `list_secret_names` | List the secret names in the keyring, so a config can reference them. The agent cannot read or change their values — that is done with [`eventum-keyring`](/docs/core/cli/eventum-keyring). |
-| `list_secret_references` | List the projects whose configuration reads a given secret, to see what a rename or a removal would break. |
+| `list_secret_references` | List what reads a given secret — the projects whose configuration reads it, and the connected repositories authenticating with it — to see what a rename or a removal would break. |
 
 ## Workspace & authoring tools
 
@@ -80,7 +80,7 @@ Available only over HTTP. They control the generators the server manages, and re
 | `get_generator_logs` | Read | Return the recent log lines for a managed generator, to diagnose a run. |
 | `list_startup_generators` | Read | List the generators configured to start with the server. |
 | `rename_generator_config` | Write | Rename a project, moving its directory and repointing the generators that use it. All of them must be stopped first. |
-| `rename_secret` | Write | Rename a secret, keeping its value under the new name. Configurations are not rewritten — check `list_secret_references` first. |
+| `rename_secret` | Write | Rename a secret, keeping its value under the new name. Everything referring to it follows — the `${secrets.*}` token is rewritten in each project configuration, and connected repositories authenticating with it are repointed. Refused when a repository already authenticates with the new name. |
 
 ## Scenario tools
 

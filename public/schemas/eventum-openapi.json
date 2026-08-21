@@ -4344,7 +4344,7 @@
                     "Secrets"
                 ],
                 "summary": "List Secret References",
-                "description": "List projects whose configuration references the secret as `${secrets.<name>}`",
+                "description": "List what refers to the secret - the projects whose configuration reads it as `${secrets.<name>}`, and the connected repositories authenticating with it",
                 "operationId": "list_secret_references_secrets__name__references_get",
                 "parameters": [
                     {
@@ -4362,18 +4362,17 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Names of referencing generator directories",
+                        "description": "Referrers of the secret, by kind",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    },
-                                    "title": "Response List Secret References Secrets  Name  References Get"
+                                    "$ref": "#/components/schemas/SecretReferencesResponse"
                                 }
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Connected repositories cannot be read"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -4394,7 +4393,7 @@
                     "Secrets"
                 ],
                 "summary": "Rename Secret Value",
-                "description": "Rename secret in keyring. References to the secret in generator configurations are not rewritten.",
+                "description": "Rename secret in keyring. Everything referring to the secret follows: the `${secrets.<name>}` token is rewritten in the configuration of every project reading it, and every connected repository authenticating with it is repointed at the new name.",
                 "operationId": "rename_secret_value_secrets__name__rename_post",
                 "parameters": [
                     {
@@ -4423,10 +4422,12 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Successful Response",
+                        "description": "Referrers carried over to the new name, by kind",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "$ref": "#/components/schemas/RenamedReferencesResponse"
+                                }
                             }
                         }
                     },
@@ -4434,10 +4435,10 @@
                         "description": "Secret is missing in keyring"
                     },
                     "409": {
-                        "description": "Secret with the new name already exists"
+                        "description": "The new name is taken - by another secret, or by a connected repository authenticating with it"
                     },
                     "500": {
-                        "description": "Failed to rename secret"
+                        "description": "The keyring, the repositories or the configurations could not be written. The detail names which of them happened, and whether the secret was left renamed"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -10737,6 +10738,33 @@
                 "title": "RenameSecretRequest",
                 "description": "New name for an existing secret."
             },
+            "RenamedReferencesResponse": {
+                "properties": {
+                    "projects": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Projects",
+                        "description": "Names of the projects whose configuration was rewritten for the new name"
+                    },
+                    "repositories": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Repositories",
+                        "description": "Names of the connected repositories that were repointed at the new name"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "projects",
+                    "repositories"
+                ],
+                "title": "RenamedReferencesResponse",
+                "description": "Referrers a rename carried over to the new name, by kind.\n\nAttributes\n----------\nprojects : list[str]\n    Names of the projects whose configuration was rewritten.\n\nrepositories : list[str]\n    Names of the repositories that were repointed."
+            },
             "ReplayEventPluginConfig-Output": {
                 "properties": {
                     "path": {
@@ -11223,6 +11251,33 @@
                     "path"
                 ],
                 "title": "ScriptEventPluginConfig"
+            },
+            "SecretReferencesResponse": {
+                "properties": {
+                    "projects": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Projects",
+                        "description": "Names of the projects whose configuration reads the secret as `${secrets.<name>}`"
+                    },
+                    "repositories": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Repositories",
+                        "description": "Names of the connected repositories authenticating with the secret"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "projects",
+                    "repositories"
+                ],
+                "title": "SecretReferencesResponse",
+                "description": "Everything that refers to a secret, grouped by kind.\n\nAttributes\n----------\nprojects : list[str]\n    Names of the projects whose configuration reads the secret.\n\nrepositories : list[str]\n    Names of the repositories authenticating with the secret."
             },
             "ServerParameters": {
                 "properties": {

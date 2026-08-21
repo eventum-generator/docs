@@ -37,6 +37,8 @@ The search is anonymous — nothing is configured, and no token is asked for. Gi
 
 A reference keeps the token out of the repositories file: the keyring is read for the duration of a fetch and nothing else holds the value. A password written as the value is kept in the file as it is written, and is the reason the list shows `***` in its place rather than what was typed. Either way a URL carrying credentials — `https://user:token@host/repo.git` — is rejected; give the two parts separately.
 
+Because the field holds a name, the [Secrets](/docs/studio/settings#secrets) page counts the repository among what uses that secret, and renaming it there repoints the repository at the new name.
+
 <Callout type="info">
 Add the access token to the keyring before connecting the repository, either on the [Secrets](/docs/core/config/secrets) page or with `eventum-keyring set`, and the key beside the **Password** field offers it by name. GitHub and GitLab both accept a personal access token in place of a password.
 </Callout>
