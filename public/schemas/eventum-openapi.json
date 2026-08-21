@@ -4210,7 +4210,7 @@
                     "Secrets"
                 ],
                 "summary": "Set Secret Value",
-                "description": "Put secret with specified name to keyring",
+                "description": "Put secret with specified name to keyring. The name is what a configuration references as `${secrets.<name>}`, so it must be words of letters, digits and `_`, separated by `.`.",
                 "operationId": "set_secret_value_secrets__name__put",
                 "parameters": [
                     {
@@ -4247,6 +4247,9 @@
                                 "schema": {}
                             }
                         }
+                    },
+                    "400": {
+                        "description": "Name cannot be referenced in a configuration"
                     },
                     "500": {
                         "description": "Failed to set secret"
@@ -4430,6 +4433,9 @@
                                 }
                             }
                         }
+                    },
+                    "400": {
+                        "description": "Name cannot be referenced in a configuration"
                     },
                     "404": {
                         "description": "Secret is missing in keyring"
