@@ -11,7 +11,7 @@
             "name": "Apache 2.0",
             "url": "https://github.com/eventum-generator/eventum/blob/master/LICENSE"
         },
-        "version": "2.7.0"
+        "version": "2.8.0"
     },
     "paths": {
         "/auth/login": {
@@ -4210,7 +4210,7 @@
                     "Secrets"
                 ],
                 "summary": "Set Secret Value",
-                "description": "Put secret with specified name to keyring. The name is what a configuration references as `${secrets.<name>}`, so it must be words of letters, digits and `_`, separated by `.`.",
+                "description": "Put secret with specified name to keyring. The name is what a configuration references as `${secrets.<name>}`, so it must be words of lowercase letters, digits and `_`, separated by `.`.",
                 "operationId": "set_secret_value_secrets__name__put",
                 "parameters": [
                     {
@@ -4396,7 +4396,7 @@
                     "Secrets"
                 ],
                 "summary": "Rename Secret Value",
-                "description": "Rename secret in keyring. Everything referring to the secret follows: the `${secrets.<name>}` token is rewritten in the configuration of every project reading it, and every connected repository authenticating with it is repointed at the new name.",
+                "description": "Rename secret in keyring. The new name must be words of lowercase letters, digits and `_`, separated by `.`, since a configuration references it as `${secrets.<name>}`. Everything referring to the secret follows: the token is rewritten in the configuration of every project reading it, and every connected repository authenticating with it is repointed at the new name.",
                 "operationId": "rename_secret_value_secrets__name__rename_post",
                 "parameters": [
                     {
@@ -8659,7 +8659,7 @@
                         "type": "string",
                         "title": "App Version",
                         "description": "Application version",
-                        "default": "2.7.0"
+                        "default": "2.8.0"
                     },
                     "python_version": {
                         "type": "string",
