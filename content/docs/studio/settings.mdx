@@ -30,7 +30,7 @@ A section holding unsaved edits is marked in the rail, so changes spread across 
   alt="The Generation section of the Settings page in Eventum Studio"
 />
 
-Batch size and queue depths decide how much memory generation holds at once. The Generation section works that figure out for you: give it an assumed event size and it reports what full queues will occupy for one generator. **Limit memory of events queue** bounds that memory directly: **Maximum event bytes** caps what the events queue holds whatever the batches in it weigh, so a configuration whose events turn out larger than assumed stays within the figure.
+Batch size and queue depths decide how much memory generation holds at once. The Generation section works that figure out for you: give it an assumed event size and it reports what full queues will occupy for one generator. **Limit memory of events queue** bounds it directly: **Maximum event bytes** caps what the events queue holds whatever the batches in it weigh.
 
 The **Save** button appears in the page header once anything is edited and asks for confirmation first. These parameters are read when the application starts, so applying them triggers the same [restart](#danger-zone) the Management page offers, and the interface is briefly unavailable.
 
