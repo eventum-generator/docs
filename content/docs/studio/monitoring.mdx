@@ -1,9 +1,9 @@
 ---
 title: Monitoring
-description: The application dashboard — aggregate pipeline flow, throughput and failure charts, each instance's share of the load, and host and process resources.
+description: The application dashboard — every running instance in one line of state, throughput and failures over a moving window, host and process resources, and what each instance occupies.
 ---
 
-Monitoring is the dashboard for the whole application: every running instance added up. It polls every five seconds, and the charts hold the last thirty readings, so each of them covers roughly the last two and a half minutes. With nothing running, the live sections are replaced by a note pointing at [Instances](/docs/studio/instances).
+Monitoring is the dashboard for the whole application: every running instance added up, and each of them apart. It polls every five seconds and holds a moving window of **2.5**, **10** or **30 minutes**, chosen in the page header. With nothing running, the sections that depend on generation are replaced by a note pointing at [Instances](/docs/studio/instances), while the host and process resources stay live.
 
 <Screenshot
   lightSrc="/images/studio_ui/monitoring_light.png"
@@ -11,55 +11,61 @@ Monitoring is the dashboard for the whole application: every running instance ad
   alt="The Monitoring dashboard in Eventum Studio"
 />
 
-## Pipeline
+## The line of state
 
-The three stages of generation as one row of totals, each carrying the losses that explain the gap to the next.
+The row under the title is the application in one line: the instances running, the rate each stage of generation is moving events at, the rate at which events are failing, and how full the fullest queue of any instance is. The totals since those instances started close the row — timestamps generated, events produced, events written and events dropped.
 
-| Stage | Total | Losses |
-|-------|-------|--------|
-| **Input** | Timestamps enqueued | — |
-| **Event** | Events produced | Dropped intentionally, and failed to render |
-| **Output** | Events written | Rejected by a destination, and rejected by a formatter |
+| Reading | Meaning |
+|---------|---------|
+| **Input** | Timestamps entering the pipeline per second |
+| **Event** | Events produced from them per second |
+| **Output** | Events written to their destinations per second |
+| **Failing** | Events lost per second, at the event stage and the output stage together |
+| **Fullest queue** | The most loaded queue of any running instance, as a share of what it may hold |
 
-Read left to right, the row locates where events are going missing without opening a single instance.
+Read left to right, the rates locate where events are going missing without opening a single instance: an event rate under the input rate is the event stage dropping or failing to render, and an output rate under the event rate is a destination refusing them.
 
 ## Throughput and failures
 
 The **Throughput** chart plots input against output as rates measured between polls — the rate now, rather than the average since a generator started that the [Instances](/docs/studio/instances) table reports.
 
-The **Failures** chart covers the same window, split into the event stage and the output stage. It is present only while something is failing.
+The **Failures** chart covers the same window beside it, split into the event stage and the output stage.
 
-## Instance load
+## Resources
+
+CPU and memory for the host, disk and network for the Eventum process, each with its history over the window. The memory reading also names how much of the host's memory the Eventum process itself holds.
+
+Read next to the throughput chart, these separate a slow generator from a saturated machine: output that plateaus against a CPU ceiling is a different problem from output that plateaus with the machine idle.
+
+## Instances
 
 <Screenshot
   lightSrc="/images/studio_ui/monitoring_resources_light.png"
   darkSrc="/images/studio_ui/monitoring_resources_dark.png"
-  alt="Instance load and resource usage on the Monitoring dashboard"
+  alt="Instance load and per-instance resources on the Monitoring dashboard"
 />
 
-Each instance's share of the total output rate, stacked over the same window. An instance that dominates the pipeline, or has quietly stopped contributing to it, shows up here.
+Everything about the running instances is one section: a chart of the load over the window, and the table of figures behind it.
 
-## Instance resources
+**By instance** stacks the output rate of each instance, with the smallest of them folded into a single band, so an instance that dominates the pipeline — or has quietly stopped contributing to it — is visible in the shape of the chart. **By stage** stacks the same window by pipeline stage instead.
 
-What each running instance costs the host, heaviest first — the other half of the load question.
+The search and the quick filters — **Failing**, **At the limit**, **Idle** — narrow the chart and the table together, and colour follows a row from one to the other. Selecting a row opens what that instance is doing beside it: the totals behind its rates, what each of its plugins moved, and the state of both its queues, one link away from [its own page](/docs/studio/instances#instance-page).
+
+The table ranks the instances by what they occupy, and sorts by every figure it shows.
 
 | Column | Contents |
 |--------|----------|
 | **CPU** | Share of one processor core over the last poll |
 | **Wait** | Share of that time spent ready to run while waiting for a processor |
-| **Threads** | Threads the instance runs |
+| **Output** | Events written per second |
+| **Failures** | Events lost per second |
 | **Disk write** | Bytes per second written through the file system |
 | **Network out** | Bytes per second sent |
 | **Events queue** | Memory the batches waiting between the event and the output stage occupy, against the limit they may |
+| **Threads** | Threads the instance runs |
 
 **Wait** is what separates an instance the machine cannot keep up with from a slow one: a figure that climbs across every instance means more of them are running than the host has processors to run, while a single hot instance next to calm ones names the generator to stop.
 
 <Callout type="info">
 Outside Linux the operating system does not account for waiting or file system bytes per thread, so **Wait** and **Disk write** read as zero there. The rest are reported on every platform.
 </Callout>
-
-## Resources
-
-CPU and memory for the host, disk and network for the Eventum process, each with its recent history. The memory reading also names how much of the host's memory the Eventum process itself holds.
-
-Read next to the throughput chart, these separate a slow generator from a saturated machine: output that plateaus against a CPU ceiling is a different problem from output that plateaus with the machine idle.

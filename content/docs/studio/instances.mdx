@@ -95,9 +95,19 @@ An instance opens onto a page of its own, with the lifecycle controls in the hea
   alt="The Overview tab of an instance"
 />
 
-While the instance runs, the **Throughput** chart plots input against output over a moving window, and below it the same per-plugin pipeline the metrics dialog shows, updating while the page is open. A stopped instance leaves the section empty.
+The page opens on what the instance is doing right now. The panel across the top carries the rate events enter and leave the pipeline at, how many of them have failed and how many were dropped, and the totals those rates come from, over three groups of figures:
 
-The **About** card states the project, the emission mode, whether the instance starts with the application, its timezone and its last run. The **Scenarios** card changes which [scenarios](/docs/studio/scenarios) it belongs to.
+| Group | Contents |
+|-------|----------|
+| **Processor** | Share of one core over the last interval, the processor time the instance has used, how long its threads spent waiting for a processor, and how many of them there are |
+| **Memory in queues** | How full the timestamps and the events queue are, in batches and — for the events queue — in bytes against the limit they may occupy |
+| **Input and output** | Bytes read and written through the file system, and bytes sent and received over the network |
+
+**Wait** is time rather than a rate: it accumulates over the run, and a figure growing faster than the processor time means the host is running more instances than it has processors for.
+
+Below, the **Throughput** chart plots input against output over a moving window, and the **Pipeline** graph shows the same per-plugin counters the metrics dialog holds, updating while the page is open. A stopped instance leaves both empty.
+
+The panel beside them states what the instance is — the project, the emission mode, whether it starts with the application, its timezone and its last run — and the [scenarios](/docs/studio/scenarios) it belongs to, which are added and removed there.
 
 ### Settings
 
