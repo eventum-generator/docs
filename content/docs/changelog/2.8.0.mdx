@@ -93,7 +93,7 @@ Five changes alter how an existing setup behaves:
 
 ## ⚡ Performance
 
-- A generator started on a past time range, or one that fell behind real time, catches up far faster: the events already due are gathered into full batches instead of one batch per second of the range they cover
+- A generator started on a past time range, or one that fell behind real time, catches up far faster: events that are already due are gathered into full batches instead of being cut by the time span they cover
 - A scenario of many instances comes up without a spike on the host, since they start four at a time instead of compiling every template at once
 
 ## 📝 Other changes
