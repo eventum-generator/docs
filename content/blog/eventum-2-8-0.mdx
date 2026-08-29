@@ -7,7 +7,7 @@ tags:
   - release
 ---
 
-Eventum 2.8.0 is out. Until now every data source began with an empty configuration and whatever you could recall of its log format. Studio now connects repositories that publish finished generators and installs one as a project of the workspace. Projects also move between instances as archives, and a running instance reports what it occupies on the host, not only what it produces.
+Eventum 2.8.0 is out. Until now every data source began with an empty configuration and whatever you could recall of its log format. Studio now connects repositories that publish finished generators and installs one as a project of the workspace. Projects can also be exported and imported as archives, and a running instance reports what it occupies on the host, not only what it produces.
 
 ## Generators from a repository
 
@@ -20,11 +20,11 @@ A [repository](/docs/studio/repositories) is a git URL — the ready-made genera
   className="rounded-lg border mt-2"
 />
 
-A project remembers where it came from, so Studio marks a generator the workspace already holds and tells you when the repository has published it differently since. Eventum also searches the repositories that publish generators in the open, whose content it does not review. An agent over MCP works the same catalog and installs from it too.
+A project remembers where it came from, so Studio marks a generator the workspace already holds and tells you when the repository has published it differently since. Studio also searches GitHub for the repositories carrying the `eventum-generators` topic, so one can be found rather than looked up; nothing listed there is reviewed by Eventum. An agent over MCP works the same catalog and installs from it too.
 
-## Projects that travel
+## Export and import
 
-A project leaves Studio as an archive of its directory and comes back as a new project on the same instance or another one — the way to move work off a laptop onto a server, hand a generator to a colleague, or keep a copy outside the workspace. The export lists what the project holds so generated output can stay behind, and the [import](/docs/studio/projects#moving-a-project-between-instances) takes an archive downloaded from a repository as it is. Both are available over the REST API and to an agent.
+A project can be exported as an archive of its directory and imported as a new project, on the same instance or another one — the way to move work off a laptop onto a server, hand a generator to a colleague, or keep a copy outside the workspace. The export lists what the project holds so generated output can stay behind, and the [import](/docs/studio/projects#moving-a-project-between-instances) takes an archive downloaded from a repository as it is. Both are available over the REST API and to an agent.
 
 ## What an instance costs
 

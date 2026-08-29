@@ -1,11 +1,11 @@
 ---
 title: 🚩 2.8.0
-description: Eventum 2.8.0 — generator repositories in Studio, projects that travel as archives, a log file per component, and per-instance resource accounting.
+description: Eventum 2.8.0 — generator repositories in Studio, project export and import, a log file per component, and per-instance resource accounting.
 ---
 
 Released **August 29, 2026**
 
-Studio connects git repositories that publish ready-made generators and installs one as a project, so a new data source no longer starts from an empty configuration. Projects travel between instances as archives, logs are split into a file per component, and every running instance reports what it occupies on the host.
+Studio connects git repositories that publish ready-made generators and installs one as a project, so a new data source no longer starts from an empty configuration. Projects can be exported and imported as archives, logs are split into a file per component, and every running instance reports what it occupies on the host.
 
 <Callout type="warn">
 Five changes alter how an existing setup behaves:
@@ -22,52 +22,52 @@ Five changes alter how an existing setup behaves:
 ### Eventum Studio
 
 - **[Generator repositories](/docs/studio/repositories)** — connect a git repository, read the catalog of generators it publishes and install one as a project of the workspace
-- **[Repositories published in the open](/docs/studio/repositories#finding-a-repository)** — find a repository by searching what is published openly, instead of by knowing its URL
-- **[Project import and export](/docs/studio/projects#moving-a-project-between-instances)** — a project leaves as an archive of its directory and comes back as a new project on another instance
-- **[Monitoring as an investigation tool](/docs/studio/monitoring)** — one line of state over throughput and failures, and a load chart sharing its colour, search and filters with the instance table beside it
-- **[An instance page built around what the instance is doing](/docs/studio/instances#instance-page)** — the rates, the totals and what they cost open the page, ahead of what the instance is
-- **Release highlights** — what an upgrade brought is shown on the first load after the version changes, and stays in the user menu
-- **[A channel switch in the instance log viewer](/docs/studio/instances#logs)** — Main, Server, Access and MCP logs are each streamed on their own
-- **[Download in the project file tree](/docs/studio/projects#explorer)** — save a file to the machine you are browsing from, however large a generator's output has grown
+- **[Repository discovery on GitHub](/docs/studio/repositories#finding-a-repository)** — search GitHub for the repositories carrying the `eventum-generators` topic and connect one from the list, instead of looking its address up
+- **[Project export and import](/docs/studio/projects#moving-a-project-between-instances)** — export a project as a ZIP archive and import it as a new project, on the same instance or another one
+- **[Monitoring as an investigation tool](/docs/studio/monitoring)** — read throughput, failures and what every instance is doing on one screen, where the load chart and the instance table share a search, filters and a selection
+- **[Instance overview](/docs/studio/instances#instance-page)** — see the rates, the totals and the resources of an instance at the top of its page, above what the instance is configured as
+- **Release highlights** — see what an upgrade brought on the first load after it, and again from the user menu
+- **[Log channels in the instance log viewer](/docs/studio/instances#logs)** — stream the Main, Server, Access and MCP logs separately
+- **[Download in the project file tree](/docs/studio/projects#explorer)** — download a file from a project, including generator output too large for the editor to open
 - **[A keyring picker in every password field](/docs/core/config/secrets)** — pick a secret instead of recalling its name and typing the reference by hand
-- **[Scripts in the scenario data flow diagram](/docs/studio/scenarios)** — a generator coordinating through a `script` event plugin shows the global keys it reads and writes
-- **A rebuilt About dialog** — the version, the runtime, the host, the build and the state of the GIL as one sheet of labelled facts
-- **Error details ordered by diagnostic value** — the dialog leads with what the server reported, with the raw request and response behind one toggle
+- **[Scripts in the scenario data flow diagram](/docs/studio/scenarios)** — see the global keys a `script` event plugin reads and writes, beside the templates that do the same
+- **A rebuilt About dialog** — read the version, the runtime, the host, the build and the state of the GIL as one aligned list
+- **Error details ordered by diagnostic value** — the dialog leads with what the server reported and keeps the raw request and response behind one toggle
 
 ### Core
 
-- **[A log file per component](/docs/core/config/eventum-yml#log-files)** — everything a generator does goes to a file of its own instead of flooding the shared log, and every record carries the same format
-- **[`log.third_party_level`](/docs/core/config/eventum-yml#log)** — the level of third-party libraries, `warning` by default and independent of `log.level`
+- **[A log file per component](/docs/core/config/eventum-yml#log-files)** — a generator writes to a log file of its own instead of the shared one, and every record carries the same format
+- **[`log.third_party_level`](/docs/core/config/eventum-yml#log)** — set the level of third-party libraries separately from `log.level`, at `warning` by default
 - **[Per-instance resource accounting](/docs/studio/monitoring#resources)** — an instance reports the processor, the threads, the disk and network bytes and the queue levels it occupies, and Monitoring ranks the running ones by each of them
-- **[A byte budget for the events queue](/docs/core/config/eventum-yml)** — what the pipeline holds in flight is bounded in memory, not only in batches
-- **The state of the GIL** — the instance information says whether generators are actually running in parallel, and Management reports it when they no longer are
+- **[A byte budget for the events queue](/docs/core/config/eventum-yml)** — limit the events queue by the memory it holds, not only by the number of batches in it
+- **The state of the GIL** — the instance information says whether generators run in parallel, and Management warns when they stopped doing so
 - **The caller of a served request** — everything logged while serving a request carries the address of the client that caused it
 
 ### Generators
 
-- **[Global state in the `script` event plugin](/docs/plugins/event/script)** — a script correlates its events through the same shared keys a template reaches
-- **[`concurrency` in the `http` output](/docs/plugins/output/http)** — the number of requests the plugin performs at a time, 100 by default
+- **[Global state in the `script` event plugin](/docs/plugins/event/script)** — a script reads and writes the same global state a template does
+- **[`concurrency` in the `http` output](/docs/plugins/output/http)** — cap the number of requests the plugin performs at a time, 100 by default
 
 ### AI agents
 
 - **[Repository tools](/docs/mcp/tools)** — an agent reads the catalog of a connected repository and installs a generator from it
-- **[`export_generator` and `import_generator`](/docs/mcp/tools)** — move a whole project in or out as an archive instead of copying it file by file
-- **[`get_instance_logs`](/docs/mcp/tools)** — read any log channel of the instance, not just the log of a generator
+- **[`export_generator` and `import_generator`](/docs/mcp/tools)** — an agent exports and imports a whole project as an archive instead of copying it file by file
+- **[`get_instance_logs`](/docs/mcp/tools)** — an agent reads any log channel of the instance, not just the log of a generator
 - **Resources in the stats tool** — `get_generator_stats` carries the same resource figures the API does
 
 ### API
 
-- **[Repository, export and import endpoints](/docs/api)** — the repositories flow and project archives are available over HTTP
+- **[Repository, export and import endpoints](/docs/api)** — connect repositories and export or import projects over HTTP
 
 ## 🐛 Bug fixes
 
 ### Eventum Studio
 
 - Studio recovers from a page whose code or stylesheet never arrived, and its shell is no longer reused from the browser cache across an upgrade
-- The interface holds together on a narrow window, where wide tables used to run off the page behind its scrollbar
+- Wide tables scroll inside their own panel on a narrow window, instead of running off the page behind its scrollbar
 - The editor keeps its width instead of being squeezed out by the explorer and the inspector
 - The plugin parameters form follows the plugin rather than its position in the list, so deleting one no longer writes its values over another
-- An events queue whose byte limit was switched off, and a batching mode formed by one condition, are read back as they were set
+- A byte limit switched off, and a batching mode formed by one condition, are read back as they were set instead of reverting to the default
 - The instance settings are reread after saving, so the page stops showing the previous values
 - An instance registered from outside the workspace names the directory it sits in instead of linking to a project page that cannot exist
 - The projects table no longer re-renders without end when it is given no instance filter
@@ -77,11 +77,11 @@ Five changes alter how an existing setup behaves:
 ### Core and API
 
 - A secret named `keys`, `items` or `aws.get` no longer substitutes a method of the collection holding the secrets, for `${params.*}` as well
-- A secret name that no configuration can reference is refused where it is written, instead of being stored and then failing every generator that reads it
-- [What uses a secret](/docs/core/config/secrets) accounts for connected repositories as well as projects, and a rename carries every referrer over to the new name
+- A secret name that no configuration can reference is refused when it is written, instead of being stored and then failing every generator that reads it
+- [What uses a secret](/docs/core/config/secrets) counts connected repositories as well as projects, and renaming it repoints every one of them
 - Cyrillic and other non-ASCII values in a configuration are stored as they were entered, not as escape sequences
 - Configurations, templates, samples, time patterns and log files are read and written as UTF-8 whatever the host locale is
-- The pipeline backpressure warnings state what actually happened — a cancelled write or a queue that filled up — and repeat once per ten seconds with a running count
+- The pipeline backpressure warnings name what actually happened — a cancelled write or a queue that filled up — and repeat once per ten seconds with a running count
 - A path that leaves the project directory through a symlink is refused for every file operation
 
 ### Generators
