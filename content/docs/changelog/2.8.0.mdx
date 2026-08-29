@@ -101,4 +101,4 @@ Five changes alter how an existing setup behaves:
 
 - The body of `POST /preview/{name}/event-plugin/produce` is described by a request model of its own and rejects anything else
 - The preview global state endpoints moved from `/preview/{name}/event-plugin/template/state/global` to `/preview/{name}/event-plugin/state/global`, since the state they read belongs to every event plugin
-- The application disk counters measure the bytes handed to the system calls, so they add up with the per-instance figures
+- The disk figures of the application count the bytes handed to the system calls, the same measure an instance is reported by, so the two can be compared; the application used to count what reached the disk instead
