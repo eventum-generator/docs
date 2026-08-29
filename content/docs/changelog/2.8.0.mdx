@@ -67,7 +67,7 @@ Five changes alter how an existing setup behaves:
 - Wide tables scroll inside their own panel on a narrow window, instead of running off the page behind its scrollbar
 - The editor keeps its width instead of being squeezed out by the explorer and the inspector
 - The plugin parameters form follows the plugin rather than its position in the list, so deleting one no longer writes its values over another
-- A byte limit switched off, and a batching mode formed by one condition, are read back as they were set instead of reverting to the default
+- A `max_event_bytes` switched off, and batching set by `batch.size` or `batch.delay` alone, are read back as they were set instead of reverting to the default
 - The instance settings are reread after saving, so the page stops showing the previous values
 - An instance registered from outside the workspace names the directory it sits in instead of linking to a project page that cannot exist
 - The projects table no longer re-renders without end when it is given no instance filter
@@ -81,7 +81,7 @@ Five changes alter how an existing setup behaves:
 - [What uses a secret](/docs/core/config/secrets) counts connected repositories as well as projects, and renaming it repoints every one of them
 - Cyrillic and other non-ASCII values in a configuration are stored as they were entered, not as escape sequences
 - Configurations, templates, samples, time patterns and log files are read and written as UTF-8 whatever the host locale is
-- The pipeline backpressure warnings name what actually happened — a cancelled write or a queue that filled up — and repeat once per ten seconds with a running count
+- The pipeline backpressure warnings name what actually happened — a cancelled write or a queue that filled up — and repeated write timeouts are counted into one line instead of flooding the log
 - A path that leaves the project directory through a symlink is refused for every file operation
 
 ### Generators
@@ -94,7 +94,7 @@ Five changes alter how an existing setup behaves:
 ## ⚡ Performance
 
 - A generator started on a past time range, or one that fell behind real time, catches up far faster: events that are already due are batched by `batch.size` instead of `batch.delay`
-- A scenario of many instances comes up without a spike on the host, since they start four at a time instead of compiling every template at once
+- A scenario of many instances comes up without a spike on the host, since they no longer all compile their templates at once
 
 ## 📝 Other changes
 
