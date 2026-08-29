@@ -68,7 +68,7 @@ Five changes alter how an existing setup behaves:
 - Wide tables scroll inside their own panel on a narrow window, instead of putting their rightmost columns out of reach behind the page scrollbar
 - The editor keeps its width while the explorer and the inspector give way, instead of absorbing every bit of narrowing
 - The plugin parameters form follows the plugin rather than its position in the list, so deleting one no longer writes its values over another
-- An events queue with `max_event_bytes` switched off, and an instance batching by `batch.size` or `batch.delay` alone, are read back as they were set
+- Switching off the events-queue memory limit, or batching by `batch.size` or `batch.delay` alone, now reaches the instance: the settings form dropped the value that asks for it, so the choice was never applied and the switch came back on
 - The instance settings are reread after saving, so the page stops showing the values it held before the write
 - An instance registered from outside the workspace names the directory it sits in, instead of linking to a project page that cannot exist
 - The projects table no longer re-renders without end when it is opened without an instance filter
