@@ -53,19 +53,23 @@ Each repository carries a badge for whether it answered the last time it was ask
 
 A repository publishes its generators from a `generators` directory at its root. Every subdirectory holding a generator configuration is one catalog entry; a subdirectory without one is ignored, so documentation and tooling can live alongside.
 
-```text
-content-packs/
-├── generators/
-│   ├── web-nginx/
-│   │   ├── generator.yml
-│   │   ├── README.md
-│   │   ├── templates/
-│   │   └── samples/
-│   └── linux-auditd/
-│       ├── generator.yml
-│       └── ...
-└── README.md
-```
+<Files>
+  <Folder name="content-packs" defaultOpen>
+    <Folder name="generators" defaultOpen>
+      <Folder name="web-nginx" defaultOpen>
+        <File name="generator.yml" />
+        <File name="README.md" />
+        <Folder name="templates" />
+        <Folder name="samples" />
+      </Folder>
+      <Folder name="linux-auditd">
+        <File name="generator.yml" />
+        <File name="README.md" />
+      </Folder>
+    </Folder>
+    <File name="README.md" />
+  </Folder>
+</Files>
 
 The entry is named after its directory. Its title and the sentence describing it come from the `README.md` of the generator — the first heading and the paragraph under it — and its size is the size of the files it consists of.
 
