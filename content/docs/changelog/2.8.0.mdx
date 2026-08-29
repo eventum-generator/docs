@@ -5,55 +5,55 @@ description: Eventum 2.8.0 — generator repositories in Studio, project export 
 
 Released **August 29, 2026**
 
-Studio connects git repositories that publish ready-made generators and installs one as a project, so a new data source no longer starts from an empty configuration. Projects can be exported and imported as archives, logs are split into a file per component, and every running instance reports what it occupies on the host.
+Studio connects git repositories that publish ready-made generators and installs one of them as a project, so a new data source no longer starts from an empty configuration. Projects export and import as ZIP archives, the log is split into a file per component, and every running instance reports the processor, threads, disk, network and queue memory it occupies.
 
 <Callout type="warn">
 Five changes alter how an existing setup behaves:
 
-- **`server.ui_enabled` and `server.api_enabled` are gone.** Deprecated in 2.7.0, they are now rejected as unknown settings — move the value under [`server.ui.enabled` and `server.api.enabled`](/docs/core/config/eventum-yml).
-- **The log files changed.** A record goes to `main.log`, `server.log`, `server_access.log`, `mcp.log` or `generator_<id>.log` by the component it came from, and `server_error.log` is gone. Anything collecting these files needs the [new set](/docs/core/config/eventum-yml#log-files).
-- **The events queue is bounded in bytes.** It holds at most [`generation.queue.max_event_bytes`](/docs/core/config/eventum-yml), 256 MiB by default, so a generator rendering large events buffers less than before.
-- **Sample mode batches by size alone.** With `batch.size` set, a sample-mode run no longer cuts batches by `batch.delay`, so a per-batch formatter such as `json-batch` writes larger arrays than before.
-- **A secret name is now checked.** It has to be words of lowercase letters, digits and `_` separated by `.`. Names already in a keyring keep working.
+- **`server.ui_enabled` and `server.api_enabled` are gone.** Deprecated in 2.7.0, they are now rejected as unknown settings — move the value under [`server.ui.enabled` and `server.api.enabled`](/docs/core/config/eventum-yml#server).
+- **The log files changed.** A record goes to `main.log`, `server.log`, `server_access.log`, `mcp.log` or `generator_<id>.log` by the part of the application it came from, and `server_error.log` is gone. Anything collecting these files needs the [new set](/docs/core/config/eventum-yml#log-files).
+- **The events queue is bounded in memory.** It holds at most [`generation.queue.max_event_bytes`](/docs/core/config/eventum-yml#generationqueue), 256 MiB by default. The limit is set for the application, overridden per instance, or set to `null` to lift it.
+- **Sample mode ignores `batch.delay` when `batch.size` is set.** Batches are formed by size alone, so a per-batch formatter such as `json-batch` writes larger arrays than before — see [Batching](/docs/core/concepts/generator#batching).
+- **A secret name is checked when it is written.** It must be words of lowercase letters, digits and `_`, separated by `.` — see [Naming a secret](/docs/core/config/secrets#naming-a-secret). Names already in a keyring are left as they are.
 </Callout>
 
 ## 🚀 New features
 
 ### Eventum Studio
 
-- **[Generator repositories](/docs/studio/repositories)** — connect a git repository, read the catalog of generators it publishes and install one as a project of the workspace
-- **[Repository discovery on GitHub](/docs/studio/repositories#finding-a-repository)** — search GitHub for the repositories carrying the `eventum-generators` topic and connect one from the list, instead of looking its address up
+- **[Generator repositories](/docs/studio/repositories)** — connect a git repository of ready-made generators and install any entry of its catalog as a project
+- **[Repository discovery](/docs/studio/repositories#finding-a-repository)** — find a repository by searching GitHub for the ones carrying the `eventum-generators` topic, and connect it from the list
 - **[Project export and import](/docs/studio/projects#moving-a-project-between-instances)** — export a project as a ZIP archive and import it as a new project, on the same instance or another one
-- **[Monitoring as an investigation tool](/docs/studio/monitoring)** — read throughput, failures and what every instance is doing on one screen, where the load chart and the instance table share a search, filters and a selection
-- **[Instance overview](/docs/studio/instances#instance-page)** — see the rates, the totals and the resources of an instance at the top of its page, above what the instance is configured as
-- **Release highlights** — see what an upgrade brought on the first load after it, and again from the user menu
-- **[Log channels in the instance log viewer](/docs/studio/instances#logs)** — stream the Main, Server, Access and MCP logs separately
-- **[Download in the project file tree](/docs/studio/projects#explorer)** — download a file from a project, including generator output too large for the editor to open
-- **[A keyring picker in every password field](/docs/core/config/secrets)** — pick a secret instead of recalling its name and typing the reference by hand
-- **[Scripts in the scenario data flow diagram](/docs/studio/scenarios)** — see the global keys a `script` event plugin reads and writes, beside the templates that do the same
-- **A rebuilt About dialog** — read the version, the runtime, the host, the build and the state of the GIL as one aligned list
-- **Error details ordered by diagnostic value** — the dialog leads with what the server reported and keeps the raw request and response behind one toggle
+- **[Monitoring rebuilt around the running instances](/docs/studio/monitoring#instances)** — the load chart and the instance table share one search, one set of filters and one selection
+- **[Instance overview](/docs/studio/instances#overview)** — an instance opens on its rates, its totals and what the run costs, which used to be a grid of figures at the foot of the page
+- **Release highlights** — what an upgrade brought opens by itself on the first load after it, and stays reachable from the user menu
+- **[Log channels on the Management page](/docs/studio/settings#management)** — stream the Main, Server, Access and MCP logs of the application separately
+- **[Download in the project file tree](/docs/studio/projects#explorer)** — save a project file to your machine, including generator output too large for the editor to open
+- **[A keyring picker beside password fields](/docs/core/config/secrets)** — pick a secret from the keyring instead of typing the `${secrets.<name>}` reference by hand
+- **[Scripts in the scenario data flow diagram](/docs/studio/scenarios#data-flow)** — the diagram carries the global keys a `script` event plugin reads and writes, beside the templates that do the same
+- **A rebuilt About dialog** — the version, the runtime, the host and the build read as one aligned list
+- **Error details ordered by diagnostic value** — the dialog leads with what the server reported, and the raw request and response sit behind one toggle
 
 ### Core
 
-- **[A log file per component](/docs/core/config/eventum-yml#log-files)** — a generator writes to a log file of its own instead of the shared one, and every record carries the same format
-- **[`log.third_party_level`](/docs/core/config/eventum-yml#log)** — set the level of third-party libraries separately from `log.level`, at `warning` by default
-- **[Per-instance resource accounting](/docs/studio/monitoring#resources)** — an instance reports the processor, the threads, the disk and network bytes and the queue levels it occupies, and Monitoring ranks the running ones by each of them
-- **[A memory limit for the events queue](/docs/core/config/eventum-yml)** — limit the events queue by the memory it holds, not only by the number of batches in it
-- **The state of the GIL** — the instance information says whether generators run in parallel, and Management warns when they stopped doing so
+- **[A log file per component](/docs/core/config/eventum-yml#log-files)** — a generator writes a log file of its own, down to the traffic its output plugins produce, instead of sharing one with the application
+- **[Per-instance resource accounting](/docs/studio/monitoring#instances)** — an instance reports the threads, processor time, waiting, disk and network bytes and queue levels it occupies, and Monitoring ranks the running ones by each of them
+- **[`generation.queue.max_event_bytes`](/docs/core/config/eventum-yml#generationqueue)** — limit the events queue by the memory it holds, not only by the number of batches in it
+- **[`log.third_party_level`](/docs/core/config/eventum-yml#log)** — set the level of third-party libraries separately from `log.level`, `warning` by default
+- **The state of the GIL** — the instance information reports whether generators run in parallel, and [Management](/docs/studio/settings#management) warns when the GIL came back after startup
 - **The caller of a served request** — everything logged while serving a request carries the address of the client that caused it
 
 ### Generators
 
-- **[Global state in the `script` event plugin](/docs/plugins/event/script)** — a script reads and writes the same global state a template does
-- **[`concurrency` in the `http` output](/docs/plugins/output/http)** — cap the number of requests the plugin performs at a time, 100 by default
+- **[Global state in the `script` event plugin](/docs/plugins/event/script)** — a script reads and writes the same global state a template does, through a `globals` key of its parameters
+- **[`concurrency` in the `http` output](/docs/plugins/output/http)** — cap how many requests the plugin performs at a time, 100 by default
 
 ### AI agents
 
-- **[Repository tools](/docs/mcp/tools)** — an agent reads the catalog of a connected repository and installs a generator from it
-- **[`export_generator` and `import_generator`](/docs/mcp/tools)** — an agent exports and imports a whole project as an archive instead of copying it file by file
-- **[`get_instance_logs`](/docs/mcp/tools)** — an agent reads any log channel of the instance, not just the log of a generator
-- **Resources in the stats tool** — `get_generator_stats` carries the same resource figures the API does
+- **[Repository tools](/docs/mcp/tools)** — an agent lists the connected repositories, reads the catalog one publishes and installs a generator from it
+- **[`export_generator` and `import_generator`](/docs/mcp/tools)** — an agent moves a whole project in or out as a ZIP archive instead of copying it file by file
+- **[`get_instance_logs`](/docs/mcp/tools)** — an agent reads any log channel of the application, not just the log of a generator
+- **Resources in `get_generator_stats`** — the tool carries the same per-instance resource figures the API does
 
 ### API
 
@@ -63,41 +63,42 @@ Five changes alter how an existing setup behaves:
 
 ### Eventum Studio
 
-- Studio recovers from a page whose code or stylesheet never arrived, and its shell is no longer reused from the browser cache across an upgrade
-- Wide tables scroll inside their own panel on a narrow window, instead of running off the page behind its scrollbar
-- The editor keeps its width instead of being squeezed out by the explorer and the inspector
+- A page whose code or stylesheet never arrived reloads the document once, instead of dropping Studio on the error screen
+- The Studio shell is no longer served from the browser cache, so it cannot outlive an upgrade and ask for files the new build does not carry
+- Wide tables scroll inside their own panel on a narrow window, instead of putting their rightmost columns out of reach behind the page scrollbar
+- The editor keeps its width while the explorer and the inspector give way, instead of absorbing every bit of narrowing
 - The plugin parameters form follows the plugin rather than its position in the list, so deleting one no longer writes its values over another
-- A `max_event_bytes` switched off, and batching set by `batch.size` or `batch.delay` alone, are read back as they were set instead of reverting to the default
-- The instance settings are reread after saving, so the page stops showing the previous values
-- An instance registered from outside the workspace names the directory it sits in instead of linking to a project page that cannot exist
-- The projects table no longer re-renders without end when it is given no instance filter
-- The template editor offers `pop`, the one state call it never completed
-- The table sort controls, the instance switches and the delimiter shortcuts are named for a screen reader
+- An events queue with `max_event_bytes` switched off, and an instance batching by `batch.size` or `batch.delay` alone, are read back as they were set
+- The instance settings are reread after saving, so the page stops showing the values it held before the write
+- An instance registered from outside the workspace names the directory it sits in, instead of linking to a project page that cannot exist
+- The projects table no longer re-renders without end when it is opened without an instance filter
+- The template editor completes `pop` among the state calls it offers
+- The table sort controls, the instance switches and the delimiter shortcuts carry names a screen reader can announce
 
 ### Core and API
 
-- A secret named `keys`, `items` or `aws.get` no longer substitutes a method of the collection holding the secrets, for `${params.*}` as well
-- A secret name that no configuration can reference is refused when it is written, instead of being stored and then failing every generator that reads it
-- [What uses a secret](/docs/core/config/secrets) counts connected repositories as well as projects, and renaming it repoints every one of them
-- Cyrillic and other non-ASCII values in a configuration are stored as they were entered, not as escape sequences
+- A secret named `keys`, `items` or `aws.get` no longer resolves to a method of the collection holding the secrets, for `${params.*}` as well
+- [What uses a secret](/docs/studio/settings#secrets) counts connected repositories as well as projects, and renaming it repoints every one of them
+- Non-ASCII values in a configuration are stored as they were entered, not as `\uXXXX` escape sequences
 - Configurations, templates, samples, time patterns and log files are read and written as UTF-8 whatever the host locale is
-- The pipeline backpressure warnings name what actually happened — a cancelled write or a queue that filled up — and repeated write timeouts are counted into one line instead of flooding the log
+- The pipeline backpressure warnings name what actually happened — a cancelled write, or a queue that filled up — instead of blaming the generation rate
+- Repeated write timeouts of an output plugin are reported as one line with a running count, in place of one line per cancelled write
 - A path that leaves the project directory through a symlink is refused for every file operation
 
 ### Generators
 
-- A [`tcp` output](/docs/plugins/output/tcp) whose target stopped reading no longer grows the memory of the application without bound or holds up the shutdown of the instance
+- A [`tcp` output](/docs/plugins/output/tcp) whose target stopped reading fails the write at once, instead of growing the memory of the application and holding up the shutdown of the instance
 - A template that acquired the global state lock and never released it no longer freezes every other generator
-- The [`http` output](/docs/plugins/output/http) no longer opens a request per event with a per-event formatter
+- A batch written through the [`http` output](/docs/plugins/output/http) under a per-event formatter no longer fires a request per event at once, which used to cancel the write on its timeout and count every event as failed
 - A [`subprocess.run`](/docs/plugins/event/template/subprocess) call runs under a timeout of 30 seconds by default and 300 at most, and fails rather than holding more than 8 MiB of output
 
 ## ⚡ Performance
 
-- A generator started on a past time range, or one that fell behind real time, catches up far faster: batches whose timestamps are already due are merged up to `batch.size`, instead of being published as the small slices `batch.delay` cut them into
-- A scenario of many instances comes up without a spike on the host, since they no longer all compile their templates at once
+- A generator catching up — started on a past range, or fallen behind real time — merges the batches whose timestamps are already due up to `batch.size`, instead of publishing each of the small batches `batch.delay` cut them into
+- Starting many instances at once no longer compiles all of their templates at the same moment, so a large scenario comes up without the spike on the host
 
 ## 📝 Other changes
 
-- The body of the preview produce endpoint is described by a model of its own and rejects anything else
-- The preview global state endpoints moved out of the template subtree, since the state they read belongs to every event plugin
+- The body of `POST /preview/{name}/event-plugin/produce` is described by a request model of its own and rejects anything else
+- The preview global state endpoints moved from `/preview/{name}/event-plugin/template/state/global` to `/preview/{name}/event-plugin/state/global`, since the state they read belongs to every event plugin
 - The application disk counters measure the bytes handed to the system calls, so they add up with the per-instance figures
