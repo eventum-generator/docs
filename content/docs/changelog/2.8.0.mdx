@@ -13,7 +13,7 @@ Five changes alter how an existing setup behaves:
 - **`server.ui_enabled` and `server.api_enabled` are gone.** Deprecated in 2.7.0, they are now rejected as unknown settings — move the value under [`server.ui.enabled` and `server.api.enabled`](/docs/core/config/eventum-yml).
 - **The log files changed.** A record goes to `main.log`, `server.log`, `server_access.log`, `mcp.log` or `generator_<id>.log` by the component it came from, and `server_error.log` is gone. Anything collecting these files needs the [new set](/docs/core/config/eventum-yml#log-files).
 - **The events queue is bounded in bytes.** It holds at most [`generation.queue.max_event_bytes`](/docs/core/config/eventum-yml), 256 MiB by default, so a generator rendering large events buffers less than before.
-- **Batches are formed by size where the delay bounds nothing.** Timestamps already in the past, and every timestamp in sample mode, are grouped by `batch.size` alone, so a sample-mode run through the `json-batch` formatter writes larger arrays.
+- **Past timestamps are batched by size.** Timestamps already in the past, and every timestamp in sample mode, are grouped by `batch.size` rather than by `batch.delay`, so a sample-mode run through the `json-batch` formatter writes larger arrays than before.
 - **A secret name is now checked.** It has to be words of lowercase letters, digits and `_` separated by `.`. Names already in a keyring keep working.
 </Callout>
 
@@ -39,7 +39,7 @@ Five changes alter how an existing setup behaves:
 - **[A log file per component](/docs/core/config/eventum-yml#log-files)** — a generator writes to a log file of its own instead of the shared one, and every record carries the same format
 - **[`log.third_party_level`](/docs/core/config/eventum-yml#log)** — set the level of third-party libraries separately from `log.level`, at `warning` by default
 - **[Per-instance resource accounting](/docs/studio/monitoring#resources)** — an instance reports the processor, the threads, the disk and network bytes and the queue levels it occupies, and Monitoring ranks the running ones by each of them
-- **[A byte budget for the events queue](/docs/core/config/eventum-yml)** — limit the events queue by the memory it holds, not only by the number of batches in it
+- **[A memory limit for the events queue](/docs/core/config/eventum-yml)** — limit the events queue by the memory it holds, not only by the number of batches in it
 - **The state of the GIL** — the instance information says whether generators run in parallel, and Management warns when they stopped doing so
 - **The caller of a served request** — everything logged while serving a request carries the address of the client that caused it
 
@@ -93,8 +93,8 @@ Five changes alter how an existing setup behaves:
 
 ## ⚡ Performance
 
-- Half an hour of live backlog at 10 events per second drains in 2 batches instead of 1798
-- Starting many instances at once no longer compiles all their templates at the same moment
+- A generator started on a past time range, or one that fell behind real time, catches up far faster: the events already due are gathered into full batches instead of one batch per second of the range they cover
+- A scenario of many instances comes up without a spike on the host, since they start four at a time instead of compiling every template at once
 
 ## 📝 Other changes
 
