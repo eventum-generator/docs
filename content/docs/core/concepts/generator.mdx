@@ -146,14 +146,37 @@ graph LR
 
 The two queues provide natural **backpressure**: if the event plugin is slower than the input, the timestamps queue fills up and the input task pauses. If the output is slower than the event plugin, the events queue fills up and event production pauses. This prevents memory from growing unboundedly without dropping events.
 
+### How much memory a generator holds
+
+The memory a generator occupies follows the size of a batch rather than the rate of events. A batch is in more than one place at once — one is produced while the previous one is written — and each destination formats its own copy of what it delivers, so the total comes to several times the size of a single batch.
+
+For events of a few hundred bytes and the default batch of 10 000, a generator writing JSON to one destination settles around 20 MiB above what the process itself needs, and every further destination adds about 6 MiB. A batch of 1 000 events brings the whole figure under 2 MiB. Lower `batch.size` when a generator has to fit into a smaller footprint — `queue.max_event_bytes` bounds a different part, the batches that pile up in the queue when a destination stops keeping up.
+
+The memory reported for a process is the largest amount it has needed so far, so the figure climbs in steps while the first batches pass through and then stays level. A generator that reaches that level and holds it is behaving as expected.
+
+### Batching
+
+Timestamps travel through the pipeline in batches, and a batch is the unit of work for everything downstream: one pass of event rendering, one write per output plugin. Two parameters decide where a batch ends — `batch.size`, how many timestamps it holds, and `batch.delay`, the time span of the timestamps it covers.
+
+`size` is the primary limit. What `delay` buys is a bound on the lag batching adds to delivery: a batch is released once its last timestamp comes due, so the first event in it waits at most `delay` seconds past its own moment. Where nothing is waited for, `delay` has no lag to bound and would only cut the run into batches the size of the event rate, so the batch is formed by `size`:
+
+| Configuration | Mode and situation | What ends the batch |
+|---------------|--------------------|---------------------|
+| `size` only | any mode | `size` is reached |
+| `size` and `delay` | live, timestamps still ahead of real time | whichever of the two limits is reached first |
+| `size` and `delay` | live, timestamps that have already passed — a generator started on a past range with `skip_past` disabled, or one running behind real time | `size` is reached |
+| `size` and `delay` | sample mode | `size` is reached |
+| `delay` only | any mode | the `delay` window — with no `size` set it is the only limit on how large a batch grows |
+
 ### Tuning parameters
 
 | Parameter | Default | What it controls |
 |-----------|---------|-----------------|
 | `batch.size` | `10000` | Max timestamps per batch — larger batches reduce overhead but increase latency |
-| `batch.delay` | `1.0` | Max seconds to accumulate timestamps before flushing a partial batch |
+| `batch.delay` | `1.0` | Max time span of the timestamps one batch covers — applies to timestamps still ahead of real time in live mode, everything else is grouped by size |
 | `queue.max_timestamp_batches` | `10` | Timestamps queue depth — more buffering between input and event stages |
 | `queue.max_event_batches` | `10` | Events queue depth — more buffering between event and output stages |
+| `queue.max_event_bytes` | `268435456` | Memory the events queue may hold, 256 MiB by default — `null` leaves it unlimited |
 | `max_concurrency` | `100` | Max parallel output write operations |
 | `write_timeout` | `10` | Seconds before canceling a slow output write |
 | `keep_order` | `false` | When `true`, output writes are serialized to maintain strict chronological order (slower but ordered) |
@@ -162,7 +185,7 @@ These parameters are set either via CLI flags (`eventum generate --batch.size 50
 
 ## Running multiple generators
 
-When you need more than one generator — different event types, different schedules, different destinations — use `eventum run` to launch the full application. Each generator runs in its own thread with independent pipelines, queues, and plugins. They don't share state unless you explicitly use the `globals` variable in templates.
+When you need more than one generator — different event types, different schedules, different destinations — use `eventum run` to launch the full application. Each generator runs in its own thread with independent pipelines, queues, and plugins. They don't share state unless you explicitly use the [`globals`](/docs/plugins/event/template/state) state, available to templates and scripts alike.
 
 The [startup config](/docs/core/config/files/startup-yml) lists all generators and lets you override parameters per generator:
 

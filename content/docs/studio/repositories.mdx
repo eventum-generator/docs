@@ -1,0 +1,147 @@
+---
+title: Repositories
+description: Connect a git repository of ready-made generators, browse what it publishes, and install a generator into the workspace as a project.
+---
+
+A **connected repository** is a git repository that publishes ready-made generators. Studio reads the catalog it offers and installs any entry of that catalog as a [project](/docs/studio/projects) under `path.generators_dir` — without cloning the repository by hand and pointing the CLI at a path inside it.
+
+The repository Eventum publishes is [content-packs](https://github.com/eventum-generator/content-packs), the source of the generators listed in the [Hub](/hub). Any repository laid out the same way works the same.
+
+<Screenshot
+  lightSrc="/images/studio_ui/repositories_light.png"
+  darkSrc="/images/studio_ui/repositories_dark.png"
+  alt="Repositories page in Eventum Studio"
+/>
+
+## Finding a repository
+
+**Discover** lists the repositories that publish generators in the open. A repository appears there by carrying the `eventum-generators` topic on GitHub — there is nothing to register, and the content of a listed repository is not reviewed. Each entry states what its authors say about it: the description, the stars, the license and when it was last pushed to, with a link to the repository itself. **Connect** opens the same dialog as connecting by hand, filled in with the address and a free name.
+
+<Callout type="warn">
+Community repositories are not reviewed by Eventum. A generator can carry templates and scripts that are executed on your machine when the generator runs, so review what you install and connect only repositories you trust.
+</Callout>
+
+The search is anonymous — nothing is configured, and no token is asked for. GitHub allows a small number of anonymous searches a minute per address, so what was read is kept for ten minutes and answered from; a search refused because that allowance is spent is reported as such and works again once it resets.
+
+## Connecting a repository
+
+**Connect** asks for the address of the repository and, for a private one, the credentials to reach it. The repository is checked before it is connected, so an address that leads nowhere, a branch that does not exist and credentials the host refuses are reported in the form rather than when the catalog is first read. A repository that is temporarily out of reach can be connected anyway from the same dialog.
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| **Name** | Yes | The name the repository is listed under. Letters, digits, `-`, `_` and `.`. |
+| **URL** | Yes | The address the repository is fetched from. Only `http://` and `https://` are accepted. |
+| **Branch or tag** | No | What to fetch. The default branch of the repository when left empty. |
+| **User name** | No | The user name of a private repository. |
+| **Password** | No | The password or access token of a private repository, either as the value itself or as a `${secrets.<name>}` [reference](/docs/core/config/secrets) read from the keyring. |
+
+A reference keeps the token out of the repositories file: the keyring is read for the duration of a fetch and nothing else holds the value. A password written as the value is kept in the file as it is written, and is the reason the list shows `***` in its place rather than what was typed. Either way a URL carrying credentials — `https://user:token@host/repo.git` — is rejected; give the two parts separately.
+
+Because the field holds a name, the [Secrets](/docs/studio/settings#secrets) page counts the repository among what uses that secret, and renaming it there repoints the repository at the new name.
+
+<Callout type="info">
+Add the access token to the keyring before connecting the repository, either on the [Secrets](/docs/core/config/secrets) page or with `eventum-keyring set`, and the key beside the **Password** field offers it by name. GitHub and GitLab both accept a personal access token in place of a password.
+</Callout>
+
+The same repository may be connected more than once to follow two of its branches; what is refused is a name already taken, or that repository at a branch or tag already connected — the address is compared by what it points at, so `…/packs` and `…/packs.git` count as one.
+
+Each repository carries a badge for whether it answered the last time it was asked: **Reachable**, **Unreachable** with the reason, or **Not checked** until the page asks. Reading a catalog counts as an answer, so a refresh keeps the badge current. The check is a request for the references the repository publishes and transfers nothing of it.
+
+**Disconnect** removes a repository from the list. Generators already installed from it stay in the workspace, and each of them keeps the record of where it came from, so connecting the repository again marks them as installed once more.
+
+## What a repository publishes
+
+A repository publishes its generators from a `generators` directory at its root. Every subdirectory holding a generator configuration is one catalog entry; a subdirectory without one is ignored, so documentation and tooling can live alongside.
+
+<Files>
+  <Folder name="content-packs" defaultOpen>
+    <Folder name="generators" defaultOpen>
+      <Folder name="web-nginx" defaultOpen>
+        <File name="generator.yml" />
+        <File name="README.md" />
+        <Folder name="templates" />
+        <Folder name="samples" />
+      </Folder>
+      <Folder name="linux-auditd">
+        <File name="generator.yml" />
+        <File name="README.md" />
+      </Folder>
+    </Folder>
+    <File name="README.md" />
+  </Folder>
+</Files>
+
+The entry is named after its directory. Its title and the sentence describing it come from the `README.md` of the generator — the first heading and the paragraph under it — and its size is the size of the files it consists of.
+
+## Reading the catalog
+
+Opening a repository reads its catalog. The reading is a fetch of the repository, so it happens on request rather than in the background, and what was read is kept for as long as the instance runs.
+
+The line above the table names how many generators the repository publishes, the revision the catalog was read from with its author, and the moment it was read. The search beside it narrows the table by name, title and summary. **Refresh** reads the catalog again, which is how a generator added to the repository after the catalog was first read appears in the list.
+
+Selecting a generator opens what the repository states about it: its size and file count, the path it lives at with a link to it on GitHub or GitLab, the commit the catalog was read from, and the projects it is already installed as.
+
+## Installing a generator
+
+**Install** asks for the name of the project to install into and writes the generator there. The name is proposed from the entry and can be changed; a name already taken is reported before anything is written, and an existing project is never overwritten.
+
+A generator the workspace already holds is marked **installed** and offers **Open** instead, which goes to the project it was installed as. Installing it a second time is a step deeper, in the card of the generator: **Install another copy** writes a separate project beside the first, under a free name, and leaves the one you have untouched. That is also how a generator the repository has changed is taken — the new version arrives as its own project, to be compared against the one in use rather than overwriting it.
+
+What the repository publishes is written into the workspace under the same rules as an [imported archive](/docs/studio/projects#moving-a-project-between-instances): only regular files are installed, so a symbolic link or a submodule the repository carries is left behind rather than followed, and a generator holding more than 10 000 files or unpacking to more than 512 MiB is refused.
+
+The installed project is a copy like any other. It can be edited, renamed, run and exported, and a later change in the repository does not reach it — install it again under another name to compare.
+
+An agent connected over [MCP](/docs/mcp) installs from the same repositories: it lists what is connected, reads a catalog and installs an entry, while connecting a repository stays here. See [Tools & resources](/docs/mcp/tools#repository-tools).
+
+## What a project remembers
+
+An installed project carries a `.eventum-source.yml` file naming where it came from: the repository, the generator, the commit, and the content of that generator at that commit. The catalog reads it back, so a generator already in the workspace is recognized by its origin rather than by a name that happens to match — a project renamed afterwards is still recognized, and an unrelated project sharing a name is not mistaken for one.
+
+What the workspace already holds is marked beside the name of the generator: **installed**, or **update available** when the repository publishes the generator with content different from what was installed. The mark follows the repository, not the project — editing an installed project never raises it. The card names the projects it is installed as, each with whether it is still up to date and a link that opens it.
+
+```yaml title=".eventum-source.yml"
+repository: content-packs
+url: https://github.com/eventum-generator/content-packs.git
+ref: null
+entry: web-nginx
+revision: 29b728c556c04f9d1c8a8e9aaa2a5a27bdfdee17
+tree: 1b2071b4d4997c29a2f223b5242a4d553c66d7ff
+installed_at: '2026-08-19T18:30:44.198256Z'
+```
+
+Deleting the file only takes the mark away; the project itself is unaffected.
+
+## Publishing your own repository
+
+Any git repository laid out the way described above can be connected by address. To have it listed under **Discover** as well, publish it on GitHub and:
+
+<Steps>
+<Step>
+**Lay the generators out.** Every generator goes in its own directory under `generators/`, with a `generator.yml` in it — that is what makes a directory a catalog entry — and a `README.md` whose first heading and first paragraph become the title and the summary shown in the catalog.
+</Step>
+<Step>
+**Add the topic.** On the repository page on GitHub, open the settings gear beside **About** and add `eventum-generators` to **Topics**. That is the whole registration: the list is a search for that topic.
+</Step>
+<Step>
+**Describe the repository.** The **About** description and the license are what an entry shows besides the name, so a repository without a description is listed without one.
+</Step>
+</Steps>
+
+A repository appears in the list once GitHub has indexed the topic, usually within minutes. It stays listed for as long as it carries the topic, and removing the topic takes it off the list — while anyone who already connected it keeps their connection, since a connection is an address, not an entry in a registry.
+
+## Where the list is kept
+
+The connected repositories are kept in a file of their own, `repositories.yml` next to the [startup file](/docs/core/config/startup-yml) unless `path.repositories` in [eventum.yml](/docs/core/config/eventum-yml#path) names another location:
+
+```yaml title="repositories.yml"
+- name: content-packs
+  url: https://github.com/eventum-generator/content-packs.git
+
+- name: internal
+  url: https://git.example.com/platform/generators.git
+  ref: stable
+  username: eventum
+  password: ${secrets.internal_git_token}
+```
+
+The file can be written by hand as well; the list is read on every request, so an instance picks up an edit without a restart. Two things are worth knowing before editing it: connecting or disconnecting a repository from Studio rewrites the whole file, which does not preserve comments or the order of keys, and a file that no longer parses fails the whole Repositories page rather than being partly read.

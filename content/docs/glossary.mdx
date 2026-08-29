@@ -39,7 +39,7 @@ A flow-control mechanism that prevents memory overflow when one pipeline stage i
 
 #### Batch
 
-A group of events processed together as a unit. Batching amortizes per-event overhead and is controlled by two parameters: `batch.size` (maximum events per batch) and `batch.delay` (maximum seconds before flushing a partial batch). See [eventum.yml — Generation](/docs/core/config/eventum-yml#generation).
+A group of events processed together as a unit. Batching amortizes per-event overhead and is controlled by two parameters: `batch.size` (maximum events per batch) and `batch.delay` (maximum time span of the event timestamps one batch covers). See [eventum.yml — Generation](/docs/core/config/eventum-yml#generation).
 
 ## C
 
@@ -95,7 +95,7 @@ The configuration file for a single generator. Defines the input plugin(s), even
 
 #### Globals
 
-A state scope shared across all generators in the application. Accessible as `globals` in templates. Thread-safe — reads and writes are synchronized. Useful for cross-generator coordination. See [Producing events — State](/docs/core/concepts/producing#state-management).
+A state scope shared across all generators in the application. Accessible as `globals` in templates and in the `produce` function of the `script` plugin. Thread-safe — reads and writes are synchronized. Useful for cross-generator coordination. See [Producing events — State](/docs/core/concepts/producing#state-management).
 
 ## H
 

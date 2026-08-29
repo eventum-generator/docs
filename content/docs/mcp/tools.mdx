@@ -19,7 +19,7 @@ Read-only, and available on both transports. They let the agent learn what Event
 | `get_formatter_schema` | Return the configuration schema for one formatter. |
 | `describe_sample` | Describe a CSV or JSON [sample](/docs/plugins/event/template/samples) file used by a generator. |
 | `list_secret_names` | List the secret names in the keyring, so a config can reference them. The agent cannot read or change their values — that is done with [`eventum-keyring`](/docs/core/cli/eventum-keyring). |
-| `list_secret_references` | List the projects whose configuration reads a given secret, to see what a rename or a removal would break. |
+| `list_secret_references` | List what reads a given secret — the projects whose configuration reads it, and the connected repositories authenticating with it — to see what a rename or a removal would break. |
 
 ## Workspace & authoring tools
 
@@ -33,6 +33,8 @@ Available on both transports. They operate on the generators in your generators 
 | `write_generator_file` | Write | Create or overwrite a file in a generator. |
 | `delete_generator_file` | Write | Delete a file from a generator. |
 | `delete_generator` | Write | Delete a whole generator and its files. |
+| `export_generator` | Read | Pack a whole generator into a ZIP archive. Named top-level entries can be left out, which is how generated output stays behind. |
+| `import_generator` | Write | Create a generator from a ZIP archive. An archive that wraps the generator in directories imports the same way as one holding it at the top level. |
 | `validate_generator` | Read | Validate a generator and return any errors. |
 | `preview_timestamps` | Read | Preview the timestamps a generator would produce. |
 | `preview_events` | Read | Preview the events a generator would produce. |
@@ -40,6 +42,25 @@ Available on both transports. They operate on the generators in your generators 
 
 <Callout type="info">
 `validate_generator` and the `preview_*` tools load the generator into the same pipeline a real run uses, so the agent sees exactly what a run would produce. See [how it works](/docs/mcp/how-it-works#the-loop).
+</Callout>
+
+<Callout type="warn">
+An archive travels inside the tool call, so it lands in the agent's context. An agent that can make HTTP requests and write files is better off taking the archive from the [REST API](/docs/api) instead, which moves it as a file and carries a project of any size. `export_generator` and `import_generator` say so themselves, and refuse an archive over 128 KiB, where the REST API is the only route left.
+</Callout>
+
+## Repository tools
+
+Available on both transports. They read the [connected repositories](/docs/studio/repositories) of the instance — git repositories that publish ready-made generators — and install what one of them publishes into your generators directory.
+
+| Tool | Access | Description |
+|---|---|---|
+| `list_repositories` | Read | List the connected repositories, each with whether it answered the last time it was asked. The password of a private repository comes back as the secret it references, or as `***` when the value is kept in the repositories file itself. |
+| `discover_repositories` | Read | List the repositories that publish generators in the open, so the agent can name one for the user to connect. The content of a listed repository is not reviewed. |
+| `get_repository_catalog` | Read | List the generators one repository publishes — what each of them produces, what it consists of, and the projects it is already installed as. Reads the repository anew on request. |
+| `install_generator` | Write | Install a published generator as a project of the generators directory. An existing project is never overwritten. |
+
+<Callout type="info">
+Connecting and disconnecting repositories is deliberately not exposed: it names credentials and decides what the instance trusts. Do it on the [Repositories](/docs/studio/repositories) page of Studio, or in the repositories file itself. Over stdio the agent reads that same file — `repositories.yml` next to the generators directory, or the one [`--repositories`](/docs/core/cli/eventum-mcp) names.
 </Callout>
 
 ## Live-management tools
@@ -50,7 +71,7 @@ Available only over HTTP. They control the generators the server manages, and re
 |---|---|---|
 | `list_generators_live` | Read | List the generators the server manages, with their status. |
 | `get_generator_status` | Read | Return the current status of one managed generator. |
-| `get_generator_stats` | Read | Return runtime statistics for one running generator. |
+| `get_generator_stats` | Read | Return runtime statistics for one running generator, including the resources it occupies. |
 | `start_generator` | Write | Start a managed generator. |
 | `stop_generator` | Write | Stop a managed generator. |
 | `register_generator` | Write | Register an authored generator with the running server, so it can be started and is restored after a server restart. |
@@ -59,7 +80,7 @@ Available only over HTTP. They control the generators the server manages, and re
 | `get_generator_logs` | Read | Return the recent log lines for a managed generator, to diagnose a run. |
 | `list_startup_generators` | Read | List the generators configured to start with the server. |
 | `rename_generator_config` | Write | Rename a project, moving its directory and repointing the generators that use it. All of them must be stopped first. |
-| `rename_secret` | Write | Rename a secret, keeping its value under the new name. Configurations are not rewritten — check `list_secret_references` first. |
+| `rename_secret` | Write | Rename a secret, keeping its value under the new name. Everything referring to it follows — the `${secrets.*}` token is rewritten in each project configuration, and connected repositories authenticating with it are repointed. Refused when a repository already authenticates with the new name. |
 
 ## Scenario tools
 
@@ -92,6 +113,7 @@ Available only over HTTP. They read and control the running instance itself.
 
 | Tool | Access | Description |
 |---|---|---|
+| `get_instance_logs` | Read | Return the recent log lines of one [log channel](/docs/core/config/eventum-yml#log-files) of the instance — its core, the server, the requests it served, or this MCP server. |
 | `update_settings` | Write | Patch the instance [settings](/docs/core/config/eventum-yml) file. Auth credentials cannot be changed, and the change applies on the next restart. |
 | `stop_instance` | Write | Stop the instance. |
 | `restart_instance` | Write | Restart the instance, applying any pending settings change. |

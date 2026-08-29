@@ -20,7 +20,7 @@ The Settings page edits the application configuration — the same parameters [e
 | **Server** | How the instance is reached — API, web interface, TLS, authentication, MCP |
 | **Generation** | The defaults every generator inherits |
 | **Paths** | Where generators, logs, the startup file and the keyring live |
-| **Logging** | Level, format, rotation |
+| **Logging** | Level, the level of third-party libraries, format, rotation |
 
 A section holding unsaved edits is marked in the rail, so changes spread across several of them stay visible from wherever you are.
 
@@ -30,7 +30,7 @@ A section holding unsaved edits is marked in the rail, so changes spread across 
   alt="The Generation section of the Settings page in Eventum Studio"
 />
 
-Batch size and queue depths decide how much memory generation holds at once. The Generation section works that figure out for you: give it an assumed event size and it reports what full queues will occupy for one generator.
+Batch size and queue depths decide how much memory generation holds at once. The Generation section works that figure out for you: give it an assumed event size and it reports what full queues will occupy for one generator. **Limit memory of events queue** bounds it directly: **Maximum event bytes** caps what the events queue holds whatever the batches in it weigh.
 
 The **Save** button appears in the page header once anything is edited and asks for confirmation first. These parameters are read when the application starts, so applying them triggers the same [restart](#danger-zone) the Management page offers, and the interface is briefly unavailable.
 
@@ -48,8 +48,12 @@ The Secrets page manages the encrypted keyring, the same one [`eventum-keyring`]
 
 Values stay masked until asked for. Secrets are added, edited and removed in place, and a new one is available to generator configurations immediately, with no restart.
 
+Renaming and removing a secret both state what refers to it first. A rename carries every referrer over to the new name: the `${secrets.name}` token is rewritten in the configuration of each project reading it, and a [connected repository](/docs/studio/repositories) authenticating with the secret is repointed. A configuration is rewritten as text, so its comments and formatting stay as they were written; a generator already running holds the configuration it loaded and reads the new name the next time it starts. A removal carries nothing over — both kinds keep the name and stop working until a secret of that name exists again.
+
+A rename is refused when a repository already authenticates with the new name, and the repositories holding it are named. The keyring holds one value per name, so the repository left on that name would otherwise start authenticating with the value that just moved under it — the credential of one host reaching another.
+
 <Callout type="warn">
-Removing a secret is irreversible. Any configuration referring to it fails to load until a secret of the same name exists again.
+Removing a secret is irreversible. Any configuration referring to it fails to load until a secret of the same name exists again, and a repository authenticating with it stops answering.
 </Callout>
 
 ---
@@ -64,7 +68,18 @@ Removing a secret is irreversible. Any configuration referring to it fails to lo
 
 The cards at the top identify the instance and the machine under it, and link through to [Monitoring](/docs/studio/monitoring) for the history behind the load.
 
-The **Instance logs** panel holds the application-wide log: configuration loading, which generators were started, and which of them refused to. A single generator's own log is on its [instance page](/docs/studio/instances#logs).
+The **Application** card also reports whether the GIL is enabled. Generators run on threads, so the [free-threaded build](/docs/core/introduction/requirements#python) is what lets them run in parallel, and on that build the GIL is normally disabled. It can be enabled back after the application starts — by the `PYTHON_GIL=1` environment variable, by the `-X gil=1` interpreter option, or by an extension module without free-threading support that a plugin imports. Generators keep running, but no longer in parallel, so the row reports that state as a warning. On a standard build the GIL is always enabled and the row is neutral.
+
+The **Instance logs** panel holds the log of the application itself, split into the channels it writes:
+
+| Channel | Contents |
+|---------|----------|
+| **Main** | The application core — configuration loading, which generators were started, and which of them refused to |
+| **Server** | The API and the HTTP server |
+| **Access** | The requests the server served |
+| **MCP** | The [MCP server](/docs/mcp), when it is mounted |
+
+A single generator's own log is on its [instance page](/docs/studio/instances#logs).
 
 ### Danger zone
 

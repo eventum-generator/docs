@@ -45,10 +45,6 @@ Controls the built-in web server that exposes the UI and REST API.
 | `server.host` | string | `"0.0.0.0"` | Non-empty. | Address the server binds to. |
 | `server.port` | integer | `9474` | >= 1 | Port the server binds to. |
 
-<Callout type="info">
-The flat `server.ui_enabled` and `server.api_enabled` keys are deprecated aliases for `server.ui.enabled` and `server.api.enabled` and will be removed in version 2.8. They still work but print a deprecation notice at startup; setting a flat key together with its nested counterpart is an error.
-</Callout>
-
 ### server.ssl
 
 TLS/SSL settings for the server.
@@ -126,6 +122,7 @@ File system paths used by the application. All paths must be **absolute**.
 | `path.startup` | path | — | Required. Must be an absolute path. | Path to the [startup.yml](/docs/core/config/startup-yml) file. |
 | `path.generators_dir` | path | — | Required. Must be an absolute path. | Directory containing generator subdirectories. Generator paths in `startup.yml` are resolved relative to this directory. |
 | `path.keyring_cryptfile` | path | — | Required. Must be an absolute path. | Path to the encrypted keyring file used for [secrets](/docs/core/config/secrets). |
+| `path.repositories` | path | `null` | Must be an absolute path when set. | Path to the file listing the [connected repositories](/docs/studio/repositories). Defaults to `repositories.yml` next to `path.startup`. |
 | `path.generator_config_filename` | path | `"generator.yml"` | Single filename. Must end with `.yml` or `.yaml`. | The expected config filename inside each generator directory. Used by the API to auto-detect valid generator directories. |
 
 ```yaml
@@ -146,6 +143,7 @@ Controls application logging — separate from the events that generators produc
 | Parameter | Type | Default | Constraints | Description |
 |-----------|------|---------|-------------|-------------|
 | `log.level` | string | `"info"` | `"debug"`, `"info"`, `"warning"`, `"error"`, or `"critical"` | Minimum severity level for log messages. |
+| `log.third_party_level` | string | `"warning"` | `"debug"`, `"info"`, `"warning"`, `"error"`, or `"critical"` | Minimum severity level for messages of third-party libraries. Independent of `log.level`, so running Eventum at `"debug"` doesn't bring the debug output of every dependency with it. |
 | `log.format` | string | `"plain"` | `"plain"` or `"json"` | Log output format. `"plain"` is human-readable, `"json"` is structured. |
 | `log.max_bytes` | integer | `10485760` (10 MiB) | >= 1024 | Maximum size per log file before rotation. |
 | `log.backups` | integer | `5` | >= 1 | Number of rotated log files to keep. |
@@ -153,10 +151,25 @@ Controls application logging — separate from the events that generators produc
 ```yaml
 log:
   level: info
+  third_party_level: warning
   format: json
   max_bytes: 52428800    # 50 MiB
   backups: 10
 ```
+
+### Log files
+
+Each message goes to one file in `path.logs`, named after the part of the application it came from. Standard output receives all of them, so `docker logs` stays the combined view.
+
+| File | Contents |
+|------|----------|
+| `main.log` | Application startup, shutdown and everything not attributed below. |
+| `server.log` | REST API and HTTP server, including its startup and errors. |
+| `server_access.log` | One line per HTTP request. |
+| `mcp.log` | MCP server. |
+| `generator_<id>.log` | Everything one generator does, including the delivery its output plugins perform. |
+
+With `log.format: json` the same files carry the `.json` extension instead.
 
 ---
 
@@ -175,9 +188,11 @@ Controls how events are grouped before being passed to output plugins:
 | Parameter | Type | Default | Constraints | Description |
 |-----------|------|---------|-------------|-------------|
 | `generation.batch.size` | integer or null | `10000`\* | >= 1 | Maximum number of events per batch. |
-| `generation.batch.delay` | float or null | `1.0`\* | >= 0.1 | Maximum seconds to wait before flushing a partial batch. |
+| `generation.batch.delay` | float or null | `1.0`\* | >= 0.1 | Maximum time span, in seconds, of the event timestamps one batch covers. |
 
-\*The defaults of `10000` and `1.0` apply as a pair when **neither** field is specified. If you set only one, the other defaults to `null`. At least one of `size` or `delay` must be set. When both are set, the batch is flushed when either limit is reached — whichever comes first.
+\*The defaults of `10000` and `1.0` apply as a pair when **neither** field is specified. If you set only one, the other defaults to `null`. At least one of `size` or `delay` must be set.
+
+`size` is the primary limit. `delay` bounds the lag batching adds to delivery in [live mode](/docs/core/concepts/generator#live-mode-default), so it forms the batches of timestamps that are still ahead of real time; timestamps that have already passed, and every timestamp in [sample mode](/docs/core/concepts/generator#sample-mode), are grouped by `size`. With no `size` set, `delay` is the only limit on how large a batch grows and therefore always applies — see [Batching](/docs/core/concepts/generator#batching) for the full breakdown.
 
 ### generation.queue
 
@@ -187,6 +202,13 @@ Controls the internal queues between pipeline stages. These act as backpressure 
 |-----------|------|---------|-------------|-------------|
 | `generation.queue.max_timestamp_batches` | integer | `10` | >= 1 | Maximum timestamp batches in the input→event queue. |
 | `generation.queue.max_event_batches` | integer | `10` | >= 1 | Maximum event batches in the event→output queue. |
+| `generation.queue.max_event_bytes` | integer or null | `268435456` | >= 1 | Maximum memory the event batches in the event→output queue occupy together, 256 MiB by default. `null` leaves it unlimited. |
+
+A batch is as large as the events in it, so the number of batches alone does not bound how much the queue holds: ten batches of ten thousand events come to twenty megabytes with small events and half a gigabyte with large ones. Both limits of the events queue apply, whichever is reached first, so `max_event_bytes` keeps that figure predictable no matter what the templates render. A single batch larger than the whole limit still passes through — holding it back would stall the pipeline — so keep `batch.size` in proportion to the size of an event.
+
+What a generator occupies while it produces and writes a batch is a separate figure, and it follows `batch.size` — see [how much memory a generator holds](/docs/core/concepts/generator#how-much-memory-a-generator-holds).
+
+The memory each queue currently holds is reported on the instance page next to the batches it holds.
 
 ### Concurrency and ordering
 
@@ -205,6 +227,7 @@ generation:
   queue:
     max_timestamp_batches: 20
     max_event_batches: 20
+    max_event_bytes: 536870912
   keep_order: false
   max_concurrency: 200
   write_timeout: 30
@@ -255,6 +278,7 @@ generation:
   queue:
     max_timestamp_batches: 10
     max_event_batches: 10
+    max_event_bytes: 268435456
   keep_order: false
   max_concurrency: 100
   write_timeout: 10

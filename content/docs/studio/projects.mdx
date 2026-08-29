@@ -17,6 +17,14 @@ Every project carries a badge for each [instance](/docs/studio/instances) regist
 
 The **Create new** button writes a new directory with a minimal `generator.yml` in it. Renaming a project also updates the instances that point at it; deleting one is refused while any instance still does.
 
+### Moving a project between instances
+
+A project travels as a ZIP archive of its directory. **Export** in the row menu opens a dialog listing every entry at the top of the project with its size — untick the ones the archive should leave out, which is where the directories holding generated output usually go, and the archive downloads under the project's name.
+
+**Import** takes such an archive - dropped onto the dialog or chosen from disk - and unpacks it into a new project. The archive may hold `generator.yml` at its top level or nested in directories, so an archive downloaded from a repository imports as it is. The name of the project is proposed from the directory the archive carries it in, falling back to the file name, and can be changed; a name already taken is reported before the import starts, and an existing project is never overwritten.
+
+A generator published by a git repository takes a shorter path: connect the repository once on the [Repositories](/docs/studio/repositories) page and install any generator it publishes straight into the workspace.
+
 ---
 
 ## The workspace
@@ -59,6 +67,8 @@ Files and directories are created from the panel header or from the right-click 
 
 `generator.yml` is what makes the directory a project, so it cannot be renamed, moved or deleted here.
 
+**Download** in the right-click menu saves a file to the machine you are browsing from, and the entry states the size before you start. It is the way to reach a generator's output, which grows past what the Editor opens within minutes of a run.
+
 ---
 
 ## Editor
@@ -73,7 +83,7 @@ Files open as tabs and stay open until closed, including across a change of stag
   alt="Find and replace in the Studio editor"
 />
 
-Files larger than 10 MB are not opened. Sample data of that size is better edited outside Studio.
+Files larger than 10 MB are not opened — the tab reports the size and offers the file for download instead. Sample data of that size is better edited outside Studio.
 
 ---
 

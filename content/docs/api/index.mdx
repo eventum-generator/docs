@@ -20,9 +20,11 @@ description: Eventum API reference
 <Card href="/docs/api/generator-configs/name/delete" title="Delete Generator Config" description="Delete whole generator configuration directory with specified name." />
 <Card href="/docs/api/generator-configs/name/put" title="Update Generator Config" description="Update generator configuration in the directory with specified name." />
 <Card href="/docs/api/generator-configs/name/rename/post" title="Rename Generator Config" description="Rename generator configuration directory. Instances that use the configuration are repointed at the new directory and must be stopped beforehand." />
+<Card href="/docs/api/generator-configs/name/export/get" title="Export Generator Config" description="Export generator directory with specified name as a ZIP archive. Entries named in `exclude` are left out with everything under them." />
+<Card href="/docs/api/generator-configs/name/import/post" title="Import Generator Config" description="Import generator directory with specified name from a ZIP archive. The archive must hold a generator configuration, and the directory holding it becomes the root of the imported generator." />
 <Card href="/docs/api/generator-configs/name/path/get" title="Get Generator Config Path" description="Get generator configuration path in the directory with specified name." />
 <Card href="/docs/api/generator-configs/name/file-tree/get" title="Get Generator File Tree" description="Get file tree of the generator directory with specified name." />
-<Card href="/docs/api/generator-configs/name/file/filepath/get" title="Get Generator File" description="Read file from specified path inside generator directory with specified name." />
+<Card href="/docs/api/generator-configs/name/file/filepath/get" title="Get Generator File" description="Read file from specified path inside generator directory with specified name. Set `download` to receive the file as an attachment instead of inline content." />
 <Card href="/docs/api/generator-configs/name/file/filepath/post" title="Upload Generator File" description="Upload file to specified path inside generator directory with specified name." />
 <Card href="/docs/api/generator-configs/name/file/filepath/delete" title="Delete Generator File" description="Delete file in specified path inside generator directory with specified name." />
 <Card href="/docs/api/generator-configs/name/file/filepath/put" title="Put Generator File" description="Put file to specified path inside generator directory with specified name." />
@@ -41,10 +43,10 @@ description: Eventum API reference
 <Card href="/docs/api/preview/name/event-plugin/template/state/shared/patch" title="Update Template Event Plugin Shared State" description="Patch shared state of template event plugin" />
 <Card href="/docs/api/preview/name/event-plugin/template/state/shared/delete" title="Clear Template Event Plugin Shared State" description="Clear shared state of template event plugin" />
 <Card href="/docs/api/preview/name/event-plugin/template/state/shared/key/delete" title="Delete Template Event Plugin Shared State Key" description="Delete a key from shared state of template event plugin" />
-<Card href="/docs/api/preview/name/event-plugin/template/state/global/get" title="Get Template Event Plugin Global State" description="Get global state of template event plugin" />
-<Card href="/docs/api/preview/name/event-plugin/template/state/global/patch" title="Update Template Event Plugin Global State" description="Patch global state of template event plugin" />
-<Card href="/docs/api/preview/name/event-plugin/template/state/global/delete" title="Clear Template Event Plugin Global State" description="Clear global state of template event plugin" />
-<Card href="/docs/api/preview/name/event-plugin/template/state/global/key/delete" title="Delete Template Event Plugin Global State Key" description="Delete a key from global state of template event plugin" />
+<Card href="/docs/api/preview/name/event-plugin/state/global/get" title="Get Event Plugin Global State" description="Get global state shared across all event plugins" />
+<Card href="/docs/api/preview/name/event-plugin/state/global/patch" title="Update Event Plugin Global State" description="Patch global state shared across all event plugins" />
+<Card href="/docs/api/preview/name/event-plugin/state/global/delete" title="Clear Event Plugin Global State" description="Clear global state shared across all event plugins" />
+<Card href="/docs/api/preview/name/event-plugin/state/global/key/delete" title="Delete Event Plugin Global State Key" description="Delete a key from global state shared across all event plugins" />
 <Card href="/docs/api/preview/name/formatter/format/post" title="Format Events" description="Format events using specified formatter" />
 <Card href="/docs/api/preview/name/versatile-datetime/normalize/post" title="Normalize Versatile Datetime" description="Normalize versatile date time expression" />
 <Card href="/docs/api/generators/get" title="List Generators" description="List ids of all generators" />
@@ -73,16 +75,24 @@ description: Eventum API reference
 <Card href="/docs/api/scenarios/name/rename/post" title="Rename Scenario" description="Rename scenario (rewrite tag in all generators that carry it)" />
 <Card href="/docs/api/scenarios/name/generators/generator_id/post" title="Add Generator To Scenario" description="Add generator to scenario" />
 <Card href="/docs/api/scenarios/name/generators/generator_id/delete" title="Remove Generator From Scenario" description="Remove generator from scenario" />
-<Card href="/docs/api/scenarios/name/generators/generator_name/globals-usage/get" title="Get globals usage for a generator in a scenario" description="Detect globals.set/get usage in Jinja2 templates via AST analysis." />
+<Card href="/docs/api/scenarios/name/generators/generator_name/globals-usage/get" title="Get globals usage for a generator in a scenario" description="Detect globals usage in Jinja2 templates and Python scripts via AST analysis." />
 <Card href="/docs/api/scenarios/name/globals/key/get" title="Get Scenario Global State Key" description="Get a specific global state key value" />
 <Card href="/docs/api/scenarios/name/globals/key/delete" title="Delete Scenario Global State Key" description="Delete a key from global state" />
-<Card href="/docs/api/scenarios/name/globals/get" title="Get Scenario Global State" description="Get global state shared across all template event plugins" />
-<Card href="/docs/api/scenarios/name/globals/patch" title="Update Scenario Global State" description="Update global state shared across all template event plugins" />
-<Card href="/docs/api/scenarios/name/globals/delete" title="Clear Scenario Global State" description="Clear global state shared across all template event plugins" />
+<Card href="/docs/api/scenarios/name/globals/get" title="Get Scenario Global State" description="Get global state shared across all event plugins" />
+<Card href="/docs/api/scenarios/name/globals/patch" title="Update Scenario Global State" description="Update global state shared across all event plugins" />
+<Card href="/docs/api/scenarios/name/globals/delete" title="Clear Scenario Global State" description="Clear global state shared across all event plugins" />
 <Card href="/docs/api/secrets/name/get" title="Get Secret Value" description="Get secret with specified name from keyring" />
 <Card href="/docs/api/secrets/name/delete" title="Delete Secret Value" description="Delete secret with specified name to keyring" />
-<Card href="/docs/api/secrets/name/put" title="Set Secret Value" description="Put secret with specified name to keyring" />
+<Card href="/docs/api/secrets/name/put" title="Set Secret Value" description="Put secret with specified name to keyring. The name is what a configuration references as `${secrets.<name>}`, so it must be words of lowercase letters, digits and `_`, separated by `.`." />
 <Card href="/docs/api/secrets/get" title="List Secret Names" description="List all secrets names" />
-<Card href="/docs/api/secrets/name/references/get" title="List Secret References" description="List projects whose configuration references the secret as `${secrets.<name>}`" />
-<Card href="/docs/api/secrets/name/rename/post" title="Rename Secret Value" description="Rename secret in keyring. References to the secret in generator configurations are not rewritten." />
+<Card href="/docs/api/secrets/name/references/get" title="List Secret References" description="List what refers to the secret - the projects whose configuration reads it as `${secrets.<name>}`, and the connected repositories authenticating with it" />
+<Card href="/docs/api/secrets/name/rename/post" title="Rename Secret Value" description="Rename secret in keyring. The new name must be words of lowercase letters, digits and `_`, separated by `.`, since a configuration references it as `${secrets.<name>}`. Everything referring to the secret follows: the token is rewritten in the configuration of every project reading it, and every connected repository authenticating with it is repointed at the new name." />
+<Card href="/docs/api/repositories/get" title="List Repositories" description="List connected generator repositories, each with the result of the last check made in this process. A password naming a keyring secret is answered as written, while one holding the credential itself is answered redacted." />
+<Card href="/docs/api/repositories/post" title="Add Repository" description="Connect a generator repository. The repository is checked before it is connected, and the catalog it publishes is read on the first request for it." />
+<Card href="/docs/api/repositories/discover/get" title="Discover Repositories" description="Search the repositories that publish generators in the open. A repository appears in the list by carrying the topic that defines it, and the content of a listed repository is not reviewed." />
+<Card href="/docs/api/repositories/name/check/post" title="Check Repository" description="Check that the repository with specified name answers and publishes the branch or tag it names." />
+<Card href="/docs/api/repositories/name/delete" title="Remove Repository" description="Disconnect the repository with specified name. Generators installed from it are left in place." />
+<Card href="/docs/api/repositories/name/catalog/get" title="Get Catalog" description="Get the catalog of generators published by the repository with specified name. The repository is fetched when it has not been fetched yet." />
+<Card href="/docs/api/repositories/name/refresh/post" title="Refresh Catalog" description="Fetch the repository with specified name and read its catalog anew." />
+<Card href="/docs/api/repositories/name/catalog/entry/install/post" title="Install Generator" description="Install the published generator with specified name as a generator directory of the workspace." />
 </Cards>

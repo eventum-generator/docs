@@ -11,7 +11,7 @@
             "name": "Apache 2.0",
             "url": "https://github.com/eventum-generator/eventum/blob/master/LICENSE"
         },
-        "version": "2.7.0"
+        "version": "2.8.0"
     },
     "paths": {
         "/auth/login": {
@@ -574,6 +574,136 @@
                 }
             }
         },
+        "/generator-configs/{name}/export": {
+            "get": {
+                "tags": [
+                    "Generator configs"
+                ],
+                "summary": "Export Generator Config",
+                "description": "Export generator directory with specified name as a ZIP archive. Entries named in `exclude` are left out with everything under them.",
+                "operationId": "export_generator_config_generator_configs__name__export_get",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "Name of the generator directory",
+                            "title": "Name"
+                        },
+                        "description": "Name of the generator directory"
+                    },
+                    {
+                        "name": "exclude",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Names of top level entries to leave out of the archive",
+                            "title": "Exclude"
+                        },
+                        "description": "Names of top level entries to leave out of the archive"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ZIP archive of the generator directory",
+                        "content": {
+                            "application/octet-stream": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                    },
+                    "404": {
+                        "description": "Generator configuration does not exist"
+                    },
+                    "400": {
+                        "description": "Excluded entry is not a name of a top level entry, or is the generator configuration itself"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/generator-configs/{name}/import": {
+            "post": {
+                "tags": [
+                    "Generator configs"
+                ],
+                "summary": "Import Generator Config",
+                "description": "Import generator directory with specified name from a ZIP archive. The archive must hold a generator configuration, and the directory holding it becomes the root of the imported generator.",
+                "operationId": "import_generator_config_generator_configs__name__import_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "Name of the generator directory",
+                            "title": "Name"
+                        },
+                        "description": "Name of the generator directory"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_import_generator_config_generator_configs__name__import_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                    },
+                    "409": {
+                        "description": "Configuration already exists\n\nDirectory already exists;"
+                    },
+                    "422": {
+                        "description": "Archive cannot be read or holds no generator configuration"
+                    },
+                    "500": {
+                        "description": "Configuration cannot be imported due to OS error"
+                    }
+                }
+            }
+        },
         "/generator-configs/{name}/path": {
             "get": {
                 "tags": [
@@ -691,7 +821,7 @@
                     "Generator configs"
                 ],
                 "summary": "Get Generator File",
-                "description": "Read file from specified path inside generator directory with specified name.",
+                "description": "Read file from specified path inside generator directory with specified name. Set `download` to receive the file as an attachment instead of inline content.",
                 "operationId": "get_generator_file_generator_configs__name__file__filepath__get",
                 "parameters": [
                     {
@@ -714,6 +844,18 @@
                             "title": "Name"
                         },
                         "description": "Name of the generator directory"
+                    },
+                    {
+                        "name": "download",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Serve the file as an attachment saved under its name instead of content rendered inline",
+                            "default": false,
+                            "title": "Download"
+                        },
+                        "description": "Serve the file as an attachment saved under its name instead of content rendered inline"
                     }
                 ],
                 "responses": {
@@ -726,7 +868,7 @@
                         }
                     },
                     "403": {
-                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed\n\nPath is outside the generator directory;"
                     },
                     "404": {
                         "description": "Generator configuration does not exist\n\nFile does not exist;"
@@ -801,7 +943,7 @@
                         }
                     },
                     "403": {
-                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed\n\nPath is outside the generator directory;"
                     },
                     "404": {
                         "description": "Generator configuration does not exist"
@@ -879,7 +1021,7 @@
                         }
                     },
                     "403": {
-                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed\n\nPath is outside the generator directory;"
                     },
                     "404": {
                         "description": "Generator configuration does not exist\n\nFile does not exist;"
@@ -944,7 +1086,7 @@
                         }
                     },
                     "403": {
-                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed\n\nPath is outside the generator directory;"
                     },
                     "404": {
                         "description": "Generator configuration does not exist\n\nFile does not exist;"
@@ -1011,7 +1153,7 @@
                         }
                     },
                     "403": {
-                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed\n\nPath is outside the generator directory;"
                     },
                     "404": {
                         "description": "Generator configuration does not exist"
@@ -1093,7 +1235,7 @@
                         }
                     },
                     "403": {
-                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed\n\nPath is outside the generator directory;"
                     },
                     "404": {
                         "description": "Generator configuration does not exist\n\nSource file does not exist;"
@@ -1175,7 +1317,7 @@
                         }
                     },
                     "403": {
-                        "description": "Accessing directories outside `path.generators_dir` is not allowed"
+                        "description": "Accessing directories outside `path.generators_dir` is not allowed\n\nPath is outside the generator directory;"
                     },
                     "404": {
                         "description": "Generator configuration does not exist\n\nSource file does not exist;"
@@ -1477,7 +1619,7 @@
                             "schema": {
                                 "type": "array",
                                 "items": {
-                                    "$ref": "#/components/schemas/ProduceParams"
+                                    "$ref": "#/components/schemas/ProduceParamsRequest"
                                 },
                                 "description": "List of timestamps and input plugins tags to use for producing events",
                                 "title": "Params List"
@@ -2032,14 +2174,14 @@
                 }
             }
         },
-        "/preview/{name}/event-plugin/template/state/global": {
+        "/preview/{name}/event-plugin/state/global": {
             "get": {
                 "tags": [
                     "Preview"
                 ],
-                "summary": "Get Template Event Plugin Global State",
-                "description": "Get global state of template event plugin",
-                "operationId": "get_template_event_plugin_global_state_preview__name__event_plugin_template_state_global_get",
+                "summary": "Get Event Plugin Global State",
+                "description": "Get global state shared across all event plugins",
+                "operationId": "get_event_plugin_global_state_preview__name__event_plugin_state_global_get",
                 "parameters": [
                     {
                         "name": "name",
@@ -2061,7 +2203,7 @@
                                 "schema": {
                                     "type": "object",
                                     "additionalProperties": true,
-                                    "title": "Response Get Template Event Plugin Global State Preview  Name  Event Plugin Template State Global Get"
+                                    "title": "Response Get Event Plugin Global State Preview  Name  Event Plugin State Global Get"
                                 }
                             }
                         }
@@ -2073,7 +2215,7 @@
                         "description": "Generator configuration does not exist"
                     },
                     "400": {
-                        "description": "Event plugin was not previously initialized\n\nCurrently used plugin is inappropriate for this operation;"
+                        "description": "Event plugin was not previously initialized"
                     },
                     "500": {
                         "description": "Failed to serialize plugin state"
@@ -2094,9 +2236,9 @@
                 "tags": [
                     "Preview"
                 ],
-                "summary": "Update Template Event Plugin Global State",
-                "description": "Patch global state of template event plugin",
-                "operationId": "update_template_event_plugin_global_state_preview__name__event_plugin_template_state_global_patch",
+                "summary": "Update Event Plugin Global State",
+                "description": "Patch global state shared across all event plugins",
+                "operationId": "update_event_plugin_global_state_preview__name__event_plugin_state_global_patch",
                 "parameters": [
                     {
                         "name": "name",
@@ -2139,7 +2281,7 @@
                         "description": "Generator configuration does not exist"
                     },
                     "400": {
-                        "description": "Event plugin was not previously initialized\n\nCurrently used plugin is inappropriate for this operation;"
+                        "description": "Event plugin was not previously initialized"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -2157,9 +2299,9 @@
                 "tags": [
                     "Preview"
                 ],
-                "summary": "Clear Template Event Plugin Global State",
-                "description": "Clear global state of template event plugin",
-                "operationId": "clear_template_event_plugin_global_state_preview__name__event_plugin_template_state_global_delete",
+                "summary": "Clear Event Plugin Global State",
+                "description": "Clear global state shared across all event plugins",
+                "operationId": "clear_event_plugin_global_state_preview__name__event_plugin_state_global_delete",
                 "parameters": [
                     {
                         "name": "name",
@@ -2189,7 +2331,7 @@
                         "description": "Generator configuration does not exist"
                     },
                     "400": {
-                        "description": "Event plugin was not previously initialized\n\nCurrently used plugin is inappropriate for this operation;"
+                        "description": "Event plugin was not previously initialized"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -2204,14 +2346,14 @@
                 }
             }
         },
-        "/preview/{name}/event-plugin/template/state/global/{key}": {
+        "/preview/{name}/event-plugin/state/global/{key}": {
             "delete": {
                 "tags": [
                     "Preview"
                 ],
-                "summary": "Delete Template Event Plugin Global State Key",
-                "description": "Delete a key from global state of template event plugin",
-                "operationId": "delete_template_event_plugin_global_state_key_preview__name__event_plugin_template_state_global__key__delete",
+                "summary": "Delete Event Plugin Global State Key",
+                "description": "Delete a key from global state shared across all event plugins",
+                "operationId": "delete_event_plugin_global_state_key_preview__name__event_plugin_state_global__key__delete",
                 "parameters": [
                     {
                         "name": "key",
@@ -2252,7 +2394,7 @@
                         "description": "Generator configuration does not exist"
                     },
                     "400": {
-                        "description": "Event plugin was not previously initialized\n\nCurrently used plugin is inappropriate for this operation;"
+                        "description": "Event plugin was not previously initialized"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -3678,7 +3820,7 @@
                     "Scenarios"
                 ],
                 "summary": "Get globals usage for a generator in a scenario",
-                "description": "Detect globals.set/get usage in Jinja2 templates via AST analysis.",
+                "description": "Detect globals usage in Jinja2 templates and Python scripts via AST analysis.",
                 "operationId": "get_generator_globals_usage_scenarios__name__generators__generator_name__globals_usage_get",
                 "parameters": [
                     {
@@ -3860,7 +4002,7 @@
                     "Scenarios"
                 ],
                 "summary": "Get Scenario Global State",
-                "description": "Get global state shared across all template event plugins",
+                "description": "Get global state shared across all event plugins",
                 "operationId": "get_scenario_global_state_scenarios__name__globals_get",
                 "parameters": [
                     {
@@ -3912,7 +4054,7 @@
                     "Scenarios"
                 ],
                 "summary": "Update Scenario Global State",
-                "description": "Update global state shared across all template event plugins",
+                "description": "Update global state shared across all event plugins",
                 "operationId": "update_scenario_global_state_scenarios__name__globals_patch",
                 "parameters": [
                     {
@@ -3970,7 +4112,7 @@
                     "Scenarios"
                 ],
                 "summary": "Clear Scenario Global State",
-                "description": "Clear global state shared across all template event plugins",
+                "description": "Clear global state shared across all event plugins",
                 "operationId": "clear_scenario_global_state_scenarios__name__globals_delete",
                 "parameters": [
                     {
@@ -4068,7 +4210,7 @@
                     "Secrets"
                 ],
                 "summary": "Set Secret Value",
-                "description": "Put secret with specified name to keyring",
+                "description": "Put secret with specified name to keyring. The name is what a configuration references as `${secrets.<name>}`, so it must be words of lowercase letters, digits and `_`, separated by `.`.",
                 "operationId": "set_secret_value_secrets__name__put",
                 "parameters": [
                     {
@@ -4105,6 +4247,9 @@
                                 "schema": {}
                             }
                         }
+                    },
+                    "400": {
+                        "description": "Name cannot be referenced in a configuration"
                     },
                     "500": {
                         "description": "Failed to set secret"
@@ -4202,7 +4347,7 @@
                     "Secrets"
                 ],
                 "summary": "List Secret References",
-                "description": "List projects whose configuration references the secret as `${secrets.<name>}`",
+                "description": "List what refers to the secret - the projects whose configuration reads it as `${secrets.<name>}`, and the connected repositories authenticating with it",
                 "operationId": "list_secret_references_secrets__name__references_get",
                 "parameters": [
                     {
@@ -4220,18 +4365,17 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Names of referencing generator directories",
+                        "description": "Referrers of the secret, by kind",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    },
-                                    "title": "Response List Secret References Secrets  Name  References Get"
+                                    "$ref": "#/components/schemas/SecretReferencesResponse"
                                 }
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Connected repositories cannot be read"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -4252,7 +4396,7 @@
                     "Secrets"
                 ],
                 "summary": "Rename Secret Value",
-                "description": "Rename secret in keyring. References to the secret in generator configurations are not rewritten.",
+                "description": "Rename secret in keyring. The new name must be words of lowercase letters, digits and `_`, separated by `.`, since a configuration references it as `${secrets.<name>}`. Everything referring to the secret follows: the token is rewritten in the configuration of every project reading it, and every connected repository authenticating with it is repointed at the new name.",
                 "operationId": "rename_secret_value_secrets__name__rename_post",
                 "parameters": [
                     {
@@ -4281,6 +4425,102 @@
                 },
                 "responses": {
                     "200": {
+                        "description": "Referrers carried over to the new name, by kind",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RenamedReferencesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Name cannot be referenced in a configuration"
+                    },
+                    "404": {
+                        "description": "Secret is missing in keyring"
+                    },
+                    "409": {
+                        "description": "The new name is taken - by another secret, or by a connected repository authenticating with it"
+                    },
+                    "500": {
+                        "description": "The keyring, the repositories or the configurations could not be written. The detail names which of them happened, and whether the secret was left renamed"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/repositories/": {
+            "get": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "List Repositories",
+                "description": "List connected generator repositories, each with the result of the last check made in this process. A password naming a keyring secret is answered as written, while one holding the credential itself is answered redacted.",
+                "operationId": "list_repositories_repositories__get",
+                "responses": {
+                    "200": {
+                        "description": "Connected repositories",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ConnectedRepository"
+                                    },
+                                    "title": "Response List Repositories Repositories  Get"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Add Repository",
+                "description": "Connect a generator repository. The repository is checked before it is connected, and the catalog it publishes is read on the first request for it.",
+                "operationId": "add_repository_repositories__post",
+                "parameters": [
+                    {
+                        "name": "verify",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Whether to check that the repository answers before connecting it",
+                            "default": true,
+                            "title": "Verify"
+                        },
+                        "description": "Whether to check that the repository answers before connecting it"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Repository",
+                                "description": "Repository to connect"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
                         "description": "Successful Response",
                         "content": {
                             "application/json": {
@@ -4288,14 +4528,398 @@
                             }
                         }
                     },
-                    "404": {
-                        "description": "Secret is missing in keyring"
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "502": {
+                        "description": "Repository cannot be reached, or does not publish a catalog that can be read"
+                    },
+                    "424": {
+                        "description": "Secret the password of the repository refers to is missing in the keyring"
                     },
                     "409": {
-                        "description": "Secret with the new name already exists"
+                        "description": "Repository with this name, or the same repository at the same branch or tag, is already connected"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/repositories/discover": {
+            "get": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Discover Repositories",
+                "description": "Search the repositories that publish generators in the open. A repository appears in the list by carrying the topic that defines it, and the content of a listed repository is not reviewed.",
+                "operationId": "discover_repositories_repositories_discover_get",
+                "parameters": [
+                    {
+                        "name": "query",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "maxLength": 100
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Words to narrow the list with",
+                            "title": "Query"
+                        },
+                        "description": "Words to narrow the list with"
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 10,
+                            "minimum": 1,
+                            "description": "Page of the results",
+                            "default": 1,
+                            "title": "Page"
+                        },
+                        "description": "Page of the results"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Published repositories",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Discovery"
+                                }
+                            }
+                        }
                     },
                     "500": {
-                        "description": "Failed to rename secret"
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "429": {
+                        "description": "Searching is refused until the quota of this instance resets"
+                    },
+                    "502": {
+                        "description": "Repositories cannot be searched"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/repositories/{name}/check": {
+            "post": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Check Repository",
+                "description": "Check that the repository with specified name answers and publishes the branch or tag it names.",
+                "operationId": "check_repository_repositories__name__check_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Name of the connected repository",
+                            "title": "Name"
+                        },
+                        "description": "Name of the connected repository"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Result of the check",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RepositoryStatus"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "404": {
+                        "description": "Repository is not connected"
+                    },
+                    "424": {
+                        "description": "Secret the password of the repository refers to is missing in the keyring"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/repositories/{name}": {
+            "delete": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Remove Repository",
+                "description": "Disconnect the repository with specified name. Generators installed from it are left in place.",
+                "operationId": "remove_repository_repositories__name__delete",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Name of the connected repository",
+                            "title": "Name"
+                        },
+                        "description": "Name of the connected repository"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "404": {
+                        "description": "Repository is not connected"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/repositories/{name}/catalog": {
+            "get": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Get Catalog",
+                "description": "Get the catalog of generators published by the repository with specified name. The repository is fetched when it has not been fetched yet.",
+                "operationId": "get_catalog_repositories__name__catalog_get",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Name of the connected repository",
+                            "title": "Name"
+                        },
+                        "description": "Name of the connected repository"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Catalog of the repository",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CatalogResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "404": {
+                        "description": "Repository is not connected"
+                    },
+                    "502": {
+                        "description": "Repository cannot be reached, or does not publish a catalog that can be read"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/repositories/{name}/refresh": {
+            "post": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Refresh Catalog",
+                "description": "Fetch the repository with specified name and read its catalog anew.",
+                "operationId": "refresh_catalog_repositories__name__refresh_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Name of the connected repository",
+                            "title": "Name"
+                        },
+                        "description": "Name of the connected repository"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Catalog of the repository",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CatalogResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "404": {
+                        "description": "Repository is not connected"
+                    },
+                    "502": {
+                        "description": "Repository cannot be reached, or does not publish a catalog that can be read"
+                    },
+                    "424": {
+                        "description": "Secret the password of the repository refers to is missing in the keyring"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/repositories/{name}/catalog/{entry}/install": {
+            "post": {
+                "tags": [
+                    "Repositories"
+                ],
+                "summary": "Install Generator",
+                "description": "Install the published generator with specified name as a generator directory of the workspace.",
+                "operationId": "install_generator_repositories__name__catalog__entry__install_post",
+                "parameters": [
+                    {
+                        "name": "name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Name of the connected repository",
+                            "title": "Name"
+                        },
+                        "description": "Name of the connected repository"
+                    },
+                    {
+                        "name": "entry",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Name of the published generator",
+                            "title": "Entry"
+                        },
+                        "description": "Name of the published generator"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/InstallGeneratorRequest",
+                                "description": "Generator directory to install into"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Generator directory that was written",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InstalledGeneratorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Repositories cannot be read or written"
+                    },
+                    "424": {
+                        "description": "Secret the password of the repository refers to is missing in the keyring"
+                    },
+                    "400": {
+                        "description": "Requested directory name is not allowed"
+                    },
+                    "404": {
+                        "description": "Repository is not connected or publishes no such generator"
+                    },
+                    "409": {
+                        "description": "Directory already exists"
+                    },
+                    "502": {
+                        "description": "Repository cannot be reached, or publishes a generator that holds no generator configuration or exceeds the size limits"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -4731,6 +5355,20 @@
                 "title": "Before",
                 "description": "Check if event timestamp is before specific time."
             },
+            "Body_import_generator_config_generator_configs__name__import_post": {
+                "properties": {
+                    "content": {
+                        "type": "string",
+                        "contentMediaType": "application/octet-stream",
+                        "title": "Content"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "content"
+                ],
+                "title": "Body_import_generator_config_generator_configs__name__import_post"
+            },
             "Body_put_generator_file_generator_configs__name__file__filepath__put": {
                 "properties": {
                     "content": {
@@ -4824,6 +5462,127 @@
                 ],
                 "title": "CSVSampleConfig",
                 "description": "Configuration of csv sample.\n\nAttributes\n----------\ntype : Literal[SampleType.CSV]\n    Discriminator field for sample configuration.\n\nheader : bool, default=False\n    Whether the provided csv sample includes header.\n\ndelimiter : str, default=','\n    Delimiter for csv values.\n\nquotechar : str, default='\"'\n    Character used to quote fields containing the delimiter\n    or newlines (RFC 4180).\n\nsource : Path\n    Path to csv file."
+            },
+            "CatalogEntryResponse": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name",
+                        "description": "Name of the generator directory in the repository"
+                    },
+                    "path": {
+                        "type": "string",
+                        "title": "Path",
+                        "description": "Path of the generator directory inside the repository"
+                    },
+                    "title": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Title",
+                        "description": "Title taken from the readme of the generator"
+                    },
+                    "summary": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Summary",
+                        "description": "Summary taken from the readme of the generator"
+                    },
+                    "file_count": {
+                        "type": "integer",
+                        "title": "File Count",
+                        "description": "Number of files the generator consists of"
+                    },
+                    "size": {
+                        "type": "integer",
+                        "title": "Size",
+                        "description": "Total size of the generator files in bytes"
+                    },
+                    "installed_as": {
+                        "items": {
+                            "$ref": "#/components/schemas/InstalledProject"
+                        },
+                        "type": "array",
+                        "title": "Installed As",
+                        "description": "Projects of the workspace this generator is installed as"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "name",
+                    "path",
+                    "title",
+                    "summary",
+                    "file_count",
+                    "size",
+                    "installed_as"
+                ],
+                "title": "CatalogEntryResponse",
+                "description": "Generator published by a connected repository."
+            },
+            "CatalogResponse": {
+                "properties": {
+                    "revision": {
+                        "type": "string",
+                        "title": "Revision",
+                        "description": "Commit hash the catalog was read from"
+                    },
+                    "refreshed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Refreshed At",
+                        "description": "Moment the catalog was read at"
+                    },
+                    "committed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Committed At",
+                        "description": "Moment that commit was authored at"
+                    },
+                    "author": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Author",
+                        "description": "Author of that commit"
+                    },
+                    "entries": {
+                        "items": {
+                            "$ref": "#/components/schemas/CatalogEntryResponse"
+                        },
+                        "type": "array",
+                        "title": "Entries",
+                        "description": "Published generators, ordered by name"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "revision",
+                    "refreshed_at",
+                    "committed_at",
+                    "author",
+                    "entries"
+                ],
+                "title": "CatalogResponse",
+                "description": "Generators published by a connected repository."
             },
             "ClickhouseOutputPluginConfig-Input": {
                 "properties": {
@@ -5671,6 +6430,74 @@
                     }
                 ]
             },
+            "ConnectedRepository": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "pattern": "^[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?$",
+                        "title": "Name"
+                    },
+                    "url": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "minLength": 1,
+                        "title": "Url"
+                    },
+                    "ref": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._/-]*$"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Ref"
+                    },
+                    "username": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 255,
+                                "minLength": 1
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Username"
+                    },
+                    "password": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "minLength": 1
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Password"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/RepositoryStatus"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "name",
+                    "url",
+                    "status"
+                ],
+                "title": "ConnectedRepository",
+                "description": "Connected repository with the result of its last check.\n\nThis is the repository as it is shown rather than as it is kept:\na password holding the credential itself reads as `***`, while one\nnaming a keyring secret reads as written. Nothing authenticates\nwith it.\n\nAttributes\n----------\nstatus : RepositoryStatus\n    Result of the last check of the repository."
+            },
             "Contains": {
                 "properties": {
                     "contains": {
@@ -5775,6 +6602,185 @@
                 ],
                 "title": "Defined",
                 "description": "Check if state has specified key."
+            },
+            "DiscoveredRepository": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "title": "Name"
+                    },
+                    "full_name": {
+                        "type": "string",
+                        "maxLength": 512,
+                        "title": "Full Name"
+                    },
+                    "url": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "title": "Url"
+                    },
+                    "page_url": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "title": "Page Url"
+                    },
+                    "owner": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "title": "Owner"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 1000
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Description"
+                    },
+                    "topics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "maxItems": 32,
+                        "title": "Topics",
+                        "default": []
+                    },
+                    "stars": {
+                        "type": "integer",
+                        "title": "Stars",
+                        "default": 0
+                    },
+                    "updated_at": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Updated At"
+                    },
+                    "license": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 64
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "License"
+                    },
+                    "archived": {
+                        "type": "boolean",
+                        "title": "Archived",
+                        "default": false
+                    },
+                    "official": {
+                        "type": "boolean",
+                        "title": "Official",
+                        "default": false
+                    },
+                    "connected": {
+                        "type": "boolean",
+                        "title": "Connected",
+                        "default": false
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "name",
+                    "full_name",
+                    "url",
+                    "page_url",
+                    "owner"
+                ],
+                "title": "DiscoveredRepository",
+                "description": "Repository publishing generators in the open.\n\nEverything but `connected` is what the repository states about\nitself, republished as it was read - nothing here is reviewed.\n\nAttributes\n----------\nname : str\n    Name of the repository.\n\nfull_name : str\n    Name of the repository with the owner it belongs to.\n\nurl : str\n    URL the repository is fetched from.\n\npage_url : str\n    URL of the page the repository is presented on.\n\nowner : str\n    Owner the repository belongs to.\n\ndescription : str | None, default=None\n    What the repository says it holds.\n\ntopics : tuple[str, ...], default=()\n    Topics the repository carries.\n\nstars : int, default=0\n    Number of stars the repository has.\n\nupdated_at : datetime | None, default=None\n    Moment the repository was last pushed to.\n\nlicense : str | None, default=None\n    License the repository is published under.\n\narchived : bool, default=False\n    Whether the repository is archived by its owner.\n\nofficial : bool, default=False\n    Whether the repository is published by Eventum itself.\n\nconnected : bool, default=False\n    Whether this instance is already connected to the repository."
+            },
+            "Discovery": {
+                "properties": {
+                    "topic": {
+                        "type": "string",
+                        "title": "Topic"
+                    },
+                    "query": {
+                        "type": "string",
+                        "title": "Query"
+                    },
+                    "entries": {
+                        "items": {
+                            "$ref": "#/components/schemas/DiscoveredRepository"
+                        },
+                        "type": "array",
+                        "title": "Entries"
+                    },
+                    "total_count": {
+                        "type": "integer",
+                        "title": "Total Count"
+                    },
+                    "refreshed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Refreshed At"
+                    },
+                    "rate": {
+                        "$ref": "#/components/schemas/DiscoveryRate"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "topic",
+                    "query",
+                    "entries",
+                    "total_count",
+                    "refreshed_at",
+                    "rate"
+                ],
+                "title": "Discovery",
+                "description": "Repositories published in the open, as read at a moment.\n\nAttributes\n----------\ntopic : str\n    Topic a repository carries to appear in the list.\n\nquery : str\n    Words the list was narrowed with, empty when it was not.\n\nentries : tuple[DiscoveredRepository, ...]\n    Repositories that were found, the ones published by Eventum\n    first and the rest by the stars they carry.\n\ntotal_count : int\n    Number of repositories matching in total, of which this is one\n    page.\n\nrefreshed_at : datetime\n    Moment the list was read at.\n\nrate : DiscoveryRate\n    Quota left for searching again."
+            },
+            "DiscoveryRate": {
+                "properties": {
+                    "remaining": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Remaining"
+                    },
+                    "reset_at": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Reset At"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "DiscoveryRate",
+                "description": "Quota left for searching the published repositories.\n\nAttributes\n----------\nremaining : int | None, default=None\n    Number of searches left before the quota is spent.\n\nreset_at : datetime | None, default=None\n    Moment the quota is restored at."
             },
             "Encoding": {
                 "type": "string",
@@ -6760,6 +7766,10 @@
                         "title": "Start Time",
                         "description": "Start time of the generator"
                     },
+                    "resources": {
+                        "$ref": "#/components/schemas/ResourcesStats",
+                        "description": "Runtime resources occupied by the generator"
+                    },
                     "input": {
                         "items": {
                             "$ref": "#/components/schemas/InputPluginStats"
@@ -6816,6 +7826,7 @@
                 "required": [
                     "id",
                     "start_time",
+                    "resources",
                     "input",
                     "event",
                     "output",
@@ -6874,18 +7885,18 @@
                         "type": "string",
                         "title": "Key"
                     },
-                    "template": {
+                    "path": {
                         "type": "string",
-                        "title": "Template"
+                        "title": "Path"
                     }
                 },
                 "type": "object",
                 "required": [
                     "key",
-                    "template"
+                    "path"
                 ],
                 "title": "GlobalsReferenceResponse",
-                "description": "A single reference to globals in a template."
+                "description": "A single reference to globals in a generator file."
             },
             "GlobalsUsageResponse": {
                 "properties": {
@@ -6918,7 +7929,7 @@
                     "warnings"
                 ],
                 "title": "GlobalsUsageResponse",
-                "description": "Detected globals usage across all templates in a generator."
+                "description": "Detected globals usage across all files of a generator."
             },
             "GlobalsWarningResponse": {
                 "properties": {
@@ -6926,15 +7937,15 @@
                         "type": "string",
                         "title": "Type"
                     },
-                    "template": {
+                    "path": {
                         "type": "string",
-                        "title": "Template"
+                        "title": "Path"
                     }
                 },
                 "type": "object",
                 "required": [
                     "type",
-                    "template"
+                    "path"
                 ],
                 "title": "GlobalsWarningResponse",
                 "description": "A warning about globals usage that cannot be fully detected."
@@ -7257,6 +8268,19 @@
                             }
                         ],
                         "title": "Proxy Url"
+                    },
+                    "concurrency": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Concurrency",
+                        "default": 100
                     }
                 },
                 "additionalProperties": false,
@@ -7459,6 +8483,19 @@
                             }
                         ],
                         "title": "Proxy Url"
+                    },
+                    "concurrency": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Concurrency",
+                        "default": 100
                     }
                 },
                 "additionalProperties": false,
@@ -7545,13 +8582,84 @@
                 "title": "InputPluginStats",
                 "description": "Input plugin statistics."
             },
+            "InstallGeneratorRequest": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 1,
+                        "title": "Name",
+                        "description": "Name of the generator directory to install into"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "title": "InstallGeneratorRequest",
+                "description": "Request of installing a published generator.\n\nAttributes\n----------\nname : str\n    Name of the generator directory to install into."
+            },
+            "InstalledGeneratorResponse": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name",
+                        "description": "Name of the generator directory that was written"
+                    },
+                    "file_count": {
+                        "type": "integer",
+                        "title": "File Count",
+                        "description": "Number of files it holds"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "name",
+                    "file_count"
+                ],
+                "title": "InstalledGeneratorResponse",
+                "description": "Project a published generator was installed as.\n\nAttributes\n----------\nname : str\n    Name of the generator directory that was written.\n\nfile_count : int\n    Number of files it holds."
+            },
+            "InstalledProject": {
+                "properties": {
+                    "project": {
+                        "type": "string",
+                        "title": "Project"
+                    },
+                    "revision": {
+                        "type": "string",
+                        "title": "Revision"
+                    },
+                    "installed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Installed At"
+                    },
+                    "outdated": {
+                        "type": "boolean",
+                        "title": "Outdated"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "project",
+                    "revision",
+                    "installed_at",
+                    "outdated"
+                ],
+                "title": "InstalledProject",
+                "description": "Project a published generator is installed as.\n\nAttributes\n----------\nproject : str\n    Name of the project directory.\n\nrevision : str\n    Commit the project was installed from.\n\ninstalled_at : datetime\n    Moment of the installation.\n\noutdated : bool\n    Whether the repository publishes the generator with content\n    different from what was installed. It says nothing about\n    changes made to the project since."
+            },
             "InstanceInfo": {
                 "properties": {
                     "app_version": {
                         "type": "string",
                         "title": "App Version",
                         "description": "Application version",
-                        "default": "2.7.0"
+                        "default": "2.8.0"
                     },
                     "python_version": {
                         "type": "string",
@@ -7567,6 +8675,16 @@
                         "type": "string",
                         "title": "Python Compiler",
                         "description": "Python compiler"
+                    },
+                    "python_free_threaded": {
+                        "type": "boolean",
+                        "title": "Python Free Threaded",
+                        "description": "Whether Python is a free threaded build"
+                    },
+                    "python_gil_enabled": {
+                        "type": "boolean",
+                        "title": "Python Gil Enabled",
+                        "description": "Whether the GIL is currently enabled"
                     },
                     "platform": {
                         "type": "string",
@@ -7631,6 +8749,24 @@
                         "description": "Available RAM in bytes.",
                         "readOnly": true
                     },
+                    "process_memory_bytes": {
+                        "type": "integer",
+                        "title": "Process Memory Bytes",
+                        "description": "Resident memory of this application in bytes.",
+                        "readOnly": true
+                    },
+                    "process_open_fds": {
+                        "type": "integer",
+                        "title": "Process Open Fds",
+                        "description": "Number of file descriptors this application holds open.",
+                        "readOnly": true
+                    },
+                    "process_max_fds": {
+                        "type": "integer",
+                        "title": "Process Max Fds",
+                        "description": "Maximum number of file descriptors this application may open.",
+                        "readOnly": true
+                    },
                     "network_sent_bytes": {
                         "type": "integer",
                         "title": "Network Sent Bytes",
@@ -7671,6 +8807,9 @@
                     "memory_total_bytes",
                     "memory_used_bytes",
                     "memory_available_bytes",
+                    "process_memory_bytes",
+                    "process_open_fds",
+                    "process_max_fds",
                     "network_sent_bytes",
                     "network_received_bytes",
                     "disk_written_bytes",
@@ -8721,6 +9860,18 @@
                         "title": "Level",
                         "default": "info"
                     },
+                    "third_party_level": {
+                        "type": "string",
+                        "enum": [
+                            "debug",
+                            "info",
+                            "warning",
+                            "error",
+                            "critical"
+                        ],
+                        "title": "Third Party Level",
+                        "default": "warning"
+                    },
                     "format": {
                         "type": "string",
                         "enum": [
@@ -8746,7 +9897,7 @@
                 "additionalProperties": false,
                 "type": "object",
                 "title": "LogParameters",
-                "description": "Log parameters.\n\nAttributes\n----------\nlevel : Literal['debug', 'info', 'warning', 'error', 'critical'],        default='info'\n    Logging level.\n\nformat : Literal['plain', 'json'], default='plain'\n    Logging format.\n\nmax_bytes : int, default=10485760\n    Max bytes for log file before rotation.\n\nbackups : int, default=5\n    Number of rotated log files to keep."
+                "description": "Log parameters.\n\nAttributes\n----------\nlevel : Literal['debug', 'info', 'warning', 'error', 'critical'],        default='info'\n    Logging level.\n\nthird_party_level : Literal['debug', 'info', 'warning', 'error',        'critical'], default='warning'\n    Logging level of third-party libraries.\n\nformat : Literal['plain', 'json'], default='plain'\n    Logging format.\n\nmax_bytes : int, default=10485760\n    Max bytes for log file before rotation.\n\nbackups : int, default=5\n    Number of rotated log files to keep."
             },
             "Lt": {
                 "properties": {
@@ -9317,6 +10468,18 @@
                         "format": "path",
                         "title": "Keyring Cryptfile"
                     },
+                    "repositories": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "path"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Repositories"
+                    },
                     "generator_config_filename": {
                         "type": "string",
                         "format": "path",
@@ -9333,7 +10496,7 @@
                     "keyring_cryptfile"
                 ],
                 "title": "PathParameters",
-                "description": "Path parameters.\n\nAttributes\n----------\nlogs : Path\n    Absolute path to logs directory.\n\nstartup : Path\n    Absolute path to file with list of generators to run at startup.\n\ngenerators_dir : Path\n    Absolute path to directory with generators configuration files.\n\nkeyring_cryptfile : Path\n    Absolute path to keyring encrypted file with stored secrets\n\ngenerator_config_filename : Path, default='generator.yml'\n    Filename for generator configurations. This parameter is used\n    by the API for detection directories with generator\n    configurations. Directory with generator configuration named\n    other than this parameter value will not be operable using API\n    endpoints."
+                "description": "Path parameters.\n\nAttributes\n----------\nlogs : Path\n    Absolute path to logs directory.\n\nstartup : Path\n    Absolute path to file with list of generators to run at startup.\n\ngenerators_dir : Path\n    Absolute path to directory with generators configuration files.\n\nkeyring_cryptfile : Path\n    Absolute path to keyring encrypted file with stored secrets\n\nrepositories : Path | None, default=None\n    Absolute path to file with list of connected generator\n    repositories. When not provided, the file named\n    \"repositories.yml\" next to the startup file is used.\n\ngenerator_config_filename : Path, default='generator.yml'\n    Filename for generator configurations. This parameter is used\n    by the API for detection directories with generator\n    configurations. Directory with generator configuration named\n    other than this parameter value will not be operable using API\n    endpoints."
             },
             "ProduceEventErrorInfo": {
                 "properties": {
@@ -9362,7 +10525,7 @@
                 "title": "ProduceEventErrorInfo",
                 "description": "Information about errors related to events producing.\n\nAttributes\n----------\nindex : int\n    Index of params object from params list used to produce events\n    for which producing is failed.\n\nmessage : str\n    Error message.\n\ncontext : dict[str, Any]\n    Error context."
             },
-            "ProduceParams": {
+            "ProduceParamsRequest": {
                 "properties": {
                     "timestamp": {
                         "type": "string",
@@ -9377,13 +10540,14 @@
                         "title": "Tags"
                     }
                 },
+                "additionalProperties": false,
                 "type": "object",
                 "required": [
                     "timestamp",
                     "tags"
                 ],
-                "title": "ProduceParams",
-                "description": "Params for `produce` method of `EventPlugin`.\n\nAttributes\n----------\ntimestamp : str\n    Timestamp of event.\n\ntags : tuple[str, ...]\n    Tags from input plugin that generated timestamp."
+                "title": "ProduceParamsRequest",
+                "description": "Request model with parameters of producing a single event.\n\nAttributes\n----------\ntimestamp : datetime\n    Timestamp of event.\n\ntags : tuple[str, ...]\n    Tags of the input plugin that generated the timestamp."
             },
             "ProducedEventsInfo": {
                 "properties": {
@@ -9429,12 +10593,90 @@
                         "minimum": 1.0,
                         "title": "Max Event Batches",
                         "default": 10
+                    },
+                    "max_event_bytes": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Max Event Bytes",
+                        "default": 268435456
                     }
                 },
                 "additionalProperties": false,
                 "type": "object",
                 "title": "QueueParameters",
-                "description": "Parameters of input plugins queue.\n\nAttributes\n----------\nmax_timestamp_batches : int, default=10\n    Maximum number of batches in timestamps queue.\n\nmax_event_batches : int, default=10\n    Maximum number of batches in events queue."
+                "description": "Parameters of input plugins queue.\n\nAttributes\n----------\nmax_timestamp_batches : int, default=10\n    Maximum number of batches in timestamps queue.\n\nmax_event_batches : int, default=10\n    Maximum number of batches in events queue.\n\nmax_event_bytes : int | None, default=268435456\n    Maximum number of bytes the batches waiting in events queue\n    occupy together, `None` to leave their size unlimited.\n\nNotes\n-----\nBoth limits of the events queue apply, whichever is reached first.\nThe number of batches alone does not bound the memory the queue\nholds, since the size of an event is up to the templates; a batch\nlarger than the whole byte limit still passes, since holding it back\nwould stall the pipeline for good. The byte limit covers the queue\nalone - what a generator occupies while producing and writing a\nbatch follows the batch size."
+            },
+            "QueueStats": {
+                "properties": {
+                    "size": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Size",
+                        "description": "Number of batches waiting in the queue"
+                    },
+                    "maxsize": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Maxsize",
+                        "description": "Maximum number of batches the queue holds"
+                    },
+                    "size_bytes": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Size Bytes",
+                        "description": "Number of bytes the batches waiting in the queue occupy"
+                    },
+                    "max_bytes": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Max Bytes",
+                        "description": "Maximum number of bytes the queue holds, null if their size is not limited"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "size",
+                    "maxsize",
+                    "size_bytes",
+                    "max_bytes"
+                ],
+                "title": "QueueStats",
+                "description": "Fill level of a queue between two pipeline stages."
+            },
+            "QueuesStats": {
+                "properties": {
+                    "timestamps": {
+                        "$ref": "#/components/schemas/QueueStats",
+                        "description": "Queue between the input and the event stage"
+                    },
+                    "events": {
+                        "$ref": "#/components/schemas/QueueStats",
+                        "description": "Queue between the event and the output stage"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "timestamps",
+                    "events"
+                ],
+                "title": "QueuesStats",
+                "description": "Fill levels of the queues between the pipeline stages."
             },
             "RenameGeneratorDirRequest": {
                 "properties": {
@@ -9501,6 +10743,33 @@
                 ],
                 "title": "RenameSecretRequest",
                 "description": "New name for an existing secret."
+            },
+            "RenamedReferencesResponse": {
+                "properties": {
+                    "projects": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Projects",
+                        "description": "Names of the projects whose configuration was rewritten for the new name"
+                    },
+                    "repositories": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Repositories",
+                        "description": "Names of the connected repositories that were repointed at the new name"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "projects",
+                    "repositories"
+                ],
+                "title": "RenamedReferencesResponse",
+                "description": "Referrers a rename carried over to the new name, by kind.\n\nAttributes\n----------\nprojects : list[str]\n    Names of the projects whose configuration was rewritten.\n\nrepositories : list[str]\n    Names of the repositories that were repointed."
             },
             "ReplayEventPluginConfig-Output": {
                 "properties": {
@@ -9682,6 +10951,177 @@
                 ],
                 "title": "ReplayEventPluginConfig"
             },
+            "Repository": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "pattern": "^[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?$",
+                        "title": "Name"
+                    },
+                    "url": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "minLength": 1,
+                        "title": "Url"
+                    },
+                    "ref": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 255,
+                                "minLength": 1,
+                                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._/-]*$"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Ref"
+                    },
+                    "username": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 255,
+                                "minLength": 1
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Username"
+                    },
+                    "password": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "minLength": 1
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Password"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "name",
+                    "url"
+                ],
+                "title": "Repository",
+                "description": "Connected generator repository.\n\nAttributes\n----------\nname : str\n    Name the repository is referred to by, unique across the\n    connected ones.\n\nurl : str\n    URL the repository is fetched from.\n\nref : str | None, default=None\n    Branch or tag to fetch. The default branch of the repository\n    is fetched when not provided.\n\nusername : str | None, default=None\n    User name to authenticate with.\n\npassword : str | None, default=None\n    Password or access token to authenticate with, either as the\n    value itself or as a `${secrets.<name>}` reference resolved\n    from the keyring when the repository is reached."
+            },
+            "RepositoryStatus": {
+                "properties": {
+                    "state": {
+                        "type": "string",
+                        "enum": [
+                            "unknown",
+                            "available",
+                            "unavailable"
+                        ],
+                        "title": "State"
+                    },
+                    "checked_at": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Checked At"
+                    },
+                    "reason": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Reason"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "state"
+                ],
+                "title": "RepositoryStatus",
+                "description": "Result of the last check of a repository.\n\nAttributes\n----------\nstate : Literal['unknown', 'available', 'unavailable']\n    Whether the repository answered the last check. A repository\n    that has not been checked in this process is unknown.\n\nchecked_at : datetime | None, default=None\n    Moment of the last check.\n\nreason : str | None, default=None\n    Why the repository did not answer."
+            },
+            "ResourcesStats": {
+                "properties": {
+                    "thread_count": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Thread Count",
+                        "description": "Number of threads the generator runs"
+                    },
+                    "cpu_seconds": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "title": "Cpu Seconds",
+                        "description": "CPU time consumed by those threads since the generator started, growing over the lifetime of the generator"
+                    },
+                    "run_delay_seconds": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "title": "Run Delay Seconds",
+                        "description": "Time those threads spent ready to run while waiting for a processor since the generator started, growing over the lifetime of the generator; reported on Linux only"
+                    },
+                    "disk_read_bytes": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Disk Read Bytes",
+                        "description": "Number of bytes those threads read through the file system since the generator started; reported on Linux only"
+                    },
+                    "disk_written_bytes": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Disk Written Bytes",
+                        "description": "Number of bytes those threads wrote through the file system since the generator started; reported on Linux only"
+                    },
+                    "network_sent_bytes": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Network Sent Bytes",
+                        "description": "Number of bytes those threads sent over the network since the generator started"
+                    },
+                    "network_received_bytes": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Network Received Bytes",
+                        "description": "Number of bytes those threads received over the network since the generator started"
+                    },
+                    "queues": {
+                        "$ref": "#/components/schemas/QueuesStats",
+                        "description": "Fill levels of the queues between the pipeline stages"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "thread_count",
+                    "cpu_seconds",
+                    "run_delay_seconds",
+                    "disk_read_bytes",
+                    "disk_written_bytes",
+                    "network_sent_bytes",
+                    "network_received_bytes",
+                    "queues"
+                ],
+                "title": "ResourcesStats",
+                "description": "Runtime resources occupied by a generator.\n\nMemory is absent by nature: generators share the process heap, so\nthe share of it belonging to one generator is not observable. Queue\nfill levels stand in for it, since the queues hold the bulk of what\na generator keeps in flight."
+            },
             "SSLParameters": {
                 "properties": {
                     "enabled": {
@@ -9818,6 +11258,33 @@
                 ],
                 "title": "ScriptEventPluginConfig"
             },
+            "SecretReferencesResponse": {
+                "properties": {
+                    "projects": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Projects",
+                        "description": "Names of the projects whose configuration reads the secret as `${secrets.<name>}`"
+                    },
+                    "repositories": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Repositories",
+                        "description": "Names of the connected repositories authenticating with the secret"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "projects",
+                    "repositories"
+                ],
+                "title": "SecretReferencesResponse",
+                "description": "Everything that refers to a secret, grouped by kind.\n\nAttributes\n----------\nprojects : list[str]\n    Names of the projects whose configuration reads the secret.\n\nrepositories : list[str]\n    Names of the repositories authenticating with the secret."
+            },
             "ServerParameters": {
                 "properties": {
                     "ui": {
@@ -9851,7 +11318,7 @@
                 "additionalProperties": false,
                 "type": "object",
                 "title": "ServerParameters",
-                "description": "Server parameters.\n\nAttributes\n----------\nui : UIParameters\n    Web UI service parameters.\n\napi : APIParameters\n    REST API service parameters.\n\nhost : str, default='0.0.0.0'\n    Bind address for server process.\n\nport : int, default=9474\n    Bind port for server process,\n\nssl : SSLParameters, default=SSLParameters(...)\n    SSL parameters.\n\nauth : AuthParameters\n    Auth parameters.\n\nmcp : MCPParameters\n    MCP service parameters.\n\nNotes\n-----\nThe flat `ui_enabled` and `api_enabled` keys are deprecated\naliases for `ui.enabled` and `api.enabled` and will be removed\nin version 2.8. They still work but emit a deprecation warning\nand cannot be combined with their nested counterparts."
+                "description": "Server parameters.\n\nAttributes\n----------\nui : UIParameters\n    Web UI service parameters.\n\napi : APIParameters\n    REST API service parameters.\n\nhost : str, default='0.0.0.0'\n    Bind address for server process.\n\nport : int, default=9474\n    Bind port for server process,\n\nssl : SSLParameters, default=SSLParameters(...)\n    SSL parameters.\n\nauth : AuthParameters\n    Auth parameters.\n\nmcp : MCPParameters\n    MCP service parameters."
             },
             "Settings-Input": {
                 "properties": {
