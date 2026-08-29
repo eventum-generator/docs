@@ -13,7 +13,7 @@ Five changes alter how an existing setup behaves:
 - **`server.ui_enabled` and `server.api_enabled` are gone.** Deprecated in 2.7.0, they are now rejected as unknown settings — move the value under [`server.ui.enabled` and `server.api.enabled`](/docs/core/config/eventum-yml).
 - **The log files changed.** A record goes to `main.log`, `server.log`, `server_access.log`, `mcp.log` or `generator_<id>.log` by the component it came from, and `server_error.log` is gone. Anything collecting these files needs the [new set](/docs/core/config/eventum-yml#log-files).
 - **The events queue is bounded in bytes.** It holds at most [`generation.queue.max_event_bytes`](/docs/core/config/eventum-yml), 256 MiB by default, so a generator rendering large events buffers less than before.
-- **Past timestamps are batched by size.** Timestamps already in the past, and every timestamp in sample mode, are grouped by `batch.size` rather than by `batch.delay`, so a sample-mode run through the `json-batch` formatter writes larger arrays than before.
+- **Sample mode batches by size alone.** With `batch.size` set, a sample-mode run no longer cuts batches by `batch.delay`, so a per-batch formatter such as `json-batch` writes larger arrays than before.
 - **A secret name is now checked.** It has to be words of lowercase letters, digits and `_` separated by `.`. Names already in a keyring keep working.
 </Callout>
 
@@ -93,7 +93,7 @@ Five changes alter how an existing setup behaves:
 
 ## ⚡ Performance
 
-- A generator started on a past time range, or one that fell behind real time, catches up far faster: events that are already due are batched by `batch.size` instead of `batch.delay`
+- A generator started on a past time range, or one that fell behind real time, catches up far faster: consecutive batches whose timestamps are already due are merged up to `batch.size` and published as one, instead of one after another
 - A scenario of many instances comes up without a spike on the host, since they no longer all compile their templates at once
 
 ## 📝 Other changes
