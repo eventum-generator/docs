@@ -93,7 +93,7 @@ Five changes alter how an existing setup behaves:
 
 ## ⚡ Performance
 
-- A generator started on a past time range, or one that fell behind real time, catches up far faster: consecutive batches whose timestamps are already due are merged up to `batch.size` and published as one, instead of one after another
+- A generator started on a past time range, or one that fell behind real time, catches up far faster: batches whose timestamps are already due are merged up to `batch.size`, instead of being published as the small slices `batch.delay` cut them into
 - A scenario of many instances comes up without a spike on the host, since they no longer all compile their templates at once
 
 ## 📝 Other changes
