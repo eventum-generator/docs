@@ -1,0 +1,108 @@
+---
+title: Upgrading
+description: Move an existing Eventum installation to a newer version with uv, pip, Docker, or from source.
+---
+
+Eventum is upgraded with the tool that installed it. An upgrade replaces the application only: `eventum.yml`, `startup.yml`, the generator projects and the keyring stay in place and are read by the new version.
+
+## Before you upgrade
+
+- **Read the changelog.** The [changelog](https://github.com/eventum-generator/eventum/blob/master/CHANGELOG.md) has one section per release. When several releases are skipped, read every section in between. Renamed or removed settings are listed under *Other changes* — `eventum.yml` rejects a key the new version does not know, and the application does not start until the file is updated.
+- **Check the requirements.** A release may raise the minimum Python version — 2.3.0 moved to Python 3.14. [Requirements](/docs/core/introduction/requirements) states the current minimum. The Docker image bundles its own interpreter.
+- **Plan a restart.** A running `eventum run` process keeps the version it was started with. Hot reload keeps the process, and with it the old version, so the new one takes effect only after the process is stopped and started again.
+
+## uv
+
+```bash
+uv tool upgrade eventum-generator
+```
+
+The upgrade respects the constraints of the original installation. To move to a specific version, or to change a pin, install it explicitly:
+
+```bash
+uv tool install eventum-generator==<version>
+```
+
+When a release raises the minimum Python version, name the interpreter to use:
+
+```bash
+uv tool upgrade --python 3.14 eventum-generator
+```
+
+## pip
+
+Activate the environment Eventum was installed into, then:
+
+```bash
+pip install --upgrade eventum-generator
+```
+
+A specific version:
+
+```bash
+pip install eventum-generator==<version>
+```
+
+## Docker
+
+Each release is published under four tags: the full version (for example `2.8.0`), the minor line (`2.8`), the major line (`2`), and `latest`. Pin the full version in production, so that an upgrade is a deliberate change of the tag rather than a side effect of a pull.
+
+Pull the new image:
+
+```bash
+docker pull rnv812/eventum-generator:<version>
+```
+
+Then stop the running container and start it again from the new tag, with the same volume mounts as in [Run with Docker](/docs/core/introduction/installation#run-with-docker). The mounted `config/`, `generators/` and `logs/` directories are not modified by the upgrade.
+
+With Docker Compose, change the tag in `image:` and recreate the service:
+
+```yaml title="docker-compose.yml"
+services:
+  eventum:
+    image: rnv812/eventum-generator:<version>
+```
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+## From source
+
+Check out the release tag and reinstall the dependencies:
+
+```bash
+git fetch --tags
+git checkout v<version>
+uv sync
+```
+
+Then rebuild the Studio UI as described in [Build from source](/docs/core/introduction/installation#build-from-source) — the bundle belongs to the version it was built from.
+
+## After upgrading
+
+Confirm the version:
+
+```bash
+eventum --version
+```
+
+- **systemd service.** Restart the service installed by [`eventum service install`](/docs/core/cli/eventum-service): `sudo systemctl restart eventum`, or `systemctl --user restart eventum` for a user service. The unit runs the same `eventum` binary, which the upgrade replaced in place, so the unit itself needs no change.
+- **Studio.** The footer shows the running version. The first load after an upgrade opens the release highlights, which stay reachable from the user menu.
+- **Configuration.** If the application refuses to start, the error names the setting it rejected. The changelog entry of the release states what replaced it.
+
+## What's next
+
+<Cards>
+  <Card
+    title="Changelog"
+    description="What each release changed, one section per version."
+    href="https://github.com/eventum-generator/eventum/blob/master/CHANGELOG.md"
+  />
+  <Card
+    title="eventum service"
+    description="Run Eventum as a systemd service that starts on boot."
+    href="/docs/core/cli/eventum-service"
+  />
+</Cards>
