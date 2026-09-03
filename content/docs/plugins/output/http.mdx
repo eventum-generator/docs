@@ -12,9 +12,8 @@ Sends events to an HTTP endpoint. By default, events are batched into a single J
 | `url` | URL | — | Required. Valid HTTP/HTTPS URL. | Target endpoint URL. |
 | `method` | string | `"POST"` | `GET`, `HEAD`, `OPTIONS`, `POST`, `PUT`, `PATCH`, or `DELETE` | HTTP method. |
 | `success_code` | integer | `201` | >= 100 | Expected response status code. |
-| `headers` | mapping | `{}` | — | Custom request headers. |
-| `username` | string or null | `null` | Non-empty if set. | Username for HTTP basic auth. |
-| `password` | string or null | `null` | Non-empty if set. | Password for HTTP basic auth. |
+| `headers` | mapping | `{}` | String values. | Custom request headers. |
+| `auth` | [authentication](#authentication) or null | `null` | — | How requests are authenticated. |
 | `connect_timeout` | integer | `10` | >= 1 | Connection timeout in seconds. |
 | `request_timeout` | integer | `300` | >= 1 | Full request timeout in seconds. |
 | `verify` | boolean | `true` | — | Whether to verify the server's TLS certificate. |
@@ -33,6 +32,89 @@ Sends events to an HTTP endpoint. By default, events are batched into a single J
 - If the response code doesn't match `success_code`, the write is counted as failed.
 - On an `https://` URL the server's certificate is verified by default. For an endpoint with a self-signed or internal-CA certificate, set `ca_cert` to the issuing CA, or set `verify: false` to connect without the check.
 
+## Authentication
+
+The `auth` section states how every request is authenticated. Without it requests carry no credentials. The `type` field selects the method, and each method has fields of its own.
+
+<Callout type="warn">
+An `Authorization` header written by hand in `headers` cannot be combined with `auth` — the configuration is rejected. Use one or the other.
+</Callout>
+
+### `basic`
+
+A user name and a password, sent as HTTP basic credentials.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `username` | string | — | Required. Non-empty. | User to authenticate as. |
+| `password` | string or null | `null` | Non-empty if set. | Password of the user. An empty password is used when omitted. |
+
+```yaml
+output:
+  - http:
+      url: https://api.example.com/ingest
+      auth:
+        type: basic
+        username: eventum
+        password: "${secrets.api_password}"
+```
+
+### `bearer`
+
+A token that does not change while the generator runs.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `token` | string | — | Required. Non-empty. | Token sent in the `Authorization` header. |
+
+```yaml
+output:
+  - http:
+      url: https://api.example.com/ingest
+      auth:
+        type: bearer
+        token: "${secrets.api_token}"
+```
+
+### `oauth2_client_credentials`
+
+Eventum takes a token from the token endpoint with the OAuth2 client credentials grant, and keeps it current on its own. This is what Azure Monitor Logs Ingestion, Google SecOps and most hosted log APIs expect.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `token_url` | URL | — | Required. Valid HTTP/HTTPS URL. | Token endpoint to request the token from. |
+| `client_id` | string | — | Required. Non-empty. | Identifier of the client. |
+| `client_secret` | string | — | Required. Non-empty. | Secret of the client. |
+| `client_auth_method` | string | `"post"` | `post` or `basic` | Whether the client credentials are sent in the body of the token request or in its `Authorization` header. |
+| `scopes` | list of strings | `[]` | — | Scopes requested for the token. Sent as one space-separated `scope` parameter. |
+| `audience` | string or null | `null` | Non-empty if set. | Audience the token is requested for. |
+| `resource` | string or null | `null` | Non-empty if set. | Resource the token is requested for. |
+| `extra_params` | mapping | `{}` | — | Additional form parameters of the token request. |
+
+The token is taken when the generator starts — a token endpoint that refuses the credentials stops the generator before the first event. It is renewed 30 seconds before it expires, and taken again once when a request comes back `401`, after which the request is repeated. A token minted seconds ago and rejected is not renewed again: the credentials themselves are what the endpoint refuses.
+
+Token requests travel the same client as the events, so `verify`, `ca_cert`, `proxy_url`, `connect_timeout` and `request_timeout` apply to them as they do to the data.
+
+```yaml
+output:
+  - http:
+      url: https://<dce>.ingest.monitor.azure.com/dataCollectionRules/<dcr>/streams/<stream>?api-version=2023-01-01
+      success_code: 204
+      headers:
+        Content-Type: application/json
+      auth:
+        type: oauth2_client_credentials
+        token_url: https://login.microsoftonline.com/${params.tenant_id}/oauth2/v2.0/token
+        client_id: "${params.client_id}"
+        client_secret: "${secrets.client_secret}"
+        scopes:
+          - https://monitor.azure.com//.default
+```
+
+<Callout type="info">
+`token` and `client_secret` hold credentials. Write them as `${secrets.<name>}` so the value comes from the keyring instead of the configuration file. In Studio the field offers the stored secrets directly.
+</Callout>
+
 ## Examples
 
 Basic POST to a webhook:
@@ -47,15 +129,17 @@ output:
         Content-Type: application/json
 ```
 
-With authentication and custom API key:
+With a token the endpoint expects:
 
 ```yaml
 output:
   - http:
       url: https://api.example.com/ingest
       headers:
-        Authorization: "Bearer ${secrets.api_token}"
         Content-Type: application/json
+      auth:
+        type: bearer
+        token: "${secrets.api_token}"
       success_code: 200
 ```
 
