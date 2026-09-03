@@ -69,7 +69,6 @@ One event per line, the default encoding.
 | Parameter | Type | Default | Constraints | Description |
 |-----------|------|---------|-------------|-------------|
 | `encoding` | string | — | Required. `"jsonl"` | Selects this encoding. |
-| `separator` | string | `"\n"` | Non-empty. | Separator placed after each event. |
 | `compression` | string | `"none"` | `"none"`, `"gzip"`, or `"zstd"` | Compression applied to the whole object. |
 | `compression_level` | integer or null | `null` | 1–9 for gzip, 1–22 for zstd. | Compression level. The default level of the selected algorithm is used when not set. |
 
@@ -111,10 +110,10 @@ Every batch of events becomes one object, and `key_template` decides its key. Th
 | `uuid` | Random value, unique across runs and processes. |
 | `ext` | Extension of the selected encoding, including the compression suffix. |
 
-A template that substitutes an unknown field, renders to an empty key, or renders to a key with an empty, relative or whitespace segment is rejected when the configuration is loaded.
+A template is rejected when the configuration is loaded if it substitutes an unknown field, renders to an empty key, renders to a key with an empty, relative or whitespace segment, or renders the same key for every object — every object would then replace the previous one.
 
 <Callout type="warn">
-A key that carries neither `uuid` nor `timestamp` repeats across runs, and the second run overwrites the objects of the first: `seq` restarts at zero every time a generator starts.
+A template varying only by `seq` repeats across runs: the counter restarts at zero every time a generator starts, so the second run overwrites the objects of the first. Substitute `uuid` or `timestamp` as well to keep the objects of every run.
 </Callout>
 
 To tell apart the objects of several generators sharing a bucket, put a `${params.*}` value into the template:
@@ -131,25 +130,29 @@ key_template: "source=${params.source}/year={year}/month={month}/{timestamp}-{uu
 - **The bucket is not checked when a generator starts.** Object storage offers no inexpensive way to verify one, so a wrong bucket, a wrong endpoint or wrong credentials surface on the first write.
 - **Events count as written once the object lands.** A failed upload leaves no object and counts its whole batch as failed.
 - **Traffic of this plugin is reported to the per-instance network figures** by the payload it uploads, without the request headers around it and without whatever a retry sent twice.
+- **A plaintext endpoint is reported when a generator starts.** An `http://` endpoint is accepted, since a storage on a local network commonly serves one, and a warning names it — a session token travels in a request header, which plaintext exposes.
+- **Writes are named `eventum/<version>`** in the access log of the storage.
 
 ## Schema
 
 Parquet holds columns, so an object needs to know the shape of its events.
 
-Without `schema_path`, every object carries the schema of the events it holds. Two objects of one run therefore differ whenever their batches differ in shape, and a query over them relies on the engine merging what it finds.
+Without `schema_path`, every object carries the schema of the events it holds — an object describes only its own events. Two objects of one run therefore differ as soon as their batches differ in shape, and a query over them relies on the engine merging what it finds.
 
 With `schema_path`, the schema comes from one representative event and every object carries the same columns: a field the events lack becomes null, and a field the schema does not declare is left out. The file holds a single JSON object, and the values in it decide the column types — so a field the events hold as a number belongs in the sample as a number, not as a string.
 
+**Take the sample from an event the generator actually produced**, rather than writing one by hand. The types are inferred from the sample, and a value written to look tidy can be read as a narrower type than the events need. A timestamp is the usual case: `"2026-03-04T05:06:07Z"` is read as a whole-second timestamp column, which then rejects every event carrying fractions of a second.
+
 ```json title="schema/event.json"
 {
-  "@timestamp": "2026-03-04T05:06:07Z",
+  "@timestamp": "2026-03-04T05:06:07.123456+00:00",
   "host": { "name": "web-01" },
   "http": { "status": 200, "bytes": 13456 },
   "message": "GET / HTTP/1.1"
 }
 ```
 
-An event that conflicts with the declared types — a field the sample holds as an integer arriving as a fraction — fails its batch rather than being coerced.
+An event that conflicts with the declared types — a field the sample holds as an integer arriving as a fraction — fails its batch rather than being coerced. The error names the schema file alongside the value it could not take.
 
 ## Examples
 
