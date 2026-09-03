@@ -1,0 +1,208 @@
+---
+title: s3
+description: Output plugin that writes events as objects to S3 compatible storage.
+---
+
+Writes events as objects to S3 compatible storage — AWS S3, MinIO, Ceph and the interoperability endpoints of the other clouds. Objects hold JSON Lines or Parquet, are partitioned by time through a key template, and are read in place by ClickHouse, DuckDB, Athena, Spark and Databricks.
+
+## Parameters
+
+### Bucket and keys
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `bucket` | string | — | Required. Non-empty. | Name of the bucket to write objects to. |
+| `key_template` | string | `year={year}/month={month}/day={day}/hour={hour}/{timestamp}-{uuid}{ext}` | Non-empty. Known fields only. | Template of object keys, see [Object keys](#object-keys). |
+
+### Connection
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `endpoint_url` | URL or null | `null` | — | Address of the storage endpoint. The AWS endpoint of the selected region is used when not set. |
+| `region` | string | `"us-east-1"` | Non-empty. | Region of the bucket. |
+| `addressing_style` | string | `"auto"` | `"auto"`, `"path"`, or `"virtual"` | Whether the bucket name goes into the path of a request or into its host name. `auto` selects path style for a custom endpoint and virtual hosted style for AWS. |
+| `connect_timeout` | integer | `10` | >= 1 | Connection timeout (seconds). |
+| `request_timeout` | integer | `300` | >= 1 | Request timeout (seconds). |
+| `max_retries` | integer | `3` | >= 0 | Maximum number of retries of a failed request. |
+| `proxy_url` | URL or null | `null` | — | HTTP(S) proxy address. |
+
+### Credentials
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `access_key_id` | string or null | `null` | Non-empty if set. Must pair with `secret_access_key`. No control characters. | Access key ID to authenticate with. |
+| `secret_access_key` | string or null | `null` | Non-empty if set. Must pair with `access_key_id`. No control characters. | Secret access key to authenticate with. |
+| `session_token` | string or null | `null` | Non-empty if set. Requires both keys above. No control characters. | Session token of temporary credentials. |
+
+Left unset, credentials are resolved from the environment: the `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` variables, an instance profile, a web identity token or the credentials of a container task.
+
+### Objects
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `encoder` | [encoder](#encodings) | `jsonl` | — | Encoding of object bodies. |
+| `content_type` | string or null | `null` | Non-empty if set. No control characters. | Content type to set on objects. The content type of the selected encoding is used when not set. |
+
+### TLS
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `verify` | boolean | `true` | — | Whether to verify the SSL certificate of the storage endpoint. |
+| `ca_cert` | path or null | `null` | — | Path to a CA certificate, for an endpoint behind a private authority. |
+
+Client certificates are not supported.
+
+### Formatter
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `formatter` | [formatter](/docs/plugins/formatters) | `json` | How events are serialized before they are encoded. |
+
+## Encodings
+
+The `encoder` parameter selects what an object body holds. Its `encoding` field decides which of the remaining fields apply.
+
+### JSON Lines
+
+One event per line, the default encoding.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `encoding` | string | — | Required. `"jsonl"` | Selects this encoding. |
+| `separator` | string | `"\n"` | Non-empty. | Separator placed after each event. |
+| `compression` | string | `"none"` | `"none"`, `"gzip"`, or `"zstd"` | Compression applied to the whole object. |
+| `compression_level` | integer or null | `null` | 1–9 for gzip, 1–22 for zstd. | Compression level. The default level of the selected algorithm is used when not set. |
+
+Compression appends `.gz` or `.zst` to the extension the key template substitutes, and is not reported as a content encoding — a client that acted on it would serve an object other than the one that is stored.
+
+### Parquet
+
+Columnar objects, for a lake that is queried rather than replayed.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `encoding` | string | — | Required. `"parquet"` | Selects this encoding. |
+| `compression` | string | `"snappy"` | `"none"`, `"snappy"`, `"gzip"`, `"zstd"`, `"brotli"`, or `"lz4"` | Compression applied to the columns inside the file. |
+| `row_group_size` | integer | `100000` | >= 1 | Maximum number of rows in a row group. |
+| `schema_path` | path or null | `null` | — | Path to a JSON file holding one representative event, see [Schema](#schema). |
+
+### Accepted formats
+
+An encoding reads the events back, so it accepts only the formats it can parse. A pairing it cannot is refused when the configuration is loaded.
+
+| Encoding | Accepted formats |
+|----------|------------------|
+| `jsonl` | `plain`, `json`, `template` |
+| `parquet` | `json` |
+
+The aggregating formatters — `json-batch`, `template-batch` and `eventum-http-input` — are accepted by neither, since a line holding a whole batch is not a record either encoding can read.
+
+For JSON Lines the `json` formatter must keep events on single lines, so its `indent` has to stay `0`.
+
+## Object keys
+
+Every batch of events becomes one object, and `key_template` decides its key. The template substitutes:
+
+| Field | Value |
+|-------|-------|
+| `year`, `month`, `day`, `hour`, `minute`, `second` | Parts of the moment the object is written at, in UTC, zero padded. |
+| `timestamp` | That moment as a whole, as `20260304T050607`. |
+| `seq` | Number of objects written before this one. Takes a format specification, for example `{seq:06d}`. |
+| `uuid` | Random value, unique across runs and processes. |
+| `ext` | Extension of the selected encoding, including the compression suffix. |
+
+A template that substitutes an unknown field, renders to an empty key, or renders to a key with an empty, relative or whitespace segment is rejected when the configuration is loaded.
+
+<Callout type="warn">
+A key that carries neither `uuid` nor `timestamp` repeats across runs, and the second run overwrites the objects of the first: `seq` restarts at zero every time a generator starts.
+</Callout>
+
+To tell apart the objects of several generators sharing a bucket, put a `${params.*}` value into the template:
+
+```yaml
+key_template: "source=${params.source}/year={year}/month={month}/{timestamp}-{uuid}{ext}"
+```
+
+## Behavior
+
+- **One batch becomes one object.** An object cannot be appended to once it is created, so the size of objects follows the batch parameters of the generator — `generation.batch.size` and `generation.batch.delay` — rather than a setting of this plugin. A generator producing few events per second is worth configuring with a larger batch, otherwise the bucket fills with small objects.
+- **A write is bounded by `generation.write_timeout`**, ten seconds by default. A request timeout above that ceiling is never reached, and the upload of a large object is cancelled there instead.
+- **Objects above five megabytes are uploaded in parts.** A cancelled upload leaves the parts it had already sent, which keep occupying paid storage until they are removed, so a bucket receiving large objects is worth giving a lifecycle rule that expires incomplete multipart uploads.
+- **The bucket is not checked when a generator starts.** Object storage offers no inexpensive way to verify one, so a wrong bucket, a wrong endpoint or wrong credentials surface on the first write.
+- **Events count as written once the object lands.** A failed upload leaves no object and counts its whole batch as failed.
+- **Traffic of this plugin is reported to the per-instance network figures** by the payload it uploads, without the request headers around it and without whatever a retry sent twice.
+
+## Schema
+
+Parquet holds columns, so an object needs to know the shape of its events.
+
+Without `schema_path`, every object carries the schema of the events it holds. Two objects of one run therefore differ whenever their batches differ in shape, and a query over them relies on the engine merging what it finds.
+
+With `schema_path`, the schema comes from one representative event and every object carries the same columns: a field the events lack becomes null, and a field the schema does not declare is left out. The file holds a single JSON object, and the values in it decide the column types — so a field the events hold as a number belongs in the sample as a number, not as a string.
+
+```json title="schema/event.json"
+{
+  "@timestamp": "2026-03-04T05:06:07Z",
+  "host": { "name": "web-01" },
+  "http": { "status": 200, "bytes": 13456 },
+  "message": "GET / HTTP/1.1"
+}
+```
+
+An event that conflicts with the declared types — a field the sample holds as an integer arriving as a fraction — fails its batch rather than being coerced.
+
+## Examples
+
+Local MinIO, JSON Lines:
+
+```yaml
+output:
+  - s3:
+      bucket: events
+      endpoint_url: http://127.0.0.1:9000
+      access_key_id: ${params.minio_user}
+      secret_access_key: ${secrets.minio_password}
+```
+
+AWS S3 with credentials resolved from the environment, compressed:
+
+```yaml
+output:
+  - s3:
+      bucket: my-data-lake
+      region: eu-west-1
+      key_template: "logs/year={year}/month={month}/day={day}/{timestamp}-{uuid}{ext}"
+      encoder:
+        encoding: jsonl
+        compression: zstd
+```
+
+A Parquet lake with a declared schema:
+
+```yaml
+output:
+  - s3:
+      bucket: my-data-lake
+      region: eu-west-1
+      key_template: "web/year={year}/month={month}/day={day}/hour={hour}/{seq:06d}-{uuid}{ext}"
+      encoder:
+        encoding: parquet
+        compression: zstd
+        row_group_size: 200000
+        schema_path: schema/event.json
+      formatter:
+        format: json
+```
+
+Storage behind a private certificate authority:
+
+```yaml
+output:
+  - s3:
+      bucket: events
+      endpoint_url: https://storage.internal.example.com
+      ca_cert: certs/ca.pem
+      addressing_style: path
+      access_key_id: ${params.storage_key_id}
+      secret_access_key: ${secrets.storage_secret}
+```
