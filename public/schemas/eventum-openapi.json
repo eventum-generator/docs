@@ -5309,6 +5309,44 @@
                 "title": "AuthParameters",
                 "description": "Authentication parameters.\n\nAttributes\n----------\nuser : str, default='eventum'\n    User for basic auth.\n\npassword : str, default='eventum'\n    Password for basic auth."
             },
+            "BasicHttpAuthConfig": {
+                "properties": {
+                    "type": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "const": "basic"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Type"
+                    },
+                    "username": {
+                        "type": "string",
+                        "title": "Username"
+                    },
+                    "password": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Password"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "type",
+                    "username"
+                ],
+                "title": "BasicHttpAuthConfig"
+            },
             "BatchParameters": {
                 "properties": {
                     "size": {
@@ -5340,6 +5378,33 @@
                 "type": "object",
                 "title": "BatchParameters",
                 "description": "Batcher parameters.\n\nAttributes\n----------\nsize : int | None, default=10000\n    Batch size for generating events.\n\ndelay : float | None, default=1.0\n    Batch delay (in seconds) for generating events.\n\nNotes\n-----\nAt least one parameter must be not `None`."
+            },
+            "BearerHttpAuthConfig": {
+                "properties": {
+                    "type": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "const": "bearer"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Type"
+                    },
+                    "token": {
+                        "type": "string",
+                        "title": "Token"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "type",
+                    "token"
+                ],
+                "title": "BearerHttpAuthConfig"
             },
             "Before": {
                 "properties": {
@@ -6261,6 +6326,15 @@
                     "table"
                 ],
                 "title": "ClickhouseOutputPluginConfig"
+            },
+            "ClientAuthMethod": {
+                "type": "string",
+                "enum": [
+                    "post",
+                    "basic"
+                ],
+                "title": "ClientAuthMethod",
+                "description": "Way client credentials are presented to a token endpoint."
             },
             "Condition-Input": {
                 "anyOf": [
@@ -8143,12 +8217,23 @@
                         "default": 201
                     },
                     "headers": {
-                        "additionalProperties": true,
+                        "additionalProperties": {
+                            "type": "string"
+                        },
                         "type": "object",
                         "title": "Headers"
                     },
-                    "username": {
+                    "auth": {
                         "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/BasicHttpAuthConfig"
+                            },
+                            {
+                                "$ref": "#/components/schemas/BearerHttpAuthConfig"
+                            },
+                            {
+                                "$ref": "#/components/schemas/OAuth2ClientCredentialsHttpAuthConfig"
+                            },
                             {
                                 "type": "string"
                             },
@@ -8156,18 +8241,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Username"
-                    },
-                    "password": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Password"
+                        "title": "Auth"
                     },
                     "connect_timeout": {
                         "anyOf": [
@@ -8358,12 +8432,23 @@
                         "default": 201
                     },
                     "headers": {
-                        "additionalProperties": true,
+                        "additionalProperties": {
+                            "type": "string"
+                        },
                         "type": "object",
                         "title": "Headers"
                     },
-                    "username": {
+                    "auth": {
                         "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/BasicHttpAuthConfig"
+                            },
+                            {
+                                "$ref": "#/components/schemas/BearerHttpAuthConfig"
+                            },
+                            {
+                                "$ref": "#/components/schemas/OAuth2ClientCredentialsHttpAuthConfig"
+                            },
                             {
                                 "type": "string"
                             },
@@ -8371,18 +8456,7 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Username"
-                    },
-                    "password": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Password"
+                        "title": "Auth"
                     },
                     "connect_timeout": {
                         "anyOf": [
@@ -10030,6 +10104,108 @@
                 ],
                 "title": "Not",
                 "description": "Logic operator 'not' for negate checks or other logic\noperators."
+            },
+            "OAuth2ClientCredentialsHttpAuthConfig": {
+                "properties": {
+                    "type": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "const": "oauth2_client_credentials"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Type"
+                    },
+                    "token_url": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 2083,
+                                "minLength": 1,
+                                "format": "uri"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Token Url"
+                    },
+                    "client_id": {
+                        "type": "string",
+                        "title": "Client Id"
+                    },
+                    "client_secret": {
+                        "type": "string",
+                        "title": "Client Secret"
+                    },
+                    "client_auth_method": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ClientAuthMethod"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Client Auth Method",
+                        "default": "post"
+                    },
+                    "scopes": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Scopes"
+                    },
+                    "audience": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Audience"
+                    },
+                    "resource": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Resource"
+                    },
+                    "extra_params": {
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object",
+                        "title": "Extra Params"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "type",
+                    "token_url",
+                    "client_id",
+                    "client_secret"
+                ],
+                "title": "OAuth2ClientCredentialsHttpAuthConfig"
             },
             "OpensearchOutputPluginConfig-Input": {
                 "properties": {

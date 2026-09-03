@@ -7,7 +7,7 @@ Eventum is upgraded with the tool that installed it. An upgrade replaces the app
 
 ## Before you upgrade
 
-- **Read the changelog.** The [changelog](https://github.com/eventum-generator/eventum/blob/master/CHANGELOG.md) has one section per release. When several releases are skipped, read every section in between. Renamed or removed settings are listed under *Other changes* — `eventum.yml` rejects a key the new version does not know, and the application does not start until the file is updated.
+- **Read the changelog.** The [changelog](https://github.com/eventum-generator/eventum/blob/master/CHANGELOG.md) has one section per release. When several releases are skipped, read every section in between. Renamed or removed settings are listed under *Other changes* — `eventum.yml` rejects a key the new version does not know, and the application does not start until the file is updated. The same holds for a `generator.yml`: a plugin setting that moved is rejected, and the generator does not start until it is rewritten.
 - **Check the requirements.** A release may raise the minimum Python version — 2.3.0 moved to Python 3.14. [Requirements](/docs/core/introduction/requirements) states the current minimum. The Docker image bundles its own interpreter.
 - **Plan a restart.** A running `eventum run` process keeps the version it was started with. Hot reload keeps the process, and with it the old version, so the new one takes effect only after the process is stopped and started again.
 
