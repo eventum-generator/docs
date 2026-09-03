@@ -1,0 +1,82 @@
+---
+title: otlp
+description: Output plugin that delivers events to an OpenTelemetry receiver as OTLP log records over HTTP.
+---
+
+Sends events to an OpenTelemetry receiver as OTLP log records. Each event becomes one record, delivered over HTTP to the receiver's logs endpoint.
+
+## Parameters
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `endpoint` | URL | — | Required. Valid HTTP/HTTPS URL. | Address of the OTLP receiver. `/v1/logs` is appended when the address carries no path of its own. |
+| `protocol` | string | `"http/protobuf"` | `http/protobuf` or `http/json` | Wire encoding of the request body. |
+| `compression` | string | `"none"` | `none` or `gzip` | Compression applied to the request body. |
+| `headers` | mapping | `{}` | — | Extra request headers. A `Content-Type` or `Content-Encoding` entry is replaced, since both follow from `protocol` and `compression`. |
+| `connect_timeout` | integer | `10` | >= 1 | Connection timeout in seconds. |
+| `request_timeout` | integer | `300` | >= 1 | Full request timeout in seconds. |
+| `verify` | boolean | `true` | — | Whether to verify the receiver's TLS certificate. |
+| `ca_cert` | path or null | `null` | — | Path to CA certificate file. |
+| `client_cert` | path or null | `null` | — | Path to client certificate. Must be provided together with `client_cert_key`. |
+| `client_cert_key` | path or null | `null` | — | Path to client certificate key. Must be provided together with `client_cert`. |
+| `proxy_url` | URL or null | `null` | Valid HTTP/HTTPS URL. | Proxy address. |
+| `timestamp_field` | string or null | `"@timestamp"` | Non-empty if set. | Dotted path of the event field carrying the record's time. `null` means the time of writing is always used. |
+| `severity_field` | string or null | `"log.level"` | Non-empty if set. | Dotted path of the event field carrying the record's severity. `null` means no severity is read from the event. |
+| `resource_attributes` | mapping | `{}` | — | Static attributes added to every resource. Overrides the default `service.name` and `telemetry.sdk.*` attributes on a name collision. |
+| `resource_attributes_from` | mapping | `{}` | Non-empty path if set. | Resource attribute name mapped to the dotted path of the event field whose value is lifted into it. Records are grouped into one resource per distinct combination of lifted values. |
+| `body_field` | string or null | `null` | Non-empty if set. | Dotted path of the event field carrying the record body. `null` means the whole event is always used as the body. |
+| `flatten_attributes` | boolean | `true` | — | Whether to flatten nested objects into dotted attribute keys. |
+| `max_request_bytes` | integer | `4194304` | >= 1024 | Approximate byte budget of a single request. Records of one write are split across several requests to stay within it. |
+| `formatter` | [formatter](/docs/plugins/formatters) | `plain` | Not `json-batch`, `template-batch`, or `eventum-http-input`. | How events are serialized before sending. |
+
+## Behavior
+
+- Each event becomes one log record, delivered over HTTP to `endpoint`; `/v1/logs` is appended when the configured address carries no path of its own.
+- By default, the whole event is the record body and its fields become typed record attributes; a nested object turns into a dotted attribute name unless `flatten_attributes` is turned off. Setting `body_field` picks one event field as the body instead and removes it from the attributes; an event where that field is absent or `null` still falls back to the whole event as the body.
+- The record's time comes from the `@timestamp` field and its severity from `log.level` by default. When the configured field is missing or its value cannot be read, the time of writing is used instead, and the write reports how many events that happened to.
+- Records are grouped into resources: the default `service.name` attribute names the generator producing them, unless `resource_attributes` sets a different one, and `resource_attributes_from` lifts further attributes out of matching event fields, grouping records that share the same combination of lifted values into one resource.
+- A write whose records would exceed `max_request_bytes` in one request continues across additional requests instead of failing.
+- A failed request is not retried: its events count as failed and the run continues. Nothing is delivered twice, but nothing lost is delivered later either.
+- The receiver may accept a request while rejecting individual records inside it; the rejected records count as failed, and the write reports how many.
+- On an `https://` endpoint the receiver's certificate is verified by default. For a receiver with a self-signed or internal-CA certificate, set `ca_cert` to the issuing CA, or set `verify: false` to connect without the check.
+- A formatter that packs a whole batch into a single string is not accepted, because every event becomes its own record.
+
+## Examples
+
+Local collector:
+
+```yaml
+output:
+  - otlp:
+      endpoint: http://localhost:4318
+```
+
+Receiver behind a bearer token:
+
+```yaml
+output:
+  - otlp:
+      endpoint: https://otlp.example.com
+      headers:
+        Authorization: "Bearer ${secrets.otlp_token}"
+```
+
+Lifting `host.name` and `service.name` out of event fields:
+
+```yaml
+output:
+  - otlp:
+      endpoint: https://otlp.example.com
+      resource_attributes_from:
+        host.name: host.name
+        service.name: service.name
+```
+
+TLS with a private CA:
+
+```yaml
+output:
+  - otlp:
+      endpoint: https://otlp.internal.example.com
+      ca_cert: certs/ca.pem
+```
