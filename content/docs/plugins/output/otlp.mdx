@@ -36,7 +36,7 @@ Sends events to an OpenTelemetry receiver as OTLP log records. Each event become
 - The record's time comes from the `@timestamp` field and its severity from `log.level` by default. When the configured field is missing or its value cannot be read, the time of writing is used instead, and the write reports how many events that happened to.
 - Records are grouped into resources: the default `service.name` attribute names the generator producing them, unless `resource_attributes` sets a different one, and `resource_attributes_from` lifts further attributes out of matching event fields, grouping records that share the same combination of lifted values into one resource.
 - A write whose records would exceed `max_request_bytes` in one request continues across additional requests instead of failing.
-- A failed request is not retried: its events count as failed and the run continues. Nothing is delivered twice, but nothing lost is delivered later either.
+- A failed request is not retried: its events count as failed and the run continues.
 - The receiver may accept a request while rejecting individual records inside it; the rejected records count as failed, and the write reports how many.
 - On an `https://` endpoint the receiver's certificate is verified by default. For a receiver with a self-signed or internal-CA certificate, set `ca_cert` to the issuing CA, or set `verify: false` to connect without the check.
 - A formatter that packs a whole batch into a single string is not accepted, because every event becomes its own record.
