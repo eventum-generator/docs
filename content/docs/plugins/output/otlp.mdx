@@ -32,14 +32,16 @@ Sends events to an OpenTelemetry receiver as OTLP log records. Each event become
 ## Behavior
 
 - Each event becomes one log record, delivered over HTTP to `endpoint`; `/v1/logs` is appended when the configured address carries no path of its own.
-- By default, the whole event is the record body and its fields become typed record attributes; a nested object turns into a dotted attribute name unless `flatten_attributes` is turned off. Setting `body_field` picks one event field as the body instead and removes it from the attributes; an event where that field is absent or `null` still falls back to the whole event as the body.
+- By default, the whole event is the record body and its fields become typed record attributes; a nested object turns into a dotted attribute name unless `flatten_attributes` is turned off. Setting `body_field` picks one event field as the body instead and removes it from the attributes; an event where that field is absent or `null` still falls back to the whole event as the body. An event that is not valid JSON becomes the record body as plain text and carries no attributes.
 - The record's time comes from the `@timestamp` field and its severity from `log.level` by default. When the configured field is missing or its value cannot be read, the time of writing is used instead, and the write reports how many events that happened to.
-- Records are grouped into resources: the default `service.name` attribute names the generator producing them, unless `resource_attributes` sets a different one, and `resource_attributes_from` lifts further attributes out of matching event fields, grouping records that share the same combination of lifted values into one resource.
+- A recognized severity name (`trace`, `debug`, `info`, `notice`, `warn`, `error`, `fatal`, and their usual synonyms) sets the record's severity number. A number from 1 to 24 is taken as the severity number as given. Any other value is carried through as the record's severity text, without a severity number.
+- Records are grouped into resources: the default `service.name` attribute names the generator producing them, unless `resource_attributes` sets a different one, and `resource_attributes_from` lifts further attributes out of matching event fields, grouping records that share the same combination of lifted values into one resource. Lifting a field with many distinct values creates one resource per distinct value; lifting a near-unique field creates one resource per record, which is a real cost at scale.
 - A write whose records would exceed `max_request_bytes` in one request continues across additional requests instead of failing.
 - A failed request is not retried: its events count as failed and the run continues.
 - The receiver may accept a request while rejecting individual records inside it; the rejected records count as failed, and the write reports how many.
 - On an `https://` endpoint the receiver's certificate is verified by default. For a receiver with a self-signed or internal-CA certificate, set `ca_cert` to the issuing CA, or set `verify: false` to connect without the check.
 - A formatter that packs a whole batch into a single string is not accepted, because every event becomes its own record.
+- OTLP encoding runs on the pure-Python protobuf implementation and is the most CPU-intensive output path in Eventum: around 3,300 records per second per worker thread for a fifteen-field ECS event, against 1.8 million events per second for the `json` formatter. At the default `batch.size` of 10,000 that is about three seconds of CPU per batch before any network I/O, so an over-ambitious generation rate first shows up as a write timing out rather than an error naming this plugin. Keep the generation rate and `batch.size` in proportion, raise `write_timeout` for a large batch, and set `max_request_bytes` a little below the receiver's own limit.
 
 ## Examples
 
@@ -59,6 +61,14 @@ output:
       endpoint: https://otlp.example.com
       headers:
         Authorization: "Bearer ${secrets.otlp_token}"
+```
+
+Gateway that already publishes the logs endpoint at a specific path — `/v1/logs` is appended only when `endpoint` carries no path of its own, so a path-prefixed address must be given in full:
+
+```yaml
+output:
+  - otlp:
+      endpoint: https://gw.example.com/otlp/v1/logs
 ```
 
 Lifting `host.name` and `service.name` out of event fields:
