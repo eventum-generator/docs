@@ -7,6 +7,7 @@
     "kafka",
     "opensearch",
     "clickhouse",
+    "s3",
     "tcp",
     "udp"
   ]

@@ -5251,6 +5251,9 @@
                         "$ref": "#/components/schemas/opensearch-Input"
                     },
                     {
+                        "$ref": "#/components/schemas/s3-Input"
+                    },
+                    {
                         "$ref": "#/components/schemas/stdout-Input"
                     },
                     {
@@ -5277,6 +5280,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/opensearch-Output"
+                    },
+                    {
+                        "$ref": "#/components/schemas/s3-Output"
                     },
                     {
                         "$ref": "#/components/schemas/stdout-Output"
@@ -8902,6 +8908,66 @@
                 ],
                 "title": "JsonFormatterConfig"
             },
+            "JsonLinesEncoderConfig": {
+                "properties": {
+                    "encoding": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "const": "jsonl"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Encoding"
+                    },
+                    "separator": {
+                        "type": "string",
+                        "title": "Separator",
+                        "default": "\n"
+                    },
+                    "compression": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "none",
+                                    "gzip",
+                                    "zstd"
+                                ]
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Compression",
+                        "default": "none"
+                    },
+                    "compression_level": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "maximum": 22.0,
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "null"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Compression Level"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "encoding"
+                ],
+                "title": "JsonLinesEncoderConfig"
+            },
             "KafkaOutputPluginConfig-Input": {
                 "properties": {
                     "formatter": {
@@ -10446,6 +10512,76 @@
                 "title": "OutputPluginStats",
                 "description": "Output plugin statistics."
             },
+            "ParquetEncoderConfig": {
+                "properties": {
+                    "encoding": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "const": "parquet"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Encoding"
+                    },
+                    "compression": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "none",
+                                    "snappy",
+                                    "gzip",
+                                    "zstd",
+                                    "brotli",
+                                    "lz4"
+                                ]
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Compression",
+                        "default": "snappy"
+                    },
+                    "row_group_size": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Row Group Size",
+                        "default": 100000
+                    },
+                    "schema_path": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "path"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Schema Path"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "encoding"
+                ],
+                "title": "ParquetEncoderConfig"
+            },
             "PathParameters": {
                 "properties": {
                     "logs": {
@@ -11121,6 +11257,438 @@
                 ],
                 "title": "ResourcesStats",
                 "description": "Runtime resources occupied by a generator.\n\nMemory is absent by nature: generators share the process heap, so\nthe share of it belonging to one generator is not observable. Queue\nfill levels stand in for it, since the queues hold the bulk of what\na generator keeps in flight."
+            },
+            "S3OutputPluginConfig-Input": {
+                "properties": {
+                    "formatter": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/eventum__api__routers__generator_configs__api_types__SimpleFormatterConfig"
+                            },
+                            {
+                                "$ref": "#/components/schemas/eventum__api__routers__generator_configs__api_types__JsonFormatterConfig"
+                            },
+                            {
+                                "$ref": "#/components/schemas/eventum__api__routers__generator_configs__api_types__TemplateFormatterConfig"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Formatter"
+                    },
+                    "bucket": {
+                        "type": "string",
+                        "title": "Bucket"
+                    },
+                    "key_template": {
+                        "type": "string",
+                        "title": "Key Template",
+                        "default": "year={year}/month={month}/day={day}/hour={hour}/{timestamp}-{uuid}{ext}"
+                    },
+                    "endpoint_url": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 2083,
+                                "minLength": 1,
+                                "format": "uri"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Endpoint Url"
+                    },
+                    "region": {
+                        "type": "string",
+                        "title": "Region",
+                        "default": "us-east-1"
+                    },
+                    "addressing_style": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "auto",
+                                    "path",
+                                    "virtual"
+                                ]
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Addressing Style",
+                        "default": "auto"
+                    },
+                    "access_key_id": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Access Key Id"
+                    },
+                    "secret_access_key": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Secret Access Key"
+                    },
+                    "session_token": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Session Token"
+                    },
+                    "encoder": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/JsonLinesEncoderConfig"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ParquetEncoderConfig"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Encoder"
+                    },
+                    "content_type": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Content Type"
+                    },
+                    "connect_timeout": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Connect Timeout",
+                        "default": 10
+                    },
+                    "request_timeout": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Request Timeout",
+                        "default": 300
+                    },
+                    "max_retries": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 0.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Max Retries",
+                        "default": 3
+                    },
+                    "verify": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Verify",
+                        "default": true
+                    },
+                    "ca_cert": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "path"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Ca Cert"
+                    },
+                    "proxy_url": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 2083,
+                                "minLength": 1,
+                                "format": "uri"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Proxy Url"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "bucket"
+                ],
+                "title": "S3OutputPluginConfig"
+            },
+            "S3OutputPluginConfig-Output": {
+                "properties": {
+                    "formatter": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/SimpleFormatterConfig-Output"
+                            },
+                            {
+                                "$ref": "#/components/schemas/JsonFormatterConfig-Output"
+                            },
+                            {
+                                "$ref": "#/components/schemas/TemplateFormatterConfig-Output"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Formatter"
+                    },
+                    "bucket": {
+                        "type": "string",
+                        "title": "Bucket"
+                    },
+                    "key_template": {
+                        "type": "string",
+                        "title": "Key Template",
+                        "default": "year={year}/month={month}/day={day}/hour={hour}/{timestamp}-{uuid}{ext}"
+                    },
+                    "endpoint_url": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 2083,
+                                "minLength": 1,
+                                "format": "uri"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Endpoint Url"
+                    },
+                    "region": {
+                        "type": "string",
+                        "title": "Region",
+                        "default": "us-east-1"
+                    },
+                    "addressing_style": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "auto",
+                                    "path",
+                                    "virtual"
+                                ]
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Addressing Style",
+                        "default": "auto"
+                    },
+                    "access_key_id": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Access Key Id"
+                    },
+                    "secret_access_key": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Secret Access Key"
+                    },
+                    "session_token": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Session Token"
+                    },
+                    "encoder": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/JsonLinesEncoderConfig"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ParquetEncoderConfig"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Encoder"
+                    },
+                    "content_type": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Content Type"
+                    },
+                    "connect_timeout": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Connect Timeout",
+                        "default": 10
+                    },
+                    "request_timeout": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Request Timeout",
+                        "default": 300
+                    },
+                    "max_retries": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 0.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Max Retries",
+                        "default": 3
+                    },
+                    "verify": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Verify",
+                        "default": true
+                    },
+                    "ca_cert": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "path"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Ca Cert"
+                    },
+                    "proxy_url": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 2083,
+                                "minLength": 1,
+                                "format": "uri"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Proxy Url"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "bucket"
+                ],
+                "title": "S3OutputPluginConfig"
             },
             "SSLParameters": {
                 "properties": {
@@ -15545,6 +16113,32 @@
                     "replay"
                 ],
                 "title": "replay"
+            },
+            "s3-Input": {
+                "properties": {
+                    "s3": {
+                        "$ref": "#/components/schemas/S3OutputPluginConfig-Input"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "s3"
+                ],
+                "title": "s3"
+            },
+            "s3-Output": {
+                "properties": {
+                    "s3": {
+                        "$ref": "#/components/schemas/S3OutputPluginConfig-Output"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "s3"
+                ],
+                "title": "s3"
             },
             "script-Output": {
                 "properties": {
