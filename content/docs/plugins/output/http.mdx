@@ -82,7 +82,7 @@ Eventum takes a token from the token endpoint with the OAuth2 client credentials
 
 | Parameter | Type | Default | Constraints | Description |
 |-----------|------|---------|-------------|-------------|
-| `token_url` | URL | — | Required. Valid HTTP/HTTPS URL. | Token endpoint to request the token from. |
+| `token_url` | URL | — | Required. `https` only. | Token endpoint to request the token from. |
 | `client_id` | string | — | Required. Non-empty. | Identifier of the client. |
 | `client_secret` | string | — | Required. Non-empty. | Secret of the client. |
 | `client_auth_method` | string | `"post"` | `post` or `basic` | Whether the client credentials are sent in the body of the token request or in its `Authorization` header. |
@@ -93,7 +93,9 @@ Eventum takes a token from the token endpoint with the OAuth2 client credentials
 
 The token is taken when the generator starts — a token endpoint that refuses the credentials stops the generator before the first event. It is renewed 30 seconds before it expires, and taken again once when a request comes back `401`, after which the request is repeated. A token minted seconds ago and rejected is not renewed again: the credentials themselves are what the endpoint refuses.
 
-Token requests travel the same client as the events, so `verify`, `ca_cert`, `proxy_url`, `connect_timeout` and `request_timeout` apply to them as they do to the data.
+Token requests travel the same client as the events, so `verify`, `ca_cert`, `client_cert` and `proxy_url` apply to them as they do to the data. Keep that in mind for an endpoint reached through a private CA or with verification turned off: the same posture is then presented to the authorization server, which is usually a public one. A token request has a timeout of its own — 30 seconds — since the requests waiting for it should not wait out the budget of shipping a batch.
+
+The client secret travels the body of the token request, so `token_url` is accepted over `https` only.
 
 ```yaml
 output:
