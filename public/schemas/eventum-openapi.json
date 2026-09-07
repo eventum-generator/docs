@@ -7569,7 +7569,7 @@
                                 "$ref": "#/components/schemas/eventum__plugins__output__fields__TemplateFormatterConfig"
                             },
                             {
-                                "$ref": "#/components/schemas/eventum__plugins__output__fields__SyslogFormatterConfig"
+                                "$ref": "#/components/schemas/eventum__plugins__output__syslog__SyslogFormatterConfig"
                             }
                         ],
                         "title": "Formatter Config"
@@ -10691,6 +10691,9 @@
                                 "$ref": "#/components/schemas/eventum__api__routers__generator_configs__api_types__TemplateFormatterConfig"
                             },
                             {
+                                "$ref": "#/components/schemas/eventum__api__routers__generator_configs__api_types__SyslogFormatterConfig-Input"
+                            },
+                            {
                                 "type": "string"
                             }
                         ],
@@ -10976,6 +10979,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/TemplateFormatterConfig-Output"
+                            },
+                            {
+                                "$ref": "#/components/schemas/SyslogFormatterConfig-Output"
                             },
                             {
                                 "type": "string"
@@ -12056,6 +12062,9 @@
                                 "$ref": "#/components/schemas/eventum__api__routers__generator_configs__api_types__TemplateFormatterConfig"
                             },
                             {
+                                "$ref": "#/components/schemas/eventum__api__routers__generator_configs__api_types__SyslogFormatterConfig-Input"
+                            },
+                            {
                                 "type": "string"
                             }
                         ],
@@ -12270,6 +12279,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/TemplateFormatterConfig-Output"
+                            },
+                            {
+                                "$ref": "#/components/schemas/SyslogFormatterConfig-Output"
                             },
                             {
                                 "type": "string"
@@ -13258,7 +13270,7 @@
                         "minimum": 0.0
                     },
                     {
-                        "$ref": "#/components/schemas/eventum__plugins__output__fields__EventFieldRef"
+                        "$ref": "#/components/schemas/eventum__plugins__output__event_fields__EventFieldRef"
                     }
                 ]
             },
@@ -13514,7 +13526,7 @@
                         "minimum": 0.0
                     },
                     {
-                        "$ref": "#/components/schemas/eventum__plugins__output__fields__EventFieldRef"
+                        "$ref": "#/components/schemas/eventum__plugins__output__event_fields__EventFieldRef"
                     }
                 ]
             },
@@ -13531,7 +13543,7 @@
                                     "type": "string"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/eventum__plugins__output__fields__EventFieldRef"
+                                    "$ref": "#/components/schemas/eventum__plugins__output__event_fields__EventFieldRef"
                                 }
                             ]
                         },
@@ -16014,7 +16026,7 @@
                                     "type": "string"
                                 },
                                 {
-                                    "$ref": "#/components/schemas/eventum__plugins__output__fields__EventFieldRef"
+                                    "$ref": "#/components/schemas/eventum__plugins__output__event_fields__EventFieldRef"
                                 }
                             ]
                         },
@@ -17338,7 +17350,7 @@
                 "title": "TimestampsInputPluginConfig",
                 "description": "Configuration for `timestamps` input plugin.\n\nAttributes\n----------\nsource : list[datetime] | Path\n    List of timestamps or path to file with new line separated\n    timestamps in ISO8601 format.\n\nNotes\n-----\nIt is expected that timestamps are already sorted in ascending\norder."
             },
-            "eventum__plugins__output__fields__EventFieldRef": {
+            "eventum__plugins__output__event_fields__EventFieldRef": {
                 "properties": {
                     "field": {
                         "type": "string",
@@ -17398,155 +17410,6 @@
                 "title": "SimpleFormatterConfig",
                 "description": "Config for formats without additional parameters.\n\nformat : Literal[Format.PLAIN, Format.EVENTUM_HTTP_INPUT]\n    Target format."
             },
-            "eventum__plugins__output__fields__SyslogFormatterConfig": {
-                "properties": {
-                    "format": {
-                        "type": "string",
-                        "const": "syslog",
-                        "title": "Format"
-                    },
-                    "rfc": {
-                        "$ref": "#/components/schemas/SyslogRfc",
-                        "default": 5424
-                    },
-                    "facility": {
-                        "$ref": "#/components/schemas/SyslogFacilityValue",
-                        "default": "user"
-                    },
-                    "severity": {
-                        "$ref": "#/components/schemas/SyslogSeverityValue",
-                        "default": "info"
-                    },
-                    "hostname": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "maxLength": 255
-                            },
-                            {
-                                "$ref": "#/components/schemas/eventum__plugins__output__fields__EventFieldRef"
-                            }
-                        ],
-                        "title": "Hostname",
-                        "default": "-"
-                    },
-                    "app_name": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "maxLength": 48
-                            },
-                            {
-                                "$ref": "#/components/schemas/eventum__plugins__output__fields__EventFieldRef"
-                            }
-                        ],
-                        "title": "App Name",
-                        "default": "-"
-                    },
-                    "procid": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "maxLength": 128
-                            },
-                            {
-                                "$ref": "#/components/schemas/eventum__plugins__output__fields__EventFieldRef"
-                            }
-                        ],
-                        "title": "Procid",
-                        "default": "-"
-                    },
-                    "msgid": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "maxLength": 32
-                            },
-                            {
-                                "$ref": "#/components/schemas/eventum__plugins__output__fields__EventFieldRef"
-                            }
-                        ],
-                        "title": "Msgid",
-                        "default": "-"
-                    },
-                    "timestamp": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/eventum__plugins__output__fields__EventFieldRef"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ]
-                    },
-                    "structured_data": {
-                        "items": {
-                            "$ref": "#/components/schemas/eventum__plugins__output__fields__SyslogStructuredDataConfig"
-                        },
-                        "type": "array",
-                        "title": "Structured Data"
-                    },
-                    "message_field": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "minLength": 1
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Message Field"
-                    },
-                    "message_format": {
-                        "$ref": "#/components/schemas/SyslogMessageFormat",
-                        "default": "plain"
-                    },
-                    "bom": {
-                        "type": "boolean",
-                        "title": "Bom",
-                        "default": false
-                    }
-                },
-                "additionalProperties": false,
-                "type": "object",
-                "required": [
-                    "format"
-                ],
-                "title": "SyslogFormatterConfig",
-                "description": "Config for syslog format.\n\nParameters\n----------\nformat : Literal[Format.SYSLOG]\n    Target format.\n\nrfc : SyslogRfc, default=SyslogRfc.RFC_5424\n    Specification the message is built after.\n\nfacility : SyslogFacilityValue, default=SyslogFacility.USER\n    Facility as a name, a code or a reference to a field of the\n    event.\n\nseverity : SyslogSeverityValue, default=SyslogSeverity.INFO\n    Severity as a name, a code or a reference to a field of the\n    event.\n\nhostname : str | EventFieldRef, default='-'\n    Host the message originates from.\n\napp_name : str | EventFieldRef, default='-'\n    Application the message originates from. For RFC 3164 it is\n    the tag of the message.\n\nprocid : str | EventFieldRef, default='-'\n    Process id of the application.\n\nmsgid : str | EventFieldRef, default='-'\n    Type of the message. RFC 5424 only.\n\ntimestamp : EventFieldRef | None, default=None\n    Field of the event carrying the time of the message. The time\n    of writing is used when it is not set.\n\nstructured_data : list[SyslogStructuredDataConfig], default=[]\n    Structured data elements of the message. RFC 5424 only.\n\nmessage_field : str | None, default=None\n    Field of the event carrying the message part. The event itself\n    is the message when it is not set.\n\nmessage_format : SyslogMessageFormat, default='plain'\n    Rendering of the event as the message part. Applies only when\n    `message_field` is not set.\n\nbom : bool, default=False\n    Whether to prepend the message part with the UTF-8 BOM that\n    marks it as UTF-8 encoded. RFC 5424 only."
-            },
-            "eventum__plugins__output__fields__SyslogStructuredDataConfig": {
-                "properties": {
-                    "id": {
-                        "type": "string",
-                        "maxLength": 32,
-                        "minLength": 1,
-                        "title": "Id"
-                    },
-                    "params": {
-                        "additionalProperties": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/eventum__plugins__output__fields__EventFieldRef"
-                                }
-                            ]
-                        },
-                        "type": "object",
-                        "title": "Params"
-                    }
-                },
-                "additionalProperties": false,
-                "type": "object",
-                "required": [
-                    "id"
-                ],
-                "title": "SyslogStructuredDataConfig",
-                "description": "Config of a single structured data element.\n\nParameters\n----------\nid : str\n    Identifier of the element, e.g. `exampleSDID@32473`.\n\nparams : dict[str, str | EventFieldRef], default={}\n    Parameters of the element, each a static value or a reference\n    to a field of the event. A referenced field that the event does\n    not carry omits its parameter."
-            },
             "eventum__plugins__output__fields__TemplateFormatterConfig": {
                 "properties": {
                     "format": {
@@ -17589,6 +17452,155 @@
                 ],
                 "title": "TemplateFormatterConfig",
                 "description": "Config for template-like formats.\n\nParameters\n----------\nformat : Literal[Format.TEMPLATE, Format.TEMPLATE_BATCH]\n    Target format.\n\ntemplate : str | None, default=None\n    Template content.\n\ntemplate_path : Path | None, default=None\n    Template path.\n\nNotes\n-----\nTemplate and template path are mutually exclusive parameters.\n\nTo access original event (for `template` mode) or events sequence\n(for `template-batch` mode) use `event` or `events` variable in\ntemplate correspondingly."
+            },
+            "eventum__plugins__output__syslog__SyslogFormatterConfig": {
+                "properties": {
+                    "format": {
+                        "type": "string",
+                        "const": "syslog",
+                        "title": "Format"
+                    },
+                    "rfc": {
+                        "$ref": "#/components/schemas/SyslogRfc",
+                        "default": 5424
+                    },
+                    "facility": {
+                        "$ref": "#/components/schemas/SyslogFacilityValue",
+                        "default": "user"
+                    },
+                    "severity": {
+                        "$ref": "#/components/schemas/SyslogSeverityValue",
+                        "default": "info"
+                    },
+                    "hostname": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 255
+                            },
+                            {
+                                "$ref": "#/components/schemas/eventum__plugins__output__event_fields__EventFieldRef"
+                            }
+                        ],
+                        "title": "Hostname",
+                        "default": "-"
+                    },
+                    "app_name": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 48
+                            },
+                            {
+                                "$ref": "#/components/schemas/eventum__plugins__output__event_fields__EventFieldRef"
+                            }
+                        ],
+                        "title": "App Name",
+                        "default": "-"
+                    },
+                    "procid": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 128
+                            },
+                            {
+                                "$ref": "#/components/schemas/eventum__plugins__output__event_fields__EventFieldRef"
+                            }
+                        ],
+                        "title": "Procid",
+                        "default": "-"
+                    },
+                    "msgid": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 32
+                            },
+                            {
+                                "$ref": "#/components/schemas/eventum__plugins__output__event_fields__EventFieldRef"
+                            }
+                        ],
+                        "title": "Msgid",
+                        "default": "-"
+                    },
+                    "timestamp": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/eventum__plugins__output__event_fields__EventFieldRef"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "structured_data": {
+                        "items": {
+                            "$ref": "#/components/schemas/eventum__plugins__output__syslog__SyslogStructuredDataConfig"
+                        },
+                        "type": "array",
+                        "title": "Structured Data"
+                    },
+                    "message_field": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "minLength": 1
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Message Field"
+                    },
+                    "message_format": {
+                        "$ref": "#/components/schemas/SyslogMessageFormat",
+                        "default": "plain"
+                    },
+                    "bom": {
+                        "type": "boolean",
+                        "title": "Bom",
+                        "default": false
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "format"
+                ],
+                "title": "SyslogFormatterConfig",
+                "description": "Config for syslog format.\n\nParameters\n----------\nformat : Literal[Format.SYSLOG]\n    Target format.\n\nrfc : SyslogRfc, default=SyslogRfc.RFC_5424\n    Specification the message is built after.\n\nfacility : SyslogFacilityValue, default=SyslogFacility.USER\n    Facility as a name, a code or a reference to a field of the\n    event.\n\nseverity : SyslogSeverityValue, default=SyslogSeverity.INFO\n    Severity as a name, a code or a reference to a field of the\n    event.\n\nhostname : str | EventFieldRef, default='-'\n    Host the message originates from.\n\napp_name : str | EventFieldRef, default='-'\n    Application the message originates from. For RFC 3164 it is\n    the tag of the message.\n\nprocid : str | EventFieldRef, default='-'\n    Process id of the application.\n\nmsgid : str | EventFieldRef, default='-'\n    Type of the message. RFC 5424 only.\n\ntimestamp : EventFieldRef | None, default=None\n    Field of the event carrying the time of the message. The time\n    of writing is used when it is not set.\n\nstructured_data : list[SyslogStructuredDataConfig], default=[]\n    Structured data elements of the message. RFC 5424 only.\n\nmessage_field : str | None, default=None\n    Field of the event carrying the message part. The event itself\n    is the message when it is not set.\n\nmessage_format : SyslogMessageFormat, default='plain'\n    Rendering of the event as the message part. Applies only when\n    `message_field` is not set.\n\nbom : bool, default=False\n    Whether to prepend the message part with the UTF-8 BOM that\n    marks it as UTF-8 encoded. RFC 5424 only."
+            },
+            "eventum__plugins__output__syslog__SyslogStructuredDataConfig": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "maxLength": 32,
+                        "minLength": 1,
+                        "title": "Id"
+                    },
+                    "params": {
+                        "additionalProperties": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/eventum__plugins__output__event_fields__EventFieldRef"
+                                }
+                            ]
+                        },
+                        "type": "object",
+                        "title": "Params"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "id"
+                ],
+                "title": "SyslogStructuredDataConfig",
+                "description": "Config of a single structured data element.\n\nParameters\n----------\nid : str\n    Identifier of the element, e.g. `exampleSDID@32473`.\n\nparams : dict[str, str | EventFieldRef], default={}\n    Parameters of the element, each a static value or a reference\n    to a field of the event. A referenced field that the event does\n    not carry omits its parameter."
             },
             "file-Input": {
                 "properties": {
