@@ -8910,7 +8910,7 @@
             },
             "JsonLinesEncoderConfig": {
                 "properties": {
-                    "encoding": {
+                    "format": {
                         "anyOf": [
                             {
                                 "type": "string",
@@ -8920,12 +8920,7 @@
                                 "type": "string"
                             }
                         ],
-                        "title": "Encoding"
-                    },
-                    "separator": {
-                        "type": "string",
-                        "title": "Separator",
-                        "default": "\n"
+                        "title": "Format"
                     },
                     "compression": {
                         "anyOf": [
@@ -8964,7 +8959,7 @@
                 "additionalProperties": false,
                 "type": "object",
                 "required": [
-                    "encoding"
+                    "format"
                 ],
                 "title": "JsonLinesEncoderConfig"
             },
@@ -10514,7 +10509,7 @@
             },
             "ParquetEncoderConfig": {
                 "properties": {
-                    "encoding": {
+                    "format": {
                         "anyOf": [
                             {
                                 "type": "string",
@@ -10524,7 +10519,7 @@
                                 "type": "string"
                             }
                         ],
-                        "title": "Encoding"
+                        "title": "Format"
                     },
                     "compression": {
                         "anyOf": [
@@ -10578,7 +10573,7 @@
                 "additionalProperties": false,
                 "type": "object",
                 "required": [
-                    "encoding"
+                    "format"
                 ],
                 "title": "ParquetEncoderConfig"
             },
