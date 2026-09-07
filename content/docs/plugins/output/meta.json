@@ -4,6 +4,7 @@
     "stdout",
     "file",
     "http",
+    "otlp",
     "kafka",
     "opensearch",
     "clickhouse",
