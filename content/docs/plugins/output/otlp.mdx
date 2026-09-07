@@ -12,7 +12,8 @@ Sends events to an OpenTelemetry receiver as OTLP log records. Each event become
 | `endpoint` | URL | — | Required. Valid HTTP/HTTPS URL. | Address of the OTLP receiver. `/v1/logs` is appended when the address carries no path of its own. |
 | `protocol` | string | `"http/protobuf"` | `http/protobuf` or `http/json` | Wire encoding of the request body. |
 | `compression` | string | `"none"` | `none` or `gzip` | Compression applied to the request body. |
-| `headers` | mapping | `{}` | — | Extra request headers. A `Content-Type` or `Content-Encoding` entry is replaced, since both follow from `protocol` and `compression`. |
+| `headers` | mapping | `{}` | — | Extra request headers. A `Content-Type` or `Content-Encoding` entry is replaced, since both follow from `protocol` and `compression`. An `Authorization` header cannot be combined with `auth`. |
+| `auth` | [authentication](/docs/plugins/output/http#authentication) or null | `null` | — | How requests to the receiver are authenticated — the same mechanism the http output uses. |
 | `connect_timeout` | integer | `10` | >= 1 | Connection timeout in seconds. |
 | `request_timeout` | integer | `300` | >= 1 | Full request timeout in seconds. |
 | `verify` | boolean | `true` | — | Whether to verify the receiver's TLS certificate. |
@@ -59,8 +60,9 @@ Receiver behind a bearer token:
 output:
   - otlp:
       endpoint: https://otlp.example.com
-      headers:
-        Authorization: "Bearer ${secrets.otlp_token}"
+      auth:
+        type: bearer
+        token: "${secrets.otlp_token}"
 ```
 
 Gateway that already publishes the logs endpoint at a specific path — `/v1/logs` is appended only when `endpoint` carries no path of its own, so a path-prefixed address must be given in full:
