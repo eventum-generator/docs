@@ -12,7 +12,8 @@ Sends events over a TCP connection. Useful for forwarding events to syslog recei
 | `host` | string | — | Required. Non-empty. | Hostname or IP address to connect to. |
 | `port` | integer | — | Required. 1–65535. | TCP port number. |
 | `encoding` | string | `"utf_8"` | Valid Python encoding name. | Encoding used to encode events before sending. |
-| `separator` | string | OS line separator | — | Separator appended after each event. |
+| `separator` | string | `"\n"` | — | Separator appended after each event. Used only with `delimiter` framing. |
+| `framing` | string | `"delimiter"` | `delimiter` or `octet_counting` | How each event is delimited within the stream. |
 | `connect_timeout` | integer | `10` | >= 1 | Connection timeout in seconds. |
 | `ssl` | boolean | `false` | — | Whether to use SSL/TLS for the connection. |
 | `verify` | boolean | `true` | — | Whether to verify the server's TLS certificate. |
@@ -24,20 +25,36 @@ Sends events over a TCP connection. Useful for forwarding events to syslog recei
 ## Behavior
 
 - A single TCP connection is opened when the plugin starts and reused for all events within a generation run.
-- Events are encoded using the configured encoding, with the separator appended after each event.
+- Events are encoded using the configured encoding and delimited as `framing` says.
 - All events in a batch are concatenated and sent as a single write for efficiency.
-- If the connection drops during writing, the write is counted as failed. The plugin does not attempt automatic reconnection.
+- If the connection drops while a batch is being sent, that batch is counted as failed. A connection found closed at the start of the next write is re-established before that batch goes out.
+- If the target stops reading and the data awaiting delivery grows past what the connection buffers, the batch is refused and counted as failed rather than piling up in memory.
+
+## Framing
+
+A TCP connection is a byte stream, so a receiver needs to be told where each event ends. [RFC 6587](https://datatracker.ietf.org/doc/html/rfc6587) defines the two ways of doing that, and `framing` picks between them:
+
+- `delimiter` — the event followed by `separator`, which is what nearly every collector reads. This is the default, and the framing every configuration written before this option had.
+- `octet_counting` — the event prefixed with the number of bytes it takes and a space: `102 <36>Jul 17 09:14:02 fw-edge-01 ...`. Nothing inside the event can be mistaken for its end, which is why syslog over TLS ([RFC 5425](https://datatracker.ietf.org/doc/html/rfc5425)) requires it, and why a message carrying a line break needs it.
+
+`separator` has no meaning under `octet_counting` — the length delimits the event — and a config that sets one other than the default alongside it is rejected rather than quietly ignored.
 
 ## Examples
 
-Send events to a syslog receiver:
+Send events to a syslog receiver, with the [syslog](/docs/plugins/formatters#syslog) formatter building the message header:
 
 ```yaml
 output:
   - tcp:
       host: syslog.example.com
       port: 514
-      separator: "\n"
+      formatter:
+        format: syslog
+        facility: local0
+        severity: info
+        hostname:
+          field: host.name
+        app_name: nginx
 ```
 
 Forward JSON events to a SIEM collector:
@@ -52,7 +69,7 @@ output:
         format: json
 ```
 
-With TLS encryption:
+With TLS encryption, framed the way syslog over TLS requires:
 
 ```yaml
 output:
@@ -62,7 +79,7 @@ output:
       ssl: true
       verify: true
       ca_cert: certs/ca.pem
-      separator: "\n"
+      framing: octet_counting
 ```
 
 Mutual TLS with client certificates:

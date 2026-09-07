@@ -12,7 +12,7 @@ Sends each event as a separate UDP datagram. Useful for forwarding events to sys
 | `host` | string | — | Required. Non-empty. | Hostname or IP address to send datagrams to. |
 | `port` | integer | — | Required. 1–65535. | UDP port number. |
 | `encoding` | string | `"utf_8"` | Valid Python encoding name. | Encoding used to encode events before sending. |
-| `separator` | string | OS line separator | — | Separator appended after each event. |
+| `separator` | string | `"\n"` | — | Separator appended after each event. |
 | `formatter` | [formatter](/docs/plugins/formatters) | `plain` | — | How events are serialized before sending. |
 
 ## Behavior
@@ -25,15 +25,23 @@ Sends each event as a separate UDP datagram. Useful for forwarding events to sys
 
 ## Examples
 
-Send events to a syslog receiver:
+Send events to a syslog receiver, with the [syslog](/docs/plugins/formatters#syslog) formatter building the message header:
 
 ```yaml
 output:
   - udp:
       host: syslog.example.com
       port: 514
-      separator: "\n"
+      formatter:
+        format: syslog
+        facility: local0
+        severity: info
+        hostname:
+          field: host.name
+        app_name: nginx
 ```
+
+Each datagram carries one message, so syslog over UDP needs no framing of its own.
 
 Forward JSON events to a log collector:
 

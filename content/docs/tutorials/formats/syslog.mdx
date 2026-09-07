@@ -176,6 +176,67 @@ output:
 For reliable, ordered delivery instead of UDP's best-effort datagrams, replace `udp` with [`tcp`](/docs/plugins/output/tcp) and keep the same `host` and `port` — most rsyslog and syslog-ng installations listen on both by default. To inspect lines locally before pointing the generator at a real collector, replace the output with [`file`](/docs/plugins/output/file) or [`stdout: {}`](/docs/plugins/output/stdout).
 </Callout>
 
+### Building the header without a template
+
+Both templates above write the header themselves, which is what makes every field of it visible — the point of this lesson. When the header is not what you are shaping, the [syslog formatter](/docs/plugins/formatters#syslog) writes it instead: one template renders the event as JSON, and the output plugin assembles the line around it. It replaces both header templates — the formatter reads fields of the event, so an event that is not a JSON object is dropped.
+
+```jinja title="generators/syslog-auth/templates/auth-failure.jinja"
+{%- set pid = module.rand.number.integer(1000, 65535) -%}
+{%- set user = module.rand.choice(["admin", "root", "deploy", "oracle"]) -%}
+{%- set src_ip = module.rand.network.ip_v4_public() -%}
+{%- set port = module.rand.number.integer(1024, 65535) -%}
+{
+  "@timestamp": {{ timestamp.isoformat() | tojson }},
+  "host": {"name": "web-gw-03.example.com"},
+  "process": {"pid": {{ pid }}},
+  "source": {"ip": {{ src_ip | tojson }}},
+  "user": {"name": {{ user | tojson }}},
+  "message": "Failed password for {{ user }} from {{ src_ip }} port {{ port }} ssh2"
+}
+```
+
+```yaml title="generators/syslog-auth/generator.yml (event and output blocks)"
+event:
+  template:
+    mode: all
+    templates:
+      - auth_failure:
+          template: templates/auth-failure.jinja
+
+output:
+  - udp:
+      host: siem.example.com
+      port: 514
+      formatter:
+        format: syslog
+        facility: auth
+        severity: warning
+        hostname:
+          field: host.name
+        app_name: sshd
+        procid:
+          field: process.pid
+        timestamp:
+          field: "@timestamp"
+        message_field: message
+        structured_data:
+          - id: sshAuth@32473
+            params:
+              srcIp:
+                field: source.ip
+              user:
+                field: user.name
+              result: failed
+```
+
+`facility: auth` and `severity: warning` are the names of the same `4` and `4` the templates computed, so the line carries the same `<36>`:
+
+```text
+<36>1 2026-07-11T12:00:00Z web-gw-03.example.com sshd 8419 - [sshAuth@32473 srcIp="203.0.113.7" user="admin" result="failed"] Failed password for admin from 203.0.113.7 port 51422 ssh2
+```
+
+Switching `rfc` to `3164` builds the BSD header from the same event, with `app_name` taking the place of the tag; `msgid`, `structured_data` and `bom` belong to RFC 5424 alone and are rejected there. Reach for a template when the whole line is yours to shape — a vendor format standing in for the message part, or a header a device writes in its own way; reach for the formatter when the header is the standard one and only the message is yours.
+
 ## The result
 
 Running the generator above produces a mix of both formats, each line independently valid:

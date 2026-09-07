@@ -241,11 +241,12 @@ For complex formatting, use a separate template file:
 ```yaml
 formatter:
   format: template
-  template_path: formatters/syslog.jinja
+  template_path: formatters/logfmt.jinja
 ```
 
-```jinja title="formatters/syslog.jinja"
-<14>1 {{ (event | fromjson).timestamp }} eventum app - - - {{ event }}
+```jinja title="formatters/logfmt.jinja"
+{%- set e = event | fromjson -%}
+ts={{ e.timestamp }} level={{ e.level }} msg="{{ e.msg }}"
 ```
 
 ```json title="Events from event plugin"
@@ -253,8 +254,10 @@ formatter:
 ```
 
 ```text title="Output"
-<14>1 2026-02-20T10:00:00 eventum app - - - {"timestamp": "2026-02-20T10:00:00", "level": "INFO", "msg": "Request processed"}
+ts=2026-02-20T10:00:00 level=INFO msg="Request processed"
 ```
+
+For syslog messages, use the [syslog](#syslog) format instead of writing the header by hand.
 
 ### template-batch
 
@@ -353,6 +356,192 @@ formatter:
 {"total": 5, "errors": 2, "error_rate": 0.40}
 ```
 
+### syslog
+
+Wraps each event into a syslog message: the priority header, the time, the host and application the message came from, and the event itself as the message part. Use it with the [tcp](/docs/plugins/output/tcp) and [udp](/docs/plugins/output/udp) output plugins to feed rsyslog, syslog-ng, or any SIEM collector that accepts syslog.
+
+| Parameter | Type | Default | Constraints | Description |
+|-----------|------|---------|-------------|-------------|
+| `format` | string | — | Must be `"syslog"`. | Format discriminator. |
+| `rfc` | integer | `5424` | `5424` or `3164` | Specification the message is built after. |
+| `facility` | string, integer or field reference | `"user"` | Facility name or code 0–23. | Facility of the message. |
+| `severity` | string, integer or field reference | `"info"` | Severity name or code 0–7. | Severity of the message. |
+| `hostname` | string or field reference | `"-"` | At most 255 printable ASCII characters, no space. | Host the message originates from. |
+| `app_name` | string or field reference | `"-"` | At most 48 printable ASCII characters, no space. | Application the message originates from. Under RFC 3164 it is the tag of the message. |
+| `procid` | string or field reference | `"-"` | At most 128 printable ASCII characters, no space. | Process id of the application. |
+| `msgid` | string or field reference | `"-"` | At most 32 printable ASCII characters, no space. RFC 5424 only. | Type of the message. |
+| `timestamp` | field reference or null | `null` | — | Field carrying the time of the message. The time of writing is used when it is not set. |
+| `structured_data` | list of elements | `[]` | RFC 5424 only. | Structured data elements of the message. |
+| `message_field` | string or null | `null` | — | Field carrying the message part. The event itself is the message when it is not set. |
+| `message_format` | string | `"plain"` | `plain` or `json` | Rendering of the event as the message part. Applies only when `message_field` is not set. |
+| `bom` | boolean | `false` | RFC 5424 only. | Whether to mark the message part as UTF-8 encoded with a byte order mark. |
+
+Facility names are `kern`, `user`, `mail`, `daemon`, `auth`, `syslog`, `lpr`, `news`, `uucp`, `cron`, `authpriv`, `ftp`, `ntp`, `audit`, `console`, `solaris-cron` and `local0` through `local7`.
+
+Severity names are `emerg`, `alert`, `crit`, `err`, `warning`, `notice`, `info` and `debug`. The spellings other log sources use for the same levels — `panic`, `emergency`, `critical`, `error`, `warn`, `information`, `informational` — are accepted as well.
+
+#### A static header
+
+Every part written in place produces the same header for every event:
+
+```yaml
+output:
+  - tcp:
+      host: syslog.example.com
+      port: 514
+      formatter:
+        format: syslog
+        facility: local0
+        severity: notice
+        hostname: web-01
+        app_name: nginx
+        msgid: access
+```
+
+```text title="Events from event plugin"
+GET /api/users 200 12ms
+```
+
+```text title="Output"
+<133>1 2026-02-20T10:00:00.123456+03:00 web-01 nginx - access - GET /api/users 200 12ms
+```
+
+The time is the moment the message is written, since `timestamp` is not set. A run replaying a past interval stamps every message with the time of the run instead of the time of the event, so name the field carrying the event's own time — as the next example does.
+
+#### Taking the header from the event
+
+Any part can be read from a field of the event instead of being written in place. Write `{ field: <path> }` in its place, where the path names a field of the event, with nesting levels separated by dots:
+
+```yaml
+formatter:
+  format: syslog
+  facility: local0
+  severity:
+    field: log.level
+  hostname:
+    field: host.name
+  app_name:
+    field: process.name
+  procid:
+    field: process.pid
+  msgid: access
+  timestamp:
+    field: "@timestamp"
+  message_field: message
+```
+
+```json title="Events from event plugin"
+{"@timestamp": "2026-02-20T10:00:00Z", "host": {"name": "web-01"}, "log": {"level": "error"}, "process": {"name": "nginx", "pid": 4242}, "message": "upstream timed out"}
+```
+
+```text title="Output"
+<131>1 2026-02-20T10:00:00Z web-01 nginx 4242 access - upstream timed out
+```
+
+A path reaches the same field whether the event nests it (`{"host": {"name": "web-01"}}`) or spells the key with dots (`{"host.name": "web-01"}`).
+
+<Callout type="info">
+Reading a field requires the event to be a JSON object, and so does `message_format: json`. With every part written in place and the message left as `plain`, the event is carried into the message part whatever it looks like.
+</Callout>
+
+#### The message part
+
+Without `message_field` the whole event becomes the message. `message_format: json` collapses it into a single line, which is what keeps a pretty-printed event from breaking the framing of a line-delimited stream:
+
+```yaml
+formatter:
+  format: syslog
+  app_name: audit
+  message_format: json
+```
+
+```json title="Events from event plugin"
+{
+  "user": "alice",
+  "action": "login"
+}
+```
+
+```text title="Output"
+<14>1 2026-02-20T10:00:00.123456+03:00 - audit - - - {"user":"alice","action":"login"}
+```
+
+With `message_field` the named field becomes the message; a field holding an object or a list is written as JSON.
+
+The message part is the only part carried as it stands: a line break inside it splits the message under the newline delimiting that [tcp](/docs/plugins/output/tcp#framing) uses by default, while every header part is checked and rejects one. Either keep the message on one line — `message_format: json` does that for an event — or frame it by length with `framing: octet_counting`. Over [udp](/docs/plugins/output/udp) the datagram is the boundary and nothing inside it splits anything.
+
+#### Structured data
+
+Each element carries an id and its parameters, written in place or taken from the event:
+
+```yaml
+formatter:
+  format: syslog
+  app_name: nginx
+  timestamp:
+    field: "@timestamp"
+  message_field: message
+  structured_data:
+    - id: origin@32473
+      params:
+        environment: staging
+        ip:
+          field: source.ip
+```
+
+```json title="Events from event plugin"
+{"@timestamp": "2026-02-20T10:00:00Z", "source": {"ip": "10.0.0.1"}, "message": "GET /api/users 200"}
+```
+
+```text title="Output"
+<14>1 2026-02-20T10:00:00Z - nginx - - [origin@32473 environment="staging" ip="10.0.0.1"] GET /api/users 200
+```
+
+A parameter whose field the event does not carry is left out of the element; an element whose parameters are all left out is written as its id alone. Values are escaped as the RFC requires, and a value carrying a line break or another control character is rejected, since it would end the message it sits in.
+
+#### RFC 3164
+
+The older format carries a shorter header: the priority, a `Mmm dd hh:mm:ss` time, the host, and the tag with the process id in brackets. `msgid`, `structured_data` and `bom` are not a part of it and are rejected in a config that asks for `rfc: 3164`:
+
+```yaml
+formatter:
+  format: syslog
+  rfc: 3164
+  facility: local0
+  severity: notice
+  hostname: web-01
+  app_name: sshd
+  procid:
+    field: process.pid
+  timestamp:
+    field: "@timestamp"
+  message_field: message
+```
+
+```json title="Events from event plugin"
+{"@timestamp": "2026-02-20T10:00:00Z", "process": {"pid": 4242}, "message": "Accepted publickey for alice"}
+```
+
+```text title="Output"
+<133>Feb 20 10:00:00 web-01 sshd[4242]: Accepted publickey for alice
+```
+
+Leaving `app_name` unset drops the tag along with the process id, since the process id has no place in the header without it. A tag carrying a `:` splits the message where a receiver reads the end of the tag, so keep it to a plain name.
+
+The RFC 3164 timestamp carries no offset, and a receiver reads it as its own local time. The time is written as the wall clock of the value it came from, so events built in the timezone of the generator arrive stating that timezone's time.
+
+#### Fields the event does not carry
+
+A field that is missing from the event, or carries `null`, becomes `-` — the value the RFC defines for a header part that is not known. The rest of the message is built as usual.
+
+The limits of the parameter table hold for a value read from the event as well: a header part that arrives longer than its limit, carrying a space, or carrying a character outside printable ASCII is rejected rather than shifting or overrunning the parts that follow it.
+
+The priority, the time and the message part have no such value. When a field named for one of them is missing, holds a value of the wrong kind, or carries a time that cannot be read, the event is skipped and counted in the `format_failed` metric — the same as an invalid event under the [json](#json) format.
+
+#### Framing
+
+A syslog receiver reading a stream needs to know where each message ends. Over TCP that is either the separator appended after each event, or the byte length written in front of it, which is what syslog over TLS requires — see [framing](/docs/plugins/output/tcp#framing) of the tcp output plugin. Over UDP each event is a datagram of its own and needs neither.
+
 ## Per-event vs per-batch
 
 | Format | Granularity | Result per write |
@@ -360,6 +549,7 @@ formatter:
 | `plain` | Per event | N strings (one per event) |
 | `json` | Per event | N JSON strings |
 | `template` | Per event | N rendered strings |
+| `syslog` | Per event | N syslog messages |
 | `json-batch` | Per batch | 1 JSON array |
 | `template-batch` | Per batch | 1 rendered string |
 
