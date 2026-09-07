@@ -109,7 +109,7 @@ formatter:
 
 #### Invalid JSON handling
 
-Events that are not valid JSON are skipped. Each rejection is written to the generator log and counted in the `format_failed` metric; the remaining events are still formatted normally:
+Events that are not valid JSON are skipped and counted in the `format_failed` metric; the remaining events are still formatted normally. The first rejection of each formatting failure includes the rejected event in the generator log. Further rejections of the same kind are summarized at most once every ten seconds with a cumulative count and without another event sample. Any pending total is logged when the output closes:
 
 ```text title="Events from event plugin (3 events, one invalid)"
 {"user": "alice"}
