@@ -5251,6 +5251,9 @@
                         "$ref": "#/components/schemas/opensearch-Input"
                     },
                     {
+                        "$ref": "#/components/schemas/otlp-Input"
+                    },
+                    {
                         "$ref": "#/components/schemas/stdout-Input"
                     },
                     {
@@ -5277,6 +5280,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/opensearch-Output"
+                    },
+                    {
+                        "$ref": "#/components/schemas/otlp-Output"
                     },
                     {
                         "$ref": "#/components/schemas/stdout-Output"
@@ -10577,6 +10583,580 @@
                 "title": "Or",
                 "description": "Logic operator 'or' for combining checks or other logic\noperators."
             },
+            "OtlpOutputPluginConfig-Input": {
+                "properties": {
+                    "formatter": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/eventum__api__routers__generator_configs__api_types__SimpleFormatterConfig"
+                            },
+                            {
+                                "$ref": "#/components/schemas/eventum__api__routers__generator_configs__api_types__JsonFormatterConfig"
+                            },
+                            {
+                                "$ref": "#/components/schemas/eventum__api__routers__generator_configs__api_types__TemplateFormatterConfig"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Formatter"
+                    },
+                    "endpoint": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 2083,
+                                "minLength": 1,
+                                "format": "uri"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Endpoint"
+                    },
+                    "protocol": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "http/protobuf",
+                                    "http/json"
+                                ]
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Protocol",
+                        "default": "http/protobuf"
+                    },
+                    "compression": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "none",
+                                    "gzip"
+                                ]
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Compression",
+                        "default": "none"
+                    },
+                    "headers": {
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object",
+                        "title": "Headers"
+                    },
+                    "auth": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/BasicHttpAuthConfig"
+                            },
+                            {
+                                "$ref": "#/components/schemas/BearerHttpAuthConfig"
+                            },
+                            {
+                                "$ref": "#/components/schemas/OAuth2ClientCredentialsHttpAuthConfig"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Auth"
+                    },
+                    "connect_timeout": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Connect Timeout",
+                        "default": 10
+                    },
+                    "request_timeout": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Request Timeout",
+                        "default": 300
+                    },
+                    "verify": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Verify",
+                        "default": true
+                    },
+                    "ca_cert": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "path"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Ca Cert"
+                    },
+                    "client_cert": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "path"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Client Cert"
+                    },
+                    "client_cert_key": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "path"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Client Cert Key"
+                    },
+                    "proxy_url": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 2083,
+                                "minLength": 1,
+                                "format": "uri"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Proxy Url"
+                    },
+                    "timestamp_field": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Timestamp Field",
+                        "default": "@timestamp"
+                    },
+                    "severity_field": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Severity Field",
+                        "default": "log.level"
+                    },
+                    "resource_attributes": {
+                        "additionalProperties": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                },
+                                {
+                                    "type": "number"
+                                },
+                                {
+                                    "type": "boolean"
+                                }
+                            ]
+                        },
+                        "type": "object",
+                        "title": "Resource Attributes"
+                    },
+                    "resource_attributes_from": {
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object",
+                        "title": "Resource Attributes From"
+                    },
+                    "body_field": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Body Field"
+                    },
+                    "flatten_attributes": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Flatten Attributes",
+                        "default": true
+                    },
+                    "max_request_bytes": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1024.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Max Request Bytes",
+                        "default": 4194304
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "endpoint"
+                ],
+                "title": "OtlpOutputPluginConfig"
+            },
+            "OtlpOutputPluginConfig-Output": {
+                "properties": {
+                    "formatter": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/SimpleFormatterConfig-Output"
+                            },
+                            {
+                                "$ref": "#/components/schemas/JsonFormatterConfig-Output"
+                            },
+                            {
+                                "$ref": "#/components/schemas/TemplateFormatterConfig-Output"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Formatter"
+                    },
+                    "endpoint": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 2083,
+                                "minLength": 1,
+                                "format": "uri"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Endpoint"
+                    },
+                    "protocol": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "http/protobuf",
+                                    "http/json"
+                                ]
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Protocol",
+                        "default": "http/protobuf"
+                    },
+                    "compression": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "enum": [
+                                    "none",
+                                    "gzip"
+                                ]
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Compression",
+                        "default": "none"
+                    },
+                    "headers": {
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object",
+                        "title": "Headers"
+                    },
+                    "auth": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/BasicHttpAuthConfig"
+                            },
+                            {
+                                "$ref": "#/components/schemas/BearerHttpAuthConfig"
+                            },
+                            {
+                                "$ref": "#/components/schemas/OAuth2ClientCredentialsHttpAuthConfig"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Auth"
+                    },
+                    "connect_timeout": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Connect Timeout",
+                        "default": 10
+                    },
+                    "request_timeout": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Request Timeout",
+                        "default": 300
+                    },
+                    "verify": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Verify",
+                        "default": true
+                    },
+                    "ca_cert": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "path"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Ca Cert"
+                    },
+                    "client_cert": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "path"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Client Cert"
+                    },
+                    "client_cert_key": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "path"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Client Cert Key"
+                    },
+                    "proxy_url": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "maxLength": 2083,
+                                "minLength": 1,
+                                "format": "uri"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Proxy Url"
+                    },
+                    "timestamp_field": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Timestamp Field",
+                        "default": "@timestamp"
+                    },
+                    "severity_field": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Severity Field",
+                        "default": "log.level"
+                    },
+                    "resource_attributes": {
+                        "additionalProperties": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                },
+                                {
+                                    "type": "number"
+                                },
+                                {
+                                    "type": "boolean"
+                                }
+                            ]
+                        },
+                        "type": "object",
+                        "title": "Resource Attributes"
+                    },
+                    "resource_attributes_from": {
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object",
+                        "title": "Resource Attributes From"
+                    },
+                    "body_field": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Body Field"
+                    },
+                    "flatten_attributes": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Flatten Attributes",
+                        "default": true
+                    },
+                    "max_request_bytes": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 1024.0
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "title": "Max Request Bytes",
+                        "default": 4194304
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "endpoint"
+                ],
+                "title": "OtlpOutputPluginConfig"
+            },
             "OutputPluginStats": {
                 "properties": {
                     "plugin_name": {
@@ -15708,6 +16288,32 @@
                     "opensearch"
                 ],
                 "title": "opensearch"
+            },
+            "otlp-Input": {
+                "properties": {
+                    "otlp": {
+                        "$ref": "#/components/schemas/OtlpOutputPluginConfig-Input"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "otlp"
+                ],
+                "title": "otlp"
+            },
+            "otlp-Output": {
+                "properties": {
+                    "otlp": {
+                        "$ref": "#/components/schemas/OtlpOutputPluginConfig-Output"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "otlp"
+                ],
+                "title": "otlp"
             },
             "replay-Output": {
                 "properties": {
