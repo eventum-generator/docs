@@ -1,6 +1,6 @@
 ---
 title: "Output formatters: a shape per destination"
-description: Output formatters decide how the same event stream leaves each destination — one line per event, a single array, or a custom envelope — and which of the six to choose for a given target.
+description: Output formatters decide how the same event stream leaves each destination — one line per event, a single array, a syslog message, or a custom envelope — and which one to choose for a given target.
 ---
 
 A synthetic event stream rarely has just one destination in mind, and different destinations expect the same data shaped differently: a log file wants one JSON object on its own line so a shipper can tail it, a bulk-ingest API wants every event bundled into a single request body, and a partner endpoint wants its own named wrapper around the batch. Nothing about the event itself changes between these three — only the wire shape does.
@@ -19,18 +19,21 @@ Match the formatter to what the destination expects, not to whatever shape the e
 
 | Destination | Formatter |
 |-------------|-----------|
-| Raw-text collector — a syslog listener, a plain-text log file | [`plain`](/docs/plugins/formatters#plain) |
+| Raw-text collector — a plain-text log file | [`plain`](/docs/plugins/formatters#plain) |
+| A syslog listener — rsyslog, syslog-ng, a SIEM's syslog input | [`syslog`](/docs/plugins/formatters#syslog) |
 | NDJSON file, or any per-record index or stream | [`json`](/docs/plugins/formatters#json) |
 | Bulk-ingest API that accepts one array per call | [`json-batch`](/docs/plugins/formatters#json-batch) |
 | A custom per-event request body or line | [`template`](/docs/plugins/formatters#template) |
 | A named envelope, CSV, or XML batch | [`template-batch`](/docs/plugins/formatters#template-batch) |
 | Another Eventum generator's `http` input | `eventum-http-input` |
 
+A syslog listener accepts `plain` too, as long as the event template writes the whole `<PRI>`-prefixed line itself. `syslog` is what builds that header instead, from fields the event already carries — see the [syslog format lesson](/docs/tutorials/formats/syslog) for the header it produces and the [syslog transport lesson](/docs/tutorials/delivery/syslog-transport) for delivering it.
+
 `plain` and `json` look interchangeable whenever the event template already renders JSON, but they aren't: `plain` passes the string through exactly as produced, untouched and unchecked, while `json` parses it and re-serializes it compactly, catching anything that isn't valid JSON before it ever reaches the destination. NDJSON wants `json`, not `plain`, for exactly that reason — see the [NDJSON lesson](/docs/tutorials/formats/ndjson) for that pairing built out in full, `file`'s own `separator: "\n"` included.
 
 ## Per-event vs per-batch
 
-The six formats split into two groups by what they operate on. `plain`, `json`, and `template` are per-event: each takes N events and returns up to N formatted strings, one per input event — `json` can skip an individual malformed event without touching the rest of the batch. `json-batch`, `template-batch`, and `eventum-http-input` are per-batch: each takes N events and returns exactly one formatted string for the whole batch, however many events that batch held.
+The formats split into two groups by what they operate on. `plain`, `json`, `template`, and `syslog` are per-event: each takes N events and returns up to N formatted strings, one per input event — `json` can skip an individual malformed event without touching the rest of the batch. `json-batch`, `template-batch`, and `eventum-http-input` are per-batch: each takes N events and returns exactly one formatted string for the whole batch, however many events that batch held.
 
 That split changes two things a destination-shape decision alone doesn't cover. **Request count**: a per-event formatter means one write — one HTTP request, one Kafka message, one line appended to a file — for every event; a per-batch formatter collapses however many events the generator's own [`batch.size`/`batch.delay`](/docs/core/config/eventum-yml#generation) accumulated into a single write, trading many small writes for fewer, larger ones. **Failure blast radius**: a per-event write stands on its own, so one rejected or malformed event doesn't touch its neighbors; a per-batch write is all-or-nothing once it leaves Eventum — whatever the destination does with that one array or envelope, accept it or reject it, happens to every event the batch was carrying at once. [Batch vs per-request delivery](/docs/tutorials/delivery/http#batch-vs-per-request-delivery) works through that exact tradeoff for one destination in depth.
 
