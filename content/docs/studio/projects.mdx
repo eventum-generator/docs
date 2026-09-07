@@ -99,7 +99,7 @@ The Inspector holds the same three sections at every stage, filled from the stag
 
 The **Plugins** section lists what the stage is configured with, and adds or removes entries. The input and output stages accept any number of plugins; the event stage accepts exactly one.
 
-The **Parameters** section holds the form for the selected plugin, validated against that [plugin's configuration](/docs/plugins) as you type. Fields that are not free text still accept `${params.name}` and `${secrets.name}` placeholders, which are resolved when an instance loads the configuration.
+The **Parameters** section holds the form for the selected plugin, validated against that [plugin's configuration](/docs/plugins) as you type. A rejected value is marked on its field with the reason beneath it. Fields that are not free text still accept `${params.name}` and `${secrets.name}` placeholders, which are resolved when an instance loads the configuration.
 
 The **Configuration** section shows the YAML the form produces, exactly as it will be written into `generator.yml`.
 
