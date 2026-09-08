@@ -180,9 +180,11 @@ Global state is shared with every running instance, not only the generator open 
 
 Add raw events, choose a [format](/docs/plugins/formatters) with its options, and the **Format** button shows the payload a destination would receive, together with the errors the formatter raised and the event behind each of them.
 
-<Callout type="info">
-The formatter is configured in the tool itself and is independent of the output plugins on this stage. The preview answers what a format does to an event, not what a particular destination is currently set to send.
-</Callout>
+The output selector starts on the plugin open in the Inspector. Selecting any configured output loads its formatter into the preview. A plugin without an explicit `formatter` loads the default it uses at runtime. The preview also follows changes made to the selected output in the Inspector until you edit the preview itself. The status reads **Loaded** while the preview matches the selected output and **Custom** after you change it.
+
+Loaded settings remain editable and do not change `generator.yml`. After an edit, **Reset** restores the selected output's current formatter and **Apply** sends the preview back to that output after confirmation. Applying updates the Studio draft while preserving the plugin's other settings. Use the main **Save** action to persist it to the project.
+
+After the debugger produces events, **Replace with N debugger events** copies its latest successful result into the Events pane. The button is unavailable before the first run and states that it replaces the current list. The copied events remain editable, and events can still be added or removed by hand.
 
 ---
 
