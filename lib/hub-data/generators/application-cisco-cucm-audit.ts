@@ -16,7 +16,7 @@ export const applicationCiscoCucmAudit: GeneratorMeta = {
     'Unusual administrator client adds and updates one processnode',
   ],
   anomalyChain:
-    'An administrator from an off-pool client logs in, adds and updates the same processnode record, then logs out within three simulated minutes.',
+    'An administrator logs in, adds and updates the same processnode record, then logs out within three simulated minutes.',
   eventTypes: [
     {
       id: 'UserLogging / login',
@@ -33,13 +33,13 @@ export const applicationCiscoCucmAudit: GeneratorMeta = {
     {
       id: 'GeneralConfigurationUpdate / updated',
       description: 'Existing processnode record updated',
-      frequency: '12.1% with anomaly mode',
+      frequency: '6.9% with anomaly mode',
       category: 'configuration',
     },
     {
       id: 'GeneralConfigurationUpdate / added',
       description: 'New processnode record added',
-      frequency: '1.7% with anomaly mode',
+      frequency: '6.9% with anomaly mode',
       category: 'configuration',
     },
   ],
@@ -74,7 +74,7 @@ export const applicationCiscoCucmAudit: GeneratorMeta = {
     {
       name: 'suspect_client_ip',
       defaultValue: '198.51.100.45',
-      description: 'Off-pool client address',
+      description: 'Client address shared by routine and anomaly sessions',
     },
     {
       name: 'suspect_node_prefix',

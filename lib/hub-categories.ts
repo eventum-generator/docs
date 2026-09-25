@@ -207,7 +207,6 @@ export function getCategoryForSlug(slug: string): CategoryId {
     'security-cisco-fmc-audit': 'security',
     'security-cyberark-pta': 'security',
     'application-sharepoint-server-uls': 'application',
-    'security-fortinet-fortianalyzer-audit': 'security',
     'application-cisco-cucm-audit': 'application',
     'security-carbon-black-edr-event-forwarder': 'security',
     'security-staffcop-enterprise': 'security',

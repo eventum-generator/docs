@@ -30,7 +30,7 @@ export const securityCyberarkPta: GeneratorMeta = {
   ],
   realismFeatures: [
     'The exact CEF header and extension keys follow the Elastic PTA 12.6 raw fixture.',
-    'Background consists of independent PTA alert pairs, not benign user activity.',
+    'Background includes isolated alerts from the same source; it is PTA alert telemetry, not benign user activity.',
     'Current CyberArk example and detection catalog disagree on this alert ID; newer versions are unverified.',
   ],
   parameters: [

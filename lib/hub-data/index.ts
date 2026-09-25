@@ -100,7 +100,6 @@ import { securityDefenderEndpoint } from './generators/security-defender-endpoin
 import { securityDrwebEss } from './generators/security-drweb-ess';
 import { securityEsetProtect } from './generators/security-eset-protect';
 import { securityFalco } from './generators/security-falco';
-import { securityFortinetFortianalyzerAudit } from './generators/security-fortinet-fortianalyzer-audit';
 import { securityFortinetFortisoar } from './generators/security-fortinet-fortisoar';
 import { securityHashicorpVault } from './generators/security-hashicorp-vault';
 import { securityImpervaSecuresphere } from './generators/security-imperva-securesphere';
@@ -288,7 +287,6 @@ export const generators: GeneratorMeta[] = [
   securityCiscoFmcAudit,
   securityCyberarkPta,
   applicationSharepointServerUls,
-  securityFortinetFortianalyzerAudit,
   applicationCiscoCucmAudit,
   securityCarbonBlackEdrEventForwarder,
 ];

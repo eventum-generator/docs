@@ -30,7 +30,7 @@ export const identityDelineaSecretServer: GeneratorMeta = {
   ],
   realismFeatures: [
     'CEF header, event code and extension fields follow the complete Secret Server 11.3 reference line.',
-    'Ordinary secret IDs, names and folders and actor IDs and IPs remain consistent.',
+    'Ordinary and isolated privileged views use consistent actor, secret, and folder identifiers.',
     'The profile does not claim compatibility with newer CEF variants or other event classes.',
   ],
   parameters: [
