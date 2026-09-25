@@ -5,9 +5,9 @@ export const networkPfsense: GeneratorMeta = {
   slug: 'network-pfsense',
   displayName: 'pfSense Firewall and IPsec',
   category: 'network',
-  dataSource: 'RFC 5424 pfSense filterlog and charon syslog',
+  dataSource: 'pfSense CE 2.9.0 RFC 5424 filterlog and charon syslog',
   description:
-    'Firewall pass/block traffic and IPsec negotiation records with a switchable failed-peer-to-tunnel-to-admin-access sequence.',
+    'pfSense CE 2.9.0 firewall and IKEv1 IPsec records: LAN, WAN and enc0 traffic with a switchable peer-ID mismatch and tunnel-access sequence.',
   generatorId: 'pfsense',
   eventCount: 6,
   templateCount: 1,
@@ -17,49 +17,54 @@ export const networkPfsense: GeneratorMeta = {
     'Linked IPsec negotiation and VPN traffic chain',
   ],
   anomalyChain:
-    'Repeated peer-config failures precede IKE and CHILD establishment, then VPN traffic reaches SMB, RDP and WinRM on an internal host.',
+    'After 720 ordinary events, three mismatched peer-ID attempts precede a corrected ID, IKE/CHILD establishment and SMB, RDP, WinRM over enc0 within about 12 seconds.',
   eventTypes: [
     {
       id: 'filterlog pass',
-      description: 'Permitted firewall traffic',
-      frequency: '72% baseline',
+      description: 'Logged LAN and IPsec rule passes',
+      frequency:
+        'About 80% of selected firewall traffic plus three isolated administrative connections',
       category: 'network',
     },
     {
       id: 'filterlog block',
-      description: 'Blocked firewall traffic',
-      frequency: '28% baseline',
+      description: 'Logged default WAN blocks',
+      frequency: 'About 20% of selected firewall traffic',
       category: 'network',
     },
     {
       id: 'charon peer lookup',
       description: 'IPsec peer configuration lookup',
-      frequency: 'Chain only',
+      frequency:
+        'Three scheduled background lookups plus four linked lookups when enabled',
       category: 'network',
     },
     {
       id: 'charon no peer config',
-      description: 'IPsec peer lookup failure',
-      frequency: 'Chain only',
+      description: 'IPsec peer-ID mismatch',
+      frequency:
+        'One scheduled background failure plus three linked failures when enabled',
       category: 'network',
     },
     {
       id: 'charon IKE_SA established',
       description: 'IKE security association established',
-      frequency: 'Chain only',
+      frequency:
+        'Two scheduled background successes plus one linked success when enabled',
       category: 'network',
     },
     {
       id: 'charon CHILD_SA established',
       description: 'Child security association established',
-      frequency: 'Chain only',
+      frequency:
+        'Two scheduled background successes plus one linked success when enabled',
       category: 'network',
     },
   ],
   realismFeatures: [
-    'IPv4 TCP and UDP filterlog CSV positions match Netgate documentation.',
-    'The peer lookup, negotiation and permitted tunnel traffic use one firewall and matching peer/subnet.',
-    'No administrator login or firewall rule change is implied by the selected raw logs.',
+    'RFC 5424 timestamps include microseconds; IPv4 TCP/UDP filterlog records use the documented 29/23 CSV positions.',
+    'LAN pass, WAN default block and enc0 pass use distinct stable rule trackers and interfaces.',
+    'Both modes include individual IPsec and administrative-port events; no configuration change or compromise is claimed.',
   ],
   format: ['JSON', 'ECS', 'Syslog'],
   generationModes: ['background', 'anomaly'],
@@ -67,7 +72,8 @@ export const networkPfsense: GeneratorMeta = {
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description: 'Include the VPN chain; false emits only background',
+      description:
+        'Include one 12-record VPN chain; false retains ordinary IPsec and firewall events',
     },
     {
       name: 'hostname',
@@ -100,24 +106,24 @@ export const networkPfsense: GeneratorMeta = {
       description: 'IPsec tunnel name',
     },
     {
-      name: 'suspicious_rule_tracker',
+      name: 'ipsec_pass_rule_tracker',
       defaultValue: '1534283903',
-      description: 'Existing permitted rule tracker',
+      description: 'Existing logged IPsec pass-rule tracker',
     },
   ],
   sampleOutputs: [
     {
       title: 'pfSense Firewall and IPsec event',
       json: String.raw`{
-  "@timestamp": "2026-09-25T11:59:46+00:00",
+  "@timestamp": "2026-09-25T16:54:42.909019+00:00",
   "data_stream": {
     "dataset": "pfsense.log",
     "namespace": "default",
     "type": "logs"
   },
   "destination": {
-    "ip": "10.20.0.53",
-    "port": 53
+    "ip": "203.0.113.1",
+    "port": 22
   },
   "ecs": {
     "version": "8.17.0"
@@ -129,7 +135,7 @@ export const networkPfsense: GeneratorMeta = {
     ],
     "dataset": "pfsense.log",
     "kind": "event",
-    "original": "<134>1 2026-09-25T11:59:46+00:00 fw01.corp.example filterlog 72237 - - 115,,,1000000103,igb1.12,match,block,in,4,0x0,,63,48379,0,DF,17,udp,69,10.20.7.32,10.20.0.53,63575,53,49",
+    "original": "<134>1 2026-09-25T16:54:42.909019+00:00 fw01.corp.example filterlog 72237 - - 5,16777216,,1000000103,igb0,match,block,in,4,0x0,,51,55152,0,DF,6,tcp,60,198.51.100.91,203.0.113.1,57361,22,0,S,1636984417,,64240,,mss;sackOK;TS;nop;wscale",
     "type": [
       "connection"
     ]
@@ -142,27 +148,33 @@ export const networkPfsense: GeneratorMeta = {
       "priority": 134
     }
   },
-  "message": "115,,,1000000103,igb1.12,match,block,in,4,0x0,,63,48379,0,DF,17,udp,69,10.20.7.32,10.20.0.53,63575,53,49",
+  "message": "5,16777216,,1000000103,igb0,match,block,in,4,0x0,,51,55152,0,DF,6,tcp,60,198.51.100.91,203.0.113.1,57361,22,0,S,1636984417,,64240,,mss;sackOK;TS;nop;wscale",
   "network": {
-    "bytes": 69,
     "direction": "inbound",
-    "transport": "udp"
+    "transport": "tcp"
   },
   "observer": {
     "name": "fw01.corp.example",
     "product": "pfSense",
     "type": "firewall",
-    "vendor": "Netgate"
+    "vendor": "Netgate",
+    "version": "2.9.0"
   },
   "pfsense": {
+    "direction": "in",
+    "interface": "igb0",
     "ip": {
       "flags": "DF",
+      "id": 55152,
+      "length": 60,
       "offset": 0,
       "tos": "0x0",
-      "ttl": 63
+      "ttl": 51
     },
-    "udp": {
-      "length": 49
+    "tcp": {
+      "flags": "S",
+      "length": 0,
+      "window": 64240
     }
   },
   "process": {
@@ -171,16 +183,16 @@ export const networkPfsense: GeneratorMeta = {
   },
   "related": {
     "ip": [
-      "10.20.7.32",
-      "10.20.0.53"
+      "198.51.100.91",
+      "203.0.113.1"
     ]
   },
   "rule": {
     "id": "1000000103"
   },
   "source": {
-    "ip": "10.20.7.32",
-    "port": 63575
+    "ip": "198.51.100.91",
+    "port": 57361
   },
   "syslog": {
     "facility": {
