@@ -1,3 +1,4 @@
+import { Waves, Waypoints } from 'lucide-react';
 import Link from 'next/link';
 
 import { CATEGORY_MAP } from '@/lib/hub-categories';
@@ -11,6 +12,7 @@ interface GeneratorCardProps {
 export function GeneratorCard({ generator, index }: GeneratorCardProps) {
   const category = CATEGORY_MAP.get(generator.category);
   const Icon = category?.icon;
+  const modes = generator.generationModes ?? ['background'];
 
   return (
     <Link
@@ -31,7 +33,7 @@ export function GeneratorCard({ generator, index }: GeneratorCardProps) {
         {generator.description}
       </p>
 
-      <div className="mt-auto flex flex-wrap gap-1.5 pt-1">
+      <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
         <span
           className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${category?.color ?? ''}`}
         >
@@ -45,6 +47,28 @@ export function GeneratorCard({ generator, index }: GeneratorCardProps) {
             {tag}
           </span>
         ))}
+        <span className="ml-auto inline-flex items-center gap-1">
+          {modes.includes('background') && (
+            <span
+              className="inline-flex h-6 w-6 items-center justify-center rounded-md text-sky-600 dark:text-sky-400 cursor-help"
+              role="img"
+              aria-label="Background events"
+              title="Background events"
+            >
+              <Waves size={17} aria-hidden="true" />
+            </span>
+          )}
+          {modes.includes('anomaly') && (
+            <span
+              className="inline-flex h-6 w-6 items-center justify-center rounded-md text-amber-600 dark:text-amber-400 cursor-help"
+              role="img"
+              aria-label={`Anomaly chain: ${generator.anomalyChain ?? 'correlated suspicious events'}`}
+              title={`Anomaly chain: ${generator.anomalyChain ?? 'correlated suspicious events'}`}
+            >
+              <Waypoints size={17} aria-hidden="true" />
+            </span>
+          )}
+        </span>
       </div>
     </Link>
   );

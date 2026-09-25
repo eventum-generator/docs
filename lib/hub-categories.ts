@@ -1,9 +1,12 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Activity,
+  AppWindow,
+  Boxes,
   Cloud,
   Database,
   Globe,
+  KeyRound,
   Mail,
   Monitor,
   Network,
@@ -11,14 +14,17 @@ import {
 } from 'lucide-react';
 
 export type CategoryId =
+  | 'application'
   | 'cloud'
   | 'database'
   | 'email'
+  | 'identity'
   | 'endpoint'
   | 'monitoring'
   | 'network'
   | 'security'
-  | 'web-access';
+  | 'web-access'
+  | 'virtualization';
 
 export interface CategoryMeta {
   id: CategoryId;
@@ -29,6 +35,13 @@ export interface CategoryMeta {
 }
 
 export const CATEGORIES: CategoryMeta[] = [
+  {
+    id: 'application',
+    name: 'Application',
+    icon: AppWindow,
+    description: 'Business application audit logs',
+    color: 'bg-lime-500/10 text-lime-600 dark:text-lime-400',
+  },
   {
     id: 'cloud',
     name: 'Cloud',
@@ -58,6 +71,13 @@ export const CATEGORIES: CategoryMeta[] = [
     color: 'bg-teal-500/10 text-teal-600 dark:text-teal-400',
   },
   {
+    id: 'identity',
+    name: 'Identity',
+    icon: KeyRound,
+    description: 'Authentication and directory services',
+    color: 'bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400',
+  },
+  {
     id: 'network',
     name: 'Network',
     icon: Network,
@@ -70,6 +90,13 @@ export const CATEGORIES: CategoryMeta[] = [
     icon: Shield,
     description: 'IDS/IPS and threat detection',
     color: 'bg-red-500/10 text-red-600 dark:text-red-400',
+  },
+  {
+    id: 'virtualization',
+    name: 'Virtualization',
+    icon: Boxes,
+    description: 'Hypervisor and virtual infrastructure audit logs',
+    color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
   },
   {
     id: 'web-access',
@@ -91,6 +118,18 @@ export const CATEGORY_MAP = new Map(CATEGORIES.map((c) => [c.id, c]));
 
 export function getCategoryForSlug(slug: string): CategoryId {
   const SLUG_CATEGORY_MAP: Record<string, CategoryId> = {
+    'application-1c': 'application',
+    'windows-active-directory': 'identity',
+    'identity-ald-pro': 'identity',
+    'identity-keycloak': 'identity',
+    'virtualization-vmware': 'virtualization',
+    'network-zeek': 'network',
+    'network-eltex-mes': 'network',
+    'network-eltex-esr': 'network',
+    'security-hashicorp-vault': 'security',
+    'security-falco': 'security',
+    'security-drweb-ess': 'security',
+    'cloud-github-audit': 'cloud',
     'windows-security': 'endpoint',
     'windows-powershell': 'endpoint',
     'windows-sysmon': 'endpoint',

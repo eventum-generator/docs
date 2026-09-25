@@ -16,6 +16,9 @@ export const databaseSapHana: GeneratorMeta = {
     'State machine instead of weighted draws',
     'Six-phase intrusion arc',
   ],
+  generationModes: ['anomaly'],
+  anomalyChain:
+    'Password spray from an unmanaged host, successful database login, privilege grants, sensitive table reads, then audit policy changes and a log deletion attempt.',
   generatorId: 'hana',
   eventTypes: [
     {
