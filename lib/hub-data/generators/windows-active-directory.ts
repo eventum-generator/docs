@@ -14,49 +14,49 @@ export const windowsActiveDirectory: GeneratorMeta = {
   templateCount: 1,
   highlights: [
     'Kerberos and NTLM audit',
-    'Linked SubjectLogonId',
+    'Administrative SubjectLogonId',
     'Correlated 5136 pair',
-    'Per-controller record IDs',
+    'One-shot 130-second chain',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'Password spray, successful TGT, RC4 service-ticket burst, Domain Admins addition, and delegation change.',
+    'Four-account password spray, successful TGT, RC4 service-ticket burst, Domain Admins addition, and delegation change within 130 seconds.',
   generatorId: 'ad',
   eventTypes: [
     {
       id: '4768',
       description: 'Kerberos TGT issued',
-      frequency: '~46.4%',
+      frequency: '48% ordinary authentication weight',
       category: 'authentication',
     },
     {
       id: '4769',
       description: 'Kerberos service ticket issued',
-      frequency: '~43.3%',
+      frequency: '44% ordinary authentication weight',
       category: 'authentication',
     },
     {
       id: '4776',
       description: 'NTLM credential validated',
-      frequency: '~5.7%',
+      frequency: '6% ordinary authentication weight',
       category: 'authentication',
     },
     {
       id: '4771',
       description: 'Kerberos pre-authentication failed',
-      frequency: '~3.4%',
+      frequency: '2% ordinary authentication weight',
       category: 'authentication',
     },
     {
       id: '4728',
       description: 'Member added to Domain Admins',
-      frequency: '~0.4%',
+      frequency: 'One routine maintenance event plus one chain event',
       category: 'iam',
     },
     {
       id: '5136',
       description: 'Directory attribute value deleted or added',
-      frequency: '~0.8%',
+      frequency: 'One routine pair plus one chain pair',
       category: 'iam, configuration',
     },
   ],
@@ -111,7 +111,8 @@ export const windowsActiveDirectory: GeneratorMeta = {
     {
       name: 'attack_ip',
       defaultValue: '10.99.4.22',
-      description: 'Source address of the linked chain',
+      description:
+        'Shared bastion address used by the chain and ordinary authentication',
     },
     {
       name: 'attack_member',
@@ -139,7 +140,7 @@ export const windowsActiveDirectory: GeneratorMeta = {
     {
       title: '4728: member added to Domain Admins',
       json: String.raw`{
-  "@timestamp": "2026-09-25T10:24:12+00:00",
+  "@timestamp": "2026-09-25T16:38:19+00:00",
   "agent": {
     "ephemeral_id": "943942bd-09ec-48aa-957d-2f12ecb83866",
     "id": "a51465f9-72f4-4761-89bb-55de00ec6701",
@@ -159,7 +160,7 @@ export const windowsActiveDirectory: GeneratorMeta = {
     "kind": "event",
     "outcome": "success",
     "provider": "Microsoft-Windows-Security-Auditing",
-    "sequence": 900259,
+    "sequence": 900379,
     "type": [
       "group",
       "change"
@@ -208,7 +209,7 @@ export const windowsActiveDirectory: GeneratorMeta = {
       "MemberName": "CN=svc_sync,CN=Users,DC=contoso,DC=local",
       "MemberSid": "S-1-5-21-3457937927-2839227994-823803824-2108",
       "SubjectDomainName": "CONTOSO",
-      "SubjectLogonId": "0xb085d1",
+      "SubjectLogonId": "0x9648a9",
       "SubjectUserName": "helpdesk.admin",
       "SubjectUserSid": "S-1-5-21-3457937927-2839227994-823803824-1114",
       "TargetDomainName": "CONTOSO",
@@ -221,21 +222,21 @@ export const windowsActiveDirectory: GeneratorMeta = {
     ],
     "level": "information",
     "logon": {
-      "id": "0xb085d1"
+      "id": "0x9648a9"
     },
     "opcode": "Info",
     "outcome": "success",
     "process": {
       "pid": 516,
       "thread": {
-        "id": 6448
+        "id": 8007
       }
     },
     "provider_guid": "{54849625-5478-4994-a5ba-3e3b0328c30d}",
     "provider_name": "Microsoft-Windows-Security-Auditing",
-    "record_id": "900259",
+    "record_id": "900379",
     "task": "Security Group Management",
-    "time_created": "2026-09-25T10:24:12+00:00",
+    "time_created": "2026-09-25T16:38:19+00:00",
     "version": 0
   }
 }`,

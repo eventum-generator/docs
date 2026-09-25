@@ -6,68 +6,68 @@ export const networkCiscoIos: GeneratorMeta = {
   displayName: 'Cisco IOS Syslog',
   category: 'network',
   description:
-    'Native Cisco IOS syslog for ACL, login and configuration events, including a switchable admin-login and ACL-change chain.',
+    'Cisco IOS 15SY remote syslog with ACL decisions, SSH logins, configuration and line-state messages, plus a switchable ACL-change chain.',
   dataSource: 'Cisco IOS remote syslog',
   format: ['JSON', 'ECS', 'Syslog'],
   eventCount: 7,
   templateCount: 1,
   generatorId: 'network-cisco-ios',
   highlights: [
-    '35/35 Elastic sample fields',
-    'Native IOS facility and mnemonic',
-    'Login-to-ACL command correlation',
+    '35/35 Elastic sample leaf fields',
+    'Native IOS message body and sequence',
+    'ACL rule state changes with configuration commands',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'Three failed admin logins, success, logged ACL permit command, config event and first matching permitted flow.',
+    'One 40-second sequence: denied flow, three failed SSH logins, success, insertion of a permit before the deny, configuration change and permitted flow.',
   eventTypes: [
     {
       id: '%SEC-6-IPACCESSLOGP deny',
-      description: 'ACL denied',
-      frequency: '55% routine',
+      description: 'Logged ACL deny',
+      frequency: 'Part of 96.8% routine ACL traffic',
       category: 'network',
     },
     {
       id: '%SEC-6-IPACCESSLOGP permit',
-      description: 'ACL permitted',
-      frequency: '30% routine',
+      description: 'Logged ACL permit',
+      frequency: 'Part of 96.8% routine ACL traffic',
       category: 'network',
     },
     {
       id: '%SEC_LOGIN-5-LOGIN_SUCCESS',
-      description: 'Administrator login',
-      frequency: '8% routine',
+      description: 'Successful SSH login',
+      frequency: '1.0% routine selection weight',
       category: 'authentication',
     },
     {
-      id: '%SYS-5-CONFIG_I',
-      description: 'Configuration changed',
-      frequency: '4% routine',
-      category: 'configuration',
-    },
-    {
-      id: '%LINEPROTO-5-UPDOWN',
-      description: 'Line state changed',
-      frequency: '3% routine',
-      category: 'network',
-    },
-    {
       id: '%SEC_LOGIN-4-LOGIN_FAILED',
-      description: 'Failed login',
-      frequency: 'Anomaly only',
+      description: 'Failed SSH login',
+      frequency: '0.8% routine selection weight',
       category: 'authentication',
     },
     {
       id: '%PARSER-5-CFGLOG_LOGGEDCMD',
-      description: 'ACL command logged',
-      frequency: 'Anomaly only',
+      description: 'Configuration command logged',
+      frequency: '0.8% routine selection weight',
       category: 'configuration',
+    },
+    {
+      id: '%SYS-5-CONFIG_I',
+      description: 'Configuration changed',
+      frequency: '0.5% routine selection weight',
+      category: 'configuration',
+    },
+    {
+      id: '%LINEPROTO-5-UPDOWN',
+      description: 'Interface line protocol changed',
+      frequency: '0.1% routine selection weight',
+      category: 'network',
     },
   ],
   realismFeatures: [
-    'Syslog envelope and IOS sequence remain coherent.',
-    'Fifty flow samples avoid static one-flow traffic.',
-    'ACL command requires archive log config with notify syslog.',
+    'Single-router TCP syslog with local7 facility, numbered messages and UTC milliseconds.',
+    'A sequence-50 permit is inserted before the logged sequence-100 deny; matching traffic follows the current ACL state.',
+    'Both modes include ordinary ACL maintenance; the suspicious login-to-permit order occurs only with anomaly mode enabled.',
   ],
   parameters: [
     {
@@ -83,7 +83,7 @@ export const networkCiscoIos: GeneratorMeta = {
     {
       name: 'normal_user',
       defaultValue: 'netops',
-      description: 'Routine administrator',
+      description: 'Routine operator',
     },
     {
       name: 'normal_source_ip',
@@ -93,40 +93,41 @@ export const networkCiscoIos: GeneratorMeta = {
     {
       name: 'anomaly_user',
       defaultValue: 'admin',
-      description: 'Chain administrator',
+      description: 'Shared administrator identity',
     },
     {
       name: 'anomaly_source_ip',
       defaultValue: '10.99.2.41',
-      description: 'Chain source',
+      description: 'Shared remote address',
     },
     {
       name: 'anomaly_target_ip',
       defaultValue: '10.50.2.15',
-      description: 'Permitted target',
+      description: 'Protected target',
     },
+    { name: 'acl_name', defaultValue: 'OUTSIDE_IN', description: 'Edited ACL' },
     {
-      name: 'acl_name',
-      defaultValue: 'OUTSIDE_IN',
-      description: 'Changed ACL',
+      name: 'maintenance_after_events',
+      defaultValue: '360',
+      description: 'Routine events before ordinary ACL maintenance',
     },
     {
       name: 'anomaly_interval_events',
-      defaultValue: '250',
-      description: 'Routine events between chains',
+      defaultValue: '720',
+      description: 'Routine events before the one-time intrusion sequence',
     },
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
       description:
-        'Emit anomaly chain alongside background; false keeps background only',
+        'Include the intrusion sequence; false emits background only',
     },
   ],
   sampleOutputs: [
     {
       title: 'Logged IOS ACL command',
       json: String.raw`{
-  "@timestamp": "2026-09-25T14:29:44+00:00",
+  "@timestamp": "2026-09-25T17:40:25+00:00",
   "agent": {
     "ephemeral_id": "c0ffee00-1111-4444-8888-123456789abc",
     "id": "c0ffee00-1111-4444-8888-123456789abc",
@@ -137,10 +138,9 @@ export const networkCiscoIos: GeneratorMeta = {
   "cisco": {
     "ios": {
       "access_list": "OUTSIDE_IN",
-      "command": "permit tcp host 10.99.2.41 host 10.50.2.15 eq 443 log",
+      "command": "50 permit tcp host 10.99.2.41 host 10.50.2.15 eq 443 log",
       "facility": "PARSER",
-      "message_count": 109544,
-      "sequence": "109544"
+      "message_count": 100735
     }
   },
   "data_stream": {
@@ -164,12 +164,11 @@ export const networkCiscoIos: GeneratorMeta = {
     ],
     "code": "CFGLOG_LOGGEDCMD",
     "dataset": "cisco_ios.log",
-    "ingested": "2026-09-25T14:29:44+00:00",
+    "ingested": "2026-09-25T17:40:25+00:00",
     "kind": "event",
-    "original": "Sep 25 14:29:44 edge-ios-01 109544: Sep 25 14:29:44.000: %PARSER-5-CFGLOG_LOGGEDCMD: User:admin logged command:permit tcp host 10.99.2.41 host 10.50.2.15 eq 443 log",
-    "outcome": "success",
+    "original": "<189>100735: Sep 25 2026 17:40:25.000 UTC: %PARSER-5-CFGLOG_LOGGEDCMD: User:admin  logged command:50 permit tcp host 10.99.2.41 host 10.50.2.15 eq 443 log",
     "provider": "firewall",
-    "sequence": 109544,
+    "sequence": 100735,
     "severity": 5,
     "timezone": "+00:00",
     "type": [
@@ -182,13 +181,13 @@ export const networkCiscoIos: GeneratorMeta = {
   "log": {
     "level": "notification",
     "source": {
-      "address": "10.30.0.1:514"
+      "address": "10.30.0.1:49152"
     },
     "syslog": {
       "priority": 189
     }
   },
-  "message": "User:admin logged command:permit tcp host 10.99.2.41 host 10.50.2.15 eq 443 log",
+  "message": "User:admin  logged command:50 permit tcp host 10.99.2.41 host 10.50.2.15 eq 443 log",
   "observer": {
     "hostname": "edge-ios-01",
     "ip": "10.30.0.1",
@@ -197,16 +196,9 @@ export const networkCiscoIos: GeneratorMeta = {
     "vendor": "Cisco"
   },
   "related": {
-    "ip": [
-      "10.99.2.41",
-      "10.50.2.15"
-    ],
     "user": [
       "admin"
     ]
-  },
-  "source": {
-    "ip": "10.99.2.41"
   },
   "tags": [
     "preserve_original_event",
