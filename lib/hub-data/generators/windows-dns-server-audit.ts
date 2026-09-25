@@ -1,4 +1,4 @@
-/* eslint-disable sonarjs/no-hardcoded-ip -- Synthetic IPs document generator defaults. */
+/* eslint-disable sonarjs/no-hardcoded-ip -- Synthetic addresses document generator defaults. */
 import type { GeneratorMeta } from '@/lib/hub-types';
 
 export const windowsDnsServerAudit: GeneratorMeta = {
@@ -6,56 +6,58 @@ export const windowsDnsServerAudit: GeneratorMeta = {
   displayName: 'Microsoft DNS Server Audit',
   category: 'network',
   description:
-    'Windows DNS Audit and Analytical events: configuration changes, queries and responses, with a switchable Ignore-policy disruption chain.',
-  dataSource: 'Windows DNS Server Audit and Analytical channels',
-  format: ['JSON', 'ECS', 'Windows Event Log'],
-  eventCount: 7,
+    'Windows DNS Audit policy events and ETW Analytical queries in parsed ECS JSON, including a switchable short Ignore-policy burst.',
+  dataSource: 'Microsoft DNS Server Audit and Analytical channels',
+  format: ['JSON', 'ECS'],
+  eventCount: 5,
   templateCount: 1,
-  generatorId: 'windows-dns-server-audit',
   highlights: [
-    '63/63 selected Elastic reference fields',
-    'Paired query/response XIDs',
-    'Short-lived Ignore policy anomaly',
+    '256/257/259 ETW field sets based on collector fixtures',
+    'Linked DNS queries and valid response packet bytes',
+    'One switchable short Ignore-policy lifecycle',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'Ignore policy created for a domain, three queries without responses, then policy deleted on the same DNS server.',
+    'After 3,600 routine transactions, a policy creation is followed by three 256/259 pairs and policy deletion in three seconds; background has the same policy with sparse ignored queries.',
+  generatorId: 'windows-dns-server-audit',
   eventTypes: [
     {
-      id: '256 → 257',
-      description: 'Paired DNS query and response',
-      frequency: '85% routine starts',
+      id: '256',
+      description: 'Incoming DNS query',
+      frequency: 'One per routine transaction; also precedes ignored queries',
       category: 'network',
     },
     {
-      id: '536',
-      description: 'Cache record purged',
-      frequency: '8% routine',
+      id: '257',
+      description: 'Successful A reply',
+      frequency: 'Most routine transactions',
+      category: 'network',
+    },
+    {
+      id: '259',
+      description: 'Policy-matched query with no reply',
+      frequency:
+        'Three sparse baseline occurrences; three extra in anomaly mode',
+      category: 'network',
+    },
+    {
+      id: '577',
+      description: 'Create server-level Ignore policy',
+      frequency: 'One baseline; one extra in anomaly mode',
       category: 'configuration',
     },
     {
-      id: '514',
-      description: 'Zone updated',
-      frequency: '5% routine',
-      category: 'configuration',
-    },
-    {
-      id: '540',
-      description: 'Root hints modified',
-      frequency: '2% routine',
-      category: 'configuration',
-    },
-    {
-      id: '577 → 580',
-      description: 'Policy created then deleted',
-      frequency: 'Anomaly only',
+      id: '580',
+      description: 'Delete server-level Ignore policy',
+      frequency: 'One baseline; one extra in anomaly mode',
       category: 'configuration',
     },
   ],
   realismFeatures: [
-    'Audit and Analytical channels retain native event IDs and field names.',
-    'Normal DNS query and response share QNAME and XID.',
-    'Anomaly ties the Ignore policy criteria to unanswered query names.',
+    'Audit and Analytical channels retain distinct event IDs and provider fields.',
+    '256/257 and 256/259 pairs share QNAME, XID and client; successful replies have valid DNS packet bytes.',
+    'The same policy, client and QNAME occur in both modes at different intervals.',
+    'Policy-hit 259 values and a full 580 collector record await native capture; output is parsed JSON, not XML or ETL.',
   ],
   parameters: [
     {
@@ -71,156 +73,155 @@ export const windowsDnsServerAudit: GeneratorMeta = {
     {
       name: 'admin_name',
       defaultValue: 'DNSAdmin',
-      description: 'Audit actor',
+      description: 'Policy-change actor',
     },
     {
       name: 'client_ip',
       defaultValue: '10.20.4.17',
-      description: 'Anomaly query source',
+      description: 'Client for ignored queries',
     },
     {
       name: 'normal_zone',
       defaultValue: 'corp.example',
-      description: 'Routine DNS zone',
+      description: 'Authoritative DNS zone',
     },
     {
       name: 'anomaly_zone',
       defaultValue: 'updates.corp.example',
-      description: 'Targeted DNS zone',
+      description: 'Ignore-policy QNAME suffix',
     },
     {
       name: 'policy_name',
       defaultValue: 'ShadowIgnore',
-      description: 'Short-lived policy name',
+      description: 'Policy name in both modes',
     },
     {
       name: 'anomaly_interval_events',
-      defaultValue: '250',
-      description: 'Routine starts between chains',
+      defaultValue: '3600',
+      description: 'Routine transactions before the short sequence',
     },
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description:
-        'Emit anomaly chain alongside background; false keeps background only',
+      description: 'Include the short burst; false emits baseline only',
     },
   ],
   sampleOutputs: [
     {
-      title: 'DNS Ignore policy created',
+      title: 'Ignored DNS query',
       json: String.raw`{
-  "@timestamp": "2026-09-25T14:34:02+00:00",
+  "@timestamp": "2026-09-25T18:53:12.003000+00:00",
   "data_stream": {
-    "dataset": "microsoft_dnsserver.audit",
+    "dataset": "microsoft_dnsserver.analytical",
     "namespace": "default",
     "type": "logs"
+  },
+  "dns": {
+    "id": "51115",
+    "question": {
+      "name": "beacon.updates.corp.example",
+      "registered_domain": "corp.example",
+      "top_level_domain": "example",
+      "type": "A"
+    }
   },
   "ecs": {
     "version": "8.17.0"
   },
   "event": {
-    "action": "POLICY_OP",
-    "agent_id_status": "verified",
     "category": [
-      "configuration"
+      "network"
     ],
-    "code": "577",
-    "created": "2026-09-25T14:34:02+00:00",
-    "dataset": "microsoft_dnsserver.audit",
-    "ingested": "2026-09-25T14:34:02+00:00",
+    "code": "259",
+    "dataset": "microsoft_dnsserver.analytical",
     "kind": "event",
     "provider": "Microsoft-Windows-DNSServer",
-    "sequence": 9812,
+    "severity": 2,
     "type": [
-      "creation"
+      "protocol"
     ]
   },
   "host": {
-    "architecture": "x86_64",
     "hostname": "dns-01.corp.example",
-    "id": "d0500000-1111-4444-8888-123456789abc",
     "ip": [
       "10.20.0.53"
     ],
-    "mac": [
-      "02-42-AC-11-00-53"
-    ],
     "name": "dns-01.corp.example",
     "os": {
-      "build": "20348.2322",
       "family": "windows",
-      "kernel": "10.0.20348.2322 (WinBuild.160101.0800)",
       "name": "Windows Server 2022 Datacenter",
       "platform": "windows",
-      "type": "windows",
-      "version": "10.0"
+      "type": "windows"
     }
   },
   "input": {
-    "type": "winlog"
+    "type": "etw"
   },
   "log": {
-    "level": "information"
+    "file": {
+      "path": "Microsoft-Windows-DNSServer-Analytical.etl"
+    },
+    "level": "error"
   },
-  "message": "A server level policy ShadowIgnore for Query processing has been created on server dns-01.corp.example with following properties: Processing order:1; Criteria:FQDN=EQ,*.updates.corp.example; Action:Ignore; Condition:And; IsEnabled:True.",
+  "message": "IGNORED_QUERY: TCP=0; InterfaceIP=10.20.0.53; Source=10.20.4.17; Reason=Policy; QNAME=beacon.updates.corp.example.; QTYPE=1; XID=51115; Zone=corp.example; PolicyName=ShadowIgnore; AdditionalInfo = VirtualizationInstance: .",
   "microsoft_dnsserver": {
-    "audit": {
-      "action": "Ignore",
-      "condition": "And",
-      "criteria": "FQDN=EQ,*.updates.corp.example",
-      "is_enabled": "True",
-      "name_server": "dns-01.corp.example",
-      "policy": "ShadowIgnore",
-      "processing_order": "1",
-      "type": "Query processing"
-    }
-  },
-  "process": {
-    "pid": 852,
-    "thread": {
-      "id": 7708
+    "analytical": {
+      "additional_info": ".",
+      "description": "Ignored query",
+      "interface_ip": "10.20.0.53",
+      "policy_name": "ShadowIgnore",
+      "question_name": "beacon.updates.corp.example.",
+      "question_type": "A",
+      "reason": "Policy",
+      "source": {
+        "ip": "10.20.4.17"
+      },
+      "xid": "51115",
+      "zone": "corp.example"
     }
   },
   "related": {
-    "user": [
-      "DNSAdmin"
+    "ip": [
+      "10.20.4.17"
     ]
   },
-  "tags": [
-    "preserve_duplicate_custom_fields"
-  ],
-  "user": {
-    "name": "DNSAdmin"
+  "source": {
+    "ip": "10.20.4.17"
   },
   "winlog": {
-    "api": "wineventlog",
-    "channel": "Microsoft-Windows-DNSServer/Audit",
-    "computer_name": "dns-01.corp.example",
+    "channel": "Microsoft-Windows-DNS-Server/Analytical",
     "event_data": {
-      "Action": "Ignore",
-      "Condition": "And",
-      "Criteria": "FQDN=EQ,*.updates.corp.example",
-      "IsEnabled": "True",
-      "Policy": "ShadowIgnore",
-      "ProcessingOrder": "1",
-      "ServerName": "dns-01.corp.example",
-      "Type": "Query processing"
+      "AdditionalInfo": ".",
+      "InterfaceIP": "10.20.0.53",
+      "PolicyName": "ShadowIgnore",
+      "QNAME": "beacon.updates.corp.example.",
+      "QTYPE": "1",
+      "Reason": "Policy",
+      "Source": "10.20.4.17",
+      "TCP": "0",
+      "XID": "51115",
+      "Zone": "corp.example"
     },
-    "event_id": "577",
-    "keywords": [
-      "AUDIT_POLICY"
+    "flags": [
+      "64_BIT_HEADER",
+      "EXTENDED_INFO",
+      "PROCESSOR_INDEX"
     ],
-    "opcode": "Info",
+    "flags_raw": "0x241",
+    "keywords": [
+      "IGNORED_QUERY"
+    ],
+    "keywords_raw": "0x8000000000000008",
+    "level": "Error",
+    "level_raw": 2,
+    "opcode_raw": 0,
     "provider_guid": "{eb79061a-a566-4698-9119-3ed2807060e7}",
+    "provider_message": "Microsoft-Windows-DNS-Server",
     "provider_name": "Microsoft-Windows-DNSServer",
-    "record_id": "9812",
-    "task": "POLICY_OP",
-    "user": {
-      "domain": "dns-01.corp.example",
-      "identifier": "S-1-5-21-1000000000-1000000000-1000000000-500",
-      "name": "DNSAdmin",
-      "type": "User"
-    }
+    "session": "Microsoft-Windows-DNSServer-Analytical.etl",
+    "task": "LOOK_UP",
+    "task_raw": 1,
+    "version": 0
   }
 }`,
     },
