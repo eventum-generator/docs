@@ -12,7 +12,7 @@ export const securityCiscoFmcAudit: GeneratorMeta = {
   highlights: [
     'Cisco-published FMC-AUDIT management actions',
     'Network object creation followed by NAT policy save',
-    'Separate background-only mode',
+    'Independent management changes also occur in background mode',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
@@ -22,37 +22,37 @@ export const securityCiscoFmcAudit: GeneratorMeta = {
     {
       id: 'nat_policy_page_view',
       description: 'NAT policy editor Page View',
-      frequency: '~65% routine',
+      frequency: '~53% background',
       category: 'web',
     },
     {
       id: 'nat_page_view',
       description: 'NAT Page View',
-      frequency: '~25% routine',
+      frequency: '~20% background',
       category: 'web',
     },
     {
       id: 'login_success',
       description: 'System login success',
-      frequency: '~10% routine',
+      frequency: '~8% background',
       category: 'authentication',
     },
     {
       id: 'network_object_create',
       description: 'NetworkObject create',
-      frequency: 'Anomaly only',
+      frequency: '~6% background; also in sequence',
       category: 'configuration',
     },
     {
       id: 'nat_policy_save',
       description: 'NAT policy save',
-      frequency: 'Anomaly only',
+      frequency: '~6% background; also in sequence',
       category: 'configuration',
     },
     {
       id: 'predeploy_config_generation_complete',
       description: 'Pre-deploy task completion',
-      frequency: 'Anomaly only',
+      frequency: '~6% background; also in sequence',
       category: 'configuration',
     },
   ],
@@ -60,6 +60,7 @@ export const securityCiscoFmcAudit: GeneratorMeta = {
     'FMC-originating Syslog syntax from Cisco 7.4.0 examples',
     'Stable administrator and source address across console changes',
     'No inferred policy ID or deployment result on the task line',
+    'Three-minute management sequence in a five-minute detection window',
   ],
   parameters: [
     {
@@ -97,7 +98,7 @@ export const securityCiscoFmcAudit: GeneratorMeta = {
     {
       title: 'FMC network object creation',
       json: String.raw`{
-  "@timestamp": "2026-09-25T14:23:14+00:00",
+  "@timestamp": "2026-09-25T14:52:00+00:00",
   "cisco": {
     "fmc": {
       "audit": {
@@ -117,7 +118,7 @@ export const securityCiscoFmcAudit: GeneratorMeta = {
     "code": "FMC-AUDIT",
     "dataset": "cisco.fmc.audit",
     "kind": "event",
-    "original": "Sep 25 14:23:14 firepower: [FMC-AUDIT] sfdccsm: admin@198.51.100.44, Objects > Object Management > NetworkObject, create csm-lab",
+    "original": "Sep 25 14:52:00 firepower: [FMC-AUDIT] sfdccsm: admin@198.51.100.44, Objects > Object Management > NetworkObject, create csm-lab",
     "type": [
       "creation"
     ]

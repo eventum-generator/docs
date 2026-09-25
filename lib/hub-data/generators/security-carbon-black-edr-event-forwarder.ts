@@ -15,7 +15,7 @@ export const securityCarbonBlackEdrEventForwarder: GeneratorMeta = {
   highlights: [
     'Five vendor-documented endpoint JSON event types',
     'All 84 native field positions from the examples',
-    'Process and sensor GUIDs link the five-step chain',
+    'Process and sensor GUIDs link the five steps within 4 seconds',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
@@ -24,19 +24,19 @@ export const securityCarbonBlackEdrEventForwarder: GeneratorMeta = {
     {
       id: 'ingress.event.procstart',
       description: 'Process start',
-      frequency: 'About 41%',
+      frequency: 'About 40%',
       category: 'process',
     },
     {
       id: 'ingress.event.netconn',
       description: 'Outbound TCP connection',
-      frequency: 'About 41%',
+      frequency: 'About 40%',
       category: 'network',
     },
     {
       id: 'ingress.event.childproc',
       description: 'Child process creation',
-      frequency: 'Below 1%; only in anomaly mode',
+      frequency: 'About 4%; present in both modes',
       category: 'process',
     },
     {
@@ -48,13 +48,13 @@ export const securityCarbonBlackEdrEventForwarder: GeneratorMeta = {
     {
       id: 'ingress.event.filemod',
       description: 'File last-write change',
-      frequency: 'About 12%',
+      frequency: 'About 11%',
       category: 'file',
     },
   ],
   realismFeatures: [
     'The native payload and event.original follow full Carbon Black EDR Event Forwarder JSON examples.',
-    'Background sensors also make independent registry and file changes; the chain is identified by process and sensor links.',
+    'All five event types occur in background, including PowerShell and child-process start pairs on the chain sensor; correlation needs process and sensor links.',
     'KUMA 4.2 lists a CEF syslog normalizer for Carbon Black EDR, which cannot parse this separate JSON stream.',
   ],
   parameters: [
@@ -104,7 +104,7 @@ export const securityCarbonBlackEdrEventForwarder: GeneratorMeta = {
       title: 'Generated EDR registry event',
       json: String.raw`
 {
-  "@timestamp": "2026-09-25T14:38:32+00:00",
+  "@timestamp": "2026-09-25T14:53:12+00:00",
   "carbon_black": {
     "edr": {
       "action": "writeval",
@@ -112,14 +112,14 @@ export const securityCarbonBlackEdrEventForwarder: GeneratorMeta = {
       "cb_server": "cb-01.example.test",
       "computer_name": "WS-FIN-01",
       "event_type": "regmod",
-      "link_process": "https://cb-01.example.test/#analyze/00000007-0000-3830-a545-1e222047f361/1",
+      "link_process": "https://cb-01.example.test/#analyze/00000007-0000-7470-7708-38e8b8dc068b/1",
       "link_sensor": "https://cb-01.example.test/#/host/7",
       "md5": "E3F7D643F0133A6BCB598EAD3B4F1C76",
       "path": "\\registry\\user\\s-1-5-21-1000-1000-1000-1001\\software\\microsoft\\windows\\currentversion\\run\\updater",
-      "pid": 5442,
-      "process_guid": "00000007-0000-3830-a545-1e222047f361",
+      "pid": 2003,
+      "process_guid": "00000007-0000-7470-7708-38e8b8dc068b",
       "sensor_id": 7,
-      "timestamp": 1790347112,
+      "timestamp": 1790347992,
       "type": "ingress.event.regmod"
     }
   },
@@ -133,7 +133,7 @@ export const securityCarbonBlackEdrEventForwarder: GeneratorMeta = {
     ],
     "dataset": "carbon_black_edr.event_forwarder",
     "kind": "event",
-    "original": "{\"action\": \"writeval\", \"actiontype\": 2, \"cb_server\": \"cb-01.example.test\", \"computer_name\": \"WS-FIN-01\", \"event_type\": \"regmod\", \"link_process\": \"https://cb-01.example.test/#analyze/00000007-0000-3830-a545-1e222047f361/1\", \"link_sensor\": \"https://cb-01.example.test/#/host/7\", \"md5\": \"E3F7D643F0133A6BCB598EAD3B4F1C76\", \"path\": \"\\\\registry\\\\user\\\\s-1-5-21-1000-1000-1000-1001\\\\software\\\\microsoft\\\\windows\\\\currentversion\\\\run\\\\updater\", \"pid\": 5442, \"process_guid\": \"00000007-0000-3830-a545-1e222047f361\", \"sensor_id\": 7, \"timestamp\": 1790347112, \"type\": \"ingress.event.regmod\"}",
+    "original": "{\"action\": \"writeval\", \"actiontype\": 2, \"cb_server\": \"cb-01.example.test\", \"computer_name\": \"WS-FIN-01\", \"event_type\": \"regmod\", \"link_process\": \"https://cb-01.example.test/#analyze/00000007-0000-7470-7708-38e8b8dc068b/1\", \"link_sensor\": \"https://cb-01.example.test/#/host/7\", \"md5\": \"E3F7D643F0133A6BCB598EAD3B4F1C76\", \"path\": \"\\\\registry\\\\user\\\\s-1-5-21-1000-1000-1000-1001\\\\software\\\\microsoft\\\\windows\\\\currentversion\\\\run\\\\updater\", \"pid\": 2003, \"process_guid\": \"00000007-0000-7470-7708-38e8b8dc068b\", \"sensor_id\": 7, \"timestamp\": 1790347992, \"type\": \"ingress.event.regmod\"}",
     "type": [
       "change"
     ]
@@ -147,9 +147,9 @@ export const securityCarbonBlackEdrEventForwarder: GeneratorMeta = {
     "vendor": "Carbon Black"
   },
   "process": {
-    "entity_id": "00000007-0000-3830-a545-1e222047f361",
+    "entity_id": "00000007-0000-7470-7708-38e8b8dc068b",
     "executable": "c:\\windows\\system32\\windowspowershell\\v1.0\\powershell.exe",
-    "pid": 5442
+    "pid": 2003
   },
   "registry": {
     "path": "\\registry\\user\\s-1-5-21-1000-1000-1000-1001\\software\\microsoft\\windows\\currentversion\\run\\updater"

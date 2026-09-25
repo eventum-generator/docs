@@ -39,7 +39,7 @@ export const applicationSharepointServerUls: GeneratorMeta = {
   ],
   realismFeatures: [
     'Tab-separated event.original preserves all nine ULS columns.',
-    'Linked records retain workflow object IDs and use one correlation ID per pass.',
+    'Linked records retain workflow object IDs and use one correlation ID per pass within 20 ms.',
     'The source is diagnostic ULS, not SharePoint audit; Verbose and VerboseEx tracing must be enabled.',
   ],
   format: ['JSON', 'ECS', 'ULS tab-separated'],
@@ -58,7 +58,7 @@ export const applicationSharepointServerUls: GeneratorMeta = {
     {
       name: 'suspect_workflow_id',
       defaultValue: '11111111-2222-4333-8444-555555555555',
-      description: 'Workflow instance in the anomaly chain',
+      description: 'Workflow instance in one benign pass and the anomaly chain',
     },
     {
       name: 'routine_workflows_before_chain',
@@ -70,7 +70,7 @@ export const applicationSharepointServerUls: GeneratorMeta = {
     {
       title: 'Workflow association lookup in a repeated pass',
       json: String.raw`{
-  "@timestamp": "2026-09-25T16:04:00+00:00",
+  "@timestamp": "2026-09-25T14:52:13.010000+00:00",
   "ecs": {
     "version": "8.17.0"
   },
@@ -83,7 +83,7 @@ export const applicationSharepointServerUls: GeneratorMeta = {
     "dataset": "sharepoint.uls",
     "kind": "event",
     "module": "sharepoint",
-    "original": "09/25/2026 16:04:00.00\tOWSTIMER.EXE (0x9318)\t0x6DF0\tSharePoint Foundation\tDatabase\tb6p4\tVerboseEx\tSqlCommand: ; EXEC proc_getworkflowassociations '89731438-aba4-4f6c-a763-af07abc5c7e0', '16dd7828-193f-4e28-bfe9-1a3aa346df89', '0a4d8bdd-e7d3-47f2-95b9-209659d05e9c', 'ead1e62d-fdd2-4eb2-a52d-38bdb8f47960', @contenttypeid, @RequestGuid OUTPUT\tc997636f-eb02-4e6c-aa4f-d62630a183f2",
+    "original": "09/25/2026 14:52:13.01\tOWSTIMER.EXE (0x9318)\t0x6DF0\tSharePoint Foundation\tDatabase\tb6p4\tVerboseEx\tSqlCommand: ; EXEC proc_getworkflowassociations '285c2d48-d9c9-45d9-a726-8bc5033790b8', 'acff57c3-ea68-4eda-8f1d-3c641959299f', '6077cc34-5f9c-4bdd-8beb-c2aafe0a5b9e', '39fae561-5463-4dc7-8a8a-65ab28c8cb9b', @contenttypeid, @RequestGuid OUTPUT\t04bf54d9-3c8e-4034-ba8d-2d5749d91f44",
     "type": [
       "info"
     ]
@@ -94,7 +94,7 @@ export const applicationSharepointServerUls: GeneratorMeta = {
   "log": {
     "level": "verboseex"
   },
-  "message": "SqlCommand: ; EXEC proc_getworkflowassociations '89731438-aba4-4f6c-a763-af07abc5c7e0', '16dd7828-193f-4e28-bfe9-1a3aa346df89', '0a4d8bdd-e7d3-47f2-95b9-209659d05e9c', 'ead1e62d-fdd2-4eb2-a52d-38bdb8f47960', @contenttypeid, @RequestGuid OUTPUT",
+  "message": "SqlCommand: ; EXEC proc_getworkflowassociations '285c2d48-d9c9-45d9-a726-8bc5033790b8', 'acff57c3-ea68-4eda-8f1d-3c641959299f', '6077cc34-5f9c-4bdd-8beb-c2aafe0a5b9e', '39fae561-5463-4dc7-8a8a-65ab28c8cb9b', @contenttypeid, @RequestGuid OUTPUT",
   "process": {
     "name": "OWSTIMER.EXE",
     "pid": 37656,
@@ -115,20 +115,20 @@ export const applicationSharepointServerUls: GeneratorMeta = {
     "uls": {
       "area": "SharePoint Foundation",
       "category": "Database",
-      "correlation_id": "c997636f-eb02-4e6c-aa4f-d62630a183f2",
+      "correlation_id": "04bf54d9-3c8e-4034-ba8d-2d5749d91f44",
       "event_id": "b6p4",
       "level": "VerboseEx",
-      "message": "SqlCommand: ; EXEC proc_getworkflowassociations '89731438-aba4-4f6c-a763-af07abc5c7e0', '16dd7828-193f-4e28-bfe9-1a3aa346df89', '0a4d8bdd-e7d3-47f2-95b9-209659d05e9c', 'ead1e62d-fdd2-4eb2-a52d-38bdb8f47960', @contenttypeid, @RequestGuid OUTPUT",
+      "message": "SqlCommand: ; EXEC proc_getworkflowassociations '285c2d48-d9c9-45d9-a726-8bc5033790b8', 'acff57c3-ea68-4eda-8f1d-3c641959299f', '6077cc34-5f9c-4bdd-8beb-c2aafe0a5b9e', '39fae561-5463-4dc7-8a8a-65ab28c8cb9b', @contenttypeid, @RequestGuid OUTPUT",
       "process": "OWSTIMER.EXE (0x9318)",
       "thread_id": "0x6DF0",
-      "timestamp_local": "09/25/2026 16:04:00.00"
+      "timestamp_local": "09/25/2026 14:52:13.01"
     },
     "workflow": {
       "instance_id": "11111111-2222-4333-8444-555555555555",
-      "item_id": "0a4d8bdd-e7d3-47f2-95b9-209659d05e9c",
-      "list_id": "ead1e62d-fdd2-4eb2-a52d-38bdb8f47960",
-      "site_id": "89731438-aba4-4f6c-a763-af07abc5c7e0",
-      "web_id": "16dd7828-193f-4e28-bfe9-1a3aa346df89"
+      "item_id": "6077cc34-5f9c-4bdd-8beb-c2aafe0a5b9e",
+      "list_id": "39fae561-5463-4dc7-8a8a-65ab28c8cb9b",
+      "site_id": "285c2d48-d9c9-45d9-a726-8bc5033790b8",
+      "web_id": "acff57c3-ea68-4eda-8f1d-3c641959299f"
     }
   }
 }`,
