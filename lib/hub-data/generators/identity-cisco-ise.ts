@@ -1,4 +1,4 @@
-/* eslint-disable sonarjs/no-hardcoded-ip -- Synthetic IPs document generator defaults. */
+/* eslint-disable sonarjs/no-hardcoded-ip -- Synthetic addresses document generator defaults. */
 import type { GeneratorMeta } from '@/lib/hub-types';
 
 export const identityCiscoIse: GeneratorMeta = {
@@ -6,117 +6,96 @@ export const identityCiscoIse: GeneratorMeta = {
   displayName: 'Cisco ISE Administrative Audit',
   category: 'identity',
   description:
-    'Cisco ISE administrative syslog for login and configuration events, with a switchable authentication-to-log-routing anomaly.',
-  dataSource: 'Cisco ISE Administrative and Operational Audit',
+    'Cisco ISE Administrative and Operational Audit remote syslog with linked administrator sessions and a switchable log-routing sequence.',
+  dataSource: 'Cisco ISE 3.4 CISE_Administrative_and_Operational_Audit',
   format: ['JSON', 'ECS', 'Syslog'],
-  eventCount: 5,
+  eventCount: 4,
   templateCount: 1,
-  generatorId: 'identity-cisco-ise',
   highlights: [
-    '45/45 selected Elastic fixture fields',
-    'Native 51000/51001/52001/52002 codes',
-    'Correlated log-routing change',
+    'Four administrative codes in both modes',
+    'Native syslog envelope in event.original',
+    'One switchable seven-event session',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'Three failed admin logins, success, Passed Authentications logging disabled, then a remote log target deleted.',
+    'After at least 100 routine events, three failed GUI logins are followed by success, disabling Passed Authentications logging and RemoteCollector, then logout for one administrator and IP.',
+  generatorId: 'identity-cisco-ise',
   eventTypes: [
     {
       id: '51001',
       description: 'Administrator login succeeded',
-      frequency: '65% routine',
+      frequency: 'About 47% of routine events',
       category: 'authentication',
     },
     {
       id: '51002',
       description: 'Administrator logged off',
-      frequency: '20% routine',
+      frequency: 'About 47% of routine events',
       category: 'authentication',
     },
     {
       id: '51000',
       description: 'Administrator login failed',
-      frequency: '10% routine',
+      frequency: 'About 3% of routine events',
       category: 'authentication',
     },
     {
       id: '52001',
-      description: 'Configuration changed',
-      frequency: '5% routine',
-      category: 'configuration',
-    },
-    {
-      id: '52002',
-      description: 'Configuration deleted',
-      frequency: 'Anomaly only',
+      description: 'Logging category or remote target changed',
+      frequency: 'About 3% of routine events',
       category: 'configuration',
     },
   ],
   realismFeatures: [
-    'Remote target syslog envelope and message code match Cisco ISE samples.',
-    'Administrative and Operational Audit is kept separate from RADIUS endpoint events.',
-    'Native AdminName and AdminIPAddress link login and logging changes.',
+    'Five-minute administrative cadence; each logout follows a successful login for the same actor.',
+    'Syslog message number and payload sequence advance independently.',
+    'The same accounts, source IPs and edited objects occur in both modes.',
+    'Exact 3.4 wire bytes for the two targeted 52001 changes await an appliance capture; RADIUS and TACACS are outside this pack.',
   ],
   parameters: [
     {
       name: 'ise_name',
       defaultValue: 'ise-01.corp.example',
-      description: 'ISE node name',
-    },
-    {
-      name: 'ise_ip',
-      defaultValue: '10.40.0.11',
-      description: 'ISE node address',
+      description: 'ISE hostname in syslog header',
     },
     {
       name: 'normal_admin',
       defaultValue: 'iseops',
-      description: 'Routine administrator',
+      description: 'Primary routine administrator',
     },
     {
       name: 'normal_admin_ip',
       defaultValue: '10.40.1.20',
-      description: 'Routine admin address',
+      description: 'Primary routine administrator address',
     },
     {
       name: 'anomaly_admin',
       defaultValue: 'admin',
-      description: 'Chain administrator',
+      description: 'Administrator also used in background',
     },
     {
       name: 'anomaly_admin_ip',
       defaultValue: '10.99.2.41',
-      description: 'Chain source',
+      description: 'Administrator source also used in background',
     },
     {
-      name: 'anomaly_interval_events',
-      defaultValue: '250',
-      description: 'Routine events between chains',
+      name: 'anomaly_after_events',
+      defaultValue: '100',
+      description: 'Minimum routine events before one chain',
     },
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description:
-        'Emit anomaly chain alongside background; false keeps background only',
+      description: 'Include the linked session; false emits background only',
     },
   ],
   sampleOutputs: [
     {
-      title: 'ISE authentication logging change',
+      title: 'ISE logging category changed',
       json: String.raw`{
-  "@timestamp": "2026-09-25T14:07:17+00:00",
-  "agent": {
-    "ephemeral_id": "15e00000-1111-4444-8888-123456789abc",
-    "id": "15e00000-1111-4444-8888-123456789abc",
-    "name": "syslog-collector",
-    "type": "filebeat",
-    "version": "8.17.0"
-  },
+  "@timestamp": "2026-09-26T16:35:05.757+00:00",
   "cisco_ise": {
     "log": {
-      "acs": {
-        "instance": "ise-01.corp.example"
-      },
       "admin": {
         "interface": "GUI"
       },
@@ -124,22 +103,11 @@ export const identityCiscoIse: GeneratorMeta = {
       "category": {
         "name": "CISE_Administrative_and_Operational_Audit"
       },
-      "component": "Administration",
       "config_change": {
-        "attributes": [
-          {
-            "name": "Local Logging",
-            "value": "disable"
-          },
-          {
-            "name": "Assigned Targets",
-            "value": []
-          }
-        ],
-        "data": "Object modified: Local Logging = disable; Assigned Targets = {}"
+        "data": "Object modified:\\, Log Severity Level = INFO\\,Local Logging = disable\\,Assigned Targets = {}"
       },
       "config_version": {
-        "id": 3177
+        "id": 2742
       },
       "failure": {
         "flag": false
@@ -148,7 +116,7 @@ export const identityCiscoIse: GeneratorMeta = {
       "message": {
         "code": "52001",
         "description": "Configuration-Changes: Changed configuration",
-        "id": "0000108191"
+        "id": "0000027657"
       },
       "object": {
         "name": "Passed Authentications",
@@ -172,17 +140,7 @@ export const identityCiscoIse: GeneratorMeta = {
       "name": "admin"
     }
   },
-  "data_stream": {
-    "dataset": "cisco_ise.log",
-    "namespace": "default",
-    "type": "logs"
-  },
   "ecs": {
-    "version": "8.17.0"
-  },
-  "elastic_agent": {
-    "id": "15e00000-1111-4444-8888-123456789abc",
-    "snapshot": false,
     "version": "8.17.0"
   },
   "event": {
@@ -194,9 +152,8 @@ export const identityCiscoIse: GeneratorMeta = {
     "code": "52001",
     "dataset": "cisco_ise.log",
     "kind": "event",
-    "original": "<181>Sep 25 14:07:17 ise-01.corp.example CISE_Administrative_and_Operational_Audit 0000108191 1 0 2026-09-25 14:07:17.000 +00:00 0000108191 52001 NOTICE Configuration-Changes: Changed configuration, ConfigVersionId=3177, AdminInterface=GUI, AdminIPAddress=10.99.2.41, AdminName=admin, FailureFlag=false, RequestResponseType=initial, ConfigChangeData=Object modified: Local Logging = disable; Assigned Targets = {}, ObjectType=UPSCategory, ObjectName=Passed Authentications, OperationMessageText=LoggingCategories \"Passed Authentications\" has been edited successfully.,",
-    "outcome": "success",
-    "sequence": 108191,
+    "original": "<181>Sep 26 16:35:05 ise-01.corp.example CISE_Administrative_and_Operational_Audit 0000027657 1 0 2026-09-26 16:35:05.757 +00:00 0000188543 52001 NOTICE Configuration-Changes: Changed configuration, ConfigVersionId=2742, FailureFlag=false, RequestResponseType=initial, AdminInterface=GUI, AdminIPAddress=10.99.2.41, AdminName=admin, ConfigChangeData=Object modified:\\, Log Severity Level = INFO\\,Local Logging = disable\\,Assigned Targets = {}, ObjectType=UPSCategory, ObjectName=Passed Authentications, OperationMessageText=LoggingCategories \"Passed Authentications\" has been edited successfully.,",
+    "sequence": 188543,
     "timezone": "+00:00",
     "type": [
       "change",
@@ -204,19 +161,10 @@ export const identityCiscoIse: GeneratorMeta = {
     ]
   },
   "host": {
-    "hostname": "ise-01.corp.example",
-    "ip": [
-      "10.40.0.11"
-    ]
-  },
-  "input": {
-    "type": "udp"
+    "hostname": "ise-01.corp.example"
   },
   "log": {
     "level": "notice",
-    "source": {
-      "address": "10.40.0.11:514"
-    },
     "syslog": {
       "priority": 181,
       "severity": {
@@ -224,24 +172,24 @@ export const identityCiscoIse: GeneratorMeta = {
       }
     }
   },
-  "message": "2026-09-25 14:07:17.000 +00:00 0000108191 52001 NOTICE Configuration-Changes: Changed configuration, ConfigVersionId=3177, AdminInterface=GUI, AdminIPAddress=10.99.2.41, AdminName=admin, FailureFlag=false, RequestResponseType=initial, ConfigChangeData=Object modified: Local Logging = disable; Assigned Targets = {}, ObjectType=UPSCategory, ObjectName=Passed Authentications, OperationMessageText=LoggingCategories \"Passed Authentications\" has been edited successfully.,",
+  "message": "2026-09-26 16:35:05.757 +00:00 0000188543 52001 NOTICE Configuration-Changes: Changed configuration, ConfigVersionId=2742, FailureFlag=false, RequestResponseType=initial, AdminInterface=GUI, AdminIPAddress=10.99.2.41, AdminName=admin, ConfigChangeData=Object modified:\\, Log Severity Level = INFO\\,Local Logging = disable\\,Assigned Targets = {}, ObjectType=UPSCategory, ObjectName=Passed Authentications, OperationMessageText=LoggingCategories \"Passed Authentications\" has been edited successfully.,",
+  "observer": {
+    "name": "ise-01.corp.example",
+    "product": "Identity Services Engine",
+    "vendor": "Cisco",
+    "version": "3.4"
+  },
   "related": {
     "hosts": [
       "ise-01.corp.example"
     ],
     "ip": [
-      "10.99.2.41",
-      "10.40.0.11"
+      "10.99.2.41"
     ],
     "user": [
       "admin"
     ]
   },
-  "tags": [
-    "preserve_original_event",
-    "cisco-ise",
-    "forwarded"
-  ],
   "user": {
     "name": "admin"
   }
