@@ -2,62 +2,80 @@
 import type { GeneratorMeta } from '@/lib/hub-types';
 
 export const networkMikrotikRouteros: GeneratorMeta = {
+  slug: 'network-mikrotik-routeros',
   displayName: 'MikroTik RouterOS Syslog',
   category: 'network',
   description:
-    'RouterOS DHCP, firewall and account syslog with an unusual administrator login followed by configuration edits.',
-  dataSource: 'MikroTik RouterOS remote syslog',
+    'RouterOS 7 account, configuration, DHCP and firewall syslog from one router, with a switchable linked administrator session.',
+  dataSource:
+    'RouterOS 7 BSD Syslog UDP, local0/info with topic prefix enabled',
   format: ['JSON', 'ECS', 'RFC 3164'],
   eventCount: 8,
+  templateCount: 1,
   highlights: [
-    '7/7 selected native elements',
-    'Vendor topic and message forms',
-    'Switchable admin configuration chain',
+    'Eight RouterOS action types in both modes',
+    'One event per minute from one router',
+    'One switchable five-event administrator session',
   ],
+  generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'Unusual Winbox login by admin, then mangle rule added, moved and changed by the same account on one router.',
+    'After 120 routine events, an external admin Winbox login is followed by mangle add, move and change, then logout over four minutes.',
+  generatorId: 'network-mikrotik-routeros',
   eventTypes: [
     {
       id: 'DHCP assigned',
-      description: 'Address assignment',
-      frequency: '45% routine weight',
+      description: 'Assign a client lease',
+      frequency: '5% of non-session routine slots, alternating with releases',
       category: 'network',
     },
     {
       id: 'DHCP deassigned',
-      description: 'Address release',
-      frequency: '22% routine weight',
+      description: 'Release an existing client lease',
+      frequency:
+        '5% of non-session routine slots, alternating with assignments',
       category: 'network',
     },
     {
       id: 'Firewall packet',
-      description: 'Packet log',
-      frequency: '25% routine weight',
+      description: 'Logged firewall traffic',
+      frequency: '95% of non-session routine slots',
       category: 'network',
     },
     {
       id: 'Winbox login',
-      description: 'Normal administrator login',
-      frequency: '5% routine weight',
+      description: 'Administrator session starts',
+      frequency: 'Daily sessions and one extra linked login when enabled',
       category: 'authentication',
     },
     {
       id: 'Winbox logout',
-      description: 'Normal administrator logout',
-      frequency: '3% routine weight',
+      description: 'Administrator session ends',
+      frequency: 'Daily sessions and one extra linked logout when enabled',
       category: 'authentication',
     },
     {
-      id: 'Mangle edit',
-      description: 'Rule add, move and change',
-      frequency: 'Anomaly only',
+      id: 'Mangle rule added',
+      description: 'Add a mangle rule',
+      frequency: 'Daily maintenance and one extra linked edit when enabled',
+      category: 'configuration',
+    },
+    {
+      id: 'Mangle rule moved',
+      description: 'Move a mangle rule',
+      frequency: 'Daily maintenance and one extra linked edit when enabled',
+      category: 'configuration',
+    },
+    {
+      id: 'Mangle rule changed',
+      description: 'Change a mangle rule',
+      frequency: 'Daily maintenance and one extra linked edit when enabled',
       category: 'configuration',
     },
   ],
   realismFeatures: [
-    'RFC 3164 transport with RouterOS topics and documented message bodies.',
-    'DHCP, firewall and account activity share one router identity.',
-    'Config records identify the user but do not invent a client IP.',
+    'DHCP releases follow assignments for eight bounded clients; firewall traffic varies by source and ports.',
+    'Background includes external admin sessions and all mangle edit actions, separated in time.',
+    'Constructed BSD Syslog message requires a specific remote action; exact UDP framing awaits a matching capture.',
   ],
   parameters: [
     {
@@ -65,11 +83,7 @@ export const networkMikrotikRouteros: GeneratorMeta = {
       defaultValue: 'mt-edge-01',
       description: 'Router hostname',
     },
-    {
-      name: 'router_ip',
-      defaultValue: '10.30.0.1',
-      description: 'Router IP',
-    },
+    { name: 'router_ip', defaultValue: '10.30.0.1', description: 'Router IP' },
     {
       name: 'normal_user',
       defaultValue: 'netops',
@@ -78,37 +92,38 @@ export const networkMikrotikRouteros: GeneratorMeta = {
     {
       name: 'normal_source_ip',
       defaultValue: '10.30.1.12',
-      description: 'Routine source',
+      description: 'Routine administrator source',
+    },
+    {
+      name: 'admin_internal_source_ip',
+      defaultValue: '10.30.1.11',
+      description: 'Internal maintenance source',
     },
     {
       name: 'anomaly_user',
       defaultValue: 'admin',
-      description: 'Anomaly administrator',
+      description: 'Administrator also present in background',
     },
     {
       name: 'anomaly_source_ip',
       defaultValue: '198.51.100.83',
-      description: 'Unusual source',
+      description: 'External administrator source also present in background',
     },
     {
-      name: 'anomaly_interval_events',
-      defaultValue: '240',
-      description: 'Routine events between chains',
+      name: 'anomaly_delay_events',
+      defaultValue: '120',
+      description: 'Routine events before the one linked session',
     },
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description: 'Enable correlated chain; false emits background only',
+      description: 'Include the linked session; false emits background only',
     },
   ],
-  slug: 'network-mikrotik-routeros',
-  generatorId: 'network-mikrotik-routeros',
-  templateCount: 1,
-  generationModes: ['background', 'anomaly'],
   sampleOutputs: [
     {
-      title: 'Mangle rule changed',
-      json: String.raw`{"@timestamp": "2026-09-25T11:46:14+00:00", "ecs": {"version": "8.17.0"}, "event": {"kind": "event", "module": "mikrotik", "dataset": "mikrotik.routeros.syslog", "category": ["configuration"], "type": ["info"], "action": "mangle_rule_changed", "original": "\u003c134\u003eSep 25 11:46:14 mt-edge-01 system,info mangle rule changed by admin"}, "message": "mangle rule changed by admin", "observer": {"hostname": "mt-edge-01", "ip": "10.30.0.1", "vendor": "MikroTik", "product": "RouterOS", "type": "router"}, "log": {"syslog": {"priority": 134, "facility": {"code": 16}, "severity": {"code": 6}}}, "mikrotik": {"topics": ["system", "info"]}, "user": {"name": "admin"}, "source": {"ip": null}}`,
+      title: 'Mangle rule moved',
+      json: String.raw`{"@timestamp": "2026-09-25T19:11:00+00:00", "ecs": {"version": "8.17.0"}, "event": {"kind": "event", "module": "mikrotik", "dataset": "mikrotik.routeros.syslog", "category": ["configuration"], "type": ["info"], "action": "mangle_rule_moved", "original": "<134>Sep 25 19:11:00 mt-edge-01 system,info mangle rule moved by admin"}, "message": "mangle rule moved by admin", "observer": {"hostname": "mt-edge-01", "ip": "10.30.0.1", "vendor": "MikroTik", "product": "RouterOS", "type": "router"}, "log": {"syslog": {"priority": 134, "facility": {"code": 16}, "severity": {"code": 6}}}, "mikrotik": {"topics": ["system", "info"]}, "user": {"name": "admin"}}`,
     },
   ],
 };
