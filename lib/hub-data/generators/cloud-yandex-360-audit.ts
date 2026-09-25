@@ -6,59 +6,60 @@ export const cloudYandex360Audit: GeneratorMeta = {
   category: 'cloud',
   dataSource: 'Yandex 360 organization audit-log API enriched events',
   description:
-    'Native Yandex 360 identity and Disk audit events with a switchable unusual-login, public-link and download sequence.',
+    'Yandex 360 organization sign-in and Disk audit items with a switchable linked file-sharing sequence.',
   generatorId: 'yandex-360-audit',
   eventCount: 6,
   templateCount: 1,
   highlights: [
-    'Native organization audit API item shape',
-    'Identity and Disk activity',
-    'Switchable four-event file exposure chain',
+    'Current organization audit API item shape',
+    'Six event types in both modes at one per minute',
+    'Switchable four-event file-sharing sequence',
   ],
   anomalyChain:
-    'An unusual admin login is followed by a view, public link and download URL for the same sensitive Disk file.',
+    'After 120 routine events, one admin signs in, views a sensitive file, creates an all/read public link and downloads the file over three minute gaps.',
   eventTypes: [
     {
-      id: 'disk_fs-view',
-      description: 'View a Disk file',
-      frequency: '36% baseline',
-      category: 'file',
-    },
-    {
       id: 'id_cookie.set',
-      description: 'Browser or mobile login',
-      frequency: '32% baseline',
+      description: 'Browser or mobile sign-in',
+      frequency: '25 routine weight',
       category: 'authentication',
     },
     {
+      id: 'disk_fs-view',
+      description: 'View a Disk file',
+      frequency: '37 routine weight',
+      category: 'file',
+    },
+    {
       id: 'disk_fs-get-download-url',
-      description: 'Get a file download URL',
-      frequency: '18% baseline',
+      description: 'File download event',
+      frequency: '18 routine weight',
       category: 'file',
     },
     {
       id: 'disk_fs-store',
       description: 'Upload or edit a file',
-      frequency: '10% baseline',
-      category: 'file',
-    },
-    {
-      id: 'disk_fs-set-private',
-      description: 'Remove public sharing',
-      frequency: '4% baseline',
+      frequency: '12 routine weight',
       category: 'file',
     },
     {
       id: 'disk_fs-set-public',
       description: 'Create a public file link',
-      frequency: 'Chain only',
+      frequency: '5 routine weight',
+      category: 'file',
+    },
+    {
+      id: 'disk_fs-set-private',
+      description: 'Remove a public file link',
+      frequency: '3 routine weight',
       category: 'file',
     },
   ],
   realismFeatures: [
-    'One native enriched audit item per line, with stable user IDs and realistic type-specific metadata.',
-    'The chain reuses the organization, UID, IP and file path while event and request IDs remain distinct.',
-    'Background weights are illustrative; Yandex does not publish production frequencies.',
+    'One enrichedEvent item per line; sign-in shape follows the complete current API example.',
+    'Disk link removal follows link creation for the same file.',
+    'Both modes contain the same admin, address and file actions at different intervals.',
+    'The current API lists Disk fields but supplies no complete Disk raw item; exact request ID and path spelling remain unverified.',
   ],
   format: ['JSON'],
   generationModes: ['background', 'anomaly'],
@@ -66,7 +67,8 @@ export const cloudYandex360Audit: GeneratorMeta = {
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description: 'Include the correlated chain; false emits only background',
+      description:
+        'Include one short admin sequence; false emits background only',
     },
     {
       name: 'org_id',
@@ -76,27 +78,27 @@ export const cloudYandex360Audit: GeneratorMeta = {
     {
       name: 'organization_domain',
       defaultValue: 'corp.example',
-      description: 'Synthetic login domain',
+      description: 'Synthetic employee login domain',
     },
     {
-      name: 'suspicious_ip',
-      defaultValue: '198.51.100.42',
-      description: 'Unusual chain source address',
+      name: 'alternate_ip',
+      defaultValue: '203.0.113.42',
+      description: 'Alternate admin address used in both modes',
     },
     {
       name: 'compromised_login',
       defaultValue: 'admin@corp.example',
-      description: 'Account used in the chain',
+      description: 'Administrator account used in both modes',
     },
     {
       name: 'compromised_uid',
       defaultValue: '1130000000123456',
-      description: 'Stable actor ID in the chain',
+      description: 'Stable administrator user ID',
     },
     {
       name: 'sensitive_path',
       defaultValue: 'disk:/finance/payroll-2026.xlsx',
-      description: 'Disk path shared and downloaded',
+      description: 'File path used in both modes',
     },
   ],
   sampleOutputs: [
@@ -104,23 +106,23 @@ export const cloudYandex360Audit: GeneratorMeta = {
       title: 'Yandex 360 Audit Log event',
       json: String.raw`{
   "event": {
-    "idempotency_id": "d5ca0c5b-8567-4ca3-9494-f58b15d67bf5",
-    "ip": "10.20.7.32",
+    "idempotency_id": "5c744503-57f2-49ab-b732-b5ed6c9c1c09",
+    "ip": "198.51.100.90",
     "is_system": false,
     "meta": {
-      "device_id": null,
+      "device_id": "",
       "revision": "1"
     },
-    "occurred_at": "2026-09-25T11:59:58+00:00",
+    "occurred_at": "2026-09-25T17:37:00+00:00",
     "org_id": 1234567,
-    "request_id": "693e6f3a-a302-441f-95c3-3d55e563e3a0",
+    "request_id": "@309862,1790357820.0795600,9400041844236835,42f382873483621f9b081932b946ee40,1130000000123456,admin@corp.example",
     "service": "ID",
     "status": "Success",
     "type": "id_cookie.set",
-    "uid": 1130000000100005
+    "uid": 1130000000123456
   },
-  "user_login": "marina@corp.example",
-  "user_name": "marina"
+  "user_login": "admin@corp.example",
+  "user_name": "Администратор системы"
 }`,
     },
   ],
