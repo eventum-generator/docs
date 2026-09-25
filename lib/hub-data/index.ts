@@ -22,6 +22,7 @@ import { databaseSapHana } from './generators/database-sap-hana';
 import { dlpInfowatch } from './generators/dlp-infowatch';
 import { emailDovecotImap } from './generators/email-dovecot-imap';
 import { emailExchange } from './generators/email-exchange';
+import { emailKasperskyKlms } from './generators/email-kaspersky-klms';
 import { emailKasperskyKsmg } from './generators/email-kaspersky-ksmg';
 import { emailPostfix } from './generators/email-postfix';
 import { endpointSecretNet } from './generators/endpoint-secret-net';
@@ -54,6 +55,7 @@ import { networkFirewall } from './generators/network-firewall';
 import { networkFortigate } from './generators/network-fortigate';
 import { networkIdecoNgfw } from './generators/network-ideco-ngfw';
 import { networkJuniperSrx } from './generators/network-juniper-srx';
+import { networkKasperskyNgfw } from './generators/network-kaspersky-ngfw';
 import { networkMikrotikRouteros } from './generators/network-mikrotik-routeros';
 import { networkNetflow } from './generators/network-netflow';
 import { networkOpenvpnCommunity } from './generators/network-openvpn-community';
@@ -65,6 +67,7 @@ import { networkPowerdnsAuthoritative } from './generators/network-powerdns-auth
 import { networkSnort } from './generators/network-snort';
 import { networkUnbound } from './generators/network-unbound';
 import { networkUsergate } from './generators/network-usergate';
+import { networkVmwareNsxManager } from './generators/network-vmware-nsx-manager';
 import { networkWirelessAruba } from './generators/network-wireless-aruba';
 import { networkZeek } from './generators/network-zeek';
 import { proxyKasperskyKwts } from './generators/proxy-kaspersky-kwts';
@@ -79,9 +82,13 @@ import { securityHashicorpVault } from './generators/security-hashicorp-vault';
 import { securityKasperskyKata } from './generators/security-kaspersky-kata';
 import { securityKasperskyKsc } from './generators/security-kaspersky-ksc';
 import { securityPtNad } from './generators/security-pt-nad';
+import { securitySophosCentral } from './generators/security-sophos-central';
 import { securitySuricata } from './generators/security-suricata';
 import { securityWaf } from './generators/security-waf';
+import { virtualizationMicrosoftHypervVmms } from './generators/virtualization-microsoft-hyperv-vmms';
+import { virtualizationProxmoxVe } from './generators/virtualization-proxmox-ve';
 import { virtualizationVmware } from './generators/virtualization-vmware';
+import { virtualizationVmwareEsxiHostd } from './generators/virtualization-vmware-esxi-hostd';
 import { vpnCiscoAnyconnect } from './generators/vpn-cisco-anyconnect';
 import { vpnCitrixNetscaler } from './generators/vpn-citrix-netscaler';
 import { vpnPaloaltoGlobalprotect } from './generators/vpn-paloalto-globalprotect';
@@ -93,11 +100,15 @@ import { webNginx } from './generators/web-nginx';
 import { webSquidAccess } from './generators/web-squid-access';
 import { webTomcatJsonAccess } from './generators/web-tomcat-json-access';
 import { windowsActiveDirectory } from './generators/windows-active-directory';
+import { windowsAppLocker } from './generators/windows-applocker';
 import { windowsDhcpAudit } from './generators/windows-dhcp-audit';
 import { windowsDnsServerAudit } from './generators/windows-dns-server-audit';
+import { windowsGroupPolicyOperational } from './generators/windows-group-policy-operational';
 import { windowsPowershell } from './generators/windows-powershell';
+import { windowsRdpSessionOperational } from './generators/windows-rdp-session-operational';
 import { windowsSecurity } from './generators/windows-security';
 import { windowsSysmon } from './generators/windows-sysmon';
+import { windowsTaskSchedulerOperational } from './generators/windows-task-scheduler-operational';
 import type { GeneratorMeta } from '@/lib/hub-types';
 
 export const generators: GeneratorMeta[] = [
@@ -201,4 +212,15 @@ export const generators: GeneratorMeta[] = [
   emailDovecotImap,
   networkCiscoWlc9800,
   messagingApacheKafkaAuthorizer,
+  emailKasperskyKlms,
+  networkKasperskyNgfw,
+  securitySophosCentral,
+  windowsAppLocker,
+  windowsGroupPolicyOperational,
+  windowsTaskSchedulerOperational,
+  windowsRdpSessionOperational,
+  virtualizationVmwareEsxiHostd,
+  virtualizationMicrosoftHypervVmms,
+  virtualizationProxmoxVe,
+  networkVmwareNsxManager,
 ];
