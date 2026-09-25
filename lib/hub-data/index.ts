@@ -12,19 +12,25 @@ import { cloudGithubAudit } from './generators/cloud-github-audit';
 import { cloudM365Audit } from './generators/cloud-m365-audit';
 import { cloudYandex360Audit } from './generators/cloud-yandex-360-audit';
 import { cloudYandexAuditTrails } from './generators/cloud-yandex-audit-trails';
+import { databaseMariadbAudit } from './generators/database-mariadb-audit';
+import { databaseMongodbLog } from './generators/database-mongodb-log';
 import { databaseMssqlAudit } from './generators/database-mssql-audit';
 import { databaseMysqlAudit } from './generators/database-mysql-audit';
 import { databaseOracleUnifiedAudit } from './generators/database-oracle-unified-audit';
 import { databasePostgresql } from './generators/database-postgresql';
 import { databaseSapHana } from './generators/database-sap-hana';
 import { dlpInfowatch } from './generators/dlp-infowatch';
+import { emailDovecotImap } from './generators/email-dovecot-imap';
 import { emailExchange } from './generators/email-exchange';
 import { emailKasperskyKsmg } from './generators/email-kaspersky-ksmg';
 import { emailPostfix } from './generators/email-postfix';
 import { endpointSecretNet } from './generators/endpoint-secret-net';
 import { fortinetFortimail } from './generators/fortinet-fortimail';
+import { identityAdfsAudit } from './generators/identity-adfs-audit';
 import { identityAldPro } from './generators/identity-ald-pro';
+import { identityArubaClearpass } from './generators/identity-aruba-clearpass';
 import { identityCiscoIse } from './generators/identity-cisco-ise';
+import { identityFreeipaSecurity } from './generators/identity-freeipa-security';
 import { identityFreeradius } from './generators/identity-freeradius';
 import { identityKeycloak } from './generators/identity-keycloak';
 import { identityMicrosoftAdcs } from './generators/identity-microsoft-adcs';
@@ -34,10 +40,12 @@ import { identityOpenldapAuditlog } from './generators/identity-openldap-auditlo
 import { kubernetesAudit } from './generators/kubernetes-audit';
 import { linuxAuditd } from './generators/linux-auditd';
 import { linuxSyslog } from './generators/linux-syslog';
+import { messagingApacheKafkaAuthorizer } from './generators/messaging-apache-kafka-authorizer';
 import { monitoringZabbix } from './generators/monitoring-zabbix';
 import { networkCheckpoint } from './generators/network-checkpoint';
 import { networkCiscoAsa } from './generators/network-cisco-asa';
 import { networkCiscoIos } from './generators/network-cisco-ios';
+import { networkCiscoWlc9800 } from './generators/network-cisco-wlc-9800';
 import { networkContinent } from './generators/network-continent';
 import { networkDns } from './generators/network-dns';
 import { networkEltexEsr } from './generators/network-eltex-esr';
@@ -48,6 +56,7 @@ import { networkIdecoNgfw } from './generators/network-ideco-ngfw';
 import { networkJuniperSrx } from './generators/network-juniper-srx';
 import { networkMikrotikRouteros } from './generators/network-mikrotik-routeros';
 import { networkNetflow } from './generators/network-netflow';
+import { networkOpenvpnCommunity } from './generators/network-openvpn-community';
 import { networkPaloaltoThreat } from './generators/network-paloalto-threat';
 import { networkPaloaltoTraffic } from './generators/network-paloalto-traffic';
 import { networkPaloaltoUrl } from './generators/network-paloalto-url';
@@ -64,6 +73,7 @@ import { proxyZscaler } from './generators/proxy-zscaler';
 import { securityCrowdstrikeFalcon } from './generators/security-crowdstrike-falcon';
 import { securityDefenderEndpoint } from './generators/security-defender-endpoint';
 import { securityDrwebEss } from './generators/security-drweb-ess';
+import { securityEsetProtect } from './generators/security-eset-protect';
 import { securityFalco } from './generators/security-falco';
 import { securityHashicorpVault } from './generators/security-hashicorp-vault';
 import { securityKasperskyKata } from './generators/security-kaspersky-kata';
@@ -81,6 +91,7 @@ import { webHaproxyHttp } from './generators/web-haproxy-http';
 import { webMicrosoftIis } from './generators/web-microsoft-iis';
 import { webNginx } from './generators/web-nginx';
 import { webSquidAccess } from './generators/web-squid-access';
+import { webTomcatJsonAccess } from './generators/web-tomcat-json-access';
 import { windowsActiveDirectory } from './generators/windows-active-directory';
 import { windowsDhcpAudit } from './generators/windows-dhcp-audit';
 import { windowsDnsServerAudit } from './generators/windows-dns-server-audit';
@@ -179,4 +190,15 @@ export const generators: GeneratorMeta[] = [
   identityOpenldapAuditlog,
   networkUnbound,
   networkPowerdnsAuthoritative,
+  identityFreeipaSecurity,
+  networkOpenvpnCommunity,
+  securityEsetProtect,
+  databaseMariadbAudit,
+  databaseMongodbLog,
+  webTomcatJsonAccess,
+  identityAdfsAudit,
+  identityArubaClearpass,
+  emailDovecotImap,
+  networkCiscoWlc9800,
+  messagingApacheKafkaAuthorizer,
 ];

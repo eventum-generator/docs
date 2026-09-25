@@ -12,6 +12,7 @@ import {
   Monitor,
   Network,
   Shield,
+  Workflow,
 } from 'lucide-react';
 
 export type CategoryId =
@@ -21,6 +22,7 @@ export type CategoryId =
   | 'database'
   | 'email'
   | 'identity'
+  | 'messaging'
   | 'endpoint'
   | 'monitoring'
   | 'network'
@@ -78,6 +80,13 @@ export const CATEGORIES: CategoryMeta[] = [
     icon: Activity,
     description: 'Infrastructure and application monitoring',
     color: 'bg-teal-500/10 text-teal-600 dark:text-teal-400',
+  },
+  {
+    id: 'messaging',
+    name: 'Messaging',
+    icon: Workflow,
+    description: 'Message broker and queue audit logs',
+    color: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400',
   },
   {
     id: 'identity',
@@ -139,6 +148,17 @@ export function getCategoryForSlug(slug: string): CategoryId {
     'identity-openldap-auditlog': 'identity',
     'network-unbound': 'network',
     'network-powerdns-authoritative': 'network',
+    'identity-freeipa-security': 'identity',
+    'network-openvpn-community': 'network',
+    'security-eset-protect': 'security',
+    'database-mariadb-audit': 'database',
+    'database-mongodb-log': 'database',
+    'web-tomcat-json-access': 'web-access',
+    'identity-adfs-audit': 'identity',
+    'identity-aruba-clearpass': 'identity',
+    'email-dovecot-imap': 'email',
+    'network-cisco-wlc-9800': 'network',
+    'messaging-apache-kafka-authorizer': 'messaging',
     'backup-veeam-vbr': 'backup',
     'windows-active-directory': 'identity',
     'identity-ald-pro': 'identity',
