@@ -13,7 +13,7 @@ export const securityStaffcopEnterprise: GeneratorMeta = {
   templateCount: 1,
   highlights: [
     'Vendor-documented 5.8 native key-value syslog',
-    'Twelve ordinary endpoint/user pairs',
+    'Twelve routine endpoints and benign activity on the chain endpoint',
     'Linked screenshot series and two-policy statistics event',
   ],
   anomalyChain:
@@ -22,13 +22,14 @@ export const securityStaffcopEnterprise: GeneratorMeta = {
     {
       id: 'Screenshot',
       description: 'Endpoint screenshot event',
-      frequency: '97.2% with anomaly mode',
+      frequency: '91.7% with anomaly mode',
       category: 'host',
     },
     {
       id: 'Stat',
-      description: 'Statistics event with two policy matches',
-      frequency: '2.8% with anomaly mode',
+      description:
+        'Statistics event with two policy matches in background or anomaly mode',
+      frequency: '8.3% with anomaly mode',
       category: 'host',
     },
   ],
@@ -58,17 +59,17 @@ export const securityStaffcopEnterprise: GeneratorMeta = {
     {
       name: 'suspect_user',
       defaultValue: 'ivan',
-      description: 'Actor in the anomaly chain',
+      description: 'Actor with benign screenshots and an anomaly chain',
     },
     {
       name: 'suspect_computer',
       defaultValue: 'WS-023',
-      description: 'Endpoint in the anomaly chain',
+      description: 'Endpoint with benign screenshots and an anomaly chain',
     },
     {
       name: 'suspect_ip',
       defaultValue: '10.20.4.23',
-      description: 'Endpoint address in the anomaly chain',
+      description: 'Endpoint address in benign activity and the anomaly chain',
     },
     {
       name: 'application',
@@ -90,7 +91,7 @@ export const securityStaffcopEnterprise: GeneratorMeta = {
     {
       title: 'Staffcop two-policy statistics event',
       json: String.raw`{
-  "@timestamp": "2026-09-25T17:07:00+00:00",
+  "@timestamp": "2026-09-25T17:47:00+00:00",
   "ecs": {
     "version": "8.17.0"
   },
@@ -101,7 +102,7 @@ export const securityStaffcopEnterprise: GeneratorMeta = {
     ],
     "id": "468036",
     "kind": "event",
-    "original": "Sep 25 17:10:00 staffcop-srv staffcop: id=\"468036\" time=\"Sep 25 17:07:00\" event=\"Stat\" computer=\"WS-023\" ip=\"10.20.4.23\" user=\"ivan\" app=\"chrome\" policy_1=\"\u0421\u043a\u0440\u0438\u043d\u0448\u043e\u0442\u044b\" policy_2=\"\u0424\u0438\u043d\u0430\u043d\u0441\u043e\u0432\u044b\u0435 \u0434\u0430\u043d\u043d\u044b\u0435\"",
+    "original": "Sep 25 17:50:00 staffcop-srv staffcop: id=\"468036\" time=\"Sep 25 17:47:00\" event=\"Stat\" computer=\"WS-023\" ip=\"10.20.4.23\" user=\"ivan\" app=\"chrome\" policy_1=\"\u0421\u043a\u0440\u0438\u043d\u0448\u043e\u0442\u044b\" policy_2=\"\u0424\u0438\u043d\u0430\u043d\u0441\u043e\u0432\u044b\u0435 \u0434\u0430\u043d\u043d\u044b\u0435\"",
     "type": [
       "info"
     ]
@@ -130,8 +131,8 @@ export const securityStaffcopEnterprise: GeneratorMeta = {
     ]
   },
   "staffcop": {
-    "event_time": "2026-09-25T17:07:00+00:00",
-    "forwarded_at": "2026-09-25T17:10:00+00:00",
+    "event_time": "2026-09-25T17:47:00+00:00",
+    "forwarded_at": "2026-09-25T17:50:00+00:00",
     "policy_matches": [
       "\u0421\u043a\u0440\u0438\u043d\u0448\u043e\u0442\u044b",
       "\u0424\u0438\u043d\u0430\u043d\u0441\u043e\u0432\u044b\u0435 \u0434\u0430\u043d\u043d\u044b\u0435"
