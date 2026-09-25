@@ -128,6 +128,17 @@ export const CATEGORY_MAP = new Map(CATEGORIES.map((c) => [c.id, c]));
 export function getCategoryForSlug(slug: string): CategoryId {
   const SLUG_CATEGORY_MAP: Record<string, CategoryId> = {
     'application-1c': 'application',
+    'application-1c-techjournal': 'application',
+    'identity-freeradius': 'identity',
+    'network-ideco-ngfw': 'network',
+    'web-haproxy-http': 'web-access',
+    'web-squid-access': 'web-access',
+    'email-postfix': 'email',
+    'application-nextcloud-audit': 'application',
+    'database-oracle-unified-audit': 'database',
+    'identity-openldap-auditlog': 'identity',
+    'network-unbound': 'network',
+    'network-powerdns-authoritative': 'network',
     'backup-veeam-vbr': 'backup',
     'windows-active-directory': 'identity',
     'identity-ald-pro': 'identity',
