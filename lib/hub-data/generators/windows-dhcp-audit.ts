@@ -6,74 +6,71 @@ export const windowsDhcpAudit: GeneratorMeta = {
   displayName: 'Microsoft DHCP Server Audit',
   category: 'network',
   description:
-    'Windows DHCP CSV lease and DNS-update records, with a switchable rapid lease-churn and update-failure sequence.',
-  dataSource: 'Windows DHCP Server DhcpSrvLog CSV',
+    'Microsoft DHCP Server CSV lease and DNS-update records from a stateful 97-client model, with a switchable eight-row address-churn sequence.',
+  dataSource: 'Windows DHCP Server DhcpSrvLog 19-column CSV profile',
   format: ['JSON', 'ECS', 'CSV'],
-  eventCount: 7,
+  eventCount: 6,
   templateCount: 1,
   generatorId: 'windows-dhcp-audit',
   highlights: [
-    '40/40 Elastic sample fields',
-    'Native CSV in event.original',
-    'Correlated lease churn by client ID',
+    'Six documented DHCP event IDs in a 19-column CSV profile',
+    'Stateful leases and linked DNS request/result pairs',
+    'One switchable eight-row sequence amid overlapping background',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'One client ID rapidly receives and releases three addresses, then its DNS update fails.',
+    'After at least 250 background rows, one client releases its lease, rapidly receives and releases two addresses, then receives a third address followed by a DNS request and failure. The sequence runs once.',
   eventTypes: [
     {
       id: '10',
       description: 'Lease assigned',
-      frequency: '45% routine',
+      frequency: 'Reassignment after release, plus linked sequence',
       category: 'network',
     },
     {
       id: '11',
       description: 'Lease renewed',
-      frequency: '30% routine',
+      frequency: 'No sooner than four hours after the prior lease event',
       category: 'network',
     },
     {
       id: '12',
       description: 'Lease released',
-      frequency: '8% routine',
+      frequency: 'Per-client timer; mobile and stationary ranges differ',
       category: 'network',
     },
     {
       id: '30',
       description: 'DNS update requested',
-      frequency: '8% routine',
+      frequency: '30% of assignments or 5% of renewals in the model',
       category: 'network',
     },
     {
       id: '32',
       description: 'DNS update succeeded',
-      frequency: '5% routine',
+      frequency: 'About 95% of modeled DNS requests',
       category: 'network',
     },
     {
       id: '31',
       description: 'DNS update failed',
-      frequency: '2% routine',
-      category: 'network',
-    },
-    {
-      id: '36',
-      description: 'Failover/client-ID hash drop',
-      frequency: '2% routine',
+      frequency: 'About 5% of modeled DNS requests; also in linked sequence',
       category: 'network',
     },
   ],
   realismFeatures: [
-    'CSV column order follows the Elastic DHCP fixture.',
-    'Fifty clients provide stable hostname, MAC and address combinations.',
-    'Lease anomaly uses one client ID across changing addresses.',
+    'The 97-client pool retains per-client lease state across assignments, renewals and releases.',
+    'DNS results follow a request for the same host and IP; native DNS rows leave the MAC column empty.',
+    'The target client, addresses, event IDs and DNS error also occur in background; only the short order distinguishes the sequence.',
+    'All 40 selected Elastic sample field paths occur across generated output; the sample is ID 35, which this pack does not emit.',
+    'The ID 12 event meaning is documented, but its extended 19-column suffix is inferred pending a native capture.',
+    'CSV timestamps are modeled in UTC; Filebeat identity, ingestion time and file offset are synthetic collector context.',
   ],
   parameters: [
     {
       name: 'server_name',
       defaultValue: 'dhcp-01.corp.example',
-      description: 'DHCP server name',
+      description: 'DHCP server hostname',
     },
     {
       name: 'server_ip',
@@ -83,35 +80,45 @@ export const windowsDhcpAudit: GeneratorMeta = {
     {
       name: 'anomaly_hostname',
       defaultValue: 'ws-finance-01.corp.example',
-      description: 'Correlated client hostname',
+      description: 'Client also used in background',
     },
     {
       name: 'anomaly_client_id',
       defaultValue: '0023DF0000A1',
-      description: 'Correlated client ID',
+      description: 'Client ID also used in background',
+    },
+    {
+      name: 'anomaly_base_ip',
+      defaultValue: '10.20.7.40',
+      description: "Target client's ordinary starting address",
     },
     {
       name: 'anomaly_ips',
-      defaultValue: '10.20.7.41–10.20.7.43',
-      description: 'Successive addresses',
+      defaultValue: '10.20.7.41, 10.20.7.42, 10.20.7.43',
+      description: 'Successive addresses also used after ordinary releases',
     },
     {
-      name: 'anomaly_interval_events',
+      name: 'anomaly_after_events',
       defaultValue: '250',
-      description: 'Routine events between chains',
+      description: 'Minimum background rows before the one-time sequence',
+    },
+    {
+      name: 'lease_renew_minutes',
+      defaultValue: '240',
+      description: 'Renewal interval for the modeled eight-hour lease',
     },
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
       description:
-        'Emit anomaly chain alongside background; false keeps background only',
+        'Include one eight-row sequence; false emits background only',
     },
   ],
   sampleOutputs: [
     {
-      title: 'Failed DNS update after lease churn',
+      title: 'DNS update failure after rapid lease changes',
       json: String.raw`{
-  "@timestamp": "2026-09-25T12:00:09+00:00",
+  "@timestamp": "2026-09-25T08:57:13+00:00",
   "agent": {
     "ephemeral_id": "a1b2c3d4-1111-4444-8888-123456789abc",
     "id": "a1b2c3d4-1111-4444-8888-123456789abc",
@@ -140,12 +147,11 @@ export const windowsDhcpAudit: GeneratorMeta = {
     ],
     "code": "31",
     "dataset": "microsoft_dhcp.log",
-    "ingested": "2026-09-25T12:00:09+00:00",
+    "ingested": "2026-09-25T08:57:13+00:00",
     "kind": "event",
-    "original": "31,09/25/26,12:00:09,DNS Update Failed,10.20.7.43,ws-finance-01.corp.example,0023DF0000A1,,0,6,,,,,,,,,10054",
+    "original": "31,09/25/26,08:57:13,DNS Update Failed,10.20.7.43,ws-finance-01.corp.example,,,0,6,,,,,,,,,10054",
     "outcome": "failure",
     "reason": "DNS update failed.",
-    "sequence": 257,
     "timezone": "UTC",
     "type": [
       "connection"
@@ -167,9 +173,17 @@ export const windowsDhcpAudit: GeneratorMeta = {
     "file": {
       "path": "C:\\Windows\\System32\\Dhcp\\DhcpSrvLog-Fri.log"
     },
-    "offset": 23604
+    "offset": 31774
   },
   "message": "DNS Update Failed",
+  "microsoft": {
+    "dhcp": {
+      "dns_error_code": "10054",
+      "result": "6",
+      "result_description": "No Quarantine Information",
+      "transaction_id": "0"
+    }
+  },
   "observer": {
     "hostname": "dhcp-01.corp.example",
     "ip": [
@@ -190,8 +204,7 @@ export const windowsDhcpAudit: GeneratorMeta = {
   "source": {
     "address": "ws-finance-01.corp.example",
     "domain": "ws-finance-01.corp.example",
-    "ip": "10.20.7.43",
-    "mac": "00-23-DF-00-00-A1"
+    "ip": "10.20.7.43"
   },
   "tags": [
     "preserve_original_event",
