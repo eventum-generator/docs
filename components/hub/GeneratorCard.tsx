@@ -1,4 +1,4 @@
-import { Waves, Waypoints } from 'lucide-react';
+import { List, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 
 import { CATEGORY_MAP } from '@/lib/hub-categories';
@@ -50,22 +50,22 @@ export function GeneratorCard({ generator, index }: GeneratorCardProps) {
         <span className="ml-auto inline-flex items-center gap-1">
           {modes.includes('background') && (
             <span
-              className="inline-flex h-6 w-6 items-center justify-center rounded-md text-sky-600 dark:text-sky-400 cursor-help"
+              className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-fd-border/60 text-fd-muted-foreground cursor-help"
               role="img"
               aria-label="Background events"
               title="Background events"
             >
-              <Waves size={17} aria-hidden="true" />
+              <List size={17} aria-hidden="true" />
             </span>
           )}
           {modes.includes('anomaly') && (
             <span
-              className="inline-flex h-6 w-6 items-center justify-center rounded-md text-amber-600 dark:text-amber-400 cursor-help"
+              className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-fd-border/60 text-fd-foreground/75 cursor-help"
               role="img"
               aria-label={`Anomaly chain: ${generator.anomalyChain ?? 'correlated suspicious events'}`}
               title={`Anomaly chain: ${generator.anomalyChain ?? 'correlated suspicious events'}`}
             >
-              <Waypoints size={17} aria-hidden="true" />
+              <TriangleAlert size={17} aria-hidden="true" />
             </span>
           )}
         </span>
