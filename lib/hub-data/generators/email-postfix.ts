@@ -6,134 +6,130 @@ export const emailPostfix: GeneratorMeta = {
   displayName: 'Postfix SMTP Syslog',
   category: 'email',
   description:
-    'Postfix submission and delivery syslog with stable queue IDs and a switchable SASL-failure to recipient-fan-out sequence.',
-  dataSource: 'Postfix 3.6.12+ syslog',
+    'Postfix 3.8.3+ submission-relay syslog for smtpd, cleanup, qmgr and smtp, with a switchable linked mail episode.',
+  dataSource: 'Postfix 3.8.3+ submission-relay syslog',
   format: ['JSON', 'ECS', 'Syslog'],
   eventCount: 7,
   templateCount: 1,
   generatorId: 'email-postfix',
   highlights: [
-    '14/14 native log slots',
-    'Postfix 3.6.12+ syslog',
-    'Three SASL failures, an accepted submission, five deliveries with one queue ID, then queue removal.',
+    'Postfix 3.8.3+ native syslog in event.original',
+    'Modeled smtpd-to-cleanup-to-qmgr-to-smtp queue lifecycle',
+    'One switchable failure-to-acceptance and five-recipient episode',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'Three SASL failures, an accepted submission, five deliveries with one queue ID, then queue removal.',
+    'After 250 routine decisions, one user and IP produce three failed SASL LOGIN attempts on one smtpd PID, then acceptance, cleanup, qmgr nrcpt=5, five distinct sent deliveries and queue removal.',
   eventTypes: [
     {
       id: 'postfix/smtpd accepted',
       description: 'Authenticated submission',
-      frequency: '70% routine entries',
-      category: 'email',
-    },
-    {
-      id: 'postfix/qmgr active',
-      description: 'Message queued',
-      frequency: 'After acceptance',
-      category: 'email',
-    },
-    {
-      id: 'postfix/smtp sent',
-      description: 'Recipient delivered',
-      frequency: 'After queue activation',
-      category: 'email',
-    },
-    {
-      id: 'postfix/qmgr removed',
-      description: 'Queue completion',
-      frequency: 'After delivery',
+      frequency: '90% of routine decisions',
       category: 'email',
     },
     {
       id: 'postfix/smtpd NOQUEUE reject',
-      description: 'Recipient rejection',
-      frequency: '30% routine entries',
+      description: 'Unknown recipient rejected before queueing',
+      frequency: '7% of routine decisions',
       category: 'email',
     },
     {
       id: 'postfix/smtpd SASL failure',
-      description: 'Failed authentication',
-      frequency: 'Anomaly only',
+      description: 'Isolated failed authentication',
+      frequency: '3% of routine decisions, at least 20 records apart',
       category: 'authentication',
     },
     {
-      id: 'postfix/smtp five recipients',
-      description: 'Recipient fan-out',
-      frequency: 'Anomaly only',
+      id: 'postfix/cleanup message-id',
+      description: 'Message enters the queue',
+      frequency: 'After each acceptance',
+      category: 'email',
+    },
+    {
+      id: 'postfix/qmgr active',
+      description: 'Queue activation with sender, size and recipient count',
+      frequency: 'After cleanup; ordinary nrcpt is 1, 2 or 5',
+      category: 'email',
+    },
+    {
+      id: 'postfix/smtp sent',
+      description: 'Successful recipient delivery',
+      frequency: 'One per queued recipient',
+      category: 'email',
+    },
+    {
+      id: 'postfix/qmgr removed',
+      description: 'Message leaves the queue',
+      frequency: 'After modeled deliveries complete',
       category: 'email',
     },
   ],
   realismFeatures: [
-    'One queue ID links acceptance, queue management and deliveries.',
-    'Fifty synthetic recipient samples for ordinary mail.',
-    'SASL failure username requires Postfix 3.6.12 or newer.',
+    'One queue ID links accepted smtpd, cleanup, qmgr and smtp records through removal; failures and NOQUEUE rejects have no queue ID.',
+    'Routine accepted messages have 1, 2 or 5 recipients with modeled weights 85%, 13% and 2%.',
+    'The target user and IP, isolated failures, and five-recipient deliveries also occur in background.',
+    'Eight routine sender samples plus the target and 60 varied recipients reduce repetitive synthetic traffic.',
+    'Exact Postfix 3.8.3+ full three-failure-to-acceptance native trace remains unavailable; the chain joins documented line formats.',
+    'No source-specific Elastic sample was used; a native-reference field-coverage percentage is not claimed.',
   ],
   parameters: [
     {
       name: 'mail_host',
       defaultValue: 'mail-01.corp.example',
-      description: 'Mail host',
+      description: 'Postfix server hostname',
     },
     {
       name: 'mail_ip',
       defaultValue: '10.80.0.5',
-      description: 'Mail host address',
+      description: 'Postfix server address',
     },
     {
       name: 'normal_user',
       defaultValue: 'service@corp.example',
-      description: 'Routine sender',
+      description: 'First routine sender among eight samples',
     },
     {
       name: 'normal_ip',
       defaultValue: '10.80.1.20',
-      description: 'Routine client',
+      description: 'First routine sender address',
     },
     {
       name: 'anomaly_user',
       defaultValue: 'payroll@corp.example',
-      description: 'Chain sender',
+      description: 'Episode user also present in background',
     },
     {
       name: 'anomaly_ip',
       defaultValue: '10.99.3.51',
-      description: 'Chain client',
+      description: 'Episode source also present in background',
     },
     {
       name: 'anomaly_interval_events',
       defaultValue: '250',
-      description: 'Routine events between chains',
+      description: 'Routine decisions before one episode',
     },
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description: 'Include anomaly chain; false emits only background',
+      description: 'Include one linked episode; false emits background only',
     },
   ],
   sampleOutputs: [
     {
-      title: 'Delivery in the five-recipient chain',
+      title: 'Accepted authenticated submission',
       json: String.raw`{
-  "@timestamp": "2026-09-25T12:36:50+00:00",
+  "@timestamp": "2026-09-25T00:19:30+00:00",
   "ecs": {
     "version": "8.17.0"
   },
-  "email": {
-    "to": {
-      "address": [
-        "invoice1@partner.example"
-      ]
-    }
-  },
   "event": {
-    "action": "delivery-sent",
+    "action": "smtp-accept",
     "category": [
       "email"
     ],
     "dataset": "postfix.syslog",
     "kind": "event",
-    "original": "Sep 25 12:36:50 mail-01.corp.example postfix/smtp[2401]: 00000338: to=<invoice1@partner.example>, relay=mx.partner.example[198.51.100.25]:25, delay=0.8, delays=0.1/0.1/0.2/0.4, dsn=2.0.0, status=sent (250 2.0.0 Ok: queued as REMOTE1)",
+    "original": "Sep 25 00:19:30 mail-01.corp.example postfix/smtpd[2400]: 4F657A0489: client=unknown[10.99.3.51], sasl_method=LOGIN, sasl_username=payroll@corp.example",
     "outcome": "success",
     "type": [
       "info"
@@ -148,10 +144,10 @@ export const emailPostfix: GeneratorMeta = {
   "log": {
     "level": "info",
     "syslog": {
-      "appname": "postfix/smtp"
+      "appname": "postfix/smtpd"
     }
   },
-  "message": "00000338: to=<invoice1@partner.example>, relay=mx.partner.example[198.51.100.25]:25, delay=0.8, delays=0.1/0.1/0.2/0.4, dsn=2.0.0, status=sent (250 2.0.0 Ok: queued as REMOTE1)",
+  "message": "4F657A0489: client=unknown[10.99.3.51], sasl_method=LOGIN, sasl_username=payroll@corp.example",
   "observer": {
     "hostname": "mail-01.corp.example",
     "ip": "10.80.0.5",
@@ -160,22 +156,37 @@ export const emailPostfix: GeneratorMeta = {
     "vendor": "Postfix"
   },
   "postfix": {
-    "queue_id": "00000338",
-    "service": "smtp"
+    "queue_id": "4F657A0489",
+    "sasl": {
+      "username": "payroll@corp.example"
+    },
+    "service": "smtpd"
   },
   "process": {
-    "name": "postfix/smtp",
-    "pid": 2401
+    "name": "postfix/smtpd",
+    "pid": 2400
   },
   "related": {
     "hosts": [
       "mail-01.corp.example"
+    ],
+    "ip": [
+      "10.99.3.51"
+    ],
+    "user": [
+      "payroll@corp.example"
     ]
+  },
+  "source": {
+    "ip": "10.99.3.51"
   },
   "tags": [
     "postfix",
     "preserve_original_event"
-  ]
+  ],
+  "user": {
+    "name": "payroll@corp.example"
+  }
 }`,
     },
   ],
