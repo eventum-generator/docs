@@ -6,7 +6,7 @@ export const securityDrwebEss: GeneratorMeta = {
   displayName: 'Dr.Web Enterprise Security Suite',
   category: 'security',
   description:
-    'ECS JSON modeled on Dr.Web ESS 13.0.1 administrator notifications: scans, application controls, threat detections, station update failures and authentication events.',
+    'Synthetic ECS JSON modeled on Dr.Web ESS 13.0.1 administrator notifications. Native Syslog and CEF compatibility is unverified.',
   format: ['JSON', 'ECS'],
   dataSource: 'Dr.Web ESS administrator notifications',
   eventCount: 7,
@@ -19,58 +19,58 @@ export const securityDrwebEss: GeneratorMeta = {
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'Application block, user-allowed protected-file access, malware detection and infected scan result on one station; a separate pair links failed authorization to a duplicate station ID.',
+    'One 30-minute station episode links an executable block to a threat detection in the same file and an allowed HOSTS access; a separate ten-minute identity-collision pair follows.',
   generatorId: 'security-drweb-ess',
   eventTypes: [
     {
       id: 'scan-statistics',
       description: 'Scan statistics',
-      frequency: '57.5%',
+      frequency: '57.5% demo cycle',
       category: 'malware',
     },
     {
       id: 'application-control-blocked',
       description: 'Application Control blocked the process',
-      frequency: '20%',
+      frequency: '20% demo cycle',
       category: 'process',
     },
     {
       id: 'security-threat-detected',
       description: 'Security threat detected',
-      frequency: '10%',
+      frequency: '10% demo cycle',
       category: 'malware',
     },
     {
       id: 'station-update-error',
       description: 'Critical error of station update',
-      frequency: '5%',
+      frequency: '5% demo cycle',
       category: 'package',
     },
     {
       id: 'preventive-protection',
       description: 'Report of Preventive protection',
-      frequency: '2.5%',
+      frequency: '2.5% demo cycle',
       category: 'process',
     },
     {
       id: 'station-authorization-failed',
       description: 'Station authorization failed',
-      frequency: '2.5%',
+      frequency: '2.5% demo cycle',
       category: 'authentication',
     },
     {
       id: 'station-already-logged-in',
       description: 'Station already logged in',
-      frequency: '2.5%',
+      frequency: '2.5% demo cycle',
       category: 'authentication',
     },
   ],
   realismFeatures: [
-    'Notification types and MSG variables follow the Dr.Web ESS 13.0.1 administrator notification catalog',
+    'Notification types and MSG variable names follow the Dr.Web ESS 13.0.1 template catalog; raw Syslog/CEF mapping remains unverified.',
     'Normalized ECS fields identify the Dr.Web Server and the reporting station',
-    'Forty-event demo cycle includes independent scans, blocks, threats and update failures',
-    'Linked protection and threat notifications share station ID and object path',
-    'Failed authorization and duplicate-station notifications share station ID',
+    'One notification every ten minutes; the forty-event demo cycle is synthetic, with all seven types present in both modes.',
+    'The first linked episode shares station ID; only the application block and threat detection share the executable path.',
+    'The first failed authorization and duplicate-station notifications share a station ID; later pairs do not.',
   ],
   parameters: [
     {
@@ -114,7 +114,7 @@ export const securityDrwebEss: GeneratorMeta = {
     {
       title: 'Security threat detected',
       json: String.raw`{
-  "@timestamp": "2026-09-25T10:24:58+00:00",
+  "@timestamp": "2026-09-25T20:30:00+00:00",
   "ecs": {
     "version": "8.17.0"
   },
@@ -130,9 +130,9 @@ export const securityDrwebEss: GeneratorMeta = {
       "info"
     ],
     "outcome": "success",
-    "severity": 7
+    "severity": 6
   },
-  "message": "Exploit.CVE detected in C:\\Users\\Public\\Documents\\macro_template.docm on WS-HR-02.",
+  "message": "Trojan.DownLoader detected in C:\\Users\\Public\\Downloads\\invoice.pdf.exe on WS-SALES-06.",
   "observer": {
     "vendor": "Doctor Web",
     "product": "Enterprise Security Suite",
@@ -143,45 +143,45 @@ export const securityDrwebEss: GeneratorMeta = {
     ]
   },
   "host": {
-    "id": "10a56af1-2be3-4381-927f-4d7b1e02c004",
-    "name": "WS-HR-02",
-    "hostname": "WS-HR-02",
+    "id": "10a56af1-2be3-4381-927f-4d7b1e02c040",
+    "name": "WS-SALES-06",
+    "hostname": "WS-SALES-06",
     "ip": [
-      "10.20.11.32"
+      "10.20.14.106"
     ]
   },
   "user": {
-    "name": "d.kuznetsov"
+    "name": "user40"
   },
   "related": {
     "hosts": [
-      "WS-HR-02"
+      "WS-SALES-06"
     ],
     "ip": [
-      "10.20.11.32"
+      "10.20.14.106"
     ],
     "user": [
-      "d.kuznetsov"
+      "user40"
     ]
   },
   "drweb": {
     "ess": {
       "notification": "Security threat detected",
       "station": {
-        "id": "10a56af1-2be3-4381-927f-4d7b1e02c004",
-        "name": "WS-HR-02",
-        "ip": "10.20.11.32",
+        "id": "10a56af1-2be3-4381-927f-4d7b1e02c040",
+        "name": "WS-SALES-06",
+        "ip": "10.20.14.106",
         "primary_group": "Workstations"
       },
       "variables": {
         "MSG.Action": "moved to quarantine",
         "MSG.Component": "Dr.Web Scanner",
-        "MSG.InfectionType": "Exploit",
-        "MSG.ObjectName": "C:\\Users\\Public\\Documents\\macro_template.docm",
-        "MSG.ObjectOwner": "d.kuznetsov",
-        "MSG.RunBy": "d.kuznetsov",
-        "MSG.ServerTime": "2026-09-25T10:24:58+00:00",
-        "MSG.Virus": "Exploit.CVE"
+        "MSG.InfectionType": "Trojan",
+        "MSG.ObjectName": "C:\\Users\\Public\\Downloads\\invoice.pdf.exe",
+        "MSG.ObjectOwner": "user40",
+        "MSG.RunBy": "user40",
+        "MSG.ServerTime": "2026-09-25T20:30:00+00:00",
+        "MSG.Virus": "Trojan.DownLoader"
       }
     }
   }
