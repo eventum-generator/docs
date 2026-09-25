@@ -1,4 +1,4 @@
-import { List } from 'lucide-react';
+import { Logs, ScanEye } from 'lucide-react';
 import Link from 'next/link';
 
 import { CATEGORY_MAP } from '@/lib/hub-categories';
@@ -52,38 +52,20 @@ export function GeneratorCard({ generator, index }: GeneratorCardProps) {
             <span
               className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-fd-border/60 text-fd-muted-foreground cursor-help"
               role="img"
-              aria-label="Background events"
-              title="Background events"
+              aria-label="Background logs"
+              title="Background logs"
             >
-              <List size={17} aria-hidden="true" />
+              <Logs size={17} aria-hidden="true" />
             </span>
           )}
           {modes.includes('anomaly') && (
             <span
               className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-fd-border/60 text-fd-foreground/75 cursor-help"
               role="img"
-              aria-label={`Anomaly chain: ${generator.anomalyChain ?? 'correlated suspicious events'}`}
-              title={`Anomaly chain: ${generator.anomalyChain ?? 'correlated suspicious events'}`}
+              aria-label="Contains anomaly"
+              title="Contains anomaly"
             >
-              <svg
-                width="17"
-                height="17"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  d="M3 20h18"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                />
-                <circle cx="5" cy="15" r="1.7" />
-                <circle cx="10" cy="15" r="1.7" />
-                <circle cx="15" cy="6.5" r="1.8" />
-                <circle cx="20" cy="15" r="1.7" />
-              </svg>
+              <ScanEye size={17} aria-hidden="true" />
             </span>
           )}
         </span>
