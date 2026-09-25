@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Activity,
   AppWindow,
+  Archive,
   Boxes,
   Cloud,
   Database,
@@ -15,6 +16,7 @@ import {
 
 export type CategoryId =
   | 'application'
+  | 'backup'
   | 'cloud'
   | 'database'
   | 'email'
@@ -41,6 +43,13 @@ export const CATEGORIES: CategoryMeta[] = [
     icon: AppWindow,
     description: 'Business application audit logs',
     color: 'bg-lime-500/10 text-lime-600 dark:text-lime-400',
+  },
+  {
+    id: 'backup',
+    name: 'Backup',
+    icon: Archive,
+    description: 'Backup and recovery audit logs',
+    color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400',
   },
   {
     id: 'cloud',
@@ -119,6 +128,7 @@ export const CATEGORY_MAP = new Map(CATEGORIES.map((c) => [c.id, c]));
 export function getCategoryForSlug(slug: string): CategoryId {
   const SLUG_CATEGORY_MAP: Record<string, CategoryId> = {
     'application-1c': 'application',
+    'backup-veeam-vbr': 'backup',
     'windows-active-directory': 'identity',
     'identity-ald-pro': 'identity',
     'identity-keycloak': 'identity',
@@ -130,6 +140,17 @@ export function getCategoryForSlug(slug: string): CategoryId {
     'security-falco': 'security',
     'security-drweb-ess': 'security',
     'cloud-github-audit': 'cloud',
+    'windows-dns-server-audit': 'network',
+    'windows-dhcp-audit': 'network',
+    'network-cisco-ios': 'network',
+    'identity-cisco-ise': 'identity',
+    'web-microsoft-iis': 'web-access',
+    'network-mikrotik-routeros': 'network',
+    'cloud-yandex-audit-trails': 'cloud',
+    'cloud-yandex-360-audit': 'cloud',
+    'identity-microsoft-nps': 'identity',
+    'identity-microsoft-adcs': 'identity',
+    'network-pfsense': 'network',
     'windows-security': 'endpoint',
     'windows-powershell': 'endpoint',
     'windows-sysmon': 'endpoint',
