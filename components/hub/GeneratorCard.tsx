@@ -1,4 +1,4 @@
-import { List, TriangleAlert } from 'lucide-react';
+import { Link2, List } from 'lucide-react';
 import Link from 'next/link';
 
 import { CATEGORY_MAP } from '@/lib/hub-categories';
@@ -65,7 +65,7 @@ export function GeneratorCard({ generator, index }: GeneratorCardProps) {
               aria-label={`Anomaly chain: ${generator.anomalyChain ?? 'correlated suspicious events'}`}
               title={`Anomaly chain: ${generator.anomalyChain ?? 'correlated suspicious events'}`}
             >
-              <TriangleAlert size={17} aria-hidden="true" />
+              <Link2 size={17} aria-hidden="true" />
             </span>
           )}
         </span>
