@@ -1,4 +1,4 @@
-import { Link2, List } from 'lucide-react';
+import { List } from 'lucide-react';
 import Link from 'next/link';
 
 import { CATEGORY_MAP } from '@/lib/hub-categories';
@@ -65,7 +65,25 @@ export function GeneratorCard({ generator, index }: GeneratorCardProps) {
               aria-label={`Anomaly chain: ${generator.anomalyChain ?? 'correlated suspicious events'}`}
               title={`Anomaly chain: ${generator.anomalyChain ?? 'correlated suspicious events'}`}
             >
-              <Link2 size={17} aria-hidden="true" />
+              <svg
+                width="17"
+                height="17"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  d="M3 20h18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                />
+                <circle cx="5" cy="15" r="1.7" />
+                <circle cx="10" cy="15" r="1.7" />
+                <circle cx="15" cy="6.5" r="1.8" />
+                <circle cx="20" cy="15" r="1.7" />
+              </svg>
             </span>
           )}
         </span>
