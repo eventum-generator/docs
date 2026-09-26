@@ -6,20 +6,20 @@ export const webHaproxyHttp: GeneratorMeta = {
   displayName: 'HAProxy HTTP Access',
   category: 'web-access',
   description:
-    'HAProxy 3.2 option httplog syslog and ECS fields with a switchable six-request sequence.',
+    'HAProxy 3.2 option httplog transactions with consistent request/completion timing and recurring six-request bursts amid overlapping background traffic.',
   dataSource: 'HAProxy 3.2 option httplog HTTP access syslog',
   format: ['JSON', 'ECS', 'Syslog'],
   eventCount: 7,
   templateCount: 1,
   generatorId: 'web-haproxy-http',
   highlights: [
-    '59/61 selected Elastic reference fields',
-    'Native HAProxy 3.2 HTTP log line in event.original',
-    'One switchable six-request sequence amid overlapping background',
+    '59/61 selected Elastic reference field paths',
+    'Native request time plus active duration equals completion',
+    'Six-request episodes recur every two hours',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'After 250 routine transactions, one IP makes four POST /login requests with 401 responses, receives a 302 redirect, then requests a large /admin/export response. The six-event sequence runs once.',
+    'Every two hours, one IP sends four POST /login requests receiving 401 responses, then a POST /login 302 redirect and a large GET /admin/export 200 response. Six distinct TCP client ports and causal request/completion times describe separate connections over five seconds. The actor, redirect and export also occur independently in background; no user or session identity is available.',
   eventTypes: [
     {
       id: 'GET 200',
@@ -65,60 +65,63 @@ export const webHaproxyHttp: GeneratorMeta = {
     },
   ],
   realismFeatures: [
-    'Native timer order, response byte counts, termination flags and connection counters match the chosen HAProxy 3.2 format.',
-    'A 503 without a server uses the documented <NOSRV> and SC-- combination.',
-    'Redirect, export path and anomaly IP also occur independently in background traffic.',
-    'A 302 does not prove login success; no user or session identity is present and NAT weakens IP correlation.',
-    'Optional captured header arrays are absent; Filebeat and data-stream metadata are simulated collector context.',
+    "HAProxy 3.2 native TR/Tw/Tc/Tr/Ta, bytes including response headers, termination and counters agree with their selected ECS values; the NOSRV 503 tuple matches Elastic's raw fixture.",
+    'Cron ticks model completion. Native request time and ECS @timestamp equal completion minus Ta; the BSD header and synthetic zero-delay event.ingested use UTC completion, including non-UTC input.',
+    'Six bounded episode ports are cleared after export, and each episode has a different first port from its predecessor. Native byte offsets increase without wrapping in one simulated file.',
+    'The same actor, login responses, redirect and large export appear in background. A 302 does not prove login success, NAT weakens IP correlation and emitted bytes do not prove client receipt or exfiltration.',
+    '59/61 selected Elastic paths excludes 18 host/GeoIP/ASN enrichment paths; the missing two are optional captured headers. Collector metadata, workload shares and latency ranges are synthetic assumptions.',
+    'The retained-file prefix omits PRI; full wire transport and a live parser are unverified. TLS, logasap, HTTP/2, keep-alive/session state, captures/cookies, retries, queueing and rotation are outside the profile.',
   ],
   parameters: [
     {
       name: 'proxy_name',
       defaultValue: 'lb-web-01',
-      description: 'HAProxy hostname',
+      description: 'Simulated HAProxy source',
     },
     {
       name: 'proxy_ip',
       defaultValue: '10.60.0.5',
-      description: 'HAProxy address',
+      description: 'Simulated HAProxy source',
     },
     {
       name: 'frontend_name',
       defaultValue: 'https-in',
-      description: 'Frontend name',
+      description: 'HAProxy frontend and backend',
     },
     {
       name: 'backend_name',
       defaultValue: 'app_pool',
-      description: 'Backend name',
+      description: 'HAProxy frontend and backend',
     },
     {
       name: 'anomaly_ip',
       defaultValue: '10.99.3.51',
-      description: 'Correlated source also present in background',
+      description:
+        'Correlated IPv4 source and unescaped absolute path; both also occur in background',
     },
     {
       name: 'anomaly_path',
       defaultValue: '/admin/export',
-      description: 'Export target also present in background',
+      description:
+        'Correlated IPv4 source and unescaped absolute path; both also occur in background',
     },
     {
-      name: 'anomaly_after_events',
-      defaultValue: '250',
-      description: 'Routine transactions before the one-time chain',
+      name: 'anomaly_interval_hours',
+      defaultValue: '2',
+      description:
+        'Time between episodes; values below `0.5` are clamped to `0.5` hours',
     },
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description:
-        'Include the six-event sequence; false emits background only',
+      description: 'Include periodic chains; `false` emits only background',
     },
   ],
   sampleOutputs: [
     {
       title: 'Admin export after repeated login failures',
       json: String.raw`{
-  "@timestamp": "2026-09-25T18:10:10+00:00",
+  "@timestamp": "2026-09-25T02:00:05.441000+00:00",
   "agent": {
     "ephemeral_id": "bb220000-2222-4444-8888-123456789abc",
     "id": "aa110000-1111-4444-8888-123456789abc",
@@ -145,10 +148,10 @@ export const webHaproxyHttp: GeneratorMeta = {
       "web"
     ],
     "dataset": "haproxy.log",
-    "duration": 757000000,
-    "ingested": "2026-09-25T18:10:10+00:00",
+    "duration": 559000000,
+    "ingested": "2026-09-25T02:00:06+00:00",
     "kind": "event",
-    "original": "Sep 25 18:10:10 lb-web-01 haproxy[2431]: 10.99.3.51:53758 [25/Sep/2026:18:10:10.000] https-in app_pool/app1 2/0/4/132/757 200 843220 - - ---- 5/5/3/1/0 0/0 \"GET /admin/export HTTP/1.1\"",
+    "original": "Sep 25 02:00:06 lb-web-01 haproxy[2431]: 10.99.3.51:42190 [25/Sep/2026:02:00:05.441] https-in app_pool/app1 2/0/2/95/559 200 843220 - - ---- 5/4/4/2/0 0/0 \"GET /admin/export HTTP/1.1\"",
     "outcome": "success",
     "timezone": "+00:00"
   },
@@ -156,13 +159,13 @@ export const webHaproxyHttp: GeneratorMeta = {
     "backend_name": "app_pool",
     "backend_queue": 0,
     "bytes_read": 843220,
-    "connection_wait_time_ms": 4,
+    "connection_wait_time_ms": 2,
     "connections": {
       "active": 5,
-      "backend": 3,
-      "frontend": 5,
+      "backend": 4,
+      "frontend": 4,
       "retries": 0,
-      "server": 1
+      "server": 2
     },
     "frontend_name": "https-in",
     "http": {
@@ -170,7 +173,7 @@ export const webHaproxyHttp: GeneratorMeta = {
         "captured_cookie": "-",
         "raw_request_line": "GET /admin/export HTTP/1.1",
         "time_wait_ms": 2,
-        "time_wait_without_data_ms": 132
+        "time_wait_without_data_ms": 95
       },
       "response": {
         "captured_cookie": "-"
@@ -204,9 +207,9 @@ export const webHaproxyHttp: GeneratorMeta = {
     "file": {
       "path": "/var/log/haproxy.log"
     },
-    "offset": 46534
+    "offset": 1314925
   },
-  "message": "10.99.3.51:53758 [25/Sep/2026:18:10:10.000] https-in app_pool/app1 2/0/4/132/757 200 843220 - - ---- 5/5/3/1/0 0/0 \"GET /admin/export HTTP/1.1\"",
+  "message": "10.99.3.51:42190 [25/Sep/2026:02:00:05.441] https-in app_pool/app1 2/0/2/95/559 200 843220 - - ---- 5/4/4/2/0 0/0 \"GET /admin/export HTTP/1.1\"",
   "process": {
     "name": "haproxy",
     "pid": 2431
@@ -219,7 +222,7 @@ export const webHaproxyHttp: GeneratorMeta = {
   "source": {
     "address": "10.99.3.51",
     "ip": "10.99.3.51",
-    "port": 53758
+    "port": 42190
   },
   "tags": [
     "preserve_original_event",
