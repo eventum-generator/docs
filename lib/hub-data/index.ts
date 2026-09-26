@@ -12,6 +12,7 @@ import { cloudGithubAudit } from './generators/cloud-github-audit';
 import { cloudM365Audit } from './generators/cloud-m365-audit';
 import { cloudYandex360Audit } from './generators/cloud-yandex-360-audit';
 import { cloudYandexAuditTrails } from './generators/cloud-yandex-audit-trails';
+import { databaseApacheCassandraAudit } from './generators/database-apache-cassandra-audit';
 import { databaseMariadbAudit } from './generators/database-mariadb-audit';
 import { databaseMongodbLog } from './generators/database-mongodb-log';
 import { databaseMssqlAudit } from './generators/database-mssql-audit';
@@ -45,6 +46,7 @@ import { messagingApacheKafkaAuthorizer } from './generators/messaging-apache-ka
 import { monitoringZabbix } from './generators/monitoring-zabbix';
 import { networkCheckpoint } from './generators/network-checkpoint';
 import { networkCiscoAsa } from './generators/network-cisco-asa';
+import { networkCiscoFtd } from './generators/network-cisco-ftd';
 import { networkCiscoIos } from './generators/network-cisco-ios';
 import { networkCiscoWlc9800 } from './generators/network-cisco-wlc-9800';
 import { networkContinent } from './generators/network-continent';
@@ -79,11 +81,15 @@ import { securityDrwebEss } from './generators/security-drweb-ess';
 import { securityEsetProtect } from './generators/security-eset-protect';
 import { securityFalco } from './generators/security-falco';
 import { securityHashicorpVault } from './generators/security-hashicorp-vault';
+import { securityKasperskyCybertrace } from './generators/security-kaspersky-cybertrace';
 import { securityKasperskyKata } from './generators/security-kaspersky-kata';
+import { securityKasperskyKics4net } from './generators/security-kaspersky-kics4net';
 import { securityKasperskyKsc } from './generators/security-kaspersky-ksc';
 import { securityPtNad } from './generators/security-pt-nad';
 import { securitySophosCentral } from './generators/security-sophos-central';
 import { securitySuricata } from './generators/security-suricata';
+import { securitySymantecSepm } from './generators/security-symantec-sepm';
+import { securityTrendmicroDeepSecurity } from './generators/security-trendmicro-deep-security';
 import { securityWaf } from './generators/security-waf';
 import { virtualizationMicrosoftHypervVmms } from './generators/virtualization-microsoft-hyperv-vmms';
 import { virtualizationProxmoxVe } from './generators/virtualization-proxmox-ve';
@@ -94,6 +100,8 @@ import { vpnCitrixNetscaler } from './generators/vpn-citrix-netscaler';
 import { vpnPaloaltoGlobalprotect } from './generators/vpn-paloalto-globalprotect';
 import { vpnVipnet } from './generators/vpn-vipnet';
 import { webApache } from './generators/web-apache';
+import { webAtlassianJiraSecurity } from './generators/web-atlassian-jira-security';
+import { webF5AdvancedWaf } from './generators/web-f5-advanced-waf';
 import { webHaproxyHttp } from './generators/web-haproxy-http';
 import { webMicrosoftIis } from './generators/web-microsoft-iis';
 import { webNginx } from './generators/web-nginx';
@@ -223,4 +231,12 @@ export const generators: GeneratorMeta[] = [
   virtualizationMicrosoftHypervVmms,
   virtualizationProxmoxVe,
   networkVmwareNsxManager,
+  webAtlassianJiraSecurity,
+  databaseApacheCassandraAudit,
+  securityKasperskyCybertrace,
+  securityKasperskyKics4net,
+  securitySymantecSepm,
+  networkCiscoFtd,
+  securityTrendmicroDeepSecurity,
+  webF5AdvancedWaf,
 ];
