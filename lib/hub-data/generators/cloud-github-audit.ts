@@ -2,154 +2,166 @@ import type { GeneratorMeta } from '@/lib/hub-types';
 
 export const cloudGithubAudit: GeneratorMeta = {
   slug: 'cloud-github-audit',
-  displayName: 'GitHub Organization Audit',
+  displayName: 'GitHub Organization REST Audit',
   category: 'cloud',
-  dataSource: 'Selected GitHub organization REST audit objects',
   description:
-    'GitHub organization REST audit objects with causal collaborator permissions, bounded repository recovery and recurring daily protection-removal sequences.',
-  generatorId: 'github',
+    'GitHub Enterprise Cloud organization audit log records as returned by the REST audit endpoint, projected to ECS the way the Elastic GitHub integration maps them, with the complete native object in event.original. Covers a selected set of successful repository-administration actions by owners, members and outside collaborators on persistent and disposable sandbox repositories. Recurring episodes grant a collaborator write access to a sandbox, raise it to admin, remove main protection, download a ZIP and delete the repository within 30 minutes.',
+  dataSource:
+    'GitHub Enterprise Cloud organization audit log, REST audit endpoint (selected successful repository-administration actions)',
+  format: ['JSON', 'ECS'],
   eventCount: 12,
   templateCount: 1,
   highlights: [
-    'Twelve documented audit actions in both modes',
-    'Native IDs and permissions preserved',
-    'Five-record daily sequences span twenty minutes',
+    'Native REST audit object in event.original',
+    'Stateful repositories, collaborators and branch protection',
+    'Recurring five-step grant-to-deletion chain on a sandbox',
   ],
+  generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'Every 24 hours, an owner grants write access to an outside collaborator, raises it to admin and removes main protection on an existing disposable drill repository. The collaborator downloads its ZIP, then the owner deletes it. Five records span 20 minutes. Visible recreation with a new repository ID and protection occurs at least an hour later; ordinary maintenance shares every action, actor and target.',
+    'About every 24 hours by default (at least 6): the first episode follows one interval after start, and the next is due one interval after the actual grant, so starts are usually one to two intervals apart. One owner grants an outside collaborator write access to a protected sandbox, changes it to admin and removes main protection; the collaborator downloads a ZIP archive; the owner deletes the repository. The five records keep this order within 30 minutes, interleaved with ordinary records; owner, collaborator and sandbox differ between consecutive episodes where possible. Every step and every pair of steps also occurs in ordinary traffic; only the complete ordered sequence by one owner and one collaborator within 30 minutes is absent from anomaly_mode: false.',
+  generatorId: 'github',
   eventTypes: [
     {
       id: 'repo.download_zip',
-      description: 'Selected archive access on an existing repository',
-      frequency:
-        'Weighted ordinary archive access and one external download per episode',
-      category: 'access',
+      description:
+        'Archive download by an owner, member or collaborator with access, sometimes 2-3 in a row',
+      frequency: '69.9% measured share',
+      category: 'configuration, web',
     },
     {
-      id: 'repo.add_topic',
-      description: 'Add an absent tracked repository topic',
-      frequency: 'Ordinary topic toggles on three permanent repositories',
-      category: 'configuration',
+      id: 'protected_branch.create',
+      description:
+        'Protection restored after a hotfix or onboarding, or set on a recreated sandbox',
+      frequency: '5.0% measured share',
+      category: 'configuration, web',
     },
     {
-      id: 'repo.remove_topic',
-      description: 'Remove an existing tracked repository topic',
-      frequency: 'Ordinary topic toggles on three permanent repositories',
-      category: 'configuration',
+      id: 'protected_branch.destroy',
+      description: 'Temporary removal for a hotfix, onboarding or teardown',
+      frequency: '4.5% measured share',
+      category: 'configuration, web',
     },
     {
       id: 'repo.add_member',
       description:
-        'Grant accepted write access to the existing outside identity',
-      frequency: 'Ordinary drill and one per episode',
-      category: 'iam',
+        'An owner grants an outside collaborator read, write or admin (accepted access)',
+      frequency: '4.1% measured share',
+      category: 'configuration, web',
     },
     {
       id: 'repo.update_member',
-      description: 'Raise existing write access to admin',
-      frequency: 'Ordinary drill and one per episode',
-      category: 'iam',
+      description:
+        'Quick correction after a grant, later permission change or revert',
+      frequency: '3.7% measured share',
+      category: 'configuration, web',
     },
     {
       id: 'repo.remove_member',
-      description: 'Remove an existing collaborator grant',
-      frequency: 'Ordinary drill cleanup',
-      category: 'iam',
-    },
-    {
-      id: 'protected_branch.create',
-      description: 'Enable main protection on the current incarnation',
-      frequency: 'Visible ordinary recovery and maintenance',
-      category: 'configuration',
-    },
-    {
-      id: 'protected_branch.destroy',
-      description: 'Remove existing main protection',
-      frequency: 'Ordinary drill and one per episode',
-      category: 'configuration',
-    },
-    {
-      id: 'repo.create',
-      description: 'Recreate the disposable initialized drill with a fresh ID',
-      frequency: 'At least one hour after its deletion',
-      category: 'configuration',
+      description: 'Access revoked hours later, or during teardown',
+      frequency: '3.0% measured share',
+      category: 'configuration, web',
     },
     {
       id: 'repo.destroy',
-      description: 'Delete the current disposable drill incarnation',
-      frequency: 'Ordinary drill and one per episode',
-      category: 'configuration',
+      description:
+        'Sandbox teardown, or the end of a short sandbox collaboration',
+      frequency: '2.5% measured share',
+      category: 'configuration, web',
+    },
+    {
+      id: 'repo.create',
+      description:
+        'A deleted sandbox recreated under the same name with a new ID',
+      frequency: '2.5% measured share',
+      category: 'configuration, web',
+    },
+    {
+      id: 'repo.add_topic',
+      description: 'Topic added on a persistent repository',
+      frequency: '2.2% measured share',
+      category: 'configuration, web',
+    },
+    {
+      id: 'repo.remove_topic',
+      description: 'Topic removed from a persistent repository',
+      frequency: '1.7% measured share',
+      category: 'configuration, web',
     },
     {
       id: 'org.add_member',
-      description: 'Add the existing test identity while absent',
-      frequency: 'Alternating ordinary membership maintenance',
-      category: 'iam',
+      description: 'One test identity joins the organization',
+      frequency: '0.5% measured share',
+      category: 'configuration, web, iam',
     },
     {
       id: 'org.remove_member',
-      description: 'Remove the existing test identity while present',
-      frequency: 'Alternating ordinary membership maintenance',
-      category: 'iam',
+      description: 'The test identity leaves the organization',
+      frequency: '0.4% measured share',
+      category: 'configuration, web, iam',
     },
   ],
   realismFeatures: [
-    'Native UNIX-millisecond clocks, opaque document IDs, actor/organization/repository IDs and action-specific permission/protection/topic values are retained and normalized following the pinned maintained integration.',
-    'Three permanent repositories have bounded topic sets; one disposable initialized recovery drill and one test organization member have explicit current state. No action references a deleted incarnation or absent grant.',
-    'The outside collaborator performs the ZIP download after accepted repository access. The download alone proves neither authentication, sensitive content nor exfiltration.',
-    'Ordinary six-hour maintenance shares all twelve actions and actors, with steps separated by 30 minutes. Daily injected sequences use twenty-minute correlation and wait for visible recovery.',
-    'Five-minute input slots carry 0–999 ms source jitter and immediate synthetic collection. Rates, initial repository protection, accepted grants and initialization during recreation are scenario assumptions.',
-    'The pinned normalized sample has 32/32 field-path presence coverage. Full live REST wire captures, optional-field combinations and pipeline execution are not established; synthetic IDs and selected catalog objects do not claim raw parity.',
+    'One synthetic organization with three owners, two members with read access through the base permission and three outside collaborators, three persistent private repositories and three disposable sandboxes. Repository, collaborator, protection, topic and test-member state is bounded and followed by every action: no action targets a deleted incarnation, and a deleted sandbox is recreated later by ordinary recovery with a new repository ID and protection set again.',
+    'Ordinary activity is a set of independent tasks that start at random: downloads, topic edits, collaborator grants with optional corrections and later removals, permission changes, revocations, hotfixes, sandbox onboarding, teardown and short sandbox collaborations. Delays between steps are random, from about a minute to hours, with no fixed schedule or rotation; volume is about 240-275 records per day, busier from 08:00 to 18:00 UTC.',
+    'Each record falls at a random second and millisecond within its source minute. event.created is the next poll of a synthetic Elastic Agent httpjson input polling every two minutes (0.7-122 s after source time), and event.ingested follows by a few seconds, truncated to whole seconds.',
+    'All 32/32 leaf paths of the pinned Elastic github.audit repo.destroy sample occur, with ECS 8.11.0; names and IDs are kept in github.* as strings, and repo.destroy and repo.download_zip map to event.type change as the maintained pipeline does. A ZIP audit record reports no bytes, destination or contents, so it is not evidence of exfiltration by itself.',
+    'Four-step subsequences ending in deletion are rare in ordinary traffic (0-3 each per 100 hours), and detectors with windows longer than 30 minutes also find complete sequences there. At intervals near 6 hours daily counts of the chain actions rise (write to admin changes +69% at 6 hours); at the 24-hour default no daily-count difference was measured.',
+    'Membership, protection and topic objects are reduced; their field combinations and lowercase read/write/admin values are inferences from the catalog and role documentation, not live captures. No raw byte parity, live Elastic ingestion or GitHub document-ID allocation is claimed; rates, delays, the daily profile and the poll are synthetic choices. API authentication, git events, invitations and pagination are not generated.',
   ],
-  format: ['JSON', 'ECS'],
-  generationModes: ['background', 'anomaly'],
   parameters: [
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description: 'Include recurring dense sequences',
+      description:
+        'Include recurring anomaly episodes; false keeps the same identities, repositories and task mix without episodes',
+    },
+    {
+      name: 'anomaly_interval_hours',
+      defaultValue: '24',
+      description:
+        'Source-time recurrence in hours; values below 6 are raised to 6',
     },
     {
       name: 'org',
       defaultValue: 'contoso-security',
-      description: 'Organization name/numeric ID',
+      description: 'Organization name',
     },
     {
       name: 'org_id',
       defaultValue: '71234567',
-      description: 'Organization name/numeric ID',
+      description: 'Organization numeric ID',
     },
     {
       name: 'sensitive_repo',
       defaultValue: 'contoso-security/payroll-service-drill',
-      description: 'Existing disposable initialized recovery-drill repository',
+      description:
+        'One of the three sandbox repositories, under the configured organization',
     },
     {
       name: 'sensitive_repo_id',
       defaultValue: '981234567',
-      description: 'Initial repository ID, incremented at recreation',
+      description:
+        'Its initial ID; the other sandboxes start below it and recreated sandboxes get larger IDs',
     },
     {
       name: 'suspicious_actor',
       defaultValue: 'ops-admin',
-      description: 'Owner also active in ordinary maintenance',
+      description: 'Name of the third organization owner',
     },
     {
       name: 'suspicious_actor_id',
       defaultValue: '139876543',
-      description: 'Owner also active in ordinary maintenance',
+      description: 'Numeric ID of the third organization owner',
     },
     {
       name: 'external_user',
       defaultValue: 'external-collab',
-      description:
-        'Existing outside identity with accepted repository access when granted',
+      description: 'Name of the first outside collaborator',
     },
     {
       name: 'external_user_id',
       defaultValue: '98234567',
-      description:
-        'Existing outside identity with accepted repository access when granted',
+      description: 'Numeric ID of the first outside collaborator',
     },
     {
       name: 'collector_id',
@@ -166,17 +178,12 @@ export const cloudGithubAudit: GeneratorMeta = {
       defaultValue: '9.4.4',
       description: 'Synthetic collector version',
     },
-    {
-      name: 'anomaly_interval_hours',
-      defaultValue: '24',
-      description: 'Source-time recurrence, at least six hours',
-    },
   ],
   sampleOutputs: [
     {
-      title: 'Current drill branch protection removed',
+      title: 'Permission change of the first episode (repo.update_member)',
       json: String.raw`{
-  "@timestamp": "2026-09-26T00:20:00.153+00:00",
+  "@timestamp": "2026-09-26T19:47:09.886+00:00",
   "agent": {
     "ephemeral_id": "df3107a1-9f4a-4336-ae3a-ecad098902d4",
     "id": "5630df5f-562b-4c5a-bcc1-b151fbca02c4",
@@ -198,33 +205,35 @@ export const cloudGithubAudit: GeneratorMeta = {
     "version": "9.4.4"
   },
   "event": {
-    "action": "protected_branch.destroy",
+    "action": "repo.update_member",
     "agent_id_status": "verified",
     "category": [
       "configuration",
       "web"
     ],
-    "created": "2026-09-26T00:20:00.153+00:00",
+    "created": "2026-09-26T19:47:24.084+00:00",
     "dataset": "github.audit",
-    "id": "U0r7vYLjRAu0Nyr9QZP9jw",
-    "ingested": "2026-09-26T00:20:00.153+00:00",
+    "id": "Upnt3E9XQjazZSRd-M-n0A",
+    "ingested": "2026-09-26T19:47:25+00:00",
     "kind": "event",
     "module": "github",
-    "original": "{\"@timestamp\": 1790382000153, \"_document_id\": \"U0r7vYLjRAu0Nyr9QZP9jw\", \"action\": \"protected_branch.destroy\", \"actor\": \"ops-admin\", \"actor_id\": 139876543, \"admin_enforced\": true, \"created_at\": 1790382000153, \"name\": \"main\", \"org\": \"contoso-security\", \"org_id\": 71234567, \"public_repo\": false, \"repo\": \"contoso-security/payroll-service-drill\", \"repo_id\": 981234571}",
+    "original": "{\"@timestamp\": 1790452029886, \"_document_id\": \"Upnt3E9XQjazZSRd-M-n0A\", \"action\": \"repo.update_member\", \"actor\": \"ops-admin\", \"actor_id\": 139876543, \"created_at\": 1790452029886, \"new_repo_permission\": \"admin\", \"old_repo_permission\": \"write\", \"org\": \"contoso-security\", \"org_id\": 71234567, \"public_repo\": false, \"repo\": \"contoso-security/payroll-service-drill\", \"repo_id\": 981726064, \"user\": \"vendor-qa\", \"user_id\": 98234611, \"visibility\": \"private\"}",
     "type": [
       "change"
     ]
   },
   "github": {
     "actor_id": "139876543",
-    "admin_enforced": true,
-    "category": "protected_branch",
-    "name": "main",
+    "category": "repo",
+    "new_repo_permission": "admin",
+    "old_repo_permission": "write",
     "org": "contoso-security",
     "org_id": "71234567",
     "public_repo": false,
     "repo": "contoso-security/payroll-service-drill",
-    "repo_id": "981234571"
+    "repo_id": "981726064",
+    "user_id": "98234611",
+    "visibility": "private"
   },
   "input": {
     "type": "httpjson"
@@ -232,7 +241,9 @@ export const cloudGithubAudit: GeneratorMeta = {
   "related": {
     "user": [
       "ops-admin",
-      "139876543"
+      "139876543",
+      "vendor-qa",
+      "98234611"
     ]
   },
   "tags": [
@@ -242,7 +253,11 @@ export const cloudGithubAudit: GeneratorMeta = {
   ],
   "user": {
     "id": "139876543",
-    "name": "ops-admin"
+    "name": "ops-admin",
+    "target": {
+      "id": "98234611",
+      "name": "vendor-qa"
+    }
   }
 }`,
     },
