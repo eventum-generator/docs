@@ -1,4 +1,6 @@
 import { applicationOneC } from './generators/application-1c';
+import { applicationOneCTechjournal } from './generators/application-1c-techjournal';
+import { applicationNextcloudAudit } from './generators/application-nextcloud-audit';
 import { backupVeeamVbr } from './generators/backup-veeam-vbr';
 import { cloudAwsCloudtrail } from './generators/cloud-aws-cloudtrail';
 import { cloudAwsGuardduty } from './generators/cloud-aws-guardduty';
@@ -12,19 +14,23 @@ import { cloudYandex360Audit } from './generators/cloud-yandex-360-audit';
 import { cloudYandexAuditTrails } from './generators/cloud-yandex-audit-trails';
 import { databaseMssqlAudit } from './generators/database-mssql-audit';
 import { databaseMysqlAudit } from './generators/database-mysql-audit';
+import { databaseOracleUnifiedAudit } from './generators/database-oracle-unified-audit';
 import { databasePostgresql } from './generators/database-postgresql';
 import { databaseSapHana } from './generators/database-sap-hana';
 import { dlpInfowatch } from './generators/dlp-infowatch';
 import { emailExchange } from './generators/email-exchange';
 import { emailKasperskyKsmg } from './generators/email-kaspersky-ksmg';
+import { emailPostfix } from './generators/email-postfix';
 import { endpointSecretNet } from './generators/endpoint-secret-net';
 import { fortinetFortimail } from './generators/fortinet-fortimail';
 import { identityAldPro } from './generators/identity-ald-pro';
 import { identityCiscoIse } from './generators/identity-cisco-ise';
+import { identityFreeradius } from './generators/identity-freeradius';
 import { identityKeycloak } from './generators/identity-keycloak';
 import { identityMicrosoftAdcs } from './generators/identity-microsoft-adcs';
 import { identityMicrosoftNps } from './generators/identity-microsoft-nps';
 import { identityOkta } from './generators/identity-okta';
+import { identityOpenldapAuditlog } from './generators/identity-openldap-auditlog';
 import { kubernetesAudit } from './generators/kubernetes-audit';
 import { linuxAuditd } from './generators/linux-auditd';
 import { linuxSyslog } from './generators/linux-syslog';
@@ -38,6 +44,7 @@ import { networkEltexEsr } from './generators/network-eltex-esr';
 import { networkEltexMes } from './generators/network-eltex-mes';
 import { networkFirewall } from './generators/network-firewall';
 import { networkFortigate } from './generators/network-fortigate';
+import { networkIdecoNgfw } from './generators/network-ideco-ngfw';
 import { networkJuniperSrx } from './generators/network-juniper-srx';
 import { networkMikrotikRouteros } from './generators/network-mikrotik-routeros';
 import { networkNetflow } from './generators/network-netflow';
@@ -45,7 +52,9 @@ import { networkPaloaltoThreat } from './generators/network-paloalto-threat';
 import { networkPaloaltoTraffic } from './generators/network-paloalto-traffic';
 import { networkPaloaltoUrl } from './generators/network-paloalto-url';
 import { networkPfsense } from './generators/network-pfsense';
+import { networkPowerdnsAuthoritative } from './generators/network-powerdns-authoritative';
 import { networkSnort } from './generators/network-snort';
+import { networkUnbound } from './generators/network-unbound';
 import { networkUsergate } from './generators/network-usergate';
 import { networkWirelessAruba } from './generators/network-wireless-aruba';
 import { networkZeek } from './generators/network-zeek';
@@ -68,8 +77,10 @@ import { vpnCitrixNetscaler } from './generators/vpn-citrix-netscaler';
 import { vpnPaloaltoGlobalprotect } from './generators/vpn-paloalto-globalprotect';
 import { vpnVipnet } from './generators/vpn-vipnet';
 import { webApache } from './generators/web-apache';
+import { webHaproxyHttp } from './generators/web-haproxy-http';
 import { webMicrosoftIis } from './generators/web-microsoft-iis';
 import { webNginx } from './generators/web-nginx';
+import { webSquidAccess } from './generators/web-squid-access';
 import { windowsActiveDirectory } from './generators/windows-active-directory';
 import { windowsDhcpAudit } from './generators/windows-dhcp-audit';
 import { windowsDnsServerAudit } from './generators/windows-dns-server-audit';
@@ -157,4 +168,15 @@ export const generators: GeneratorMeta[] = [
   identityMicrosoftAdcs,
   identityMicrosoftNps,
   networkPfsense,
+  applicationOneCTechjournal,
+  identityFreeradius,
+  networkIdecoNgfw,
+  webHaproxyHttp,
+  webSquidAccess,
+  emailPostfix,
+  applicationNextcloudAudit,
+  databaseOracleUnifiedAudit,
+  identityOpenldapAuditlog,
+  networkUnbound,
+  networkPowerdnsAuthoritative,
 ];
