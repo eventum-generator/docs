@@ -7,64 +7,77 @@ export const networkPfsense: GeneratorMeta = {
   category: 'network',
   dataSource: 'pfSense CE 2.9.0 RFC 5424 filterlog and charon syslog',
   description:
-    'pfSense CE 2.9.0 firewall and IKEv1 IPsec records: LAN, WAN and enc0 traffic with a switchable peer-ID mismatch and tunnel-access sequence.',
+    'pfSense CE 2.9.0 RFC 5424 firewall and IKEv1 IPsec records with causal SA closure, active-tunnel traffic and recurring peer-ID sequences.',
   generatorId: 'pfsense',
-  eventCount: 6,
+  eventCount: 8,
   templateCount: 1,
   highlights: [
-    'Native RFC 5424 and filterlog CSV in event.original',
-    'TCP and UDP traffic with rule tracker IDs',
-    'Linked IPsec negotiation and VPN traffic chain',
+    'Native IPv4 filterlog CSV and charon SA bodies',
+    'One live IKE/CHILD pair with native close/delete linkage',
+    'Twelve-record core sequences recur every six hours',
   ],
   anomalyChain:
-    'After 720 ordinary events, three mismatched peer-ID attempts precede a corrected ID, IKE/CHILD establishment and SMB, RDP, WinRM over enc0 within about 12 seconds.',
+    'Every six hours, three mismatched peer-ID lookup/failure pairs precede a corrected identity, IKE/CHILD establishment and separate SMB, RDP and WinRM passes over enc0. Twelve core records span about 55 seconds. Any earlier tunnel closes and deletes first with its existing IDs/SPIs. Recurrence waits for ordinary pairs/cleanup, resets at the first mismatch and does not catch up in bursts. The same individual actions and administrative ports also occur in background.',
   eventTypes: [
     {
       id: 'filterlog pass',
-      description: 'Logged LAN and IPsec rule passes',
+      description: 'Logged LAN or active IPsec rule pass',
       frequency:
-        'About 80% of selected firewall traffic plus three isolated administrative connections',
+        'Weighted ordinary traffic and three administrative packets per episode',
       category: 'network',
     },
     {
       id: 'filterlog block',
-      description: 'Logged default WAN blocks',
-      frequency: 'About 20% of selected firewall traffic',
+      description: 'Logged default WAN deny',
+      frequency: 'Weighted unsolicited WAN HTTPS/SSH probes',
       category: 'network',
     },
     {
       id: 'charon peer lookup',
-      description: 'IPsec peer configuration lookup',
+      description: 'Peer configuration lookup with native IKE context',
       frequency:
-        'Three scheduled background lookups plus four linked lookups when enabled',
+        'One ordinary failed pair and ordinary valid establishment; four episode lookups',
       category: 'network',
     },
     {
       id: 'charon no peer config',
-      description: 'IPsec peer-ID mismatch',
-      frequency:
-        'One scheduled background failure plus three linked failures when enabled',
+      description: 'Offered identity has no matching peer configuration',
+      frequency: 'One per ordinary maintenance cycle; three per episode',
       category: 'network',
     },
     {
       id: 'charon IKE_SA established',
-      description: 'IKE security association established',
+      description: 'Establish the selected IKEv1 PSK tunnel',
       frequency:
-        'Two scheduled background successes plus one linked success when enabled',
+        'Ordinary establishment only when no active IKE; one per episode',
       category: 'network',
     },
     {
       id: 'charon CHILD_SA established',
-      description: 'Child security association established',
-      frequency:
-        'Two scheduled background successes plus one linked success when enabled',
+      description: 'Establish CHILD ID, SPIs and traffic selectors',
+      frequency: 'After a valid active IKE establishment',
+      category: 'network',
+    },
+    {
+      id: 'charon CHILD_SA closed',
+      description: 'Close the existing CHILD with its SPIs/selectors/counters',
+      frequency: 'Ordinary cleanup and any cleanup before an episode',
+      category: 'network',
+    },
+    {
+      id: 'charon IKE_SA deleting',
+      description: 'Delete the actual active IKE after CHILD closure',
+      frequency: 'After each modeled CHILD cleanup',
       category: 'network',
     },
   ],
   realismFeatures: [
-    'RFC 5424 timestamps include microseconds; IPv4 TCP/UDP filterlog records use the documented 29/23 CSV positions.',
-    'LAN pass, WAN default block and enc0 pass use distinct stable rule trackers and interfaces.',
-    'Both modes include individual IPsec and administrative-port events; no configuration change or compromise is claimed.',
+    'UTC RFC 5424 log timestamps retain microseconds. Selected filterlog IPv4 UDP/TCP have all 23/29 documented CSV positions, stable LAN/WAN/enc0 interfaces and rule trackers.',
+    'UDP length includes its eight-byte header: 69-byte IPv4 has 49-byte UDP and 41-byte payload. TCP 60 has 40-byte TCP header/options and zero application payload; these are packet lengths, not flow totals.',
+    'Every enc0 pass requires an active CHILD. Failed attempts do not overwrite the live IKE identity; closure retains CHILD ID/SPIs/selectors, clears payload, then deletion clears the live IKE. One pair and bounded 720-phase scheduler retain no SA history.',
+    'Fresh successful IDs/nonzero SPIs distinguish episodes. Both modes contain all eight actions and independent 445/3389/5985 passes; pass alone proves no connection/authentication success.',
+    'Selected deployment enables optional RFC 5424 UDP forwarding for Firewall/VPN, logged pass rules, and IKE SA/IKE Child SA/Configuration Backend Diag with other categories Control. Synthetic SA counters include unlogged traffic and replies.',
+    'BLOCKED_RAW_EVIDENCE: maintained pfSense formatter and upstream strongSwan 5.9.14 close/delete grammar do not prove the exact CE 2.9 bundled library or a complete raw trace. Native Charon PRI relies on older firsthand examples; live parser, cryptography, NAT and administrator authentication are unproven.',
   ],
   format: ['JSON', 'ECS', 'Syslog'],
   generationModes: ['background', 'anomaly'],
@@ -72,72 +85,73 @@ export const networkPfsense: GeneratorMeta = {
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
+      description: 'Include recurring 12-record core chains amid background',
+    },
+    {
+      name: 'anomaly_interval_hours',
+      defaultValue: '6',
       description:
-        'Include one 12-record VPN chain; false retains ordinary IPsec and firewall events',
+        'Generated-time recurrence; finite numeric values below one hour clamp to one',
     },
     {
       name: 'hostname',
       defaultValue: 'fw01.corp.example',
-      description: 'Firewall hostname',
+      description: 'Firewall host',
     },
     {
       name: 'wan_ip',
       defaultValue: '203.0.113.1',
-      description: 'Local VPN endpoint',
+      description: 'Local IPsec endpoint and WAN address',
     },
     {
       name: 'remote_peer_ip',
       defaultValue: '198.51.100.77',
-      description: 'Remote VPN peer',
+      description: 'Remote IPsec endpoint',
     },
     {
       name: 'remote_tunnel_ip',
       defaultValue: '10.42.42.17',
-      description: 'Host inside the remote tunnel',
+      description: 'Remote host inside the tunnel',
     },
     {
       name: 'internal_target_ip',
       defaultValue: '10.20.0.10',
-      description: 'Internal access target',
+      description: 'Internal service host',
     },
     {
       name: 'tunnel_name',
       defaultValue: 'corp-remote',
-      description: 'IPsec tunnel name',
+      description: 'IPsec connection name',
     },
     {
       name: 'ipsec_pass_rule_tracker',
       defaultValue: '1534283903',
-      description: 'Existing logged IPsec pass-rule tracker',
+      description: 'Existing logged IPsec-tab pass rule',
     },
   ],
   sampleOutputs: [
     {
-      title: 'pfSense Firewall and IPsec event',
+      title: 'CHILD_SA established after repeated identity mismatches',
       json: String.raw`{
-  "@timestamp": "2026-09-25T16:54:42.909019+00:00",
+  "@timestamp": "2026-09-25T06:00:45.172919+00:00",
   "data_stream": {
     "dataset": "pfsense.log",
     "namespace": "default",
     "type": "logs"
   },
-  "destination": {
-    "ip": "203.0.113.1",
-    "port": 22
-  },
   "ecs": {
     "version": "8.17.0"
   },
   "event": {
-    "action": "block",
+    "action": "ipsec-child-established",
     "category": [
       "network"
     ],
     "dataset": "pfsense.log",
     "kind": "event",
-    "original": "<134>1 2026-09-25T16:54:42.909019+00:00 fw01.corp.example filterlog 72237 - - 5,16777216,,1000000103,igb0,match,block,in,4,0x0,,51,55152,0,DF,6,tcp,60,198.51.100.91,203.0.113.1,57361,22,0,S,1636984417,,64240,,mss;sackOK;TS;nop;wscale",
+    "original": "<30>1 2026-09-25T06:00:45.172919+00:00 fw01.corp.example charon 18610 - - 16[IKE] <corp-remote|33> CHILD_SA corp-remote{7} established with SPIs 98e17ba1_i acf2193c_o and TS 10.20.0.0/24|/0 === 10.42.42.0/24|/0",
     "type": [
-      "connection"
+      "info"
     ]
   },
   "host": {
@@ -145,14 +159,10 @@ export const networkPfsense: GeneratorMeta = {
   },
   "log": {
     "syslog": {
-      "priority": 134
+      "priority": 30
     }
   },
-  "message": "5,16777216,,1000000103,igb0,match,block,in,4,0x0,,51,55152,0,DF,6,tcp,60,198.51.100.91,203.0.113.1,57361,22,0,S,1636984417,,64240,,mss;sackOK;TS;nop;wscale",
-  "network": {
-    "direction": "inbound",
-    "transport": "tcp"
-  },
+  "message": "16[IKE] <corp-remote|33> CHILD_SA corp-remote{7} established with SPIs 98e17ba1_i acf2193c_o and TS 10.20.0.0/24|/0 === 10.42.42.0/24|/0",
   "observer": {
     "name": "fw01.corp.example",
     "product": "pfSense",
@@ -160,45 +170,15 @@ export const networkPfsense: GeneratorMeta = {
     "vendor": "Netgate",
     "version": "2.9.0"
   },
-  "pfsense": {
-    "direction": "in",
-    "interface": "igb0",
-    "ip": {
-      "flags": "DF",
-      "id": 55152,
-      "length": 60,
-      "offset": 0,
-      "tos": "0x0",
-      "ttl": 51
-    },
-    "tcp": {
-      "flags": "S",
-      "length": 0,
-      "window": 64240
-    }
-  },
   "process": {
-    "name": "filterlog",
-    "pid": 72237
-  },
-  "related": {
-    "ip": [
-      "198.51.100.91",
-      "203.0.113.1"
-    ]
-  },
-  "rule": {
-    "id": "1000000103"
-  },
-  "source": {
-    "ip": "198.51.100.91",
-    "port": 57361
+    "name": "charon",
+    "pid": 18610
   },
   "syslog": {
     "facility": {
-      "code": 16
+      "code": 3
     },
-    "priority": 134,
+    "priority": 30,
     "severity": {
       "code": 6
     }
