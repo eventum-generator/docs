@@ -40,6 +40,7 @@ import { identityFreeradius } from './generators/identity-freeradius';
 import { identityKeycloak } from './generators/identity-keycloak';
 import { identityMicrosoftAdcs } from './generators/identity-microsoft-adcs';
 import { identityMicrosoftNps } from './generators/identity-microsoft-nps';
+import { identityNetwrixAuditorCef } from './generators/identity-netwrix-auditor-cef';
 import { identityOkta } from './generators/identity-okta';
 import { identityOpenldapAuditlog } from './generators/identity-openldap-auditlog';
 import { kubernetesAudit } from './generators/kubernetes-audit';
@@ -76,6 +77,7 @@ import { networkPowerdnsAuthoritative } from './generators/network-powerdns-auth
 import { networkSnort } from './generators/network-snort';
 import { networkSonicwallTz } from './generators/network-sonicwall-tz';
 import { networkSophosFirewall } from './generators/network-sophos-firewall';
+import { networkStormshieldSns } from './generators/network-stormshield-sns';
 import { networkUnbound } from './generators/network-unbound';
 import { networkUsergate } from './generators/network-usergate';
 import { networkVmwareNsxManager } from './generators/network-vmware-nsx-manager';
@@ -84,6 +86,7 @@ import { networkWirelessAruba } from './generators/network-wireless-aruba';
 import { networkZeek } from './generators/network-zeek';
 import { proxyCiscoSecureWebAppliance } from './generators/proxy-cisco-secure-web-appliance';
 import { proxyKasperskyKwts } from './generators/proxy-kaspersky-kwts';
+import { proxySolarWebproxy } from './generators/proxy-solar-webproxy';
 import { proxyTraefik } from './generators/proxy-traefik';
 import { proxyZscaler } from './generators/proxy-zscaler';
 import { securityCrowdstrikeFalcon } from './generators/security-crowdstrike-falcon';
@@ -100,6 +103,7 @@ import { securityKasperskyKics4net } from './generators/security-kaspersky-kics4
 import { securityKasperskyKsc } from './generators/security-kaspersky-ksc';
 import { securityPtNad } from './generators/security-pt-nad';
 import { securitySophosCentral } from './generators/security-sophos-central';
+import { securityStaffcopEnterprise } from './generators/security-staffcop-enterprise';
 import { securitySuricata } from './generators/security-suricata';
 import { securitySymantecSepm } from './generators/security-symantec-sepm';
 import { securityTrendmicroDeepSecurity } from './generators/security-trendmicro-deep-security';
@@ -112,6 +116,7 @@ import { virtualizationVmwareEsxiHostd } from './generators/virtualization-vmwar
 import { vpnCiscoAnyconnect } from './generators/vpn-cisco-anyconnect';
 import { vpnCitrixNetscaler } from './generators/vpn-citrix-netscaler';
 import { vpnPaloaltoGlobalprotect } from './generators/vpn-paloalto-globalprotect';
+import { vpnSTerraGate } from './generators/vpn-s-terra-gate';
 import { vpnVipnet } from './generators/vpn-vipnet';
 import { webApache } from './generators/web-apache';
 import { webAtlassianJiraSecurity } from './generators/web-atlassian-jira-security';
@@ -267,4 +272,9 @@ export const generators: GeneratorMeta[] = [
   networkWatchguardFirebox,
   networkKempLoadmaster,
   securityImpervaSecuresphere,
+  proxySolarWebproxy,
+  identityNetwrixAuditorCef,
+  securityStaffcopEnterprise,
+  networkStormshieldSns,
+  vpnSTerraGate,
 ];
