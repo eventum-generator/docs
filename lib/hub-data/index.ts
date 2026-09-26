@@ -21,6 +21,7 @@ import { databaseOracleUnifiedAudit } from './generators/database-oracle-unified
 import { databasePostgresql } from './generators/database-postgresql';
 import { databaseSapHana } from './generators/database-sap-hana';
 import { dlpInfowatch } from './generators/dlp-infowatch';
+import { emailCiscoSecureEmailGateway } from './generators/email-cisco-secure-email-gateway';
 import { emailDovecotImap } from './generators/email-dovecot-imap';
 import { emailExchange } from './generators/email-exchange';
 import { emailKasperskyKlms } from './generators/email-kaspersky-klms';
@@ -32,6 +33,7 @@ import { identityAdfsAudit } from './generators/identity-adfs-audit';
 import { identityAldPro } from './generators/identity-ald-pro';
 import { identityArubaClearpass } from './generators/identity-aruba-clearpass';
 import { identityCiscoIse } from './generators/identity-cisco-ise';
+import { identityFortinetFortipam } from './generators/identity-fortinet-fortipam';
 import { identityFreeipaSecurity } from './generators/identity-freeipa-security';
 import { identityFreeradius } from './generators/identity-freeradius';
 import { identityKeycloak } from './generators/identity-keycloak';
@@ -44,6 +46,7 @@ import { linuxAuditd } from './generators/linux-auditd';
 import { linuxSyslog } from './generators/linux-syslog';
 import { messagingApacheKafkaAuthorizer } from './generators/messaging-apache-kafka-authorizer';
 import { monitoringZabbix } from './generators/monitoring-zabbix';
+import { networkBind9Query } from './generators/network-bind9-query';
 import { networkCheckpoint } from './generators/network-checkpoint';
 import { networkCiscoAsa } from './generators/network-cisco-asa';
 import { networkCiscoFtd } from './generators/network-cisco-ftd';
@@ -55,9 +58,11 @@ import { networkEltexEsr } from './generators/network-eltex-esr';
 import { networkEltexMes } from './generators/network-eltex-mes';
 import { networkFirewall } from './generators/network-firewall';
 import { networkFortigate } from './generators/network-fortigate';
+import { networkFortinetFortiadc } from './generators/network-fortinet-fortiadc';
 import { networkIdecoNgfw } from './generators/network-ideco-ngfw';
 import { networkJuniperSrx } from './generators/network-juniper-srx';
 import { networkKasperskyNgfw } from './generators/network-kaspersky-ngfw';
+import { networkKerioControl } from './generators/network-kerio-control';
 import { networkMikrotikRouteros } from './generators/network-mikrotik-routeros';
 import { networkNetflow } from './generators/network-netflow';
 import { networkOpenvpnCommunity } from './generators/network-openvpn-community';
@@ -67,11 +72,13 @@ import { networkPaloaltoUrl } from './generators/network-paloalto-url';
 import { networkPfsense } from './generators/network-pfsense';
 import { networkPowerdnsAuthoritative } from './generators/network-powerdns-authoritative';
 import { networkSnort } from './generators/network-snort';
+import { networkSophosFirewall } from './generators/network-sophos-firewall';
 import { networkUnbound } from './generators/network-unbound';
 import { networkUsergate } from './generators/network-usergate';
 import { networkVmwareNsxManager } from './generators/network-vmware-nsx-manager';
 import { networkWirelessAruba } from './generators/network-wireless-aruba';
 import { networkZeek } from './generators/network-zeek';
+import { proxyCiscoSecureWebAppliance } from './generators/proxy-cisco-secure-web-appliance';
 import { proxyKasperskyKwts } from './generators/proxy-kaspersky-kwts';
 import { proxyTraefik } from './generators/proxy-traefik';
 import { proxyZscaler } from './generators/proxy-zscaler';
@@ -80,6 +87,7 @@ import { securityDefenderEndpoint } from './generators/security-defender-endpoin
 import { securityDrwebEss } from './generators/security-drweb-ess';
 import { securityEsetProtect } from './generators/security-eset-protect';
 import { securityFalco } from './generators/security-falco';
+import { securityFortinetFortisoar } from './generators/security-fortinet-fortisoar';
 import { securityHashicorpVault } from './generators/security-hashicorp-vault';
 import { securityKasperskyCybertrace } from './generators/security-kaspersky-cybertrace';
 import { securityKasperskyKata } from './generators/security-kaspersky-kata';
@@ -239,4 +247,12 @@ export const generators: GeneratorMeta[] = [
   networkCiscoFtd,
   securityTrendmicroDeepSecurity,
   webF5AdvancedWaf,
+  identityFortinetFortipam,
+  networkKerioControl,
+  networkBind9Query,
+  proxyCiscoSecureWebAppliance,
+  emailCiscoSecureEmailGateway,
+  securityFortinetFortisoar,
+  networkSophosFirewall,
+  networkFortinetFortiadc,
 ];
