@@ -6,25 +6,26 @@ export const emailPostfix: GeneratorMeta = {
   displayName: 'Postfix SMTP Syslog',
   category: 'email',
   description:
-    'Postfix 3.8.3+ submission-relay syslog for smtpd, cleanup, qmgr and smtp, with a switchable linked mail episode.',
+    'Postfix 3.8.3+ submission-relay syslog with causal queue creation, cleanup, delays, deliveries and recurring authentication-to-mail episodes.',
   dataSource: 'Postfix 3.8.3+ submission-relay syslog',
   format: ['JSON', 'ECS', 'Syslog'],
   eventCount: 7,
   templateCount: 1,
   generatorId: 'email-postfix',
   highlights: [
-    'Postfix 3.8.3+ native syslog in event.original',
-    'Modeled smtpd-to-cleanup-to-qmgr-to-smtp queue lifecycle',
-    'One switchable failure-to-acceptance and five-recipient episode',
+    'Native Postfix 3.8.3+ line in event.original',
+    'Source-derived Message-ID and delay formatting',
+    'Twelve-record mail episodes recur every six hours',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'After 250 routine decisions, one user and IP produce three failed SASL LOGIN attempts on one smtpd PID, then acceptance, cleanup, qmgr nrcpt=5, five distinct sent deliveries and queue removal.',
+    'Every six hours, after ordinary queued mail completes, one user and IP make three failed SASL LOGIN attempts on one smtpd PID, then a queue-ID assignment, cleanup, qmgr nrcpt=5, five distinct sent deliveries and removal. Twelve records span eleven seconds. Episodes use new queue IDs and rotating recipients; failures join queue creation by user, IP, host, PID and time, not queue ID.',
   eventTypes: [
     {
-      id: 'postfix/smtpd accepted',
-      description: 'Authenticated submission',
-      frequency: '90% of routine decisions',
+      id: 'postfix/smtpd queue assigned',
+      description:
+        'Queue ID assigned to authenticated submission; before final DATA acceptance',
+      frequency: '90% of routine decisions and recurring episodes',
       category: 'email',
     },
     {
@@ -35,101 +36,108 @@ export const emailPostfix: GeneratorMeta = {
     },
     {
       id: 'postfix/smtpd SASL failure',
-      description: 'Isolated failed authentication',
-      frequency: '3% of routine decisions, at least 20 records apart',
+      description: 'Failed LOGIN without queue ID',
+      frequency:
+        '3% of routine decisions, at least 20 records apart; three per episode',
       category: 'authentication',
     },
     {
       id: 'postfix/cleanup message-id',
-      description: 'Message enters the queue',
-      frequency: 'After each acceptance',
+      description:
+        'Generate a missing Message-ID from queue-file creation time',
+      frequency: 'After each queue creation',
       category: 'email',
     },
     {
       id: 'postfix/qmgr active',
-      description: 'Queue activation with sender, size and recipient count',
-      frequency: 'After cleanup; ordinary nrcpt is 1, 2 or 5',
+      description: 'Activate sender, size and recipient count',
+      frequency: 'After cleanup; ordinary nrcpt 1/2/5 with weights 85/13/2',
       category: 'email',
     },
     {
       id: 'postfix/smtp sent',
-      description: 'Successful recipient delivery',
+      description: 'Complete one recipient delivery with delay phases',
       frequency: 'One per queued recipient',
       category: 'email',
     },
     {
       id: 'postfix/qmgr removed',
-      description: 'Message leaves the queue',
-      frequency: 'After modeled deliveries complete',
+      description: 'Remove the queue after all deliveries',
+      frequency: 'After modeled recipient deliveries complete',
       category: 'email',
     },
   ],
   realismFeatures: [
-    'One queue ID links accepted smtpd, cleanup, qmgr and smtp records through removal; failures and NOQUEUE rejects have no queue ID.',
-    'Routine accepted messages have 1, 2 or 5 recipients with modeled weights 85%, 13% and 2%.',
-    'The target user and IP, isolated failures, and five-recipient deliveries also occur in background.',
-    'Eight routine sender samples plus the target and 60 varied recipients reduce repetitive synthetic traffic.',
-    'Exact Postfix 3.8.3+ full three-failure-to-acceptance native trace remains unavailable; the chain joins documented line formats.',
-    'No source-specific Elastic sample was used; a native-reference field-coverage percentage is not claimed.',
+    'One active message and at most five recipients retain queue ID and process causality through removal. Short queue IDs model five-hex creation microseconds plus a synthetic inode component.',
+    'Missing Message-ID date uses queue-file creation time, not the later cleanup log. Authenticated header rewriting is selected; envelope sender equals the account by scenario choice.',
+    'Native delay phases use active-queue entry and bounded size-dependent transmission. Postfix 3.8.3 integer-microsecond HALF-UP formatting preserves source precision; printed rounded phases need not sum exactly.',
+    'The target user/IP, isolated failures and five-recipient deliveries occur in background. A bounded recipient cursor rotates between episodes; smtpd PID is reused and does not identify a session.',
+    'SASL LOGIN, short queue IDs, single-recipient SMTP transport and local UTC mail-log timestamps are selected assumptions. Native queue assignment alone does not prove final DATA acceptance.',
+    'BLOCKED_RAW_EVIDENCE: exact full 3.8.3+ three-failure-to-submission trace is unavailable. Connection/TLS, retries/deferred/bounces, remote syslog wire and full parser parity are outside the profile; no source-specific Elastic coverage percentage is claimed.',
   ],
   parameters: [
     {
       name: 'mail_host',
       defaultValue: 'mail-01.corp.example',
-      description: 'Postfix server hostname',
+      description: 'Postfix host identity',
     },
     {
       name: 'mail_ip',
       defaultValue: '10.80.0.5',
-      description: 'Postfix server address',
+      description: 'Postfix host identity',
     },
     {
       name: 'normal_user',
       defaultValue: 'service@corp.example',
-      description: 'First routine sender among eight samples',
+      description:
+        'First routine sender; seven more are in `samples/senders.json`; use an ASCII username of at most 100 bytes',
     },
     {
       name: 'normal_ip',
       defaultValue: '10.80.1.20',
-      description: 'First routine sender address',
+      description:
+        'First routine sender; seven more are in `samples/senders.json`; use an ASCII username of at most 100 bytes',
     },
     {
       name: 'anomaly_user',
       defaultValue: 'payroll@corp.example',
-      description: 'Episode user also present in background',
+      description:
+        'Episode identity, also used by routine mail and isolated failures; use an ASCII username of at most 100 bytes',
     },
     {
       name: 'anomaly_ip',
       defaultValue: '10.99.3.51',
-      description: 'Episode source also present in background',
+      description:
+        'Episode identity, also used by routine mail and isolated failures; use an ASCII username of at most 100 bytes',
     },
     {
-      name: 'anomaly_interval_events',
-      defaultValue: '250',
-      description: 'Routine decisions before one episode',
+      name: 'anomaly_interval_hours',
+      defaultValue: '6',
+      description:
+        'Recurrence in generated hours; minimum supported interval is 1 hour, smaller values are clamped to 1',
     },
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description: 'Include one linked episode; false emits background only',
+      description: 'Include recurring episodes; `false` emits background only',
     },
   ],
   sampleOutputs: [
     {
-      title: 'Accepted authenticated submission',
+      title: 'Cleanup Message-ID from queue creation time',
       json: String.raw`{
-  "@timestamp": "2026-09-25T00:19:30+00:00",
+  "@timestamp": "2026-09-25T06:00:09+00:00",
   "ecs": {
     "version": "8.17.0"
   },
   "event": {
-    "action": "smtp-accept",
+    "action": "message-cleanup",
     "category": [
       "email"
     ],
     "dataset": "postfix.syslog",
     "kind": "event",
-    "original": "Sep 25 00:19:30 mail-01.corp.example postfix/smtpd[2400]: 4F657A0489: client=unknown[10.99.3.51], sasl_method=LOGIN, sasl_username=payroll@corp.example",
+    "original": "Sep 25 06:00:09 mail-01.corp.example postfix/cleanup[2421]: 11375C0580: message-id=<20260925060008.11375C0580@mail-01.corp.example>",
     "outcome": "success",
     "type": [
       "info"
@@ -144,10 +152,10 @@ export const emailPostfix: GeneratorMeta = {
   "log": {
     "level": "info",
     "syslog": {
-      "appname": "postfix/smtpd"
+      "appname": "postfix/cleanup"
     }
   },
-  "message": "4F657A0489: client=unknown[10.99.3.51], sasl_method=LOGIN, sasl_username=payroll@corp.example",
+  "message": "11375C0580: message-id=<20260925060008.11375C0580@mail-01.corp.example>",
   "observer": {
     "hostname": "mail-01.corp.example",
     "ip": "10.80.0.5",
@@ -156,37 +164,23 @@ export const emailPostfix: GeneratorMeta = {
     "vendor": "Postfix"
   },
   "postfix": {
-    "queue_id": "4F657A0489",
-    "sasl": {
-      "username": "payroll@corp.example"
-    },
-    "service": "smtpd"
+    "message_id": "<20260925060008.11375C0580@mail-01.corp.example>",
+    "queue_id": "11375C0580",
+    "service": "cleanup"
   },
   "process": {
-    "name": "postfix/smtpd",
-    "pid": 2400
+    "name": "postfix/cleanup",
+    "pid": 2421
   },
   "related": {
     "hosts": [
       "mail-01.corp.example"
-    ],
-    "ip": [
-      "10.99.3.51"
-    ],
-    "user": [
-      "payroll@corp.example"
     ]
-  },
-  "source": {
-    "ip": "10.99.3.51"
   },
   "tags": [
     "postfix",
     "preserve_original_event"
-  ],
-  "user": {
-    "name": "payroll@corp.example"
-  }
+  ]
 }`,
     },
   ],
