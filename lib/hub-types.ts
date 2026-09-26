@@ -28,6 +28,8 @@ export interface GeneratorMeta {
   eventCount: number;
   templateCount: number;
   highlights: string[];
+  generationModes?: Array<'background' | 'anomaly'>;
+  anomalyChain?: string;
   generatorId: string;
   eventTypes: EventType[];
   realismFeatures: string[];
