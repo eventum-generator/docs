@@ -14,13 +14,13 @@ export const windowsActiveDirectory: GeneratorMeta = {
   templateCount: 1,
   highlights: [
     'Kerberos and NTLM audit',
-    'Administrative SubjectLogonId',
-    'Correlated 5136 pair',
-    'One-shot 130-second chain',
+    '258/263 reference field paths modeled',
+    'New service-account targets and correlation IDs per cycle',
+    'Recurring 130-second correlated sequence',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'Four-account password spray, successful TGT, RC4 service-ticket burst, Domain Admins addition, and delegation change within 130 seconds.',
+    'After 3600 ordinary records and each further 3600-record interval, four-user password spray precedes a TGT success, three RC4 service tickets, a Domain Admins addition and a delegation-value delete/add pair within 130 seconds. Each cycle uses another pre-existing account and fresh episode IDs; approved maintenance and the same actor/IP/actions also occur in background.',
   generatorId: 'ad',
   eventTypes: [
     {
@@ -50,22 +50,22 @@ export const windowsActiveDirectory: GeneratorMeta = {
     {
       id: '4728',
       description: 'Member added to Domain Admins',
-      frequency: 'One routine maintenance event plus one chain event',
+      frequency: 'One approved addition per cycle; also episodes',
       category: 'iam',
     },
     {
       id: '5136',
       description: 'Directory attribute value deleted or added',
-      frequency: 'One routine pair plus one chain pair',
+      frequency: 'One approved pair per cycle; also episodes',
       category: 'iam, configuration',
     },
   ],
   realismFeatures: [
-    'One domain controller with a strictly increasing Security record ID',
-    'Routine Kerberos and NTLM events follow the weighted mix documented in the README',
-    'RC4 service tickets target three distinct service accounts after the compromised TGT',
-    'Privileged group and directory changes share SubjectLogonId; the 5136 pair shares OpCorrelationID',
-    'Updated 4768 and 4769 encryption capability and ticket hash fields',
+    'Security record IDs increase with event time on one domain controller; ordinary maintenance shares the episode object and establishes the later deleted value.',
+    'Targets have distinct pre-existing service-account names/RIDs and stable object GUIDs within each cycle; membership is never added twice.',
+    '4728 and 5136 share SubjectLogonId; the 5136 pair shares OpCorrelationID, while KDC-to-administration correlation is only by account, IP and time.',
+    '4768/4769 version 2 models Server 2016/2019/2022 after the January 14, 2025 update; 5136 requires Directory Service Changes auditing and a matching SACL.',
+    '258/263 reference field paths are modeled (98.1%); this is normalized synthetic ECS, not raw XML replay or production-calibrated rates. Changing msDS-AllowedToDelegateTo alone does not prove usable delegation.',
   ],
   parameters: [
     {
@@ -112,35 +112,49 @@ export const windowsActiveDirectory: GeneratorMeta = {
       name: 'attack_ip',
       defaultValue: '10.99.4.22',
       description:
-        'Shared bastion address used by the chain and ordinary authentication',
+        'Shared bastion address used by the chain and some ordinary authentications',
     },
     {
       name: 'attack_member',
       defaultValue: 'svc_sync',
-      description: 'Account added to Domain Admins and modified',
+      description:
+        'Prefix for pre-existing service accounts in both modes; cycle targets receive numeric suffixes',
     },
     {
       name: 'attack_member_rid',
       defaultValue: '2108',
-      description: 'RID of that account',
+      description:
+        'First target RID; later account RIDs increase without reuse',
     },
     {
       name: 'attack_object_guid',
       defaultValue: '{62ae5b92-0fab-4f0d-9393-1cfab99c9742}',
-      description: 'Stable directory object GUID',
+      description:
+        'First target GUID; later objects get new GUIDs, stable within their cycle',
     },
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
       description:
-        'Emit the linked intrusion chain; `false` emits only routine events',
+        'Emit periodic linked episodes; `false` emits only routine events',
+    },
+    {
+      name: 'anomaly_after_events',
+      defaultValue: '3600',
+      description: 'Ordinary records before the first episode',
+    },
+    {
+      name: 'anomaly_interval_events',
+      defaultValue: '3600',
+      description:
+        'Ordinary records between episodes; both timing values are clamped to at least 102 for complete maintenance',
     },
   ],
   sampleOutputs: [
     {
       title: '4728: member added to Domain Admins',
       json: String.raw`{
-  "@timestamp": "2026-09-25T16:38:19+00:00",
+  "@timestamp": "2026-09-25T01:02:08+00:00",
   "agent": {
     "ephemeral_id": "943942bd-09ec-48aa-957d-2f12ecb83866",
     "id": "a51465f9-72f4-4761-89bb-55de00ec6701",
@@ -160,7 +174,7 @@ export const windowsActiveDirectory: GeneratorMeta = {
     "kind": "event",
     "outcome": "success",
     "provider": "Microsoft-Windows-Security-Auditing",
-    "sequence": 900379,
+    "sequence": 903729,
     "type": [
       "group",
       "change"
@@ -184,7 +198,7 @@ export const windowsActiveDirectory: GeneratorMeta = {
   "related": {
     "user": [
       "helpdesk.admin",
-      "svc_sync"
+      "svc_sync_001"
     ]
   },
   "user": {
@@ -199,17 +213,17 @@ export const windowsActiveDirectory: GeneratorMeta = {
         "name": "Domain Admins"
       },
       "id": "S-1-5-21-3457937927-2839227994-823803824-2108",
-      "name": "svc_sync"
+      "name": "svc_sync_001"
     }
   },
   "winlog": {
     "channel": "Security",
     "computer_name": "dc01.contoso.local",
     "event_data": {
-      "MemberName": "CN=svc_sync,CN=Users,DC=contoso,DC=local",
+      "MemberName": "CN=svc_sync_001,CN=Users,DC=contoso,DC=local",
       "MemberSid": "S-1-5-21-3457937927-2839227994-823803824-2108",
       "SubjectDomainName": "CONTOSO",
-      "SubjectLogonId": "0x9648a9",
+      "SubjectLogonId": "0x2d0be9",
       "SubjectUserName": "helpdesk.admin",
       "SubjectUserSid": "S-1-5-21-3457937927-2839227994-823803824-1114",
       "TargetDomainName": "CONTOSO",
@@ -222,21 +236,21 @@ export const windowsActiveDirectory: GeneratorMeta = {
     ],
     "level": "information",
     "logon": {
-      "id": "0x9648a9"
+      "id": "0x2d0be9"
     },
     "opcode": "Info",
     "outcome": "success",
     "process": {
       "pid": 516,
       "thread": {
-        "id": 8007
+        "id": 5529
       }
     },
     "provider_guid": "{54849625-5478-4994-a5ba-3e3b0328c30d}",
     "provider_name": "Microsoft-Windows-Security-Auditing",
-    "record_id": "900379",
+    "record_id": "903729",
     "task": "Security Group Management",
-    "time_created": "2026-09-25T16:38:19+00:00",
+    "time_created": "2026-09-25T01:02:08+00:00",
     "version": 0
   }
 }`,
