@@ -63,7 +63,10 @@ export const windowsActiveDirectory: GeneratorMeta = {
   realismFeatures: [
     'Security record IDs increase with event time on one domain controller; ordinary maintenance shares the episode object and establishes the later deleted value.',
     'Targets have distinct pre-existing service-account names/RIDs and stable object GUIDs within each cycle; membership is never added twice.',
-    '4728 and 5136 share SubjectLogonId; the 5136 pair shares OpCorrelationID, while KDC-to-administration correlation is only by account, IP and time.',
+    '4768 ResponseTicket joins 4769 RequestTicketHash for the same account/client; each sweep retains its TGT and client LogonGuid. RC4-only requests use an advertised RC4 session key.',
+    '4728 and 5136 share SubjectLogonId; the 5136 pair shares OpCorrelationID. KDC-to-administration correlation is only by account, IP and time.',
+    'One current TGT per modeled account/client; initial requests may use credentials predating the capture. Ticket expiry, renewals and simultaneous credentials are outside scope.',
+    'Sensitive LDAP/controller delegation values occur in episodes; background maintenance shares actors and objects but replaces CIFS values.',
     '4768/4769 version 2 models Server 2016/2019/2022 after the January 14, 2025 update; 5136 requires Directory Service Changes auditing and a matching SACL.',
     '258/263 reference field paths are modeled (98.1%); this is normalized synthetic ECS, not raw XML replay or production-calibrated rates. Changing msDS-AllowedToDelegateTo alone does not prove usable delegation.',
   ],
@@ -223,7 +226,7 @@ export const windowsActiveDirectory: GeneratorMeta = {
       "MemberName": "CN=svc_sync_001,CN=Users,DC=contoso,DC=local",
       "MemberSid": "S-1-5-21-3457937927-2839227994-823803824-2108",
       "SubjectDomainName": "CONTOSO",
-      "SubjectLogonId": "0x2d0be9",
+      "SubjectLogonId": "0x338f51",
       "SubjectUserName": "helpdesk.admin",
       "SubjectUserSid": "S-1-5-21-3457937927-2839227994-823803824-1114",
       "TargetDomainName": "CONTOSO",
@@ -236,14 +239,14 @@ export const windowsActiveDirectory: GeneratorMeta = {
     ],
     "level": "information",
     "logon": {
-      "id": "0x2d0be9"
+      "id": "0x338f51"
     },
     "opcode": "Info",
     "outcome": "success",
     "process": {
       "pid": 516,
       "thread": {
-        "id": 5529
+        "id": 4703
       }
     },
     "provider_guid": "{54849625-5478-4994-a5ba-3e3b0328c30d}",
