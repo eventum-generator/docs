@@ -4,133 +4,137 @@ export const networkPowerdnsAuthoritative: GeneratorMeta = {
   slug: 'network-powerdns-authoritative',
   displayName: 'PowerDNS Authoritative Server',
   category: 'network',
-  dataSource: 'PowerDNS Authoritative classic DNS query syslog',
   description:
-    'Authoritative DNS query logs with a switchable zone-enumeration-like sequence.',
-  generatorId: 'powerdns-authoritative',
+    'PowerDNS Authoritative 5.0.1 classic UDP query lines with causal packet-cache state and recurring concentrated query episodes.',
+  dataSource: 'PowerDNS Authoritative 5.0.1 classic stderr query log',
+  format: ['JSON', 'ECS', 'Text'],
   eventCount: 6,
   templateCount: 1,
   highlights: [
-    'Vendor Remote ... wants query-line format',
-    'Packet-cache HIT/MISS retained',
-    'SOA/NS/TXT probing followed by unique labels',
+    '7/7 selected native query-line components',
+    'Bounded 20-second packet-cache model',
+    'All six query types occur in background',
   ],
+  generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'One remote probes SOA, NS and TXT before twelve unique long-label A queries to the same zone, all cache misses.',
+    'Every two hours, one client sends SOA, NS and TXT zone queries followed by twelve distinct health-style A names. Later episodes use fresh names; the client, types and name style also occur in background.',
+  generatorId: 'powerdns-authoritative',
   eventTypes: [
     {
       id: 'A',
-      description: 'Address query',
-      frequency: '75% baseline',
+      description: 'Address lookup',
+      frequency: '68% routine selection weight',
       category: 'network',
     },
     {
       id: 'AAAA',
-      description: 'IPv6 address query',
-      frequency: '12% baseline',
+      description: 'IPv6 address lookup',
+      frequency: '14% routine selection weight',
       category: 'network',
     },
     {
       id: 'SOA',
-      description: 'Zone metadata query',
-      frequency: '8% baseline',
-      category: 'network',
-    },
-    {
-      id: 'MX',
-      description: 'Mail exchange query',
-      frequency: '5% baseline',
+      description: 'Zone metadata lookup',
+      frequency: '7% routine selection weight',
       category: 'network',
     },
     {
       id: 'NS',
-      description: 'Nameserver probe',
-      frequency: 'Chain only',
+      description: 'Name-server lookup',
+      frequency: '4% routine selection weight',
+      category: 'network',
+    },
+    {
+      id: 'MX',
+      description: 'Mail exchanger lookup',
+      frequency: '4% routine selection weight',
       category: 'network',
     },
     {
       id: 'TXT',
-      description: 'Text-record probe',
-      frequency: 'Chain only',
+      description: 'Text-record lookup',
+      frequency: '3% routine selection weight',
       category: 'network',
     },
   ],
   realismFeatures: [
-    'Classic UDP query messages match a PowerDNS Authoritative vendor sample.',
-    'Packet-cache misses do not imply DNS response codes.',
-    'Query logging requires log-dns-queries and loglevel at least 5.',
+    'The selected vendor 5.0.1 example uses timestamped classic stderr output without a syslog host/process wrapper.',
+    'A bounded 128-key cache emits HIT only for a live identical question; fresh or expired questions emit MISS.',
+    'Host name is configured ECS context; cache MISS implies neither a response code nor successful resolution.',
+    'The selected seven-field profile is source-supported; live 5.0.1 output, collection and parser behavior remain untested.',
   ],
-  format: ['JSON', 'ECS', 'syslog'],
-  generationModes: ['background', 'anomaly'],
   parameters: [
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description: 'Include zone-enumeration-like chain',
+      description: 'Enable periodic correlated query episodes',
+    },
+    {
+      name: 'anomaly_interval_hours',
+      defaultValue: '2',
+      description: 'Hours between episode starts; use a positive value',
     },
     {
       name: 'host_name',
       defaultValue: 'ns01.corp.example',
-      description: 'Authoritative server name',
+      description:
+        'Configured server identity in the ECS wrapper, not in the selected native line',
     },
     {
       name: 'zone_name',
       defaultValue: 'corp.example',
-      description: 'Authoritative zone',
+      description: 'Synthetic authoritative zone',
     },
     {
       name: 'suspicious_client_ip',
       defaultValue: '192.0.2.91',
-      description: 'Remote IP in the chain',
+      description:
+        'Client participating in periodic bursts and ordinary background',
     },
   ],
   sampleOutputs: [
     {
-      title: 'PowerDNS Authoritative Server event',
+      title: 'PowerDNS Authoritative Server event from finite generator output',
       json: String.raw`{
-  "@timestamp": "2026-09-25T12:20:45+00:00",
-  "dns": {
-    "question": {
-      "name": "0195728f0fd622fa4f0d49.corp.example",
-      "type": "A"
+    "@timestamp": "2026-09-25T02:00:04+00:00",
+    "dns": {
+        "question": {
+            "name": "health-07202-88c07cd8.corp.example",
+            "type": "A"
+        },
+        "type": "query"
     },
-    "type": "query"
-  },
-  "ecs": {
-    "version": "8.17.0"
-  },
-  "event": {
-    "action": "dns-query",
-    "category": [
-      "network"
-    ],
-    "kind": "event",
-    "original": "Sep 25 12:20:45 ns01.corp.example pdns_server[2367]: Remote 192.0.2.91 wants '0195728f0fd622fa4f0d49.corp.example|A', do = 0, bufsize = 512: packetcache MISS",
-    "type": [
-      "info"
-    ]
-  },
-  "host": {
-    "name": "ns01.corp.example"
-  },
-  "powerdns": {
-    "dnssec_ok": false,
-    "edns_buffer_size": 512,
-    "packet_cache": "MISS",
-    "server_type": "authoritative"
-  },
-  "process": {
-    "name": "pdns_server",
-    "pid": 2367
-  },
-  "related": {
-    "ip": [
-      "192.0.2.91"
-    ]
-  },
-  "source": {
-    "ip": "192.0.2.91"
-  }
+    "ecs": {
+        "version": "8.17.0"
+    },
+    "event": {
+        "action": "dns-query",
+        "category": [
+            "network"
+        ],
+        "kind": "event",
+        "original": "Sep 25 02:00:04 Remote 192.0.2.91 wants 'health-07202-88c07cd8.corp.example|A', do = 0, bufsize = 512: packetcache MISS",
+        "type": [
+            "info"
+        ]
+    },
+    "host": {
+        "name": "ns01.corp.example"
+    },
+    "powerdns": {
+        "dnssec_ok": false,
+        "edns_buffer_size": 512,
+        "packet_cache": "MISS",
+        "server_type": "authoritative"
+    },
+    "related": {
+        "ip": [
+            "192.0.2.91"
+        ]
+    },
+    "source": {
+        "ip": "192.0.2.91"
+    }
 }`,
     },
   ],
