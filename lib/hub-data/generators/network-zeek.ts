@@ -5,110 +5,116 @@ export const networkZeek: GeneratorMeta = {
   slug: 'network-zeek',
   displayName: 'Zeek Network Telemetry',
   category: 'network',
-  dataSource: 'Zeek conn, dns, http and ssl JSON logs',
   description:
-    'Linked Zeek connection, DNS, HTTP and TLS records with the same UID and network tuple. Switch between ordinary traffic and a correlated DNS-to-TLS-to-upload anomaly.',
-  generatorId: 'zeek',
+    'Selected Zeek 8.0 IPv4 telemetry with linked protocol and connection records. Daily DNS, repeated TLS connections and upload sequences share ordinary clients and destinations.',
+  format: ['JSON', 'ECS'],
+  dataSource: 'Selected Zeek 8.0.0 JSON conn/dns/http/ssl logs',
   eventCount: 4,
-  templateCount: 2,
+  templateCount: 1,
   highlights: [
-    'Linked connection and protocol records',
-    'Native Zeek JSON in event.original',
-    'Switchable eight-flow anomaly chain',
+    'Four linked native streams',
+    'DNS, HTTP and passive TLS state',
+    'Daily timed callbacks and POST',
   ],
+  generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'One client resolves a domain, repeatedly connects over TLS, then sends a large HTTP POST to the same destination.',
+    'Every 24 hours, one ordinary client resolves a fresh hostname, makes five TLS connections at two-minute intervals, refreshes DNS at minute 12 and completes a large POST at minute 14. All single-event features also occur in background.',
+  generatorId: 'zeek',
   eventTypes: [
     {
       id: 'conn.log',
-      description: 'Connection lifecycle record',
-      frequency: '50.0%',
+      description: 'Completed TCP/UDP flows, SF state and byte/packet totals',
+      frequency: 'Approximately 50%',
       category: 'network',
     },
     {
       id: 'dns.log',
-      description: 'DNS query and response',
-      frequency: '27.0%',
+      description: 'Recursive A answer or NXDOMAIN',
+      frequency: 'Approximately 22.5%',
       category: 'network',
     },
     {
       id: 'ssl.log',
-      description: 'TLS handshake and certificate metadata',
-      frequency: '18.3%',
+      description: 'Passive TLS 1.3 visible SNI and establishment inference',
+      frequency: 'Approximately 20%',
       category: 'network',
     },
     {
       id: 'http.log',
-      description: 'HTTP transaction',
-      frequency: '4.7%',
-      category: 'web',
+      description: 'Cleartext GET/POST and200/304/404 responses',
+      frequency: 'Approximately 7.5%',
+      category: 'network, web',
     },
   ],
-  realismFeatures: [
-    'Each connection and protocol record share a Zeek UID, timestamp and 4-tuple.',
-    'Background protocol selection is weighted 55% DNS, 35% TLS and 10% HTTP.',
-    'The anomaly links DNS resolution, repeated TLS contacts and a large upload without a special anomaly label.',
-  ],
-  format: ['JSON', 'ECS'],
-  generationModes: ['background', 'anomaly'],
   parameters: [
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
       description:
-        'Emit the correlated anomaly chain alongside routine events; false emits only background',
+        'Background plus recurring episode; false is background only',
     },
     {
       name: 'sensor_name',
       defaultValue: 'zeek-sensor-01',
-      description: 'Zeek sensor and collector name',
+      description: 'Sensor and synthetic collector name',
     },
     {
       name: 'sensor_id',
       defaultValue: '8aaedfb4-c8a3-4dd8-853f-5c270abfd47a',
-      description: 'Stable collector ID',
+      description: 'Synthetic collector inventory ID',
     },
     {
       name: 'sensor_ephemeral_id',
       defaultValue: 'd2c2e56b-4915-4dc4-8ad9-6112f1d26e43',
-      description: 'Collector process ID',
+      description: 'Synthetic collector process ID',
     },
     {
       name: 'sensor_version',
       defaultValue: '8.7.1',
-      description: 'Collector version in ECS metadata',
+      description: 'Synthetic Filebeat inventory version, not the Zeek version',
     },
     {
       name: 'dns_server_ip',
       defaultValue: '10.20.0.53',
-      description: 'Internal DNS server',
+      description: 'Observed recursive DNS resolver IPv4 address',
     },
     {
       name: 'suspicious_ip',
       defaultValue: '198.51.100.77',
-      description: 'Fixed destination for the anomaly',
+      description: 'Shared ordinary/episode destination IPv4 address',
     },
     {
       name: 'suspicious_name',
       defaultValue: 'sync-gw.example.net',
-      description: 'DNS query and TLS SNI in the anomaly',
+      description: 'Parent of generated ordinary/episode names',
     },
     {
       name: 'suspicious_client_ip',
       defaultValue: '10.20.8.44',
-      description: 'Client shared by anomaly events',
+      description: 'Shared ordinary/episode client',
     },
     {
       name: 'internal_domain',
       defaultValue: 'corp.example',
-      description: 'Domain for background internal DNS queries',
+      description: 'Internal positive and negative DNS zone',
+    },
+    {
+      name: 'anomaly_interval_hours',
+      defaultValue: '24',
+      description: 'Episode interval, six-hour minimum',
+    },
+    {
+      name: 'client_ips',
+      defaultValue: '[10.20.8.12, 10.20.8.25, 10.20.9.31, 10.20.9.52]',
+      description:
+        'Other ordinary clients, deduplicated with the episode client',
     },
   ],
   sampleOutputs: [
     {
-      title: 'Zeek connection event',
+      title: 'Ordinary POST from a shared client',
       json: String.raw`{
-  "@timestamp": "2026-09-25T10:23:57+00:00",
+  "@timestamp": "2026-09-26T00:33:10.027235+00:00",
   "agent": {
     "ephemeral_id": "d2c2e56b-4915-4dc4-8ad9-6112f1d26e43",
     "id": "8aaedfb4-c8a3-4dd8-853f-5c270abfd47a",
@@ -117,89 +123,135 @@ export const networkZeek: GeneratorMeta = {
     "version": "8.7.1"
   },
   "data_stream": {
-    "dataset": "zeek.connection",
+    "dataset": "zeek.http",
     "namespace": "default",
     "type": "logs"
   },
   "destination": {
-    "address": "10.20.0.53",
-    "bytes": 4987,
-    "ip": "10.20.0.53",
-    "packets": 7,
-    "port": 53
+    "address": "203.0.113.25",
+    "ip": "203.0.113.25",
+    "port": 80
   },
   "ecs": {
     "version": "8.17.0"
   },
-  "elastic_agent": {
-    "id": "8aaedfb4-c8a3-4dd8-853f-5c270abfd47a",
-    "snapshot": false,
-    "version": "8.7.1"
-  },
   "event": {
-    "agent_id_status": "verified",
+    "action": "POST",
     "category": [
-      "network"
+      "network",
+      "web"
     ],
-    "created": "2026-09-25T10:23:57+00:00",
-    "dataset": "zeek.connection",
-    "duration": 763983000,
-    "id": "CteAviHzx48613103",
-    "ingested": "2026-09-25T10:23:57+00:00",
+    "created": "2026-09-26T00:33:20.000000+00:00",
+    "dataset": "zeek.http",
+    "id": "CvlehC0000000000c8",
+    "ingested": "2026-09-26T00:33:20.000000+00:00",
     "kind": "event",
-    "original": "{\"conn_state\": \"SF\", \"duration\": 0.763983, \"history\": \"Dd\", \"id.orig_h\": \"10.20.8.44\", \"id.orig_p\": 57037, \"id.resp_h\": \"10.20.0.53\", \"id.resp_p\": 53, \"local_orig\": true, \"local_resp\": true, \"missed_bytes\": 0, \"orig_bytes\": 349, \"orig_ip_bytes\": 573, \"orig_pkts\": 8, \"proto\": \"udp\", \"resp_bytes\": 4791, \"resp_ip_bytes\": 4987, \"resp_pkts\": 7, \"service\": \"dns\", \"ts\": 1790331837.0, \"tunnel_parents\": [], \"uid\": \"CteAviHzx48613103\"}",
+    "module": "zeek",
+    "original": "{\"ts\":1790382790.027235,\"uid\":\"CvlehC0000000000c8\",\"id.orig_h\":\"10.20.8.44\",\"id.orig_p\":32968,\"id.resp_h\":\"203.0.113.25\",\"id.resp_p\":80,\"trans_depth\":1,\"method\":\"POST\",\"host\":\"portal.example.net\",\"uri\":\"/upload\",\"version\":\"1.1\",\"user_agent\":\"curl/8.5.0\",\"request_body_len\":441599,\"response_body_len\":127,\"status_code\":200,\"status_msg\":\"OK\",\"tags\":[],\"orig_fuids\":[\"FOCAYr0000000000c8\"],\"orig_mime_types\":[\"application/octet-stream\"],\"resp_fuids\":[\"FRFpsT0000000000c8\"],\"resp_mime_types\":[\"application/json\"]}",
+    "outcome": "success",
     "type": [
       "connection",
-      "start",
-      "end"
+      "protocol",
+      "info"
     ]
   },
   "host": {
     "name": "zeek-sensor-01"
+  },
+  "http": {
+    "request": {
+      "body": {
+        "bytes": 441599
+      },
+      "method": "POST"
+    },
+    "response": {
+      "body": {
+        "bytes": 127
+      },
+      "status_code": 200
+    },
+    "version": "1.1"
   },
   "input": {
     "type": "filestream"
   },
   "log": {
     "file": {
-      "path": "/opt/zeek/logs/current/conn.log"
+      "path": "/opt/zeek/logs/current/http.log"
     }
   },
+  "message": "{\"ts\":1790382790.027235,\"uid\":\"CvlehC0000000000c8\",\"id.orig_h\":\"10.20.8.44\",\"id.orig_p\":32968,\"id.resp_h\":\"203.0.113.25\",\"id.resp_p\":80,\"trans_depth\":1,\"method\":\"POST\",\"host\":\"portal.example.net\",\"uri\":\"/upload\",\"version\":\"1.1\",\"user_agent\":\"curl/8.5.0\",\"request_body_len\":441599,\"response_body_len\":127,\"status_code\":200,\"status_msg\":\"OK\",\"tags\":[],\"orig_fuids\":[\"FOCAYr0000000000c8\"],\"orig_mime_types\":[\"application/octet-stream\"],\"resp_fuids\":[\"FRFpsT0000000000c8\"],\"resp_mime_types\":[\"application/json\"]}",
   "network": {
-    "bytes": 5560,
-    "direction": "internal",
-    "packets": 15,
-    "protocol": "dns",
-    "transport": "udp"
+    "protocol": "http",
+    "transport": "tcp"
+  },
+  "observer": {
+    "name": "zeek-sensor-01",
+    "product": "Zeek",
+    "type": "ids",
+    "version": "8.0.0"
   },
   "related": {
     "ip": [
       "10.20.8.44",
-      "10.20.0.53"
+      "203.0.113.25"
     ]
   },
   "source": {
     "address": "10.20.8.44",
-    "bytes": 573,
     "ip": "10.20.8.44",
-    "packets": 8,
-    "port": 57037
+    "port": 32968
   },
   "tags": [
-    "zeek-connection"
+    "zeek-http"
   ],
+  "url": {
+    "domain": "portal.example.net",
+    "original": "/upload",
+    "path": "/upload"
+  },
+  "user_agent": {
+    "name": "curl",
+    "original": "curl/8.5.0",
+    "version": "8.5.0"
+  },
   "zeek": {
-    "connection": {
-      "history": "Dd",
-      "local_orig": true,
-      "local_resp": true,
-      "missed_bytes": 0,
-      "state": "SF",
-      "state_message": "Normal establishment and termination."
+    "http": {
+      "host": "portal.example.net",
+      "method": "POST",
+      "orig_fuids": [
+        "FOCAYr0000000000c8"
+      ],
+      "orig_mime_types": [
+        "application/octet-stream"
+      ],
+      "request_body_len": 441599,
+      "resp_fuids": [
+        "FRFpsT0000000000c8"
+      ],
+      "resp_mime_types": [
+        "application/json"
+      ],
+      "response_body_len": 127,
+      "status_code": 200,
+      "status_msg": "OK",
+      "tags": [],
+      "trans_depth": 1,
+      "uri": "/upload",
+      "user_agent": "curl/8.5.0",
+      "version": "1.1"
     },
-    "session_id": "CteAviHzx48613103"
+    "session_id": "CvlehC0000000000c8"
   }
 }`,
     },
+  ],
+  realismFeatures: [
+    'One fresh flow every ten seconds, up to two ready records per collector poll. Protocol completion precedes its own connection summary; collector order differs from native start-time order.',
+    'DNS cache/TTL and source timeout state joins flows. TCP/UDP payload, headers and packet totals follow explicit synthetic segmentation and ACK assumptions.',
+    'HTTP conditional304 has no body; connection payload counters include headers and bodies, while HTTP body lengths exclude headers. TLS 1.3 exposes Hello/SNI and opaque traffic, not certificates, ALPN or decoded Finished.',
+    'All clients and ordinary hostname/destination/POST signatures appear in both modes. Episodes repeat after the configured 24-hour interval, with five callbacks, a DNS refresh and final upload.',
+    'Selected schemas are documented/tagged. Some maintained sample fields are unavailable or intentionally omitted; complete version-matched native capture, exact serializer and live parser parity remain unverified.',
   ],
 };
