@@ -2,81 +2,91 @@ import type { GeneratorMeta } from '@/lib/hub-types';
 
 export const emailKasperskyKlms: GeneratorMeta = {
   slug: 'email-kaspersky-klms',
-  displayName: 'Kaspersky Linux Mail Security CEF',
+  displayName: 'Kaspersky Security for Linux Mail Server CEF',
   category: 'email',
   description:
-    'KLMS ScanLogic mail-authentication and antivirus CEF projections with a switchable linked message sequence.',
+    'Kaspersky Security for Linux Mail Server ScanLogic records as CEF in event.original of an ECS JSON event: a mail-authentication (SPF, DKIM, DMARC) record and an antivirus record for every processed message from 28 independent senders. Recurring episodes send one high-value mailbox three rejected spoofed messages within 180 seconds: two clean lures, then an infected payload.',
   dataSource:
-    'Kaspersky Security for Linux Mail Server ScanLogic CEF over syslog',
+    'Kaspersky Security for Linux Mail Server ScanLogic MA/AV status, CEF over syslog (legacy version 8 documentation)',
   format: ['JSON', 'ECS', 'CEF'],
-  eventCount: 2,
+  eventCount: 4,
   templateCount: 1,
   highlights: [
-    'ScanLogic MA and AV classes in both modes',
-    'Message ID links mail and antivirus records',
-    'One switchable four-record sequence',
+    'ScanLogic CEF record in event.original',
+    'Paired MA and AV records per message from 28 senders',
+    'Recurring spoofed lure-then-infected chain',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'After 120 routine records, three mail-authentication failures from one sender and relay to one recipient occur on consecutive minutes; the third message has an infected AV record with the same ID.',
+    'About every 6 hours by default (the first falls due one interval after the first input timestamp, each next one interval after the previous actual start, and each starts 1-30 minutes after falling due, so starts are 6 h 01 min to 6 h 30 min apart and drift later; no catch-up), one spoofing sender sends one high-value mailbox three messages within 180 seconds, all failing SPF, DKIM and DMARC with MA Reject: AV Clean, Clean, then Infected. Sender and mailbox differ from the previous episode, and each message has an MA/AV pair joined by message ID. Every element also occurs in ordinary traffic; only the exact two-clean-then-infected sequence on one flow is episode-only. Everything is rejected and no delivery or compromise is asserted.',
   generatorId: 'klms',
   eventTypes: [
     {
-      id: 'LMS_EV_SCAN_LOGIC_MA_STATUS',
-      description: 'Mail-authentication scan',
-      frequency: 'Most routine records',
+      id: 'MA ViolationNotFound',
+      description:
+        'LMS_EV_SCAN_LOGIC_MA_STATUS with SPF, DKIM and DMARC verdicts, none failing; action Skip',
+      frequency: '32.7% measured share (32.9% background only)',
       category: 'email',
     },
     {
-      id: 'LMS_EV_SCAN_LOGIC_AV_STATUS',
-      description: 'Antivirus scan for a preceding message',
-      frequency: 'About one tenth of routine records',
+      id: 'MA ViolationFound',
+      description:
+        'LMS_EV_SCAN_LOGIC_MA_STATUS with at least one failing verdict; action Reject',
+      frequency: '17.3% measured share (17.1% background only)',
+      category: 'email',
+    },
+    {
+      id: 'AV Clean',
+      description:
+        'LMS_EV_SCAN_LOGIC_AV_STATUS antivirus result for the same message; action Skip',
+      frequency: '48.6% measured share (48.8% background only)',
+      category: 'malware',
+    },
+    {
+      id: 'AV Infected',
+      description:
+        'LMS_EV_SCAN_LOGIC_AV_STATUS infected result; action Reject, severity High',
+      frequency: '1.4% measured share (1.2% background only)',
       category: 'malware',
     },
   ],
   realismFeatures: [
-    'MA and AV records share message ID, relay, sender, recipient and file size.',
-    'Individual failed-authentication and infected-AV signatures occur in both modes.',
-    "Configured status values follow Kaspersky's KLMS action and verdict catalogs.",
-    'No complete native ScanLogic CEF record is published in the cited 8.2 docs; exact header, severity and value serialization remain unverified.',
+    'Every processed message produces two records, MA then AV, with the same message ID, size, relay, sender, recipient and one-second UTC processing timestamp. The pairing, MA-first order and identical timestamp are explicit scenario assumptions, not confirmed native ordering.',
+    'MA and antivirus scanning run for one recipient under the Default rule. The selected policy rejects each SPF, DKIM or DMARC violation and clean results use Skip; act is the engine action, not a delivery outcome, so an AV result can accompany an authentication rejection and a clean AV result does not imply delivery.',
+    '28 senders of five kinds (partner, spoof, notify, bulk, forwarder) start SMTP sessions as independent Poisson processes at their own rates, human-driven kinds on a daily curve peaking at 13:00 UTC, with no fixed period, rotation or cooldown. The default samples produce about 2,000-2,300 messages (4,100-4,500 records) per day, at most one message per second.',
+    'Ordinary traffic in both modes repeats all-fail messages from one spoofing sender to one recipient within minutes (124-152 same-flow pairs and 35-50 triples within 180 s per 28 h) and infected all-fail messages after such a failure (14-25 per 28 h). An ordinary infected message that would complete the exact episode sequence is exported as clean.',
+    'CEF extension values escape equals signs, backslashes and line breaks, and header values escape pipes; mailboxes with = and + and an IPv6 relay were exercised. The ECS object joins native identities and adds no authenticated user, transport envelope, threat name or delivery verdict.',
+    'Keys and statuses follow the KLMS ScanLogic key table and verdict catalogs, but no complete MA/AV ScanLogic record was found: event names, severities, act/outcome wire vocabulary, cs1 form, product build (illustrative 8.0MP2), pair ordering and syslog framing remain unverified, and no PRI is invented. The stream is separate from Kaspersky Secure Mail Gateway; rates, session shapes, verdict weights and sizes are synthetic.',
   ],
   parameters: [
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description: 'Include one short chain; false emits background only',
+      description: 'Periodic campaign enabled; `false` emits background only',
+    },
+    {
+      name: 'anomaly_interval_hours',
+      defaultValue: '6',
+      description:
+        'Hours from one actual episode start until the next is due, followed by a random 60-1800 s start delay; values below 1 are raised to 1',
     },
     {
       name: 'mail_host',
       defaultValue: 'mail-01.example.test',
-      description: 'Synthetic syslog hostname',
+      description: 'Synthetic hostname with no whitespace or line breaks',
     },
     {
       name: 'product_version',
       defaultValue: '8.0MP2',
-      description: "CEF header value from the vendor's illustrative example",
-    },
-    {
-      name: 'unusual_sender',
-      defaultValue: 'billing@invoice-example.test',
-      description: 'Sender used in both modes',
-    },
-    {
-      name: 'target_recipient',
-      defaultValue: 'finance@example.test',
-      description: 'Recipient used in both modes',
-    },
-    {
-      name: 'unusual_relay_ip',
-      defaultValue: '198.51.100.74',
-      description: 'SMTP relay used in both modes',
+      description:
+        'Illustrative vendor header value, not a verified live build',
     },
   ],
   sampleOutputs: [
     {
-      title: 'KLMS mail-authentication event',
+      title: 'Infected third message of the first episode (AV record)',
       json: String.raw`{
-  "@timestamp": "2026-09-25T19:36:00+00:00",
+  "@timestamp": "2026-09-25T06:16:41+00:00",
   "ecs": {
     "version": "8.17.0"
   },
@@ -86,7 +96,7 @@ export const emailKasperskyKlms: GeneratorMeta = {
         "billing@invoice-example.test"
       ]
     },
-    "local_id": "1b35d85e77327677",
+    "local_id": "6cf13957a6ca015e",
     "to": {
       "address": [
         "finance@example.test"
@@ -96,22 +106,19 @@ export const emailKasperskyKlms: GeneratorMeta = {
   "event": {
     "action": "reject",
     "category": [
-      "email"
+      "malware"
     ],
-    "code": "LMS_EV_SCAN_LOGIC_MA_STATUS",
+    "code": "LMS_EV_SCAN_LOGIC_AV_STATUS",
     "dataset": "kaspersky.klms",
     "kind": "event",
-    "original": "September 25, 2026 19:36:00 mail-01.example.test CEF:0|AO Kaspersky Lab|Kaspersky Linux Mail Security|8.0MP2|LMS_EV_SCAN_LOGIC_MA_STATUS|mail authentication status|Low|cs1=1b35d85e77327677 cs1Label=MessageId src=198.51.100.74 act=Reject fsize=15913 suser=billing@invoice-example.test duser=finance@example.test cs2=Default cs2Label=Rules cs4=Fail cs4Label=SpfVerdict cs5=Fail cs5Label=DkimVerdict cs6=Fail cs6Label=DmarcVerdict outcome=ViolationFound",
+    "original": "September 25, 2026 06:16:41 mail-01.example.test CEF:0|AO Kaspersky Lab|Kaspersky Linux Mail Security|8.0MP2|LMS_EV_SCAN_LOGIC_AV_STATUS|antivirus scan status|High|cs1=6cf13957a6ca015e cs1Label=MessageId src=198.51.100.74 act=Reject fsize=166247 suser=billing@invoice-example.test duser=finance@example.test cs2=Default cs2Label=Rules outcome=Infected",
     "type": [
       "info"
     ]
   },
   "kaspersky": {
     "klms": {
-      "class_id": "LMS_EV_SCAN_LOGIC_MA_STATUS",
-      "dkim": "Fail",
-      "dmarc": "Fail",
-      "spf": "Fail"
+      "class_id": "LMS_EV_SCAN_LOGIC_AV_STATUS"
     }
   },
   "observer": {
