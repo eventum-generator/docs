@@ -1,6 +1,8 @@
 import { applicationOneC } from './generators/application-1c';
 import { applicationOneCTechjournal } from './generators/application-1c-techjournal';
+import { applicationCiscoCucmAudit } from './generators/application-cisco-cucm-audit';
 import { applicationNextcloudAudit } from './generators/application-nextcloud-audit';
+import { applicationSharepointServerUls } from './generators/application-sharepoint-server-uls';
 import { backupVeeamVbr } from './generators/backup-veeam-vbr';
 import { cloudAwsCloudtrail } from './generators/cloud-aws-cloudtrail';
 import { cloudAwsGuardduty } from './generators/cloud-aws-guardduty';
@@ -34,6 +36,7 @@ import { identityAdfsAudit } from './generators/identity-adfs-audit';
 import { identityAldPro } from './generators/identity-ald-pro';
 import { identityArubaClearpass } from './generators/identity-aruba-clearpass';
 import { identityCiscoIse } from './generators/identity-cisco-ise';
+import { identityDelineaSecretServer } from './generators/identity-delinea-secret-server';
 import { identityFortinetFortipam } from './generators/identity-fortinet-fortipam';
 import { identityFreeipaSecurity } from './generators/identity-freeipa-security';
 import { identityFreeradius } from './generators/identity-freeradius';
@@ -89,7 +92,10 @@ import { proxyKasperskyKwts } from './generators/proxy-kaspersky-kwts';
 import { proxySolarWebproxy } from './generators/proxy-solar-webproxy';
 import { proxyTraefik } from './generators/proxy-traefik';
 import { proxyZscaler } from './generators/proxy-zscaler';
+import { securityCarbonBlackEdrEventForwarder } from './generators/security-carbon-black-edr-event-forwarder';
+import { securityCiscoFmcAudit } from './generators/security-cisco-fmc-audit';
 import { securityCrowdstrikeFalcon } from './generators/security-crowdstrike-falcon';
+import { securityCyberarkPta } from './generators/security-cyberark-pta';
 import { securityDefenderEndpoint } from './generators/security-defender-endpoint';
 import { securityDrwebEss } from './generators/security-drweb-ess';
 import { securityEsetProtect } from './generators/security-eset-protect';
@@ -277,4 +283,10 @@ export const generators: GeneratorMeta[] = [
   securityStaffcopEnterprise,
   networkStormshieldSns,
   vpnSTerraGate,
+  identityDelineaSecretServer,
+  securityCiscoFmcAudit,
+  securityCyberarkPta,
+  applicationSharepointServerUls,
+  applicationCiscoCucmAudit,
+  securityCarbonBlackEdrEventForwarder,
 ];
