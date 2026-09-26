@@ -10,6 +10,7 @@ import { cloudAzureEntraId } from './generators/cloud-azure-entra-id';
 import { cloudGcpAudit } from './generators/cloud-gcp-audit';
 import { cloudGithubAudit } from './generators/cloud-github-audit';
 import { cloudM365Audit } from './generators/cloud-m365-audit';
+import { cloudNetskopeCasb } from './generators/cloud-netskope-casb';
 import { cloudYandex360Audit } from './generators/cloud-yandex-360-audit';
 import { cloudYandexAuditTrails } from './generators/cloud-yandex-audit-trails';
 import { databaseApacheCassandraAudit } from './generators/database-apache-cassandra-audit';
@@ -62,6 +63,7 @@ import { networkFortinetFortiadc } from './generators/network-fortinet-fortiadc'
 import { networkIdecoNgfw } from './generators/network-ideco-ngfw';
 import { networkJuniperSrx } from './generators/network-juniper-srx';
 import { networkKasperskyNgfw } from './generators/network-kaspersky-ngfw';
+import { networkKempLoadmaster } from './generators/network-kemp-loadmaster';
 import { networkKerioControl } from './generators/network-kerio-control';
 import { networkMikrotikRouteros } from './generators/network-mikrotik-routeros';
 import { networkNetflow } from './generators/network-netflow';
@@ -72,10 +74,12 @@ import { networkPaloaltoUrl } from './generators/network-paloalto-url';
 import { networkPfsense } from './generators/network-pfsense';
 import { networkPowerdnsAuthoritative } from './generators/network-powerdns-authoritative';
 import { networkSnort } from './generators/network-snort';
+import { networkSonicwallTz } from './generators/network-sonicwall-tz';
 import { networkSophosFirewall } from './generators/network-sophos-firewall';
 import { networkUnbound } from './generators/network-unbound';
 import { networkUsergate } from './generators/network-usergate';
 import { networkVmwareNsxManager } from './generators/network-vmware-nsx-manager';
+import { networkWatchguardFirebox } from './generators/network-watchguard-firebox';
 import { networkWirelessAruba } from './generators/network-wireless-aruba';
 import { networkZeek } from './generators/network-zeek';
 import { proxyCiscoSecureWebAppliance } from './generators/proxy-cisco-secure-web-appliance';
@@ -89,6 +93,7 @@ import { securityEsetProtect } from './generators/security-eset-protect';
 import { securityFalco } from './generators/security-falco';
 import { securityFortinetFortisoar } from './generators/security-fortinet-fortisoar';
 import { securityHashicorpVault } from './generators/security-hashicorp-vault';
+import { securityImpervaSecuresphere } from './generators/security-imperva-securesphere';
 import { securityKasperskyCybertrace } from './generators/security-kaspersky-cybertrace';
 import { securityKasperskyKata } from './generators/security-kaspersky-kata';
 import { securityKasperskyKics4net } from './generators/security-kaspersky-kics4net';
@@ -99,6 +104,7 @@ import { securitySuricata } from './generators/security-suricata';
 import { securitySymantecSepm } from './generators/security-symantec-sepm';
 import { securityTrendmicroDeepSecurity } from './generators/security-trendmicro-deep-security';
 import { securityWaf } from './generators/security-waf';
+import { storageNetappOntapEms } from './generators/storage-netapp-ontap-ems';
 import { virtualizationMicrosoftHypervVmms } from './generators/virtualization-microsoft-hyperv-vmms';
 import { virtualizationProxmoxVe } from './generators/virtualization-proxmox-ve';
 import { virtualizationVmware } from './generators/virtualization-vmware';
@@ -255,4 +261,10 @@ export const generators: GeneratorMeta[] = [
   securityFortinetFortisoar,
   networkSophosFirewall,
   networkFortinetFortiadc,
+  storageNetappOntapEms,
+  cloudNetskopeCasb,
+  networkSonicwallTz,
+  networkWatchguardFirebox,
+  networkKempLoadmaster,
+  securityImpervaSecuresphere,
 ];

@@ -7,6 +7,7 @@ import {
   Cloud,
   Database,
   Globe,
+  HardDrive,
   KeyRound,
   Mail,
   Monitor,
@@ -18,6 +19,7 @@ import {
 export type CategoryId =
   | 'application'
   | 'backup'
+  | 'storage'
   | 'cloud'
   | 'database'
   | 'email'
@@ -52,6 +54,13 @@ export const CATEGORIES: CategoryMeta[] = [
     icon: Archive,
     description: 'Backup and recovery audit logs',
     color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400',
+  },
+  {
+    id: 'storage',
+    name: 'Storage',
+    icon: HardDrive,
+    description: 'Storage system and array events',
+    color: 'bg-stone-500/10 text-stone-600 dark:text-stone-400',
   },
   {
     id: 'cloud',
@@ -186,6 +195,12 @@ export function getCategoryForSlug(slug: string): CategoryId {
     'security-fortinet-fortisoar': 'security',
     'network-sophos-firewall': 'network',
     'network-fortinet-fortiadc': 'network',
+    'storage-netapp-ontap-ems': 'storage',
+    'cloud-netskope-casb': 'cloud',
+    'network-sonicwall-tz': 'network',
+    'network-watchguard-firebox': 'network',
+    'network-kemp-loadmaster': 'network',
+    'security-imperva-securesphere': 'security',
     'backup-veeam-vbr': 'backup',
     'windows-active-directory': 'identity',
     'identity-ald-pro': 'identity',
