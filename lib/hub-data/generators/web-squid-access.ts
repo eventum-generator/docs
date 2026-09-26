@@ -6,114 +6,115 @@ export const webSquidAccess: GeneratorMeta = {
   displayName: 'Squid Native Access Log',
   category: 'web-access',
   description:
-    'Squid 6.x built-in 10-field access.log with routine proxy traffic and one switchable denied-to-allowed sequence.',
+    'Squid 6.x native access.log with stateful public-object caching, completion-time response bytes and recurring denied-to-allowed sequences.',
   dataSource: 'Squid 6.x built-in squid access.log format',
   format: ['JSON', 'ECS', 'Access log'],
   eventCount: 6,
   templateCount: 1,
   generatorId: 'squid',
   highlights: [
-    'Squid 6.x native 10-field line in event.original',
-    '43/54 full Elastic reference paths (79.6%), below 90% target',
-    'One switchable five-record sequence with ordinary value overlap',
+    'Native ten-value Squid 6.x line',
+    '43/54 full Elastic reference paths; 43/43 selected',
+    'Five-record access sequences recur every six hours',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'After 300 ordinary events, one user, IP and URL have three TCP_DENIED/403 records followed by two 1.8-2.8 MB TCP_MISS/200 responses within about 20 seconds. The sequence runs once.',
+    'Every six hours, the same user, IP and HTTP URL receive three TCP_DENIED/403 results followed by two 1.8-2.8 MB TCP_MISS/200 responses over about 20 seconds. The five transactions finish in causal order. The same actor, URL and individual denials/successes occur independently in background; access.log proves no ACL change or exfiltration.',
   eventTypes: [
     {
       id: 'TCP_MISS/200 GET',
-      description: 'Fetch object from origin',
-      frequency: '48% routine selection weight',
+      description: 'Cold, expired or uncacheable origin response',
+      frequency:
+        '70% GET weight or 5% conditional weight when no fresh object exists',
       category: 'web',
     },
     {
       id: 'TCP_HIT/200 GET',
-      description: 'Serve cached object',
-      frequency: '22% routine selection weight after prior miss',
+      description: 'Fresh public object served with its stored response size',
+      frequency: 'Part of 70% ordinary GET choices',
       category: 'web',
     },
     {
       id: 'TCP_TUNNEL/200 CONNECT',
-      description: 'HTTPS tunnel to host and port',
-      frequency: '18% routine selection weight',
+      description: 'HTTPS tunnel to host:port, without path visibility',
+      frequency: '18% ordinary selection weight',
       category: 'web',
     },
     {
       id: 'TCP_DENIED/403 GET',
-      description: 'Authenticated request denied by ACL',
-      frequency: 'Part of 7% routine denied weight',
+      description: 'Restricted request from a named user',
+      frequency: 'Part of 7% denial choices; three per episode',
       category: 'web',
     },
     {
       id: 'TCP_DENIED/407 GET',
-      description: 'Anonymous request denied by ACL',
-      frequency: 'Part of 7% routine denied weight',
+      description: 'Anonymous client requires authentication',
+      frequency: 'Part of 7% denial choices',
       category: 'web',
     },
     {
       id: 'TCP_IMS_HIT/304 GET',
-      description: 'Conditional hit on cached object',
-      frequency: '5% routine selection weight after prior miss',
+      description: 'Fresh cached conditional response, headers only',
+      frequency: 'Part of 5% conditional choices',
       category: 'web',
     },
   ],
   realismFeatures: [
-    'A bounded cache prevents HIT and IMS_HIT before the URL has an earlier MISS.',
-    'Native byte count and ECS destination.bytes mean response delivered to the client, including headers; they do not measure upload or origin traffic.',
-    'The user, IP, URL, origin, large response and individual result codes occur in background too.',
-    'No policy-change event or exfiltration proof is present in access.log.',
-    '43/43 selected portable Elastic paths are covered, but 11 GeoIP and collector filesystem paths are absent, leaving full coverage at 43/54.',
-    'A complete Squid 6.9 native TCP_IMS_HIT/304 record is unavailable; the tag is documented but this exact v6.9 combination remains unverified.',
+    'Native epoch time is transaction completion, elapsed milliseconds map to ECS nanoseconds, and bytes include response headers delivered to the client. destination.bytes follows Elastic mapping, not origin traffic or upload volume.',
+    'Only cacheable public resources can hit. Cache-Control public/max-age3600, fixed headers, no Vary and no auth-dependent representation are explicit synthetic assumptions; hits reuse stored bytes until expiry.',
+    'Cache state is bounded to 24 URLs, twelve shipped cacheable entries; recurrence keeps scalar due/offset slots and no episode history.',
+    'Target client has an explicit 10% bias plus its share of the 24-client pool in both modes. The seven restricted URLs include the exact target; ordinary denials and successes overlap all sequence values.',
+    'Full reference coverage remains 43/54 below the 90% target; selected43/43 excludes eight GeoIP and three actual filesystem-identity fields. Collector IDs, offset and zero-delay ingestion are synthetic context.',
+    'Exact Squid 6.9 TCP_IMS_HIT/304 raw record remains unavailable; historical native examples and tagged result definitions do not establish full same-version raw/parser compatibility. Usernames are ASCII tokens and URLs are HTTP without userinfo/query/fragment; arbitrary native quoting is outside the tested profile.',
   ],
   parameters: [
     {
       name: 'proxy_name',
       defaultValue: 'squid-01',
-      description: 'Synthetic proxy and collector hostname',
+      description: 'Synthetic collector/proxy identity',
     },
     {
       name: 'proxy_ip',
       defaultValue: '10.70.0.5',
-      description: 'Synthetic proxy address',
+      description: 'Synthetic collector/proxy identity',
     },
     {
       name: 'anomaly_user',
       defaultValue: 'analyst',
-      description: 'User present in both modes',
+      description: 'Client identity in both background and sequence',
     },
     {
       name: 'anomaly_ip',
       defaultValue: '10.70.4.17',
-      description: 'Client address present in both modes',
+      description: 'Client identity in both background and sequence',
     },
     {
       name: 'anomaly_url',
       defaultValue: 'http://files.corp.example/export.csv',
-      description: 'HTTP URL present in both modes',
+      description: 'Absolute HTTP URL and origin used in both modes',
     },
     {
       name: 'anomaly_origin_ip',
       defaultValue: '10.70.8.14',
-      description: 'Origin address present in both modes',
+      description: 'Absolute HTTP URL and origin used in both modes',
     },
     {
-      name: 'anomaly_after_events',
-      defaultValue: '300',
-      description: 'Ordinary events before the one-time sequence',
+      name: 'anomaly_interval_hours',
+      defaultValue: '6',
+      description:
+        'Generated-time recurrence; finite numeric values below one hour are clamped to one',
     },
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description:
-        'Include one five-record sequence; false emits background only',
+      description: 'Include repeated sequences; `false` emits background only',
     },
   ],
   sampleOutputs: [
     {
-      title: 'Allowed large fetch following denials',
+      title: 'Large response following repeated denials',
       json: String.raw`{
-  "@timestamp": "2026-09-25T00:25:15.753000+00:00",
+  "@timestamp": "2026-09-25T06:00:25.031000+00:00",
   "agent": {
     "ephemeral_id": "5a110000-1111-4444-8888-123456789abc",
     "id": "5a110000-1111-4444-8888-123456789abc",
@@ -128,7 +129,7 @@ export const webSquidAccess: GeneratorMeta = {
   },
   "destination": {
     "address": "10.70.8.14",
-    "bytes": 1827076,
+    "bytes": 2395816,
     "ip": "10.70.8.14"
   },
   "ecs": {
@@ -145,11 +146,11 @@ export const webSquidAccess: GeneratorMeta = {
       "web"
     ],
     "dataset": "squid.log",
-    "duration": 2417000000,
-    "ingested": "2026-09-25T00:25:15.753000+00:00",
+    "duration": 2514000000,
+    "ingested": "2026-09-25T06:00:25.031000+00:00",
     "kind": "event",
     "module": "squid",
-    "original": "1790295915.753   2417 10.70.4.17 TCP_MISS/200 1827076 GET http://files.corp.example/export.csv analyst HIER_DIRECT/10.70.8.14 text/csv",
+    "original": "1790316025.031   2514 10.70.4.17 TCP_MISS/200 2395816 GET http://files.corp.example/export.csv analyst HIER_DIRECT/10.70.8.14 text/csv",
     "outcome": "success",
     "type": [
       "access"
@@ -167,7 +168,7 @@ export const webSquidAccess: GeneratorMeta = {
     "file": {
       "path": "/var/log/squid/access.log"
     },
-    "offset": 41107
+    "offset": 571909
   },
   "observer": {
     "hostname": "squid-01",
