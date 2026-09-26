@@ -5,17 +5,17 @@ export const backupVeeamVbr: GeneratorMeta = {
   displayName: 'Veeam Backup & Replication Syslog',
   category: 'backup',
   description:
-    'Veeam 13.1 backup jobs, authorization and repository administration with a linked denial-grant-removal chain.',
+    'Veeam VBR 13.1.1.18 job, point and authorization syslog with periodic denial-grant-deletion episodes after completed backup jobs.',
   dataSource: 'Veeam Backup & Replication 13.1 event syslog',
   format: ['JSON', 'ECS', 'Syslog'],
   eventCount: 7,
   highlights: [
-    '35/35 documented native parameters',
-    'Vendor event IDs and structured data',
-    'Routine backup-job sessions and repository administration',
+    '35/35 documented native parameter names across seven IDs',
+    'Stateful job and restore-point lifecycles',
+    'Recurring four-event episodes at least 48 hours apart',
   ],
   anomalyChain:
-    'Two denied authorizations, a grant, restore-point deletion and repository deregistration within 40 minutes.',
+    'At least every 48 hours, after an aligned completed job cycle, two denials and a grant for one ordinary actor precede deletion of that cycle\u2019s emitted restore point. Episodes span 30 minutes and use different point IDs. Repository retirement is a separate one-time background operation in both modes.',
   eventTypes: [
     {
       id: '110',
@@ -50,36 +50,38 @@ export const backupVeeamVbr: GeneratorMeta = {
     {
       id: '10050',
       description: 'Restore point deleted',
-      frequency: 'One ordinary cleanup plus one chain event',
+      frequency: 'Periodic routine cleanup, one retirement and episodes',
       category: 'file',
     },
     {
       id: '28200',
       description: 'Repository removed from infrastructure',
-      frequency: 'One planned retirement or one chain event',
+      frequency: 'One planned secondary retirement in either mode',
       category: 'configuration',
     },
   ],
   realismFeatures: [
-    'Published Veeam 13.1 syslog bodies and all 35 documented native parameter names.',
-    'Four backup jobs use stable JobID and a fresh JobSessionID for each run.',
-    'Restore-point DateTime is creation time; repository removal leaves backup files in place.',
+    'VBR 13.1.1.18 selected syslog bodies use exact per-ID parameter sets; 35/35 is distinct native-name coverage, not a production realism score.',
+    'Job start and finish share JobSessionID; restore points have no native JobSessionID and connect to jobs only by VM/repository/time.',
+    'Point deletion preserves creation DateTime and identity, follows job completion and cannot delete the same point twice.',
+    'Both modes share actors, authentication IPs and point cleanup; point/repository events contain no invented login IP or session join.',
+    'Reason=1 means unauthenticated; its vendor raw example omits Reason. Published bodies omit PRI and keep literal inner XML quotes; strict RFC5424 parsing, deployment-byte parity and KUMA compatibility remain unverified.',
   ],
   parameters: [
     {
       name: 'server_name',
       defaultValue: 'VBRSRV01',
-      description: 'VBR hostname',
+      description: 'Syslog hostname',
     },
     {
       name: 'server_fqdn',
       defaultValue: 'vbrsrv01.contoso.test',
-      description: 'VBR FQDN',
+      description: 'VbrHostName',
     },
     {
       name: 'version',
       defaultValue: '13.1.1.18',
-      description: 'VBR build',
+      description: 'VbrVersion',
     },
     {
       name: 'normal_user',
@@ -89,22 +91,22 @@ export const backupVeeamVbr: GeneratorMeta = {
     {
       name: 'normal_source_ip',
       defaultValue: '10.40.1.24',
-      description: 'First routine login address',
+      description: 'First routine login identity',
     },
     {
       name: 'anomaly_user',
       defaultValue: 'veeamadmin',
-      description: 'Second routine identity and anomaly actor',
+      description: 'Second routine login identity and anomaly actor',
     },
     {
       name: 'anomaly_source_ip',
       defaultValue: '198.51.100.91',
-      description: 'Second routine login address and anomaly source',
+      description: 'Second routine login identity and anomaly actor',
     },
     {
       name: 'active_repository_id',
       defaultValue: '88788f9e-d8f5-4eb4-bc4f-9b3f5403bcec',
-      description: 'Repository used by backup jobs',
+      description: 'Repository used by recurring backup jobs',
     },
     {
       name: 'repository_id',
@@ -114,12 +116,12 @@ export const backupVeeamVbr: GeneratorMeta = {
     {
       name: 'repository_name',
       defaultValue: 'Backup Repository 01',
-      description: 'Secondary repository name',
+      description: 'Secondary repository retired once',
     },
     {
       name: 'retired_point_id',
       defaultValue: '882ace9a-6308-4f2b-bd12-88f004de0162',
-      description: 'Pre-existing point on secondary repository',
+      description: 'Pre-existing point on the secondary repository',
     },
     {
       name: 'vm_name',
@@ -127,14 +129,26 @@ export const backupVeeamVbr: GeneratorMeta = {
       description: 'Protected VM',
     },
     {
-      name: 'anomaly_interval_events',
-      defaultValue: '240',
-      description: 'Routine events before the one-time chain',
+      name: 'hypervisor_server',
+      defaultValue: 'pdcsrv01.contoso.test',
+      description: 'Native ServerName for the protected VM',
+    },
+    {
+      name: 'user_domain',
+      defaultValue: 'TECH',
+      description: 'Domain prefix in native operation-user details',
+    },
+    {
+      name: 'anomaly_interval_hours',
+      defaultValue: '48',
+      description:
+        'Minimum source-time interval before and between episodes; clamped to at least one hour and aligned to a completed job cycle',
     },
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description: 'Enable the linked chain; false emits background only',
+      description:
+        'true mixes in periodic episodes; false emits only background',
     },
   ],
   slug: 'backup-veeam-vbr',
@@ -143,9 +157,9 @@ export const backupVeeamVbr: GeneratorMeta = {
   generationModes: ['background', 'anomaly'],
   sampleOutputs: [
     {
-      title: 'Backup repository deleted',
+      title: 'Completed restore point deleted',
       json: String.raw`{
-  "@timestamp": "2026-09-27T09:10:00+00:00",
+  "@timestamp": "2026-09-27T01:30:00+00:00",
   "ecs": {
     "version": "8.17.0"
   },
@@ -153,18 +167,18 @@ export const backupVeeamVbr: GeneratorMeta = {
     "kind": "event",
     "module": "veeam",
     "dataset": "veeam.vbr.syslog",
-    "code": "28200",
+    "code": "10050",
     "category": [
-      "configuration"
+      "file"
     ],
-    "action": "backup_repository_deleted",
+    "action": "restore_point_deleted",
     "type": [
       "deletion"
     ],
     "outcome": "success",
-    "original": "1 2026-09-27T09:10:00+00:00 VBRSRV01 Veeam_MP - - [origin enterpriseId=\"31023\"] [categoryId=0 instanceId=28200 RepositoryID=\"ed8c61cc-77f0-4f40-b73e-8c92d4a6fb11\" Type=\"0\" RepositoryName=\"Backup Repository 01\" ChangesXML=\"<changes><object id=\"ed8c61cc-77f0-4f40-b73e-8c92d4a6fb11\" name=\"Backup Repository 01\" /></changes>\" UserName=\"TECH\\veeamadmin\" UserFullInfo=\"<ModifiedUserInfo fullName=\"TECH\\veeamadmin\" loginType=\"0\" />\" VbrHostName=\"vbrsrv01.contoso.test\" VbrVersion=\"13.1.1.18\" Version=\"1\" Description=\"Backup repository Backup Repository 01 has been deleted.\"]"
+    "original": "1 2026-09-27T01:30:00+00:00 VBRSRV01 Veeam_MP - - [origin enterpriseId=\"31023\"] [categoryId=0 instanceId=10050 OibID=\"fa95965f-64f8-4cc1-8355-77dc18837edb\" OriginalOibID=\"fa95965f-64f8-4cc1-8355-77dc18837edb\" VmRef=\"vm-02\" VmName=\"VM02\" ServerName=\"pdcsrv01.contoso.test\" DateTime=\"09/27/2026 00:10:00\" IsCorrupted=\"False\" Platform=\"0\" StorageSize=\"13873971200\" RepositoryID=\"88788f9e-d8f5-4eb4-bc4f-9b3f5403bcec\" IsFull=\"True\" UserFullInfo=\"<ModifiedUserInfo fullName=\"TECH\\veeamadmin\" loginType=\"0\" />\" VbrHostName=\"vbrsrv01.contoso.test\" VbrVersion=\"13.1.1.18\" Version=\"1\" Description=\"Restore point for VM 'VM02' has been removed by user TECH\\veeamadmin.\"]"
   },
-  "message": "Backup repository Backup Repository 01 has been deleted.",
+  "message": "Restore point for VM 'VM02' has been removed by user TECH\\veeamadmin.",
   "host": {
     "name": "VBRSRV01"
   },
@@ -172,22 +186,28 @@ export const backupVeeamVbr: GeneratorMeta = {
     "name": "veeamadmin"
   },
   "veeam": {
-    "event_id": 28200,
+    "event_id": 10050,
     "app": "Veeam_MP",
     "severity": "warning",
     "enterprise_id": 31023,
     "category_id": 0,
     "parameters": {
-      "ChangesXML": "<changes><object id=\"ed8c61cc-77f0-4f40-b73e-8c92d4a6fb11\" name=\"Backup Repository 01\" /></changes>",
-      "Description": "Backup repository Backup Repository 01 has been deleted.",
-      "RepositoryID": "ed8c61cc-77f0-4f40-b73e-8c92d4a6fb11",
-      "RepositoryName": "Backup Repository 01",
-      "Type": "0",
+      "DateTime": "09/27/2026 00:10:00",
+      "Description": "Restore point for VM 'VM02' has been removed by user TECH\\veeamadmin.",
+      "IsCorrupted": "False",
+      "IsFull": "True",
+      "OibID": "fa95965f-64f8-4cc1-8355-77dc18837edb",
+      "OriginalOibID": "fa95965f-64f8-4cc1-8355-77dc18837edb",
+      "Platform": "0",
+      "RepositoryID": "88788f9e-d8f5-4eb4-bc4f-9b3f5403bcec",
+      "ServerName": "pdcsrv01.contoso.test",
+      "StorageSize": "13873971200",
       "UserFullInfo": "<ModifiedUserInfo fullName=\"TECH\\veeamadmin\" loginType=\"0\" />",
-      "UserName": "TECH\\veeamadmin",
       "VbrHostName": "vbrsrv01.contoso.test",
       "VbrVersion": "13.1.1.18",
-      "Version": "1"
+      "Version": "1",
+      "VmName": "VM02",
+      "VmRef": "vm-02"
     }
   }
 }`,
