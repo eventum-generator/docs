@@ -5,104 +5,89 @@ export const applicationOneCTechjournal: GeneratorMeta = {
   displayName: '1C:Enterprise Technological Log',
   category: 'application',
   description:
-    '1C:Enterprise 8.3.27 technological-log JSON for platform calls, managed locks and exceptions, with recurring correlated lock-wait episodes.',
-  dataSource: '1C:Enterprise 8.3.27 technological log JSON',
+    '1C:Enterprise 8.3.27 technological-log JSON records (SCALL, CALL, TLOCK, EXCP) of one rphost process serving fourteen parallel sessions of one infobase, in an ECS envelope, with managed locks granted, queued and timed out by a lock manager. Recurring episodes are lock convoys: one very long write transaction blocks a busy document key until six distinct sessions have timed out on it.',
+  dataSource:
+    '1C:Enterprise 8.3.27 technological log in JSON format, one rphost process',
   format: ['JSON', 'ECS'],
   eventCount: 4,
   templateCount: 1,
   highlights: [
-    '14/14 native SCALL JSON fields modeled',
-    'SCALL, CALL, TLOCK and EXCP background activity',
-    'Recurring lock-wait episodes about every two hours',
+    'Managed locks granted, queued and timed out by a lock manager',
+    'Fourteen client and service sessions working in parallel',
+    'Recurring six-victim lock convoy on a busy document key',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'About every two hours, an idle contending thread records a TLOCK wait on another connection, a managed-lock EXCP and the enclosing CALL completion. Episodes rotate ordinary document keys and use fresh CallIDs; persistent users, sessions, lock region and context also occur in background.',
+    'The first episode is due anomaly_interval_hours (default 2) after the run starts, each next one interval after the previous actual start, with no catch-up; measured start delays were 0-81 s, so start times drift later. The idle session whose next call comes first (never the previous blocker) starts a write call and holds a busy document key for minutes (6-22 min measured, at most 30) until six distinct sessions have timed out on it, then about 15 s more. The victims are ordinary requests for that key: each writes a 20-second TLOCK naming the blocker in WaitConnections, then EXCP. Two to four timeouts on one key and blocker were measured in background; six or more within one hold did not occur in background-only runs.',
   generatorId: 'onec-techjournal',
   eventTypes: [
     {
       id: 'SCALL',
-      description: 'Outgoing remote call',
-      frequency: '79% background selection weight',
-      category: 'platform',
+      description:
+        'Outgoing call of the server process, for example to the lock service',
+      frequency: '70.2% measured share without episodes',
+      category: 'remote call',
     },
     {
       id: 'CALL',
-      description: 'Incoming remote call',
-      frequency: '17% background selection weight',
-      category: 'platform',
+      description: 'Incoming client call, written when the call ends',
+      frequency: '20.3% measured share without episodes',
+      category: 'remote call',
     },
     {
       id: 'TLOCK',
-      description: 'Managed transaction lock operation or wait',
-      frequency: '3% background selection weight',
-      category: 'locking',
+      description:
+        'Managed transaction lock; most are granted at once with empty WaitConnections',
+      frequency: '9.3% measured share without episodes',
+      category: 'lock',
     },
     {
       id: 'EXCP',
-      description: 'Platform exception',
-      frequency: '1% background selection weight',
-      category: 'platform',
+      description: 'Managed-lock wait timeout exception',
+      frequency: '0.1% measured share without episodes',
+      category: 'error',
     },
   ],
   realismFeatures: [
-    'All 14 fields of the 8.3.27 SCALL JSON example are modeled; native values are strings and duration is in microseconds.',
-    'Two persistent user sessions share client, connection and thread identifiers across ordinary traffic and episodes.',
-    'The blocker is another t:connectID; the enclosing CALL starts before the lock wait and ends after its exception.',
-    'BLOCKED_RAW_EVIDENCE: exact 8.3.27 JSON CALL, TLOCK and EXCP records remain missing; the KUMA text normalizer is unverified for this JSON profile.',
+    'Each session alternates server calls on a free worker thread with think time. A call writes its SCALL, TLOCK and EXCP records in order, then a CALL whose duration spans the whole call; about one read call in a hundred is a minutes-long report without locks. Background-only runs varied from 3,100 to 3,700 records per hour; shares and rates are synthetic workload settings, with no working-day or weekly cycle.',
+    'About a third of calls take exclusive or shared managed locks on document keys DOC-0031 to DOC-0060 of InfoRg42.DIMS, some much busier than others. Compatible requests are granted at once (96-99% of TLOCK records, with empty WaitConnections); conflicting ones wait and name a session whose running call holds a conflicting lock. Locks are held until the call ends or an exception rolls the transaction back, and waiters are granted in arrival order.',
+    'Some write calls pause about 30-60 s after their first lock, more often in busy periods. A request still waiting after 20 s writes its TLOCK and then EXCP; the transaction is rolled back and often retried, or the call ends after zero to two rollback SCALLs. Across eight background-only runs (35 h), holds with 0, 1, 2, 3 and 4 timed-out sessions numbered 10,878, 122, 13, 2 and 1, and none reached six.',
+    'TTIMEOUT and TDEADLOCK are not generated (mutual waits end in two timeouts), work inside a call (SDBL, DBMSSQL) is not logged, sessions stay connected for the whole run, depth is fixed per event type, and each second offers 32 record slots. The 20-second timeout is an assumption with no first-party 1C statement of the default; contexts, module names and document keys describe a synthetic configuration.',
+    'BLOCKED_RAW_EVIDENCE: complete first-party 8.3.27 JSON records for CALL, TLOCK and EXCP were not found, so their shapes follow the vendor text examples and text-to-JSON rule. The file is ECS JSON with the native object in event.original. No Elastic integration exists, and the KUMA 1C TechJournal regexp normalizer is unverified for this JSON profile.',
   ],
   parameters: [
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description: 'Include periodic lock-wait episodes',
+      description:
+        'Include recurring lock convoys; false produces background only',
     },
     {
       name: 'anomaly_interval_hours',
       defaultValue: '2',
       description:
-        'Positive hours between episode eligibility; actual start waits for a free thread',
+        'Hours between episodes, 0.5 to 8,760; the next is due one interval after the previous actual start',
     },
     {
       name: 'host_name',
       defaultValue: 'onec-app-01',
-      description: 'Server host',
+      description: 'Server host; also t:computerName of background jobs',
     },
     {
       name: 'infobase',
       defaultValue: 'accounting',
-      description: 'Infobase name (`p:processName`)',
+      description: 'Infobase name (p:processName)',
     },
     {
       name: 'process_name',
       defaultValue: 'rphost',
       description: '1C process',
     },
-    {
-      name: 'routine_user',
-      defaultValue: 'accountant01',
-      description: 'First background session',
-    },
-    {
-      name: 'contending_user',
-      defaultValue: 'batch_admin',
-      description: 'Second background session and chain participant',
-    },
-    {
-      name: 'routine_client_id',
-      defaultValue: '518',
-      description: "First session's `t:clientID`",
-    },
-    {
-      name: 'contending_client_id',
-      defaultValue: '592',
-      description: "Second session's `t:clientID`",
-    },
   ],
   sampleOutputs: [
     {
-      title: '1C:Enterprise 8.3.27 synthetic TLOCK event from generator output',
-      json: String.raw`{"@timestamp": "2026-09-25T02:00:03.672540+00:00", "ecs": {"version": "8.17.0"}, "event": {"action": "TLOCK", "dataset": "1c.techjournal", "kind": "event", "original": "{\"ts\":\"2026-09-25T02:00:03.672540\",\"duration\":\"2000000\",\"name\":\"TLOCK\",\"depth\":\"5\",\"level\":\"INFO\",\"process\":\"rphost\",\"p:processName\":\"accounting\",\"OSThread\":\"15968\",\"t:clientID\":\"592\",\"t:applicationName\":\"1CV8C\",\"t:computerName\":\"client-01\",\"t:connectID\":\"16\",\"SessionID\":\"421\",\"Usr\":\"batch_admin\",\"AppID\":\"1CV8C\",\"Regions\":\"InfoRg42.DIMS\",\"Locks\":\"InfoRg42.DIMS Exclusive Fld43=\\\"DOC-0042\\\"\",\"WaitConnections\":\"17\",\"Context\":\"\u041e\u0431\u0449\u0438\u0439\u041c\u043e\u0434\u0443\u043b\u044c.\u0417\u0430\u043f\u0438\u0441\u044c\u0414\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u043e\u0432.\u041c\u043e\u0434\u0443\u043b\u044c : 81 : \u041d\u0430\u0431\u043e\u0440\u0417\u0430\u043f\u0438\u0441\u0435\u0439.\u0417\u0430\u043f\u0438\u0441\u0430\u0442\u044c();\"}", "type": ["info"]}, "host": {"name": "onec-app-01"}, "one_c": {"techjournal": {"AppID": "1CV8C", "Context": "\u041e\u0431\u0449\u0438\u0439\u041c\u043e\u0434\u0443\u043b\u044c.\u0417\u0430\u043f\u0438\u0441\u044c\u0414\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u043e\u0432.\u041c\u043e\u0434\u0443\u043b\u044c : 81 : \u041d\u0430\u0431\u043e\u0440\u0417\u0430\u043f\u0438\u0441\u0435\u0439.\u0417\u0430\u043f\u0438\u0441\u0430\u0442\u044c();", "Locks": "InfoRg42.DIMS Exclusive Fld43=\"DOC-0042\"", "OSThread": "15968", "Regions": "InfoRg42.DIMS", "SessionID": "421", "Usr": "batch_admin", "WaitConnections": "17", "depth": "5", "duration": "2000000", "level": "INFO", "name": "TLOCK", "p:processName": "accounting", "process": "rphost", "t:applicationName": "1CV8C", "t:clientID": "592", "t:computerName": "client-01", "t:connectID": "16", "ts": "2026-09-25T02:00:03.672540"}}, "process": {"name": "rphost"}, "user": {"name": "batch_admin"}}`,
+      title: 'First victim TLOCK of the first episode',
+      json: String.raw`{"@timestamp": "2026-09-25T02:01:52.133783+00:00", "ecs": {"version": "8.17.0"}, "event": {"action": "TLOCK", "dataset": "1c.techjournal", "kind": "event", "original": "{\"ts\":\"2026-09-25T02:01:52.133783\",\"duration\":\"20003092\",\"name\":\"TLOCK\",\"depth\":\"5\",\"level\":\"INFO\",\"process\":\"rphost\",\"p:processName\":\"accounting\",\"OSThread\":\"18860\",\"t:clientID\":\"552\",\"t:applicationName\":\"1CV8C\",\"t:computerName\":\"client-11\",\"t:connectID\":\"26\",\"SessionID\":\"125\",\"Usr\":\"manager_sales01\",\"AppID\":\"1CV8C\",\"Regions\":\"InfoRg42.DIMS\",\"Locks\":\"InfoRg42.DIMS Exclusive Fld43=\\\"DOC-0046\\\"\",\"WaitConnections\":\"19\",\"Context\":\"\u0414\u043e\u043a\u0443\u043c\u0435\u043d\u0442.\u041f\u043e\u0441\u0442\u0443\u043f\u043b\u0435\u043d\u0438\u0435\u0422\u043e\u0432\u0430\u0440\u043e\u0432\u0423\u0441\u043b\u0443\u0433.\u041c\u043e\u0434\u0443\u043b\u044c\u041e\u0431\u044a\u0435\u043a\u0442\u0430 : 188 : \u0411\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u043a\u0430\u0414\u0430\u043d\u043d\u044b\u0445.\u0417\u0430\u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u0430\u0442\u044c();\"}", "type": ["info"]}, "host": {"name": "onec-app-01"}, "one_c": {"techjournal": {"AppID": "1CV8C", "Context": "\u0414\u043e\u043a\u0443\u043c\u0435\u043d\u0442.\u041f\u043e\u0441\u0442\u0443\u043f\u043b\u0435\u043d\u0438\u0435\u0422\u043e\u0432\u0430\u0440\u043e\u0432\u0423\u0441\u043b\u0443\u0433.\u041c\u043e\u0434\u0443\u043b\u044c\u041e\u0431\u044a\u0435\u043a\u0442\u0430 : 188 : \u0411\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u043a\u0430\u0414\u0430\u043d\u043d\u044b\u0445.\u0417\u0430\u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u0430\u0442\u044c();", "Locks": "InfoRg42.DIMS Exclusive Fld43=\"DOC-0046\"", "OSThread": "18860", "Regions": "InfoRg42.DIMS", "SessionID": "125", "Usr": "manager_sales01", "WaitConnections": "19", "depth": "5", "duration": "20003092", "level": "INFO", "name": "TLOCK", "p:processName": "accounting", "process": "rphost", "t:applicationName": "1CV8C", "t:clientID": "552", "t:computerName": "client-11", "t:connectID": "26", "ts": "2026-09-25T02:01:52.133783"}}, "process": {"name": "rphost"}, "user": {"name": "manager_sales01"}}`,
     },
   ],
 };
