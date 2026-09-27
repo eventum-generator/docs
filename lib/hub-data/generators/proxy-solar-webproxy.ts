@@ -1,171 +1,164 @@
-/* eslint-disable sonarjs/no-hardcoded-ip -- Synthetic IPs document generator defaults. */
 import type { GeneratorMeta } from '@/lib/hub-types';
 
 export const proxySolarWebproxy: GeneratorMeta = {
   slug: 'proxy-solar-webproxy',
-  displayName: 'Solar webProxy',
+  displayName: 'Solar webProxy SIEM Log',
   category: 'web-access',
-  dataSource: 'Solar webProxy 4.3.1 siem-log syslog',
   description:
-    'Web filtering request logs with a switchable sequence of blocked requests followed by a large POST.',
-  generatorId: 'solar',
-  eventCount: 2,
+    'Solar webProxy 4.3.1 request messages in the vendor siem-log syslog format from one filtering node in forward mode with TLS inspection serving 30 office users, as native text in event.original mapped to ECS. Models filtering decisions and traffic volumes, not administrator audit, access-log JSON, cef-log or ip-translation-log output. Recurring episodes show one user denied repeated uploads to a blocked file-sharing site, then uploading to sanctioned cloud storage.',
+  dataSource:
+    'Solar webProxy 4.3.1 siem-log syslog messages, forward mode with TLS inspection',
+  format: ['JSON', 'ECS', 'Syslog'],
+  eventCount: 6,
   templateCount: 1,
   highlights: [
-    'Vendor-documented 4.3.1 bracketed siem-log format',
-    '26 native request and filter key-value fields',
-    'Two denied GETs followed by a 12 MiB allowed POST',
+    'Native 27-field siem-log line in event.original',
+    'Independent activity of 30 users with a working-hours peak',
+    'Recurring denied-upload to sanctioned-upload chain',
   ],
+  generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'The same user and IP make two blocked GET requests, then send a 12 MiB POST to another host within 90 seconds.',
+    'Every 24 hours of source time by default (the first episode is due one interval after the first message; once due, it starts after a random delay, exponential with a 20-minute mean, and the next is due one interval after that actual start, with no catch-up of missed intervals, so at 24 hours each start drifts only by its random delay), one user is denied two or more POST uploads to the same blocked file-sharing site, retrying seconds to minutes apart, then makes an allowed large POST upload to a sanctioned cloud-storage host, usually within 10 minutes of the first denial. Users and blocked sites change from one episode to the next; every element also occurs in ordinary traffic, where two or more denied uploads by one user are never followed by a sanctioned upload within an hour.',
+  generatorId: 'solar-webproxy',
   eventTypes: [
     {
-      id: 'http-allowed',
-      description: 'Filtered web request allowed',
-      frequency: '83.7% with anomaly mode',
+      id: 'page',
+      description:
+        'Page and embedded-object GET to an allowed site (200, 304, 302, 404)',
+      frequency: '88.15% measured share',
       category: 'web',
     },
     {
-      id: 'http-denied',
-      description: 'Web request blocked',
-      frequency: '16.3% with anomaly mode',
+      id: 'deny',
+      description:
+        'GET to a blocked entertainment site, with user retries (403, URL block)',
+      frequency: '4.07% measured share',
+      category: 'web',
+    },
+    {
+      id: 'upload',
+      description: 'POST upload to sanctioned cloud storage (200)',
+      frequency: '2.57% measured share',
+      category: 'web',
+    },
+    {
+      id: 'api',
+      description: 'Small POST to a business application (200, 201, 400)',
+      frequency: '2.16% measured share',
+      category: 'web',
+    },
+    {
+      id: 'share',
+      description:
+        'POST upload to a blocked file-sharing site, with user retries (403, URL block)',
+      frequency: '1.69% measured share',
+      category: 'web',
+    },
+    {
+      id: 'download',
+      description: 'GET download from cloud storage (200)',
+      frequency: '1.36% measured share',
       category: 'web',
     },
   ],
   realismFeatures: [
-    'Raw line uses the vendor 4.3.1 siem-log field schema; values are synthetic.',
-    'One proxy and stable account/IP link the chain across request decisions.',
-    'KUMA 4.2 lists a normalizer for webProxy 4.2; compatibility with this 4.3.1 stream is untested.',
+    "One filtering node serves 30 users, each an independent random process with a skewed activity weight. The final 80-hour default capture holds 65,930 messages, about 14 per minute, with a working-hours peak in the node's local time.",
+    'Blocked browsing, blocked uploads with retries, a single blocked upload followed by an upload to sanctioned storage, and repeated blocked uploads without any upload occur in ordinary traffic in both modes; with anomaly_mode false the background has the same mix within run-to-run variation.',
+    "event.original follows table 9.2 and the raw example of the 4.3.1 installation manual: a syslog-ng header and 27 bracketed fields in the example's order, including the bare [x-virus-id] marker. The header clock is local time, written flt-time milliseconds after the UTC req-time, and its day is not zero-padded, as in the example.",
+    'flt-codes values are copied from the vendor examples (11 for the decryption rule, 0 for layer transitions, 2 for the blocking rule), since the manual does not document the numeric mapping; flt-categories is 0 or the one numeric category from the example. Blocked requests carry zero byte counts and application/skvt-unchecked, as in the vendor example.',
+    'Only URL-list blocks are modelled: antivirus, DLP, category, schedule and quota blocks, reverse-proxy mode and authentication failures are not generated. Traffic ratios are scenario choices, since Solar does not publish them; hosts use reserved test domains and documentation address ranges.',
+    'The chain flags possible circumvention of an upload block; the log does not show file contents, so it is a correlation, not proof that the same data was uploaded. Compatibility with third-party siem-log normalizers has not been tested. The allowed upload of an episode follows its last denial within 20 minutes; ordinary uploads after denials have no such cap (about 1% of them come later).',
   ],
-  format: ['JSON', 'ECS', 'siem-log syslog'],
-  generationModes: ['background', 'anomaly'],
   parameters: [
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description: 'Include the linked blocked-request-to-upload sequence',
+      description:
+        'Add recurring anomaly episodes; false produces background only',
+    },
+    {
+      name: 'anomaly_interval_hours',
+      defaultValue: '24',
+      description: 'Episode interval on source time, 1 to 8,760 hours',
     },
     {
       name: 'proxy_host',
-      defaultValue: 'webproxy-01',
-      description: 'Syslog host name',
+      defaultValue: 'wp-01',
+      description: 'Host name in the syslog header',
+    },
+    {
+      name: 'syslog_utc_offset_hours',
+      defaultValue: '3',
+      description:
+        'Local time offset of the syslog header and of the working-hours load curve; req-time stays UTC',
     },
     {
       name: 'account_domain',
       defaultValue: 'CORP',
-      description: 'Account domain',
+      description: 'acc-domain value',
     },
     {
-      name: 'ordinary_user',
-      defaultValue: 'anna',
-      description: 'Background account',
+      name: 'client_prefix',
+      defaultValue: '10.20.4.',
+      description: 'Prefix of user addresses',
     },
     {
-      name: 'ordinary_ip',
-      defaultValue: '10.20.4.41',
-      description: 'Background client address',
+      name: 'client_first',
+      defaultValue: '21',
+      description:
+        'Last octet of the first user address; users get consecutive addresses (client_first plus the user count at most 255)',
     },
     {
-      name: 'suspect_user',
-      defaultValue: 'ivan',
-      description: 'Account in the anomaly chain',
+      name: 'users',
+      defaultValue: '30 logins',
+      description: 'acc-name values, at least 4',
     },
     {
-      name: 'suspect_ip',
-      defaultValue: '10.20.4.23',
-      description: 'Client address in the anomaly chain',
+      name: 'groups',
+      defaultValue: '[Employees, Finance, Engineering, Sales]',
+      description:
+        'acc-groups values, one per user, drawn at start with a skew toward the first',
     },
     {
-      name: 'ordinary_destination_ip',
-      defaultValue: '192.0.2.10',
-      description: 'Allowed background destination',
+      name: 'decrypt_rule',
+      defaultValue: 'https',
+      description:
+        'Name of the TLS inspection rule that leads flt-rules for HTTPS requests',
     },
     {
-      name: 'blocked_destination_ip',
-      defaultValue: '192.0.2.20',
-      description: 'Blocked destination',
+      name: 'block_layer',
+      defaultValue: 'Restricted',
+      description:
+        'Policy layer that blocks, written to flt-policy and flt-rules',
     },
     {
-      name: 'upload_destination_ip',
-      defaultValue: '192.0.2.30',
-      description: 'Chain POST destination',
+      name: 'sites',
+      defaultValue: '8 sites',
+      description: 'Allowed sites: host, address, flt-categories value, pages',
+    },
+    {
+      name: 'blocked_sites',
+      defaultValue: '3 sites',
+      description:
+        'Blocked entertainment sites: host, address, category, blocking rule name, pages',
+    },
+    {
+      name: 'sharing_sites',
+      defaultValue: '3 sites',
+      description:
+        'Blocked file-sharing sites: host, address, category, blocking rule name, upload path',
+    },
+    {
+      name: 'storage_sites',
+      defaultValue: '2 sites',
+      description:
+        'Sanctioned cloud storage: host, address, category, upload path',
     },
   ],
   sampleOutputs: [
     {
-      title: 'Solar webProxy large POST',
-      json: String.raw`{
-  "@timestamp": "2026-09-25T14:28:00+00:00",
-  "destination": {
-    "bytes": 2048,
-    "ip": "192.0.2.30",
-    "port": 443
-  },
-  "ecs": {
-    "version": "8.17.0"
-  },
-  "event": {
-    "action": "http-allowed",
-    "category": [
-      "web"
-    ],
-    "kind": "event",
-    "original": "Sep 25 14:28:00 webproxy-01 java: [acc-domain:CORP] [acc-groups:Employees] [acc-ip:10.20.4.23] [acc-name:ivan] [acc-port:54721] [bytes-in:2048] [bytes-out:12582912] [flt-categories:0] [flt-codes:11,0,0,0] [flt-policy:Standard web access] [flt-rules:https,web-filter] [flt-status:200] [flt-time:8] [req-hostname:uploads.example.test] [req-method:POST] [req-pathname:/ingest] [req-protocol:https] [req-query:] [req-referer:] [req-time:2026-09-25T14:28:00.000Z] [req-user-agent:Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/125.0.0.0 Safari/537.36] [res-datatype:application/json] [res-ip:192.0.2.30] [traf-mode:forward] [req-port:443] [flt-reason:]",
-    "outcome": "success",
-    "type": [
-      "access"
-    ]
-  },
-  "host": {
-    "name": "webproxy-01"
-  },
-  "http": {
-    "request": {
-      "method": "POST"
-    },
-    "response": {
-      "status_code": 200
-    }
-  },
-  "related": {
-    "ip": [
-      "10.20.4.23",
-      "192.0.2.30"
-    ],
-    "user": [
-      "ivan"
-    ]
-  },
-  "solar_webproxy": {
-    "account_groups": "Employees",
-    "filter_codes": "11,0,0,0",
-    "filter_policy": "Standard web access",
-    "filter_reason": "",
-    "filter_rules": "https,web-filter",
-    "filter_time_ms": 8,
-    "request_time": "2026-09-25T14:28:00.000Z",
-    "response_mime_type": "application/json",
-    "traffic_mode": "forward"
-  },
-  "source": {
-    "bytes": 12582912,
-    "ip": "10.20.4.23",
-    "port": 54721
-  },
-  "url": {
-    "domain": "uploads.example.test",
-    "full": "https://uploads.example.test/ingest",
-    "path": "/ingest",
-    "scheme": "https"
-  },
-  "user": {
-    "domain": "CORP",
-    "name": "ivan"
-  },
-  "user_agent": {
-    "original": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/125.0.0.0 Safari/537.36"
-  }
-}`,
+      title: 'Final upload of the first episode',
+      json: String.raw`{"@timestamp": "2026-09-01T21:19:12.454+00:00", "destination": {"bytes": 792, "domain": "disk.fabrikam.test", "ip": "198.51.100.30", "port": 443}, "ecs": {"version": "8.17.0"}, "event": {"action": "http-allowed", "category": ["web", "network"], "duration": 89000000, "kind": "event", "original": "Sep 2 00:19:12 wp-01 java: [acc-domain:CORP] [acc-groups:Employees] [acc-ip:10.20.4.45] [acc-name:q.komarova] [acc-port:58752] [bytes-in:792] [bytes-out:3856140] [flt-categories:0] [flt-codes:11,0,0,0,0,0] [flt-policy:\u0417\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u0435 \u043e\u0431\u0440\u0430\u0431\u043e\u0442\u043a\u0438 \u043f\u043e\u043b\u0438\u0442\u0438\u043a\u0438] [flt-rules:https,\u041f\u0435\u0440\u0435\u0445\u043e\u0434 \u043a \u0441\u043b\u043e\u044e Icap Request,\u041f\u0435\u0440\u0435\u0445\u043e\u0434 \u043a \u0441\u043b\u043e\u044e Filter req,\u041f\u0435\u0440\u0435\u0445\u043e\u0434 \u043a \u0441\u043b\u043e\u044e Icap Response,\u041f\u0435\u0440\u0435\u0445\u043e\u0434 \u043a \u0441\u043b\u043e\u044e Filter resps,\u041f\u0435\u0440\u0435\u0445\u043e\u0434 \u043a \u0441\u043b\u043e\u044e \u0417\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u0435 \u043e\u0431\u0440\u0430\u0431\u043e\u0442\u043a\u0438 \u043f\u043e\u043b\u0438\u0442\u0438\u043a\u0438] [flt-status:200] [flt-time:89] [req-hostname:disk.fabrikam.test] [req-method:POST] [req-pathname:/api/v1/files/upload] [req-protocol:https] [req-query:uploadType=resumable] [req-referer:https://disk.fabrikam.test/] [req-time:2026-09-01T21:19:12.454Z] [req-user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0] [res-datatype:application/json] [res-ip:198.51.100.30] [traf-mode:forward] [x-virus-id] [req-port:443] [flt-reason:]", "outcome": "success", "type": ["allowed", "connection"]}, "host": {"name": "wp-01"}, "http": {"request": {"bytes": 3856140, "method": "POST", "referrer": "https://disk.fabrikam.test/"}, "response": {"bytes": 792, "mime_type": "application/json", "status_code": 200}}, "observer": {"hostname": "wp-01", "product": "Solar webProxy", "type": "proxy", "vendor": "Solar"}, "related": {"hosts": ["disk.fabrikam.test"], "ip": ["10.20.4.45", "198.51.100.30"], "user": ["q.komarova"]}, "rule": {"name": "\u0417\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u0435 \u043e\u0431\u0440\u0430\u0431\u043e\u0442\u043a\u0438 \u043f\u043e\u043b\u0438\u0442\u0438\u043a\u0438"}, "solar_webproxy": {"account_groups": "Employees", "filter_categories": "0", "filter_codes": "11,0,0,0,0,0", "filter_policy": "\u0417\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u0435 \u043e\u0431\u0440\u0430\u0431\u043e\u0442\u043a\u0438 \u043f\u043e\u043b\u0438\u0442\u0438\u043a\u0438", "filter_reason": "", "filter_rules": "https,\u041f\u0435\u0440\u0435\u0445\u043e\u0434 \u043a \u0441\u043b\u043e\u044e Icap Request,\u041f\u0435\u0440\u0435\u0445\u043e\u0434 \u043a \u0441\u043b\u043e\u044e Filter req,\u041f\u0435\u0440\u0435\u0445\u043e\u0434 \u043a \u0441\u043b\u043e\u044e Icap Response,\u041f\u0435\u0440\u0435\u0445\u043e\u0434 \u043a \u0441\u043b\u043e\u044e Filter resps,\u041f\u0435\u0440\u0435\u0445\u043e\u0434 \u043a \u0441\u043b\u043e\u044e \u0417\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u0438\u0435 \u043e\u0431\u0440\u0430\u0431\u043e\u0442\u043a\u0438 \u043f\u043e\u043b\u0438\u0442\u0438\u043a\u0438", "filter_status": 200, "filter_time_ms": 89, "request_time": "2026-09-01T21:19:12.454Z", "response_datatype": "application/json", "traffic_mode": "forward"}, "source": {"bytes": 3856140, "ip": "10.20.4.45", "port": 58752}, "url": {"domain": "disk.fabrikam.test", "full": "https://disk.fabrikam.test/api/v1/files/upload?uploadType=resumable", "path": "/api/v1/files/upload", "port": 443, "query": "uploadType=resumable", "scheme": "https"}, "user": {"domain": "CORP", "group": {"name": "Employees"}, "name": "q.komarova"}, "user_agent": {"original": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0"}}`,
     },
   ],
 };
