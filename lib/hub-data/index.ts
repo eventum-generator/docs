@@ -62,6 +62,7 @@ import { networkContinent } from './generators/network-continent';
 import { networkDns } from './generators/network-dns';
 import { networkEltexEsr } from './generators/network-eltex-esr';
 import { networkEltexMes } from './generators/network-eltex-mes';
+import { networkF5BigipAfm } from './generators/network-f5-bigip-afm';
 import { networkFirewall } from './generators/network-firewall';
 import { networkFortigate } from './generators/network-fortigate';
 import { networkFortinetFortiadc } from './generators/network-fortinet-fortiadc';
@@ -291,4 +292,5 @@ export const generators: GeneratorMeta[] = [
   applicationCiscoCucmAudit,
   securityCarbonBlackEdrEventForwarder,
   applicationGrafanaServerJson,
+  networkF5BigipAfm,
 ];
