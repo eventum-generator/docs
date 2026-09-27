@@ -5,78 +5,80 @@ export const applicationOneC: GeneratorMeta = {
   displayName: '1C:Enterprise Event Log',
   category: 'application',
   description:
-    '1C:Enterprise 8.3.27 event-log JSON projection with permission-aware sessions, bounded temporary users and recurring payroll-access sequences.',
-  dataSource: 'Selected 1C:Enterprise event-log collector JSON projection',
+    "1C:Enterprise 8.3.27 event-log collector projection for a client/server infobase: ECS-style JSON with snake_case source fields under one_c.event_log, not a native XML or .lgf export and without event.original. Six staff accounts, four reusable temporary account names and five configured objects with explicit permissions. Recurring episodes join an administrator's failed logins, a temporary FullAccess account, its payroll reads, its deletion and an event-log reduction.",
+  dataSource:
+    '1C:Enterprise 8.3.27 event log (client/server, sequential .lgf storage), selected collector JSON projection',
   format: ['JSON', 'ECS'],
   eventCount: 8,
   templateCount: 1,
   generatorId: 'one-c',
   highlights: [
-    'Eight selected classes in both modes',
-    'Temporary UUID and session lifecycle',
-    'Twelve-hour, 200-second access sequences',
+    'Eight system event classes in both modes',
+    'Random sessions, failed-login runs and temporary accounts',
+    'Recurring temporary-account chain, 12 hours by default',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'Every twelve hours, after ordinary maintenance finishes, four failed administrator attempts precede success, creation of a temporary FullAccess account, its authentication and twelve payroll reads in one session. That incarnation is deleted, then old event-log history is reduced. Twenty-one records span 200 seconds. Names, actors and individual actions also occur in ordinary maintenance; each incarnation has a fresh UUID.',
+    "About every 12 hours of source time by default (the first due one interval after the window start, its first failed attempt 1-600 s later, or later still while background occupies the seconds, a temporary name is busy or the administrator is under the guard hold; each next due one interval after the previous episode's actual first failed attempt, so starts drift later and never catch up), an administrator fails to log in four or more times from its own workstation and then logs in. Seconds later it creates a temporary Roles.FullAccess account, the new incarnation logs in and reads the payroll register several times, the same administrator deletes that incarnation and reduces old event-log records. Administrators alternate, temporary names differ and every incarnation gets a fresh UUID. Every shorter part also occurs in background; only the whole ordered sequence joined by one administrator and one incarnation within 30 minutes is episode-only.",
   eventTypes: [
     {
       id: '_$Access$_.Access',
-      description: 'Successful controlled reads with nested logged rows',
-      frequency: '7801 records in the 25h05 default enabled capture',
+      description: 'Successful controlled read with one nested logged row',
+      frequency: '89.02% background share',
       category: 'database',
     },
     {
       id: '_$Access$_.AccessDenied',
       description: 'Object-level Read permission denial',
-      frequency: '500 records in that capture',
+      frequency: '3.95% background share',
       category: 'database',
     },
     {
-      id: '_$Session$_.Authentication',
-      description: 'Successful authentication opens a selected session',
-      frequency: '332 records in that capture',
-      category: 'authentication',
-    },
-    {
       id: '_$Session$_.AuthenticationError',
-      description:
-        'Failed attempted identity; native authenticated UUID omitted',
-      frequency: '285 records in that capture',
+      description: 'Failed attempt; no native authenticated UUID is asserted',
+      frequency: '3.00% background share',
       category: 'authentication',
     },
     {
-      id: '_$User$_.New',
-      description: 'Create the temporary account incarnation',
-      frequency: '14 records in that capture',
-      category: 'iam',
+      id: '_$Session$_.Authentication',
+      description: 'Successful authentication opens a session',
+      frequency: '2.88% background share',
+      category: 'authentication',
     },
     {
       id: '_$User$_.Update',
-      description: 'Update an existing staff account; unproved Data omitted',
-      frequency: '71 records in that capture',
+      description:
+        'Administrator updates another staff account; unproven native Data omitted',
+      frequency: '0.55% background share',
+      category: 'iam',
+    },
+    {
+      id: '_$User$_.New',
+      description: 'Administrator creates one temporary account',
+      frequency: '0.23% background share',
       category: 'iam',
     },
     {
       id: '_$User$_.Delete',
-      description: 'Delete the previously created temporary incarnation',
-      frequency: '14 records in that capture',
+      description: 'Administrator deletes that temporary incarnation',
+      frequency: '0.23% background share',
       category: 'iam',
     },
     {
       id: '_$InfoBase$_.EventLogReduce',
-      description: 'Reduce assumed pre-existing old records',
-      frequency: '14 records in that capture',
+      description:
+        'Administrator reduces records older than the assumed cutoff',
+      frequency: '0.14% background share',
       category: 'configuration',
     },
   ],
   realismFeatures: [
-    'One source record every ten seconds, UTC clock and five staff session slots plus at most one temporary account/session. Operations require prior authentication, current sessions and configured object rights.',
-    'Both modes retain the same actors, workstation and four temporary names. Ordinary creation, authentication, read and deletion are separated by ten minutes; failure is followed by same-account success.',
-    'Controlled reads project nested ValueTable rows and metadata arrays. Authentication uses the documented OSUser key; add-user Roles arrays contain configured role values. Unproved update/deletion/reduction Data is omitted.',
-    'Every temporary incarnation has a fresh UUID and numeric session/connection. Closure before deletion is an internal profile assumption because exact native session-end bytes are unavailable.',
-    'Reduction targets assumed history older than the current-day cutoff. It does not prove recent sequence erasure or exfiltration. EventLogSettingsUpdate is excluded from this modern, already sequential log profile.',
-    'The 23-field source union is presence coverage, not full native fidelity. Output is a selected collector projection, without event.original; exact 8.3.27 XML/.lgf serialization, failed-session bytes and live parsing remain unverified.',
+    'Six staff accounts (two accountants, one sales and one warehouse user, two administrators), four temporary names reused after deletion and five fictional configuration objects. Accountants read all five objects, Sales and Warehouse are denied the payroll register; these are configured scenario permissions, not privileges inferred from role names.',
+    'One template renders every source second in UTC and most seconds are idle: captures of 25 h 05 min hold 8,582-9,223 records, about 350 per hour. Background decisions are random draws with no fixed period, rotation or script; rates are synthetic workload settings, stationary, with no working hours or weekends.',
+    'Staff sessions last a random lifetime (median about 70 minutes) and the window opens mid-stream with pre-window sessions; session and connection numbers grow in random steps. Session end is not emitted, because its native record body was not established.',
+    "Failed logins come in retried runs: about 54 runs of two or more a day and 6.7 administrator runs of four or more. About 16 temporary-account lifecycles a day log in from the creator's workstation, read the payroll register 1-49 times and are deleted by the creator in 92% of cases, 59% of deletions followed by a reduction.",
+    'One background guard keeps ordinary traffic from completing the chain: a creator that deletes an account created within 30 minutes of four or more of its failed logins runs no reduction for the next 30 minutes. At the default interval, creations after four or more creator failures occur 7.4 times a day with anomalies against 4.7 without (z 3.3 over 800 hours); at 1 hour the partial-step counts reveal the mode.',
+    'The 23-field union of the documented XML elements is field presence, not native value fidelity. Failed authentications omit native user attribution, update, deletion and reduction omit unproven Data, and management targets are synthetic enrichment. Reductions cut assumed history before the current day, so no recent-log erasure or exfiltration is claimed; full native exports and live parser parity remain unverified.',
   ],
   parameters: [
     {
@@ -112,20 +114,21 @@ export const applicationOneC: GeneratorMeta = {
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description: 'Include recurring dense sequences',
+      description:
+        'Add recurring anomaly episodes; false produces only background',
     },
     {
       name: 'anomaly_interval_hours',
       defaultValue: '12',
       description:
-        'Positive finite source-time interval, clamped to at least one hour',
+        'Source-time interval between episodes, clamped to at least one hour',
     },
   ],
   sampleOutputs: [
     {
-      title: 'Temporary user creation with fresh target UUID',
+      title: 'Temporary account creation, first episode',
       json: String.raw`{
-  "@timestamp": "2026-09-25T12:00:50+00:00",
+  "@timestamp": "2026-09-25T12:08:13+00:00",
   "ecs": {
     "version": "8.11.0"
   },
@@ -152,8 +155,8 @@ export const applicationOneC: GeneratorMeta = {
     "name": "admin01",
     "id": "00000000-0000-0000-0000-000000000105",
     "target": {
-      "name": "svc_audit_02",
-      "id": "74f166bc-7e70-42cb-9bec-2396bca05664"
+      "name": "svc_audit_04",
+      "id": "1c308303-6015-45cd-83cf-960eaf475628"
     }
   },
   "client": {
@@ -162,7 +165,7 @@ export const applicationOneC: GeneratorMeta = {
   "related": {
     "user": [
       "admin01",
-      "svc_audit_02"
+      "svc_audit_04"
     ],
     "hosts": [
       "ADM-WS-01"
@@ -172,7 +175,7 @@ export const applicationOneC: GeneratorMeta = {
   "one_c": {
     "event_log": {
       "level": "Information",
-      "date": "2026-09-25T12:00:50+00:00",
+      "date": "2026-09-25T12:08:13+00:00",
       "application": "Enterprise",
       "application_presentation": "1C:Enterprise",
       "event_name": "_$User$_.New",
@@ -191,8 +194,8 @@ export const applicationOneC: GeneratorMeta = {
       "data_presentation": "",
       "transaction_status": "NotApplicable",
       "transaction_id": "",
-      "connection": 457,
-      "session": 1357,
+      "connection": 596,
+      "session": 1511,
       "server_name": "srvr-1c-01.example.test",
       "port": 1541,
       "sync_port": 1542,
