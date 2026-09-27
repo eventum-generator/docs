@@ -1,80 +1,141 @@
-/* eslint-disable sonarjs/no-hardcoded-ip -- Synthetic source addresses are documented defaults. */
+/* eslint-disable sonarjs/no-hardcoded-ip -- Synthetic IPs document generator defaults. */
 import type { GeneratorMeta } from '@/lib/hub-types';
 
 export const networkKasperskyNgfw: GeneratorMeta = {
   slug: 'network-kaspersky-ngfw',
-  displayName: 'Kaspersky NGFW 1.0 CEF sessions',
+  displayName: 'Kaspersky NGFW Firewall Session Log',
   category: 'network',
   description:
-    'Kaspersky NGFW Firewall CEF session records with paired start and end events and transfer volumes.',
-  dataSource: 'Kaspersky NGFW 1.0',
-  format: ['CEF', 'ECS'],
-  eventCount: 2,
+    'Kaspersky NGFW 1.0 Firewall session log (CEF) of one device as ECS JSON, with paired Session start and Firewall records for clients of a user segment reaching the internet, two internal file servers and an internal DNS server. Recurring episodes show one client reading two large files from one server over SMB, then uploading more than 50 MB to a cloud destination.',
+  dataSource:
+    'Kaspersky NGFW 1.0 Firewall session log, CEF message without a syslog envelope',
+  format: ['JSON', 'ECS', 'CEF'],
+  eventCount: 8,
   templateCount: 1,
   highlights: [
-    'Vendor-documented CEF fields in event.original',
-    'Correlated multi-event anomaly chain',
-    'Background-only mode for baseline traffic',
+    'CEF Firewall message in event.original',
+    'Paired start and end records for 24 independent clients',
+    'Recurring SMB staging then cloud upload chain',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'Two SMB sessions from one workstation to one server each start and finish with the same session ID and unusually large server-to-client byte counts.',
-  generatorId: 'kaspersky-ngfw',
+    'About every 24 hours of source time by default (the first one interval after generation starts, each next one interval after the previous actual start, with no catch-up; each start waits a random exponential delay, mean 20 min), one client ends two SMB sessions from the same file server with more than 50 MB read, then ends an HTTPS session to a cloud destination with more than 50 MB uploaded (raised to at least 55-75 MB). Episodes spanned 8-14 minutes at the default interval; the client and cloud destination differ from the previous episode. Every fragment also occurs in background; only the complete sequence is kept out of it.',
+  generatorId: 'ngfw',
   eventTypes: [
     {
-      id: 'Session start',
-      description: 'Session opened',
-      frequency: '~2.5% in anomaly mode',
+      id: 'Session start (HTTPS)',
+      description: 'HTTPS session (TCP/443) created',
+      frequency: '21.82% measured share',
       category: 'network',
     },
     {
-      id: 'Firewall',
-      description: 'Session ended',
-      frequency: '~97.5% in anomaly mode',
+      id: 'Firewall (HTTPS)',
+      description: 'HTTPS session (TCP/443) removed, with counters',
+      frequency: '21.82% measured share',
+      category: 'network',
+    },
+    {
+      id: 'Session start (DNS)',
+      description: 'DNS session (UDP/53) created',
+      frequency: '15.94% measured share',
+      category: 'network',
+    },
+    {
+      id: 'Firewall (DNS)',
+      description: 'DNS session (UDP/53) removed, with counters',
+      frequency: '15.94% measured share',
+      category: 'network',
+    },
+    {
+      id: 'Session start (SMB)',
+      description: 'SMB session (TCP/445) created',
+      frequency: '10.45% measured share',
+      category: 'network',
+    },
+    {
+      id: 'Firewall (SMB)',
+      description: 'SMB session (TCP/445) removed, with counters',
+      frequency: '10.45% measured share',
+      category: 'network',
+    },
+    {
+      id: 'Session start (HTTP)',
+      description: 'HTTP session (TCP/80) created',
+      frequency: '1.79% measured share',
+      category: 'network',
+    },
+    {
+      id: 'Firewall (HTTP)',
+      description: 'HTTP session (TCP/80) removed, with counters',
+      frequency: '1.79% measured share',
       category: 'network',
     },
   ],
   realismFeatures: [
-    'Native source identifiers and event classes',
-    'Stable actors and targets throughout the chain',
-    'Time-sorted sequence suitable for SIEM correlation',
+    'Each one-second tick emits at most one record, the earliest due session start or end. Client activity arrives as one merged Poisson stream (0.05 per second) scaled by an office-hours factor (06:00-16:00 UTC 1.64, 16:00-20:00 0.91, night 0.40); a fixed random weight per client keeps clients independent. This is a sampled view of a small office: rates, sizes and throughputs are training assumptions, not measured production volume.',
+    'Web HTTPS goes to 40 internet addresses with skewed popularity, in 60% of cases after a DNS query; 18% of cloud HTTPS sessions are uploads (median 35 MB). SMB comes in bursts of 1-7 transfers from one file server with a per-burst size scale, so several reads above 50 MB can follow within minutes, and after a single large read the same client uploads to the cloud with probability 0.25.',
+    'Durations follow the transferred volume and a log-normal throughput (LAN median 20 MB/s, internet 2 MB/s), with directional packet and byte counters. A session start and end share devicePayloadId, addresses, ports and start time; session IDs grow by a random 1-40. UDP sessions end after an assumed 30 s idle timeout plus a random sweep delay.',
+    'No field labels an episode. Large SMB read bursts, large cloud uploads and uploads after one large read occur in background in both modes; an ordinary upload that would follow two large reads from one server within two hours is reduced below 50 MB. Episode clients ignore the day/night curve, so night-time episodes are relatively more visible.',
+    'Kaspersky publishes the CEF header, the Firewall event names and the key table but no complete raw Firewall message, so key order after rt dtz, the label literals and optional-field omission are assumptions. app and sproc are always Unknown; reason, decryption, profile, application name and DNS domain fields are omitted.',
+    'All sessions match a rule with the documented Inspect action (FullMatch=yes); denied traffic, ICMP, NAT and the other NGFW logs are out of scope, and the device time zone is UTC. No Elastic integration exists for this source, so the ECS mapping, including network.protocol inferred from the port, is an assumption.',
   ],
   parameters: [
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description: 'Enable the SMB transfer chain.',
+      description: 'Add periodic episodes; false emits only background',
     },
     {
-      name: 'anomaly_interval_events',
-      defaultValue: '80',
-      description: 'Routine records between chains.',
+      name: 'anomaly_interval_hours',
+      defaultValue: '24',
+      description: 'Episode interval in source hours, 2 to 8,760',
     },
     {
       name: 'device_host',
       defaultValue: 'ngfw-01.example.test',
-      description: 'NGFW hostname.',
+      description: 'Written to dvchost and observer.hostname',
     },
     {
       name: 'device_version',
       defaultValue: '1.0.0.0',
-      description: 'CEF device version.',
+      description: 'CEF header version (1.0.0.x)',
     },
     {
-      name: 'unusual_source_ip',
-      defaultValue: '10.20.1.87',
-      description: 'Chain client.',
+      name: 'client_prefix',
+      defaultValue: '10.20.1.',
+      description: 'Client addresses are this prefix plus a host number',
     },
     {
-      name: 'sensitive_destination_ip',
-      defaultValue: '10.20.2.14',
-      description: 'Chain server.',
+      name: 'client_first',
+      defaultValue: '21',
+      description: 'First client host number',
+    },
+    {
+      name: 'client_count',
+      defaultValue: '24',
+      description:
+        'Number of clients, at least 4; client_first + client_count at most 255',
+    },
+    {
+      name: 'file_servers',
+      defaultValue: '10.20.2.14, 10.20.2.15',
+      description: 'SMB file servers',
+    },
+    {
+      name: 'dns_server',
+      defaultValue: '10.20.0.53',
+      description: 'Internal DNS resolver',
+    },
+    {
+      name: 'cloud_destinations',
+      defaultValue: '203.0.113.10, 203.0.113.11, 203.0.113.12, 203.0.113.13',
+      description: 'Cloud-storage addresses, at least 2',
     },
   ],
   sampleOutputs: [
     {
-      title: 'Kaspersky NGFW 1.0 CEF sessions anomaly event',
-      json: String.raw`{"@timestamp":"2026-09-25T13:04:04+00:00","destination":{"bytes":0,"ip":"10.20.2.14","port":445},"ecs":{"version":"8.17.0"},"event":{"action":"Session start","category":["network"],"dataset":"kaspersky.ngfw","kind":"event","original":"CEF:0|Kaspersky|NGFW|1.0.0.0|Firewall|Session start|Unknown|rt=2026-09-25T13:04:04Z dtz=UTC+00:00 cs4=Low cs4Label=Priority devicePayloadId=911 cs1=Internal SMB inspection cs1Label=SecurityRule act=Inspect FullMatch=yes start=2026-09-25T13:04:04Z cn1=0 cn1Label=Duration cn2=1 cn2Label=ClientPackets cn3=0 cn3Label=ServerPackets in=64 out=0 dvchost=ngfw-01.example.test src=10.20.1.87 dst=10.20.2.14 proto=TCP spt=49220 dpt=445 KasperskyNGFWTCPRedir=no app=Unknown","type":["start"]},"kaspersky":{"ngfw":{"action":"Inspect","rule":"Internal SMB inspection","session_id":"911"}},"network":{"protocol":"smb","transport":"tcp"},"observer":{"hostname":"ngfw-01.example.test","product":"NGFW","vendor":"Kaspersky","version":"1.0.0.0"},"source":{"bytes":64,"ip":"10.20.1.87","port":49220}}`,
+      title: 'Upload completing the first episode (Firewall)',
+      json: String.raw`{"@timestamp": "2026-09-27T00:17:20+00:00", "destination": {"bytes": 7086664, "ip": "203.0.113.10", "packets": 136282, "port": 443}, "ecs": {"version": "8.17.0"}, "event": {"action": "Firewall", "category": ["network"], "dataset": "kaspersky.ngfw", "duration": 153000000000, "end": "2026-09-27T00:17:20+00:00", "kind": "event", "original": "CEF:0|Kaspersky|NGFW|1.0.0.0|Firewall|Firewall|Unknown|rt=2026-09-27T00:17:20Z dtz=UTC+00:00 cs4=Low cs4Label=Priority devicePayloadId=941162 cs1=Users to Internet cs1Label=SecurityRule act=Inspect FullMatch=yes start=2026-09-27T00:14:47Z end=2026-09-27T00:17:20Z cn1=153 cn1Label=Duration cn2=257829 cn2Label=ClientPackets cn3=136282 cn3Label=ServerPackets in=360111992 out=7086664 dvchost=ngfw-01.example.test src=10.20.1.38 dst=203.0.113.10 proto=TCP spt=62411 dpt=443 KasperskyNGFWTCPRedir=no app=Unknown sproc=Unknown", "start": "2026-09-27T00:14:47+00:00", "type": ["connection", "end"]}, "kaspersky": {"ngfw": {"action": "Inspect", "full_match": "yes", "session_id": "941162"}}, "network": {"bytes": 367198656, "packets": 394111, "protocol": "tls", "transport": "tcp"}, "observer": {"hostname": "ngfw-01.example.test", "product": "NGFW", "vendor": "Kaspersky", "version": "1.0.0.0"}, "related": {"ip": ["10.20.1.38", "203.0.113.10"]}, "rule": {"name": "Users to Internet"}, "source": {"bytes": 360111992, "ip": "10.20.1.38", "packets": 257829, "port": 62411}}`,
     },
   ],
 };
