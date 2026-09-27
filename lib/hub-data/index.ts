@@ -102,6 +102,7 @@ import { securityDefenderEndpoint } from './generators/security-defender-endpoin
 import { securityDrwebEss } from './generators/security-drweb-ess';
 import { securityEsetProtect } from './generators/security-eset-protect';
 import { securityFalco } from './generators/security-falco';
+import { securityFortinetFortianalyzerAudit } from './generators/security-fortinet-fortianalyzer-audit';
 import { securityFortinetFortisoar } from './generators/security-fortinet-fortisoar';
 import { securityHashicorpVault } from './generators/security-hashicorp-vault';
 import { securityImpervaSecuresphere } from './generators/security-imperva-securesphere';
@@ -109,6 +110,7 @@ import { securityKasperskyCybertrace } from './generators/security-kaspersky-cyb
 import { securityKasperskyKata } from './generators/security-kaspersky-kata';
 import { securityKasperskyKics4net } from './generators/security-kaspersky-kics4net';
 import { securityKasperskyKsc } from './generators/security-kaspersky-ksc';
+import { securityNetwrixEndpointProtector } from './generators/security-netwrix-endpoint-protector';
 import { securityPtNad } from './generators/security-pt-nad';
 import { securitySophosCentral } from './generators/security-sophos-central';
 import { securityStaffcopEnterprise } from './generators/security-staffcop-enterprise';
@@ -293,4 +295,6 @@ export const generators: GeneratorMeta[] = [
   securityCarbonBlackEdrEventForwarder,
   applicationGrafanaServerJson,
   networkF5BigipAfm,
+  securityNetwrixEndpointProtector,
+  securityFortinetFortianalyzerAudit,
 ];
