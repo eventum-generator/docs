@@ -2,144 +2,103 @@ import type { GeneratorMeta } from '@/lib/hub-types';
 
 export const securityCiscoFmcAudit: GeneratorMeta = {
   slug: 'security-cisco-fmc-audit',
-  displayName: 'Cisco FMC Audit Logs',
+  displayName: 'Cisco Secure Firewall Management Center Audit',
   category: 'security',
-  description: 'Secure Firewall Management Center 7.4 console audit Syslog.',
-  dataSource: 'Cisco Secure Firewall Management Center audit',
-  format: ['Syslog', 'ECS'],
-  eventCount: 6,
+  description:
+    'Cisco Secure Firewall Management Center (FMC) 7.4 audit Syslog records as ECS JSON for ten administrator accounts: web-interface page views, network object creation, NAT policy saves and the system pre-deploy task records that follow a save. The FMC-originating line is kept verbatim in event.original, in the forms of Cisco TechNote 221019. Recurring episodes show one account creating a network object, saving a NAT policy and saving the same policy again soon after.',
+  dataSource:
+    'Cisco Secure Firewall Management Center 7.4 audit Syslog, FMC-originating line',
+  format: ['JSON', 'ECS', 'Syslog'],
+  eventCount: 7,
   templateCount: 1,
   highlights: [
-    'Cisco-published FMC-AUDIT management actions',
-    'Network object creation followed by NAT policy save',
-    'Independent management changes also occur in background mode',
+    'Verbatim FMC-AUDIT Syslog line in event.original',
+    'Ten administrators on independent session schedules',
+    'Recurring object creation, NAT save and repeated save',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'One administrator opens the NAT editor, creates a network object, saves a NAT policy, then a pre-deploy task completes.',
+    'The first episode is due 24 hours after the first tick by default (minimum 6). It starts at a random delay of up to 30 minutes after it is due (up to an eighth of the interval for short intervals), on the first moment an account is out of session with no own session due within 3 hours; the next episode is due one interval after the actual start, and missed episodes are not replayed. In one extra session from one of its usual addresses, that account creates a network object, saves a NAT policy and saves the same policy again, each save followed by the editor view and the pre-deploy task (0.8 to 8.0 minutes from creation to second save, measured). Account and policy rotate; each step and each pair of steps is ordinary administration, and background never completes the sequence.',
   generatorId: 'fmc',
   eventTypes: [
     {
-      id: 'nat_policy_page_view',
-      description: 'NAT policy editor Page View',
-      frequency: '~53% background',
+      id: 'page-view: NGFW NAT Policy Editor',
+      description: 'sfdccsm, Devices > NAT > NGFW NAT Policy Editor, Page View',
+      frequency: '35.0% measured share',
       category: 'web',
     },
     {
-      id: 'nat_page_view',
-      description: 'NAT Page View',
-      frequency: '~20% background',
+      id: 'page-view: NAT',
+      description: 'sfdccsm, Devices > NAT, Page View',
+      frequency: '17.7% measured share',
       category: 'web',
     },
     {
-      id: 'login_success',
-      description: 'System login success',
-      frequency: '~8% background',
+      id: 'page-view: /ui/ddd/',
+      description: 'mojo_server.pl, /ui/ddd/, Page View (/ui/ddd/ page)',
+      frequency: '13.4% measured share',
+      category: 'web',
+    },
+    {
+      id: 'nat-policy-save',
+      description:
+        'sfdccsm, Devices > NAT > NAT Policy Editor, Save Policy <policy>',
+      frequency: '10.4% measured share',
+      category: 'configuration',
+    },
+    {
+      id: 'login-success',
+      description:
+        'ActionQueueScrape.pl, Login, Login Success (csm_processes@Default User IP)',
+      frequency: '8.8% measured share',
       category: 'authentication',
     },
     {
-      id: 'network_object_create',
-      description: 'NetworkObject create',
-      frequency: '~6% background; also in sequence',
+      id: 'task-completion',
+      description:
+        'ActionQueueScrape.pl, Task Queue, Successful task completion : Pre-deploy Global Configuration Generation (admin@localhost)',
+      frequency: '8.8% measured share',
       category: 'configuration',
     },
     {
-      id: 'nat_policy_save',
-      description: 'NAT policy save',
-      frequency: '~6% background; also in sequence',
-      category: 'configuration',
-    },
-    {
-      id: 'predeploy_config_generation_complete',
-      description: 'Pre-deploy task completion',
-      frequency: '~6% background; also in sequence',
+      id: 'network-object-create',
+      description:
+        'sfdccsm, Objects > Object Management > NetworkObject, create <object>',
+      frequency: '5.8% measured share',
       category: 'configuration',
     },
   ],
   realismFeatures: [
-    'FMC-originating Syslog syntax from Cisco 7.4.0 examples',
-    'Stable administrator and source address across console changes',
-    'No inferred policy ID or deployment result on the task line',
-    'Three-minute management sequence in a five-minute detection window',
+    'Ten administrator accounts each follow their own random schedule, with lognormal gaps between sessions (per-account median 4 to 20 hours), from the usual workstation address or, in about 15% of sessions, a second one. A session opens on the /ui/ddd/ page or the NAT list and holds one to about twenty actions seconds to minutes apart.',
+    'More than half of object creations are followed later in the session by a NAT policy save, and about a fifth of saves are saved again. Every save comes from the editor, which is shown again within a second; after 85% of saves the system logs csm_processes Login Success (median about 20 seconds later) and the pre-deploy task completion about a second after that, as in the Cisco sample.',
+    'Chain fragments are ordinary administration: per 14-day background capture, 83 to 125 saves come within an hour after the same account and address created an object, and 61 to 84 save a policy that account and address already saved within the hour. Every episode account and address also occurs in background, and most account, address and policy combinations do.',
+    'Every line uses one of the seven forms of the eight Cisco TechNote 221019 (FMCv 7.4.0) lines; only user, address, object name, policy name and time vary. Other menus, object types, deletions, deployments and human logins and logouts are not generated, and failed logins are not modeled because their records carry neither user nor source address.',
+    'The [FMC-AUDIT] tag is the one configured in the TechNote and is user-defined on a real FMC; the collector-side prefix is not emitted. The BSD header has no year or zone, one-second precision and a zero-padded day; the time of day is UTC, web sessions have no diurnal pattern, and rates, durations and the action mix are synthetic workload choices.',
+    'cisco.fmc.audit.* is parsed from the line, while event.*, user.*, source.*, process.*, observer.* and related.* are ECS normalization, as no Elastic integration for FMC audit Syslog was found. The record never names the changed rule or object, so a revert is inferred from the repeated save. Compatibility with the KUMA CEF normalizer is not claimed, and no live capture was available for comparison.',
   ],
   parameters: [
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description: 'Enable management-change sequence.',
+      description:
+        'Include periodic anomaly episodes; false gives background only',
     },
     {
-      name: 'anomaly_interval_events',
-      defaultValue: '60',
-      description: 'Routine records before each sequence.',
+      name: 'anomaly_interval_hours',
+      defaultValue: '24',
+      description:
+        'Hours between episode starts, 6 to 8,760; other values fail validation',
     },
     {
       name: 'management_center',
       defaultValue: 'firepower',
-      description: 'Synthetic FMC hostname.',
-    },
-    {
-      name: 'unusual_admin_ip',
-      defaultValue: '198.51.100.44',
-      description: 'Administrator source in the sequence.',
-    },
-    {
-      name: 'network_object',
-      defaultValue: 'csm-lab',
-      description: 'Created network object.',
-    },
-    {
-      name: 'nat_policy',
-      defaultValue: 'NATPolicy',
-      description: 'Saved NAT policy.',
+      description: 'FMC hostname in the Syslog header and observer.hostname',
     },
   ],
   sampleOutputs: [
     {
-      title: 'FMC network object creation',
-      json: String.raw`{
-  "@timestamp": "2026-09-25T14:52:00+00:00",
-  "cisco": {
-    "fmc": {
-      "audit": {
-        "component": "sfdccsm",
-        "detail": "Objects > Object Management > NetworkObject, create csm-lab"
-      }
-    }
-  },
-  "ecs": {
-    "version": "8.17.0"
-  },
-  "event": {
-    "action": "network_object_create",
-    "category": [
-      "configuration"
-    ],
-    "code": "FMC-AUDIT",
-    "dataset": "cisco.fmc.audit",
-    "kind": "event",
-    "original": "Sep 25 14:52:00 firepower: [FMC-AUDIT] sfdccsm: admin@198.51.100.44, Objects > Object Management > NetworkObject, create csm-lab",
-    "type": [
-      "creation"
-    ]
-  },
-  "observer": {
-    "name": "firepower",
-    "product": "Secure Firewall Management Center",
-    "vendor": "Cisco"
-  },
-  "related": {
-    "ip": [
-      "198.51.100.44"
-    ]
-  },
-  "source": {
-    "ip": "198.51.100.44"
-  },
-  "user": {
-    "name": "admin"
-  }
-}`,
+      title: 'Second save of the same NAT policy in an episode',
+      json: String.raw`{"@timestamp": "2026-09-02T00:27:23+00:00", "cisco": {"fmc": {"audit": {"message": "Save Policy NAT-DMZ-Web", "policy": "NAT-DMZ-Web", "sender": "sfdccsm", "subsystem": "Devices > NAT > NAT Policy Editor", "tag": "FMC-AUDIT", "user": "jsmith", "user_ip": "10.1.20.14"}}}, "ecs": {"version": "8.17.0"}, "event": {"action": "nat-policy-save", "category": ["configuration"], "dataset": "cisco_fmc.audit", "kind": "event", "module": "cisco_fmc", "original": "Sep 02 00:27:23 firepower: [FMC-AUDIT] sfdccsm: jsmith@10.1.20.14, Devices > NAT > NAT Policy Editor, Save Policy NAT-DMZ-Web", "type": ["change"]}, "message": "Devices > NAT > NAT Policy Editor, Save Policy NAT-DMZ-Web", "observer": {"hostname": "firepower", "product": "Secure Firewall Management Center", "vendor": "Cisco", "version": "7.4.0"}, "process": {"name": "sfdccsm"}, "related": {"hosts": ["firepower"], "ip": ["10.1.20.14"], "user": ["jsmith"]}, "source": {"ip": "10.1.20.14"}, "user": {"name": "jsmith"}}`,
     },
   ],
 };
