@@ -1,6 +1,7 @@
 import { applicationOneC } from './generators/application-1c';
 import { applicationOneCTechjournal } from './generators/application-1c-techjournal';
 import { applicationCiscoCucmAudit } from './generators/application-cisco-cucm-audit';
+import { applicationGrafanaServerJson } from './generators/application-grafana-server-json';
 import { applicationNextcloudAudit } from './generators/application-nextcloud-audit';
 import { applicationSharepointServerUls } from './generators/application-sharepoint-server-uls';
 import { backupVeeamVbr } from './generators/backup-veeam-vbr';
@@ -289,4 +290,5 @@ export const generators: GeneratorMeta[] = [
   applicationSharepointServerUls,
   applicationCiscoCucmAudit,
   securityCarbonBlackEdrEventForwarder,
+  applicationGrafanaServerJson,
 ];
