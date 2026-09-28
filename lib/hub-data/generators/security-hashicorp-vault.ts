@@ -19,37 +19,37 @@ export const securityHashicorpVault: GeneratorMeta = {
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'About every 24 hours by default (the first one interval after the first input timestamp, each next one interval after the actual first read of the previous episode, with no backlog; an episode yields to other work and starts up to a few minutes after it is due, so starts drift slightly later, measured 24.007-24.019 h apart), one existing identity, different from the previous one, reads ten distinct payroll secrets paced like a payroll batch, then attempts to delete sys/audit/file. The reader ACL permits the reads and denies the DELETE; the audit device remains enabled. Every element also occurs on its own in both modes; only three or more distinct payroll reads by one token followed by its denied audit DELETE within about seven minutes is withheld from background.',
+    'About every 24 hours by default: the first episode starts at a uniformly random time within the first interval, or the first 24 hours when the interval is longer; each later one starts at a random time within a window of a quarter of the interval (at most 6 hours) centred on one interval after the actual first read of the previous episode, with no backlog. An episode yields each slot to renewals, retries, pending deletions and running batches, so it starts up to a few minutes after its drawn time. One existing identity, different from the previous one, reads ten distinct payroll secrets paced like a payroll batch, then attempts to delete sys/audit/file (272-618 s from the first read in the final captures). The reader ACL permits the reads and denies the DELETE; the audit device remains enabled. Every element also occurs on its own in both modes; only three or more distinct payroll reads by one token followed by its denied audit DELETE within 400 seconds of the first read is withheld from background.',
   generatorId: 'vault',
   eventTypes: [
     {
       id: 'kv-read-app-billing',
       description: 'KV v2 read of an application/billing secret',
-      frequency: '47.4-48.7% measured share',
+      frequency: '48.1-49.7% measured share',
       category: 'authentication',
     },
     {
       id: 'kv-read-payroll',
       description: 'KV v2 read of a payroll secret',
-      frequency: '30.1-30.4% measured share',
+      frequency: '28.8-30.1% measured share',
       category: 'authentication',
     },
     {
       id: 'token-lookup-self',
       description: 'Token reads its own remaining lifetime',
-      frequency: '10.5-10.8% measured share',
+      frequency: '10.4-10.5% measured share',
       category: 'authentication',
     },
     {
       id: 'kv-metadata-list',
       description: 'KV v2 metadata list of existing child names',
-      frequency: '10.1-10.7% measured share',
+      frequency: '10.4-10.8% measured share',
       category: 'authentication',
     },
     {
       id: 'audit-delete-denied',
       description: 'Reader ACL denies deleting sys/audit/file',
-      frequency: '0.46-0.52% measured share',
+      frequency: '0.36-0.54% measured share',
       category: 'authentication',
     },
     {
@@ -60,9 +60,9 @@ export const securityHashicorpVault: GeneratorMeta = {
     },
   ],
   realismFeatures: [
-    'Each operation emits a request and a response entry with the same fresh UUID, one operation per 30-second input slot at a random instant inside it: 2,880 operations and 5,760 entries a day. Shares, measured over 9,161 operations per mode, and timings are training assumptions, not production measurements; rates are stationary, with no daily or weekly cycle.',
+    'Each operation emits a request and a response entry with the same fresh UUID, one operation per 30-second input slot at a random instant inside it: 2,880 operations and 5,760 entries a day. Shares, measured over 17,321 operations per mode in the final default captures, and timings are training assumptions, not production measurements; rates are stationary, with no daily or weekly cycle.',
     'Four existing userpass identities with the default and training-reader policies use a fixed inventory of 52 version-1 KV v2 secrets (12 application/billing, 40 payroll). The reader ACL grants read and list, the default policy self-lookup and renewal, and neither grants audit management, so both entries of the denied audit DELETE keep valid authentication, policy_results.allowed=false and a hashed response error. No secret write, token creation or revocation is generated.',
-    'Background runs as independent processes that behave the same in both modes: weighted single operations, about 12 payroll batches a day (log-normal length, median about 6 reads), about 8 denied audit deletions a day with 35% retried, and source ports reused until a client is idle for more than 90 seconds. Runs of ten or more payroll reads and denied DELETEs by all four identities, including ones after one or two payroll reads, occur in both modes.',
+    'Background runs as independent processes that behave the same in both modes: weighted single operations, about 12 payroll batches a day (log-normal length, median about 6 reads), about 8 denied audit deletions a day with 35% retried, and source ports reused until a client is idle for more than 90 seconds. Runs of ten or more payroll reads and denied DELETEs by all four identities, including retries and ones after one or two payroll reads, occur in both modes. One rule acts only on the last step: an ordinary DELETE that would complete three distinct payroll reads by the same actor within 400 seconds is dropped, with its actor not replaced.',
     'Tokens renew on the LifetimeWatcher schedule, 16.8-17.6 hours after login or the previous renewal; unlike a real watcher, the grace is redrawn every cycle and no start-up renewal is emitted. Lookups report remaining TTL and last_renewal, while auth.token_ttl stays the 86,400-second creation period.',
     'Tokens, accessors and string values are keyed HMAC-SHA256 with one synthetic device salt; typed lookup times stay readable. @timestamp carries the source time at millisecond precision, event.ingested, in whole seconds, lags it log-normally (median about 2.5 s), and log.offset follows the UTF-8 byte length of each native line in the unrotated audit file.',
     'All 47/47 leaf paths of the pinned Elastic sample occur, which shows field presence only. No complete live v1.18.0 capture or live SIEM parser run was obtained; optional headers, enterprise fields and other endpoints are omitted, mount accessors are synthetic, and agent_id_status verified is synthetic collector context. The records do not prove exfiltration or a successful audit shutdown.',
@@ -78,7 +78,7 @@ export const securityHashicorpVault: GeneratorMeta = {
       name: 'anomaly_interval_hours',
       defaultValue: '24',
       description:
-        "Hours from one episode's first read to the next episode becoming due, 6 to 8,760",
+        "Hours from one episode's first read to the centre of the next episode's start window, 6 to 8,760",
     },
     {
       name: 'vault_host',
@@ -128,7 +128,7 @@ export const securityHashicorpVault: GeneratorMeta = {
     {
       title: 'Denied audit-device deletion response ending the first episode',
       json: String.raw`{
-  "@timestamp": "2026-09-27T00:08:07.137Z",
+  "@timestamp": "2026-09-26T22:43:25.293Z",
   "agent": {
     "ephemeral_id": "8dcba887-bc9d-44cb-bfcd-ed7aa7216748",
     "id": "65fa5f58-a1d2-49d1-b4cc-05228dd270f3",
@@ -156,10 +156,10 @@ export const securityHashicorpVault: GeneratorMeta = {
       "authentication"
     ],
     "dataset": "hashicorp_vault.audit",
-    "id": "5dc7f56f-71d8-42ed-9983-6845456aca4b",
-    "ingested": "2026-09-27T00:08:09Z",
+    "id": "0728bc8f-1033-462e-bc19-39a17b7e0c3d",
+    "ingested": "2026-09-26T22:43:32Z",
     "kind": "event",
-    "original": "{\"auth\":{\"accessor\":\"hmac-sha256:8bfe54d69390a4adc95d16a826f3792753ddd31cfe36ded64625ae4b0a765b3d\",\"client_token\":\"hmac-sha256:758dc31f91fd147aca412e25f6f312ca5e72641f15ddd6c21ee7ba78bd8f168a\",\"display_name\":\"userpass-svc-api\",\"entity_id\":\"49263c43-35ab-4df6-a747-1715203590ba\",\"metadata\":{\"username\":\"svc-api\"},\"policies\":[\"default\",\"training-reader\"],\"policy_results\":{\"allowed\":false},\"token_policies\":[\"default\",\"training-reader\"],\"token_issue_time\":\"2026-09-25T11:19:25Z\",\"token_ttl\":86400,\"token_type\":\"service\"},\"error\":\"1 error occurred:\\n\\t* permission denied\\n\\n\",\"request\":{\"client_id\":\"49263c43-35ab-4df6-a747-1715203590ba\",\"client_token\":\"hmac-sha256:758dc31f91fd147aca412e25f6f312ca5e72641f15ddd6c21ee7ba78bd8f168a\",\"client_token_accessor\":\"hmac-sha256:8bfe54d69390a4adc95d16a826f3792753ddd31cfe36ded64625ae4b0a765b3d\",\"id\":\"5dc7f56f-71d8-42ed-9983-6845456aca4b\",\"mount_class\":\"secret\",\"mount_point\":\"sys/\",\"mount_type\":\"system\",\"namespace\":{\"id\":\"root\"},\"operation\":\"delete\",\"path\":\"sys/audit/file\",\"remote_address\":\"10.20.8.12\",\"remote_port\":48901,\"request_uri\":\"/v1/sys/audit/file\"},\"response\":{\"mount_class\":\"secret\",\"mount_point\":\"sys/\",\"mount_type\":\"system\",\"data\":{\"error\":\"hmac-sha256:ec125ce39ac232369c1e227ed31f30b8b1a43010aa94029c6b423af8d061ce97\"}},\"time\":\"2026-09-27T00:08:07.137460537Z\",\"type\":\"response\"}",
+    "original": "{\"auth\":{\"accessor\":\"hmac-sha256:8bfe54d69390a4adc95d16a826f3792753ddd31cfe36ded64625ae4b0a765b3d\",\"client_token\":\"hmac-sha256:758dc31f91fd147aca412e25f6f312ca5e72641f15ddd6c21ee7ba78bd8f168a\",\"display_name\":\"userpass-svc-api\",\"entity_id\":\"49263c43-35ab-4df6-a747-1715203590ba\",\"metadata\":{\"username\":\"svc-api\"},\"policies\":[\"default\",\"training-reader\"],\"policy_results\":{\"allowed\":false},\"token_policies\":[\"default\",\"training-reader\"],\"token_issue_time\":\"2026-09-25T15:49:12Z\",\"token_ttl\":86400,\"token_type\":\"service\"},\"error\":\"1 error occurred:\\n\\t* permission denied\\n\\n\",\"request\":{\"client_id\":\"49263c43-35ab-4df6-a747-1715203590ba\",\"client_token\":\"hmac-sha256:758dc31f91fd147aca412e25f6f312ca5e72641f15ddd6c21ee7ba78bd8f168a\",\"client_token_accessor\":\"hmac-sha256:8bfe54d69390a4adc95d16a826f3792753ddd31cfe36ded64625ae4b0a765b3d\",\"id\":\"0728bc8f-1033-462e-bc19-39a17b7e0c3d\",\"mount_class\":\"secret\",\"mount_point\":\"sys/\",\"mount_type\":\"system\",\"namespace\":{\"id\":\"root\"},\"operation\":\"delete\",\"path\":\"sys/audit/file\",\"remote_address\":\"10.20.8.12\",\"remote_port\":38729,\"request_uri\":\"/v1/sys/audit/file\"},\"response\":{\"mount_class\":\"secret\",\"mount_point\":\"sys/\",\"mount_type\":\"system\",\"data\":{\"error\":\"hmac-sha256:ec125ce39ac232369c1e227ed31f30b8b1a43010aa94029c6b423af8d061ce97\"}},\"time\":\"2026-09-26T22:43:25.293801903Z\",\"type\":\"response\"}",
     "outcome": "failure",
     "type": [
       "info",
@@ -183,7 +183,7 @@ export const securityHashicorpVault: GeneratorMeta = {
         "policy_results": {
           "allowed": false
         },
-        "token_issue_time": "2026-09-25T11:19:25Z",
+        "token_issue_time": "2026-09-25T15:49:12Z",
         "token_policies": [
           "default",
           "training-reader"
@@ -196,7 +196,7 @@ export const securityHashicorpVault: GeneratorMeta = {
         "client_id": "49263c43-35ab-4df6-a747-1715203590ba",
         "client_token": "hmac-sha256:758dc31f91fd147aca412e25f6f312ca5e72641f15ddd6c21ee7ba78bd8f168a",
         "client_token_accessor": "hmac-sha256:8bfe54d69390a4adc95d16a826f3792753ddd31cfe36ded64625ae4b0a765b3d",
-        "id": "5dc7f56f-71d8-42ed-9983-6845456aca4b",
+        "id": "0728bc8f-1033-462e-bc19-39a17b7e0c3d",
         "mount_class": "secret",
         "mount_point": "sys/",
         "mount_type": "system",
@@ -206,7 +206,7 @@ export const securityHashicorpVault: GeneratorMeta = {
         "operation": "delete",
         "path": "sys/audit/file",
         "remote_address": "10.20.8.12",
-        "remote_port": 48901,
+        "remote_port": 38729,
         "request_uri": "/v1/sys/audit/file"
       },
       "response": {
@@ -249,7 +249,7 @@ export const securityHashicorpVault: GeneratorMeta = {
     "file": {
       "path": "/var/log/vault/audit.json"
     },
-    "offset": 9110941
+    "offset": 8467024
   },
   "message": "1 error occurred:\n\t* permission denied\n\n",
   "related": {
@@ -262,7 +262,7 @@ export const securityHashicorpVault: GeneratorMeta = {
   },
   "source": {
     "ip": "10.20.8.12",
-    "port": 48901
+    "port": 38729
   },
   "tags": [
     "hashicorp-vault-audit"
