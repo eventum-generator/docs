@@ -19,32 +19,32 @@ export const emailDovecotImap: GeneratorMeta = {
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'About every 24 hours by default (the first episode one interval after the run starts plus a random delay of up to 15 minutes, each next one interval after the previous actual start plus a new delay, so clock times drift later; missed episodes are not caught up), one mailbox fails IMAP authentication four times from one public address, then an IMAP login from that address succeeds and a POP3 login for the same mailbox and address follows within seconds to minutes. Mailboxes and addresses change per episode; every step also occurs in ordinary traffic, and only the full order for one mailbox and address within 15 minutes is episode-only.',
+    'One mailbox fails IMAP authentication four times from one public address, a few seconds to about a minute apart, then the next IMAP login from that address succeeds and a POP3 login for the same mailbox and address follows within seconds to minutes (41-227 s per episode measured). The first episode starts within the first anomaly_interval_hours (at most 24 hours) of the run, at a time of day drawn from the UTC daytime load curve of the background; each next one is due one interval after the previous actual start and starts in a window of a quarter interval (at most 6 hours) centred on that due time, weighted towards busy hours. Missed episodes are never caught up; at the default, a 7-day run had episodes 21.3-25.8 hours apart, starting between 08:55 and 15:42 UTC, while at intervals of 8 hours or less episodes also fall into quiet hours. Each episode uses a different mailbox and public address from the previous one. Every step also occurs in ordinary traffic; only an ordinary POP3 login that would complete four failures, an IMAP success and a POP3 success for one mailbox and address within 15 minutes of the first failure is left out, and the client keeps its schedule.',
   generatorId: 'dovecot-imap',
   eventTypes: [
     {
       id: 'imap-login: Login',
       description: 'Successful IMAP login',
-      frequency: '75.0% measured share',
+      frequency: '75.1% measured share',
       category: 'authentication',
     },
     {
       id: 'imap-login: Disconnected',
       description: 'Connection closed after failed IMAP authentication',
-      frequency: '13.4% measured share',
+      frequency: '14.0% measured share',
       category: 'authentication',
     },
     {
       id: 'pop3-login: Login',
       description: 'Successful POP3 login',
-      frequency: '11.6% measured share',
+      frequency: '10.9% measured share',
       category: 'authentication',
     },
   ],
   realismFeatures: [
     'Fifty personal and six shared mailboxes use office workstations, laptops and phones. Each client reconnects at its own random interval, more often during UTC daytime; laptops move between the office, the VPN and a home public address, phones use roaming public addresses, and some clients poll an IMAP and a POP3 account together. No activity runs on a fixed period, rotation or script.',
-    'Rejected logins come from typos (more often at the first start after a night), transient rejections, stale clients after a password change, new clients and webmail users, plus internet noise: single guesses, password sprays over real and non-existent mailboxes, and brute-force runs. Measured default volume is about 210 records per hour; rates are synthetic workload settings, not measured Dovecot rates.',
-    'Every chain step also occurs in ordinary traffic: per 76 hours of background, 13-26 cases of four failures followed by an IMAP success within 15 minutes and 646-705 IMAP-then-POP3 pairs within 10 minutes. Only a POP3 login within 20 minutes after four failures of one mailbox and address is episode-only, and the login records do not prove mailbox access or data extraction.',
+    'Rejected logins come from typos (more often at the first start after a night), transient rejections, stale clients after a password change, new clients and webmail users, plus internet noise: single guesses, password sprays over real and non-existent mailboxes, and brute-force runs. Measured background volume is about 220 records per hour, with about 31% of POP3 logins from public addresses; rates are synthetic workload settings, not measured Dovecot rates.',
+    'Every chain step also occurs in ordinary traffic: per 7 days of background, 55-65 cases of four failures followed by an IMAP success within 15 minutes, 21-27 cases of failure, IMAP success and POP3 success from one mailbox and address, and 1,473-1,539 IMAP-then-POP3 pairs within 10 minutes. Only the full order within 15 minutes of the first failure separates the modes, and the login records do not prove mailbox access or data extraction.',
     'Field order and comma joining follow the Dovecot 2.3 settings and first-hand 2.3.20 IMAP captures. Failures carry no mpid, and TLS does not reveal the listener port, so no destination.port is emitted. The 16-character session ID is a selected profile, and failure durations are modeled on the default auth_failure_delay.',
     'BLOCKED_RAW_EVIDENCE: no complete 2.3.20 raw capture was found for a TLS failure with the modeled durations or for POP3 success. Failures are IMAP only, timestamps have one-second resolution with at most one record per second, and the UTC syslog envelope is deployment-specific.',
   ],
@@ -84,7 +84,7 @@ export const emailDovecotImap: GeneratorMeta = {
   sampleOutputs: [
     {
       title: 'First IMAP failure of an episode',
-      json: String.raw`{"@timestamp": "2026-09-26T00:04:13+00:00", "destination": {"ip": "10.20.0.20"}, "dovecot": {"auth_attempts": 1, "auth_duration_seconds": 2, "disconnect_reason": "Connection closed", "login_result": "failure", "method": "PLAIN", "protocol": "imap", "session": "Vd6oYobrrtSwTABS", "tls": true}, "ecs": {"version": "8.17.0"}, "event": {"action": "login-failure", "category": ["authentication"], "kind": "event", "original": "Sep 26 00:04:13 mail01.corp.example dovecot: imap-login: Disconnected: Connection closed (auth failed, 1 attempts in 2 secs): user=\u003cvera.sokolova@corp.example\u003e, method=PLAIN, rip=203.0.113.63, lip=10.20.0.20, TLS, session=\u003cVd6oYobrrtSwTABS\u003e", "outcome": "failure", "type": ["denied"]}, "host": {"ip": ["10.20.0.20"], "name": "mail01.corp.example"}, "related": {"ip": ["203.0.113.63", "10.20.0.20"], "user": ["vera.sokolova@corp.example"]}, "service": {"name": "dovecot", "type": "imap"}, "source": {"ip": "203.0.113.63"}, "user": {"name": "vera.sokolova@corp.example"}}`,
+      json: String.raw`{"@timestamp": "2026-09-25T15:42:14+00:00", "destination": {"ip": "10.20.0.20"}, "dovecot": {"auth_attempts": 1, "auth_duration_seconds": 2, "disconnect_reason": "Connection closed", "login_result": "failure", "method": "PLAIN", "protocol": "imap", "session": "jAN6fEUhVw6LlkAX", "tls": true}, "ecs": {"version": "8.17.0"}, "event": {"action": "login-failure", "category": ["authentication"], "kind": "event", "original": "Sep 25 15:42:14 mail01.corp.example dovecot: imap-login: Disconnected: Connection closed (auth failed, 1 attempts in 2 secs): user=\u003caaron.walsh@corp.example\u003e, method=PLAIN, rip=203.0.113.218, lip=10.20.0.20, TLS, session=\u003cjAN6fEUhVw6LlkAX\u003e", "outcome": "failure", "type": ["denied"]}, "host": {"ip": ["10.20.0.20"], "name": "mail01.corp.example"}, "related": {"ip": ["203.0.113.218", "10.20.0.20"], "user": ["aaron.walsh@corp.example"]}, "service": {"name": "dovecot", "type": "imap"}, "source": {"ip": "203.0.113.218"}, "user": {"name": "aaron.walsh@corp.example"}}`,
     },
   ],
 };
