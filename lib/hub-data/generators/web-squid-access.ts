@@ -15,11 +15,11 @@ export const webSquidAccess: GeneratorMeta = {
   highlights: [
     'Native ten-value Squid 6.x line',
     '43/54 full Elastic reference paths; 43/43 selected',
-    'Five-record access sequences recur every six hours',
+    'Five-record access sequences recur about every six hours',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'Every six hours, the same user, IP and HTTP URL receive three TCP_DENIED/403 results followed by two 1.8-2.8 MB TCP_MISS/200 responses over about 20 seconds. The five transactions finish in causal order. The same actor, URL and individual denials/successes occur independently in background; access.log proves no ACL change or exfiltration.',
+    'The same user, IP and HTTP URL receive three TCP_DENIED/403 results followed by two 1.8-2.8 MB TCP_MISS/200 responses over about 20 seconds, in causal order. Episodes recur every 6 hours by default: the first starts at a uniform time within the first min(interval, 24 h), each next one at a uniform time in a window of min(interval / 4, 6 h) centred one interval after the previous actual start (6 h plus or minus 45 minutes by default), with no drift and no catch-up. The actor, URL, large responses and individual denials also occur in background, including reload bursts of repeated denials; an ordinary GET that would return 200 and complete three denials and one success within 300 seconds of the first denial is sent to another URL at the same time. access.log proves no ACL change or exfiltration.',
   eventTypes: [
     {
       id: 'TCP_MISS/200 GET',
@@ -42,14 +42,15 @@ export const webSquidAccess: GeneratorMeta = {
     },
     {
       id: 'TCP_DENIED/403 GET',
-      description: 'Restricted request from a named user',
-      frequency: 'Part of 7% denial choices; three per episode',
+      description:
+        'Restricted request from a named user; 10% start a reload burst of one to four more denials',
+      frequency: '7.0% of background records; three per episode',
       category: 'web',
     },
     {
       id: 'TCP_DENIED/407 GET',
       description: 'Anonymous client requires authentication',
-      frequency: 'Part of 7% denial choices',
+      frequency: '1.0% of background records',
       category: 'web',
     },
     {
@@ -62,7 +63,7 @@ export const webSquidAccess: GeneratorMeta = {
   realismFeatures: [
     'Native epoch time is transaction completion, elapsed milliseconds map to ECS nanoseconds, and bytes include response headers delivered to the client. destination.bytes follows Elastic mapping, not origin traffic or upload volume.',
     'Only cacheable public resources can hit. Cache-Control public/max-age3600, fixed headers, no Vary and no auth-dependent representation are explicit synthetic assumptions; hits reuse stored bytes until expiry.',
-    'Cache state is bounded to 24 URLs, twelve shipped cacheable entries; recurrence keeps scalar due/offset slots and no episode history.',
+    'Cache state is bounded to 24 URLs, twelve shipped cacheable entries. Users reload blocked pages: runs of two to six denials of one user and URL within 31 seconds occur in background, and per user and URL the generator keeps only the denial times of the last 300 seconds.',
     'Target client has an explicit 10% bias plus its share of the 24-client pool in both modes. The seven restricted URLs include the exact target; ordinary denials and successes overlap all sequence values.',
     'Full reference coverage remains 43/54 below the 90% target; selected43/43 excludes eight GeoIP and three actual filesystem-identity fields. Collector IDs, offset and zero-delay ingestion are synthetic context.',
     'Exact Squid 6.9 TCP_IMS_HIT/304 raw record remains unavailable; historical native examples and tagged result definitions do not establish full same-version raw/parser compatibility. Usernames are ASCII tokens and URLs are HTTP without userinfo/query/fragment; arbitrary native quoting is outside the tested profile.',
@@ -102,7 +103,7 @@ export const webSquidAccess: GeneratorMeta = {
       name: 'anomaly_interval_hours',
       defaultValue: '6',
       description:
-        'Generated-time recurrence; finite numeric values below one hour are clamped to one',
+        'Mean time between episode starts, each within plus or minus min(interval / 8, 3 h) of its due time; values below one hour are clamped to one',
     },
     {
       name: 'anomaly_mode',
@@ -114,7 +115,7 @@ export const webSquidAccess: GeneratorMeta = {
     {
       title: 'Large response following repeated denials',
       json: String.raw`{
-  "@timestamp": "2026-09-25T06:00:25.031000+00:00",
+  "@timestamp": "2026-09-01T01:13:35.589000+00:00",
   "agent": {
     "ephemeral_id": "5a110000-1111-4444-8888-123456789abc",
     "id": "5a110000-1111-4444-8888-123456789abc",
@@ -129,7 +130,7 @@ export const webSquidAccess: GeneratorMeta = {
   },
   "destination": {
     "address": "10.70.8.14",
-    "bytes": 2395816,
+    "bytes": 1891810,
     "ip": "10.70.8.14"
   },
   "ecs": {
@@ -146,11 +147,11 @@ export const webSquidAccess: GeneratorMeta = {
       "web"
     ],
     "dataset": "squid.log",
-    "duration": 2514000000,
-    "ingested": "2026-09-25T06:00:25.031000+00:00",
+    "duration": 2188000000,
+    "ingested": "2026-09-01T01:13:35.589000+00:00",
     "kind": "event",
     "module": "squid",
-    "original": "1790316025.031   2514 10.70.4.17 TCP_MISS/200 2395816 GET http://files.corp.example/export.csv analyst HIER_DIRECT/10.70.8.14 text/csv",
+    "original": "1788225215.589   2188 10.70.4.17 TCP_MISS/200 1891810 GET http://files.corp.example/export.csv analyst HIER_DIRECT/10.70.8.14 text/csv",
     "outcome": "success",
     "type": [
       "access"
@@ -168,7 +169,7 @@ export const webSquidAccess: GeneratorMeta = {
     "file": {
       "path": "/var/log/squid/access.log"
     },
-    "offset": 571909
+    "offset": 116818
   },
   "observer": {
     "hostname": "squid-01",
