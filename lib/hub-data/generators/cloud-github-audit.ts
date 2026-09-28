@@ -18,73 +18,73 @@ export const cloudGithubAudit: GeneratorMeta = {
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'About every 24 hours by default (at least 6): the first episode follows one interval after start, and the next is due one interval after the actual grant, so starts are usually one to two intervals apart. One owner grants an outside collaborator write access to a protected sandbox, changes it to admin and removes main protection; the collaborator downloads a ZIP archive; the owner deletes the repository. The five records keep this order within 30 minutes, interleaved with ordinary records; owner, collaborator and sandbox differ between consecutive episodes where possible. Every step and every pair of steps also occurs in ordinary traffic; only the complete ordered sequence by one owner and one collaborator within 30 minutes is absent from anomaly_mode: false.',
+    "About every 24 hours by default (anomaly_interval_hours, raised to at least 6): the first start is drawn from the first min(interval, 24 h), weighted by the hour-of-day profile of ordinary task starts; each later start is drawn from a window of a quarter of the interval (at most 6 hours) centred on one interval after the previous episode's actual first grant, weighted by the square of that profile plus a small floor. An episode begins at its drawn time or at the first later minute when an eligible protected sandbox and collaborator exist, with no catch-up. One owner grants an outside collaborator write access to the sandbox, changes it to admin and removes main protection; the collaborator downloads a ZIP archive; the owner deletes the repository. The five records keep this order within 30 minutes, interleaved with ordinary records; owner, collaborator and sandbox differ between consecutive episodes where possible. Every step and every pair of steps also occurs in ordinary traffic; only the complete ordered sequence by one owner and one collaborator within 30 minutes of the grant is absent from anomaly_mode: false.",
   generatorId: 'github',
   eventTypes: [
     {
       id: 'repo.download_zip',
       description:
         'Archive download by an owner, member or collaborator with access, sometimes 2-3 in a row',
-      frequency: '69.9% measured share',
+      frequency: '67.3% measured share',
       category: 'configuration, web',
     },
     {
       id: 'protected_branch.create',
       description:
         'Protection restored after a hotfix or onboarding, or set on a recreated sandbox',
-      frequency: '5.0% measured share',
+      frequency: '4.1% measured share',
       category: 'configuration, web',
     },
     {
       id: 'protected_branch.destroy',
       description: 'Temporary removal for a hotfix, onboarding or teardown',
-      frequency: '4.5% measured share',
+      frequency: '3.6% measured share',
       category: 'configuration, web',
     },
     {
       id: 'repo.add_member',
       description:
         'An owner grants an outside collaborator read, write or admin (accepted access)',
-      frequency: '4.1% measured share',
+      frequency: '5.9% measured share',
       category: 'configuration, web',
     },
     {
       id: 'repo.update_member',
       description:
         'Quick correction after a grant, later permission change or revert',
-      frequency: '3.7% measured share',
+      frequency: '4.4% measured share',
       category: 'configuration, web',
     },
     {
       id: 'repo.remove_member',
       description: 'Access revoked hours later, or during teardown',
-      frequency: '3.0% measured share',
+      frequency: '3.9% measured share',
       category: 'configuration, web',
     },
     {
       id: 'repo.destroy',
       description:
         'Sandbox teardown, or the end of a short sandbox collaboration',
-      frequency: '2.5% measured share',
+      frequency: '3.1% measured share',
       category: 'configuration, web',
     },
     {
       id: 'repo.create',
       description:
         'A deleted sandbox recreated under the same name with a new ID',
-      frequency: '2.5% measured share',
+      frequency: '3.0% measured share',
       category: 'configuration, web',
     },
     {
       id: 'repo.add_topic',
       description: 'Topic added on a persistent repository',
-      frequency: '2.2% measured share',
+      frequency: '2.0% measured share',
       category: 'configuration, web',
     },
     {
       id: 'repo.remove_topic',
       description: 'Topic removed from a persistent repository',
-      frequency: '1.7% measured share',
+      frequency: '1.8% measured share',
       category: 'configuration, web',
     },
     {
@@ -102,11 +102,11 @@ export const cloudGithubAudit: GeneratorMeta = {
   ],
   realismFeatures: [
     'One synthetic organization with three owners, two members with read access through the base permission and three outside collaborators, three persistent private repositories and three disposable sandboxes. Repository, collaborator, protection, topic and test-member state is bounded and followed by every action: no action targets a deleted incarnation, and a deleted sandbox is recreated later by ordinary recovery with a new repository ID and protection set again.',
-    'Ordinary activity is a set of independent tasks that start at random: downloads, topic edits, collaborator grants with optional corrections and later removals, permission changes, revocations, hotfixes, sandbox onboarding, teardown and short sandbox collaborations. Delays between steps are random, from about a minute to hours, with no fixed schedule or rotation; volume is about 240-275 records per day, busier from 08:00 to 18:00 UTC.',
+    'Ordinary activity is a set of independent tasks that start at random: downloads, topic edits, collaborator grants with optional corrections and later removals, permission changes, revocations, hotfixes, sandbox onboarding, teardown and short sandbox collaborations. Delays between steps are random, from about a minute to hours, with no fixed schedule or rotation; volume is about 245-295 records per day, busier from 08:00 to 18:00 UTC.',
     'Each record falls at a random second and millisecond within its source minute. event.created is the next poll of a synthetic Elastic Agent httpjson input polling every two minutes (0.7-122 s after source time), and event.ingested follows by a few seconds, truncated to whole seconds.',
     'All 32/32 leaf paths of the pinned Elastic github.audit repo.destroy sample occur, with ECS 8.11.0; names and IDs are kept in github.* as strings, and repo.destroy and repo.download_zip map to event.type change as the maintained pipeline does. A ZIP audit record reports no bytes, destination or contents, so it is not evidence of exfiltration by itself.',
-    'Four-step subsequences ending in deletion are rare in ordinary traffic (0-3 each per 100 hours), and detectors with windows longer than 30 minutes also find complete sequences there. At intervals near 6 hours daily counts of the chain actions rise (write to admin changes +69% at 6 hours); at the 24-hour default no daily-count difference was measured.',
-    'Membership, protection and topic objects are reduced; their field combinations and lowercase read/write/admin values are inferences from the catalog and role documentation, not live captures. No raw byte parity, live Elastic ingestion or GitHub document-ID allocation is claimed; rates, delays, the daily profile and the poll are synthetic choices. API authentication, git events, invitations and pagination are not generated.',
+    'Four-step subsequences ending in deletion are rare in ordinary traffic (0-3 each per 144 hours). A background deletion that would complete the chain is abandoned, with no record and nothing moved, so detectors with windows longer than 30 minutes also find complete sequences there (0-4 per 144 hours at 30-45 minutes). At intervals near 6 hours daily counts of the chain actions rise (write to admin changes +109% at 6 hours); at the 24-hour default the default pair gave 4.66 against 4.49 a day.',
+    'Membership, protection and topic objects are reduced; their field combinations and lowercase read/write/admin values are inferences from the catalog and role documentation, not live captures. No raw byte parity, live Elastic ingestion or GitHub document-ID allocation is claimed; rates, delays, the daily profile and the poll are synthetic choices, and waits for an eligible sandbox after the drawn start are not capped. API authentication, git events, invitations and pagination are not generated.',
   ],
   parameters: [
     {
@@ -183,7 +183,7 @@ export const cloudGithubAudit: GeneratorMeta = {
     {
       title: 'Permission change of the first episode (repo.update_member)',
       json: String.raw`{
-  "@timestamp": "2026-09-26T19:47:09.886+00:00",
+  "@timestamp": "2026-09-25T10:17:56.364+00:00",
   "agent": {
     "ephemeral_id": "df3107a1-9f4a-4336-ae3a-ecad098902d4",
     "id": "5630df5f-562b-4c5a-bcc1-b151fbca02c4",
@@ -211,19 +211,19 @@ export const cloudGithubAudit: GeneratorMeta = {
       "configuration",
       "web"
     ],
-    "created": "2026-09-26T19:47:24.084+00:00",
+    "created": "2026-09-25T10:18:21.987+00:00",
     "dataset": "github.audit",
-    "id": "Upnt3E9XQjazZSRd-M-n0A",
-    "ingested": "2026-09-26T19:47:25+00:00",
+    "id": "lhX6jfIJT6eUO7gLkIw6NA",
+    "ingested": "2026-09-25T10:18:23+00:00",
     "kind": "event",
     "module": "github",
-    "original": "{\"@timestamp\": 1790452029886, \"_document_id\": \"Upnt3E9XQjazZSRd-M-n0A\", \"action\": \"repo.update_member\", \"actor\": \"ops-admin\", \"actor_id\": 139876543, \"created_at\": 1790452029886, \"new_repo_permission\": \"admin\", \"old_repo_permission\": \"write\", \"org\": \"contoso-security\", \"org_id\": 71234567, \"public_repo\": false, \"repo\": \"contoso-security/payroll-service-drill\", \"repo_id\": 981726064, \"user\": \"vendor-qa\", \"user_id\": 98234611, \"visibility\": \"private\"}",
+    "original": "{\"@timestamp\": 1790331476364, \"_document_id\": \"lhX6jfIJT6eUO7gLkIw6NA\", \"action\": \"repo.update_member\", \"actor\": \"alice\", \"actor_id\": 32100011, \"created_at\": 1790331476364, \"new_repo_permission\": \"admin\", \"old_repo_permission\": \"write\", \"org\": \"contoso-security\", \"org_id\": 71234567, \"public_repo\": false, \"repo\": \"contoso-security/payroll-service-drill\", \"repo_id\": 981234567, \"user\": \"vendor-qa\", \"user_id\": 98234611, \"visibility\": \"private\"}",
     "type": [
       "change"
     ]
   },
   "github": {
-    "actor_id": "139876543",
+    "actor_id": "32100011",
     "category": "repo",
     "new_repo_permission": "admin",
     "old_repo_permission": "write",
@@ -231,7 +231,7 @@ export const cloudGithubAudit: GeneratorMeta = {
     "org_id": "71234567",
     "public_repo": false,
     "repo": "contoso-security/payroll-service-drill",
-    "repo_id": "981726064",
+    "repo_id": "981234567",
     "user_id": "98234611",
     "visibility": "private"
   },
@@ -240,8 +240,8 @@ export const cloudGithubAudit: GeneratorMeta = {
   },
   "related": {
     "user": [
-      "ops-admin",
-      "139876543",
+      "alice",
+      "32100011",
       "vendor-qa",
       "98234611"
     ]
@@ -252,8 +252,8 @@ export const cloudGithubAudit: GeneratorMeta = {
     "preserve_original_event"
   ],
   "user": {
-    "id": "139876543",
-    "name": "ops-admin",
+    "id": "32100011",
+    "name": "alice",
     "target": {
       "id": "98234611",
       "name": "vendor-qa"
