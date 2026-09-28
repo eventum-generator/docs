@@ -3,123 +3,105 @@ import type { GeneratorMeta } from '@/lib/hub-types';
 
 export const windowsDhcpAudit: GeneratorMeta = {
   slug: 'windows-dhcp-audit',
-  displayName: 'Microsoft DHCP Server Audit',
+  displayName: 'Microsoft DHCP Server CSV Audit Log',
   category: 'network',
   description:
-    'Windows DHCP IPv4 audit CSV with causal leases, DNS update pairs and recurring daily address churn in a bounded 97-client model.',
-  dataSource: 'Windows DHCP Server DhcpSrvLog 19-column CSV profile',
+    'Microsoft DHCP Server IPv4 audit log (DhcpSrvLog-<Day>.log, 19-column CSV) as parsed ECS JSON with the native row in event.original, for lease and DNS-update traffic of 97 Windows clients in two scopes. Not Windows Event Log or IPv6. Recurring episodes show one laptop churning through three more addresses within minutes before its last DNS registration fails.',
+  dataSource:
+    'Microsoft DHCP Server IPv4 audit log (DhcpSrvLog 19-column CSV), server in UTC',
   format: ['JSON', 'ECS', 'CSV'],
   eventCount: 6,
   templateCount: 1,
   generatorId: 'windows-dhcp-audit',
   highlights: [
-    'Six selected IDs in the 19-column IPv4 CSV variant',
-    'Stateful lease expiry, renewal and DNS request/result linkage',
-    'Eight-row address-churn episodes recur every 24 hours',
+    'Native 19-column DHCP audit row in event.original',
+    '97 clients with their own sessions, link flaps and address sets',
+    'Recurring three-address churn ending in a failed DNS update',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'Every 24 hours, after pending DNS completes and the target has a live lease, a release precedes three distinct assignments with two intervening releases, then a linked DNS request and failure. Eight records take less than seven minutes. Four addresses and all classes also occur in background; a reconnect can defer the episode and recurrence resets at its actual first release. DNS rows join by host/IP/time because their native MAC is empty.',
+    'Eight rows for one laptop: Release of the current address, Assign and Release of a second, Assign and Release of a third, Assign of a fourth, then a DNS update request and failure for the last address. Episodes recur every 24 hours by default (anomaly_interval_hours, minimum 4) of source time: the first due time falls within the first min(interval, 24 h), each later one in a window of min(interval / 4, 6 h) centred one interval after the previous actual start, weighted to busy hours. The episode takes over the next background link flap of a laptop other than the previous episode client, so it starts after a random wait; missed episodes are not replayed, and a session ending inside the burst leaves the episode incomplete. Measured episodes span 5-17 minutes. Every element also occurs in background; a background DNS result that would complete the sequence within one hour is written as success.',
   eventTypes: [
     {
-      id: '10',
-      description: 'Assign a new lease',
-      frequency: 'After release or internal lease expiry; three per episode',
+      id: '11',
+      description: 'Renew: an active lease reaches T1',
+      frequency: '35.2% measured share',
       category: 'network',
     },
     {
-      id: '11',
-      description: 'Renew the active lease at T1',
-      frequency: 'Four-hour default T1 refreshes an eight-hour modeled lease',
+      id: '10',
+      description: 'Assign: session start, or reconnect inside a link flap',
+      frequency: '17.7% measured share',
       category: 'network',
     },
     {
       id: '12',
-      description: 'Release the active matching client/IP lease',
-      frequency: 'Mobile 2–24 hours; stationary 1–7 days; three per episode',
+      description: 'Release: session end, or the disconnect of a link flap',
+      frequency: '17.7% measured share',
       category: 'network',
     },
     {
       id: '30',
-      description: 'DNS update request for a lease hostname/IP',
-      frequency: '30% of assignments and 5% of renewals',
+      description:
+        'DNS Update Request after 55% of assignments and 12% of renewals',
+      frequency: '14.7% measured share',
       category: 'network',
     },
     {
       id: '32',
-      description: 'Successful result for the preceding DNS request',
-      frequency: '95% of modeled DNS results',
+      description: 'DNS Update Successful for the request, same host and IP',
+      frequency: '13.7% measured share',
       category: 'network',
     },
     {
       id: '31',
-      description: 'Failed result for the preceding DNS request',
-      frequency: '5% of modeled DNS results and one per episode',
+      description: 'DNS Update Failed for the request, native error 10054',
+      frequency: '0.9% measured share',
       category: 'network',
     },
   ],
   realismFeatures: [
-    'Ninety-seven lease slots, one pending DNS pair and bounded address/cursor state retain active client/IP ownership. Expired leases retire internally before reassignment; expiry IDs 17/18 are outside the emitted subset.',
-    'One-minute input ticks use 0–59 second lease jitter. DNS requests follow their lease by 1–8 seconds, then results follow by another 1–8 seconds; pending pairs finish before other lease operations.',
-    'The same client, four pool addresses, releases, assignments, renewals and DNS failures occur in both modes. Episode address order rotates without an extra native marker.',
-    'Complete individual row examples now support Release with empty vendor columns; Assign/Renew use MSFT 5.0. DNS rows have no MAC, transaction ID 0/QResult 6; lease rows use nonzero synthetic transaction IDs / QResult 0.',
-    'UTC source/ECS clocks and weekday filenames agree. Offsets count only emitted ASCII CRLF body rows and reset daily; Filebeat identities, MACs and immediate ingestion are synthetic collector metadata.',
-    'BLOCKED_RAW_EVIDENCE: exact Windows Server build and complete correlated episode capture are missing. Field-path presence against an Elastic ID 35 sample does not validate the six selected IDs. IPv6, headers, failover and service lifecycle are omitted.',
+    '84 desktops and VDI machines in 10.20.4.0/23 and 13 laptops in 10.20.7.0/24, each with its own non-overlapping set of four addresses, so an address is never held by two clients.',
+    'Each client runs its own sessions: Assign, renewal at T1 plus a short delay, Release; lognormal session length (median 4 h for laptops, 30 h for desktops) and offline gaps, thinned by an hour-of-day curve high from 08:00 to 17:00 UTC.',
+    'Link flaps (Release, then Assign after a median 45 s, sometimes repeated) arrive at a per-client rate and may move the client to another address of its set, so fast Release-Assign pairs, multi-cycle bursts and address changes occur in background.',
+    'DNS requests follow their lease event and results follow the request after a few seconds; a result fails with probability 0.06, or 0.5 after a recent failure of the same client. Assign/Renew carry vendor class MSFT 5.0; DNS rows have no MAC, transaction ID 0 and QResult 6.',
+    'Only IDs 10/11/12/30/31/32 are emitted: no lease expiry, NACKs, conflicts, relay, failover, service lifecycle, file headers or IPv6. No correlated native capture of this scenario or of an identified Windows Server build exists.',
+    'Collector fields (Filebeat identity, host and observer MACs, log.offset per UTC date, event.ingested delay) and all session, flap, DNS and failure rates are synthetic choices.',
   ],
   parameters: [
     {
       name: 'server_name',
       defaultValue: 'dhcp-01.corp.example',
-      description: 'DHCP server identity',
+      description:
+        'DHCP server name (host.name, observer.hostname, agent.name)',
     },
     {
       name: 'server_ip',
       defaultValue: '10.20.0.10',
-      description: 'DHCP server identity',
-    },
-    {
-      name: 'anomaly_hostname',
-      defaultValue: 'ws-finance-01.corp.example',
-      description: 'Client used in episodes and ordinary traffic',
-    },
-    {
-      name: 'anomaly_client_id',
-      defaultValue: '0023DF0000A1',
-      description: 'Client used in episodes and ordinary traffic',
-    },
-    {
-      name: 'anomaly_base_ip',
-      defaultValue: '10.20.7.40',
-      description: "Target's initial address, also in the rotating pool",
-    },
-    {
-      name: 'anomaly_ips',
-      defaultValue: '[10.20.7.41, 10.20.7.42, 10.20.7.43]',
-      description: 'Three more pool addresses; their episode order varies',
-    },
-    {
-      name: 'anomaly_interval_hours',
-      defaultValue: '24',
-      description: 'Positive recurrence interval, clamped to at least one hour',
+      description: 'DHCP server IPv4 address',
     },
     {
       name: 'lease_renew_minutes',
       defaultValue: '240',
-      description:
-        'T1, clamped to at least 240 minutes; full modeled lease is twice T1',
+      description: 'T1 in minutes, 60-5,760; the modeled lease lasts twice T1',
     },
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
       description:
-        'Periodic episodes mixed with background; `false` for background only',
+        'Recurring episodes mixed with background; false for background only',
+    },
+    {
+      name: 'anomaly_interval_hours',
+      defaultValue: '24',
+      description: 'Episode interval in hours, 4-8,760',
     },
   ],
   sampleOutputs: [
     {
-      title: 'Release of the current live lease',
+      title: 'First Release of an episode',
       json: String.raw`{
-  "@timestamp": "2026-09-26T00:02:08+00:00",
+  "@timestamp": "2026-09-25T11:45:59+00:00",
   "agent": {
     "ephemeral_id": "a1b2c3d4-1111-4444-8888-123456789abc",
     "id": "a1b2c3d4-1111-4444-8888-123456789abc",
@@ -148,9 +130,9 @@ export const windowsDhcpAudit: GeneratorMeta = {
     ],
     "code": "12",
     "dataset": "microsoft_dhcp.log",
-    "ingested": "2026-09-26T00:02:08+00:00",
+    "ingested": "2026-09-25T11:46:01.840189+00:00",
     "kind": "event",
-    "original": "12,09/26/26,00:02:08,Release,10.20.7.42,ws-finance-01.corp.example,0023DF0000A1,,3812757102,0,,,,,,,,,0",
+    "original": "12,09/25/26,11:45:59,Release,10.20.7.209,nb-finance-02.corp.example,0023DFA72F49,,555229266,0,,,,,,,,,0",
     "outcome": "success",
     "reason": "A lease was released by a client.",
     "timezone": "UTC",
@@ -173,9 +155,9 @@ export const windowsDhcpAudit: GeneratorMeta = {
   },
   "log": {
     "file": {
-      "path": "C:\\Windows\\System32\\Dhcp\\DhcpSrvLog-Sat.log"
+      "path": "C:\\Windows\\System32\\Dhcp\\DhcpSrvLog-Fri.log"
     },
-    "offset": 0
+    "offset": 61406
   },
   "message": "Release",
   "microsoft": {
@@ -183,7 +165,7 @@ export const windowsDhcpAudit: GeneratorMeta = {
       "dns_error_code": "0",
       "result": "0",
       "result_description": "NoQuarantine",
-      "transaction_id": "3812757102"
+      "transaction_id": "555229266"
     }
   },
   "observer": {
@@ -197,17 +179,17 @@ export const windowsDhcpAudit: GeneratorMeta = {
   },
   "related": {
     "hosts": [
-      "ws-finance-01.corp.example"
+      "nb-finance-02.corp.example"
     ],
     "ip": [
-      "10.20.7.42"
+      "10.20.7.209"
     ]
   },
   "source": {
-    "address": "ws-finance-01.corp.example",
-    "domain": "ws-finance-01.corp.example",
-    "ip": "10.20.7.42",
-    "mac": "00-23-DF-00-00-A1"
+    "address": "nb-finance-02.corp.example",
+    "domain": "nb-finance-02.corp.example",
+    "ip": "10.20.7.209",
+    "mac": "00-23-DF-A7-2F-49"
   },
   "tags": [
     "preserve_original_event",
