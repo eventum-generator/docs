@@ -1,4 +1,3 @@
-/* eslint-disable sonarjs/no-hardcoded-ip -- Synthetic IPs document generator defaults. */
 import type { GeneratorMeta } from '@/lib/hub-types';
 
 export const securityTrendmicroDeepSecurity: GeneratorMeta = {
@@ -6,7 +5,7 @@ export const securityTrendmicroDeepSecurity: GeneratorMeta = {
   displayName: 'Trend Micro Deep Security Agent CEF',
   category: 'security',
   description:
-    'Trend Micro Deep Security 20 Agent firewall and intrusion prevention events from 40 protected servers and 180 internal source addresses, relayed by Deep Security Manager over syslog in CEF, as native syslog lines in event.original with ECS fields named after the Elastic Trend Micro integration. Recurring episodes show one source denied on three or more ports of a web server and then triggering intrusion prevention rules on it.',
+    'Trend Micro Deep Security 20 Agent firewall and intrusion prevention events from 40 protected servers and 180 internal source addresses, relayed by Deep Security Manager over syslog in CEF, as native syslog lines in event.original with ECS fields named after the Elastic Trend Micro integration. About 8,500 records a day follow a working-day curve, from about 140 an hour at night to about 640 an hour at 10:00-12:00 UTC. Recurring episodes show one source denied on three or more ports of a web server and then triggering an intrusion prevention rule on it.',
   dataSource:
     'Trend Micro Deep Security 20 Agent firewall and intrusion prevention events, relayed by Deep Security Manager over syslog in CEF',
   format: ['JSON', 'ECS', 'CEF', 'Syslog'],
@@ -14,55 +13,56 @@ export const securityTrendmicroDeepSecurity: GeneratorMeta = {
   templateCount: 1,
   highlights: [
     'Manager-relayed CEF syslog line in event.original',
-    '40 protected servers and 180 weighted sources',
+    'About 8,500 records a day from 40 servers and 180 weighted sources',
     'Recurring multi-port deny scan followed by intrusion prevention',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'An episode becomes due every 24 hours of source time by default (minimum 2), the first one interval after generation starts, and starts after an exponential delay with a mean of 20 minutes, flat over the day; the next due time counts from the actual start, so a late episode never causes catch-up. One source is denied on three blocked ports of one protected web server (four or five in about four episodes in ten), one to three attempts per port, then triggers one to four intrusion prevention events on HTTP or HTTPS on that server; 68 s to 14 minutes from the first deny to the first intrusion prevention event measured. Source and server differ from the previous episode. Every fragment also occurs in background; only an intrusion prevention event from a source denied on three or more distinct ports of the same host within the last hour is kept out of it.',
+    'One source is denied on three blocked ports of one protected web server (four or five ports in about half of episodes), one to three attempts per port, then triggers one intrusion prevention event on HTTP or HTTPS on that server; an episode spans about one to ten minutes, occasionally up to half an hour, from the first deny to the intrusion prevention event. Episodes recur every anomaly_interval_hours (default 24, minimum 2): the first starts within the first min(interval, 24 h), each later one within a window of min(interval / 4, 6 h) centred one interval after the previous start, with the start hour following the denied-attempt curve, so episodes lean toward the working day without avoiding the night. A late start moves the following ones; missed episodes are not replayed. Source and server differ from the previous episode and are drawn, weighted by their traffic, from source and web server pairs that exchange ordinary logged connections several times a day. Every fragment occurs in the background of both modes; only the complete sequence, three or more denied ports of a host followed by an intrusion prevention rule from the same source on it within the hour, is kept out of it.',
   generatorId: 'deep-security',
   eventTypes: [
     {
       id: '20',
       description:
         'Log-only firewall rule (Log Inbound HTTP, HTTPS, SSH, RDP), act Log',
-      frequency: '84.2% measured share',
+      frequency: '86.7% of records',
       category: 'network',
     },
     {
       id: '21',
       description:
         'Deny firewall rule (Deny Inbound SMB, Telnet, MSSQL and 7 more), act Deny',
-      frequency: '12.6% measured share',
+      frequency: '12.5% of records',
       category: 'network',
     },
     {
       id: '1000000-1999999',
       description:
         'Intrusion prevention rule (11 Trend Micro rules, rule ID = signature ID), act IDS:Reset',
-      frequency: '3.2% measured share',
+      frequency: '0.8% of records',
       category: 'intrusion_detection',
     },
   ],
   realismFeatures: [
-    'The estate is 40 servers with web, application and database roles on Linux or Windows and 180 internal source addresses, each with its own activity weight. Traffic superposes independent random processes: ordinary connections matched by log-only rules, busier during the working day; denied attempts on one to five blocked ports of one host, flat over the day; and intrusion prevention detections against web services.',
-    'Shares are synthetic workload weights, not vendor-measured rates. Log-only and deny rule names are customer-defined in Deep Security and the shipped ones are examples; the intrusion prevention rule IDs and names are real Trend Micro rules from a Deep Security Manager rule update record, while their CEF severities are assigned per rule and not taken from the vendor rule catalog.',
-    'Every chain fragment occurs in background: five 78-hour background captures hold about 130 scans of a web server on three or more ports each, and after a scan of one or two ports the same source triggers an intrusion prevention rule within ten minutes in 28% of cases. Only the complete sequence is excluded: a background scan on three or more ports gets no intrusion prevention follow-up, and a coincidental one becomes a logged connection of that source to the same web port.',
-    'Extension order follows the Deep Security 20 samples, with TrendMicroDsTenant and TrendMicroDsTenantId after dvchost as in the manager-relayed samples. Vendor documentation gives extension tables and truncated samples, not complete captured records, and states that the order and presence of extensions may vary.',
-    'Packet data is present only for HTTP detections and holds the request line and Host header; HTTPS detections, log-only and deny events carry none. At most one event per second is emitted, with whole-second RFC 3164 timestamps without year or time zone (UTC is used), and all traffic is inbound TCP, so only in is set.',
-    'Only Agent firewall (signatures 20 and 21) and intrusion prevention events are modeled: no anti-malware, integrity monitoring, log inspection, web reputation, application control, device control, policy firewall or manager system events, and no LEEF or basic syslog.',
+    'The protected estate is 40 servers (16 web, 16 application and 8 database servers, Linux or Windows) and 180 internal source addresses, the same in every run. Every server and source has its own activity weight, so a few sources and servers carry most of the traffic.',
+    'Ordinary connections matched by log-only rules follow the working day, about 110 an hour at night and 550-590 an hour in the late morning, with the number of active sources rising and falling with them. A source opens one to four connections to one service of a server, tens of seconds apart. Every day has the same working-day curve; there is no weekly cycle.',
+    'Denied connection attempts come half from tools that run around the clock and half from misconfigured clients during the working day, about 30 an hour at night and 60-75 in the late morning. One source tries one to five blocked ports of one server (one port in half of the cases, three or more in about a quarter), one to three attempts per port, 3-65 s apart (median about 15 s), where a real scanner often sends them within a second. After a scan of a web server the same source makes an ordinary logged connection to it within ten minutes in about 30% of cases, or, after a scan of one or two ports, triggers an intrusion prevention rule on it in about 15%.',
+    'Intrusion prevention detections are flat over the day, about 70 a day across the web servers: false positives on ordinary web traffic and exploit checks of vulnerability scans, in bursts of one to four detections of one source against one web service. The rule IDs and names are real Trend Micro rules from a Deep Security Manager rule update record; their CEF severities (6, 8 and 10) are assigned per rule, not taken from the vendor rule catalog. Packet data holds the request line and Host header and is present only for HTTP detections.',
+    'Every chain fragment occurs in the background of both modes: about 40 scans a day of a web server on three or more ports, and same-source intrusion prevention detections within ten minutes of a scan of one or two ports. Within ten minutes of a scan on 1-2 or 3+ ports the same source makes a logged connection in about 30% of cases either way, and another source triggers an intrusion prevention rule on the host in 1-4%. With anomaly_mode true each episode adds three to fifteen denied attempts and one intrusion prevention event on top of the background.',
+    'Extension order follows the Deep Security 20 samples, with TrendMicroDsTenant and TrendMicroDsTenantId after dvchost as in the manager-relayed samples; vendor documentation gives extension tables and truncated samples, not complete captured records, and states that the order and presence of extensions may vary. Log-only events have severity 0 and deny events 5; log-only and deny rule names are customer-defined in Deep Security and the shipped ones are examples. Timestamps are whole seconds in an RFC 3164 header without year or time zone (UTC is used), and all traffic is inbound TCP, so only in is set.',
+    'Only Agent firewall (signatures 20 and 21) and intrusion prevention events are modeled: no anti-malware, integrity monitoring, log inspection, web reputation, application control, device control, policy firewall or manager system events, and no LEEF or basic syslog. Event shares are synthetic workload weights, not vendor-measured rates.',
   ],
   parameters: [
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
       description:
-        'Add periodic episodes to the background; false emits background only',
+        'Add periodic episodes to the background; false emits the background only',
     },
     {
       name: 'anomaly_interval_hours',
       defaultValue: '24',
-      description: 'Episode interval in source hours, 2 to 8,760',
+      description: 'Episode interval in hours, 2 to 8,760',
     },
     {
       name: 'manager_host',
@@ -91,32 +91,6 @@ export const securityTrendmicroDeepSecurity: GeneratorMeta = {
       description: 'smac of routed traffic',
     },
     {
-      name: 'domain',
-      defaultValue: 'corp.example',
-      description: 'Domain of the protected host names',
-    },
-    {
-      name: 'host_count',
-      defaultValue: '40',
-      description:
-        'Protected servers, 10 to 200; at least two must get the web role',
-    },
-    {
-      name: 'source_count',
-      defaultValue: '180',
-      description: 'Source addresses, 20 to 1,000',
-    },
-    {
-      name: 'source_networks',
-      defaultValue: '[10.20.0.0/16, 10.30.0.0/20, 10.40.8.0/22]',
-      description: 'Networks the sources are drawn from',
-    },
-    {
-      name: 'server_network',
-      defaultValue: '10.50.20.0/24',
-      description: 'Network of the protected servers',
-    },
-    {
       name: 'log_rules',
       defaultValue:
         '[Log Inbound HTTP 80, Log Inbound HTTPS 443, Log Inbound SSH 22, Log Inbound RDP 3389]',
@@ -134,19 +108,11 @@ export const securityTrendmicroDeepSecurity: GeneratorMeta = {
       defaultValue: 'IDS:Reset',
       description: 'act of intrusion prevention events (detect-only policy)',
     },
-    {
-      name: 'ips_rules',
-      defaultValue:
-        '11 rules: 1011161, 1011163, 1011103, 1010942, 1011143, 1011167, 1011096, 1011153, 1011120, 1011162, 1011159',
-      description:
-        'Intrusion prevention rules by id, each with name, CEF severity, weight and the request line used for the packet data',
-    },
   ],
   sampleOutputs: [
     {
-      title:
-        'First intrusion prevention event of an episode, HTTP with packet data',
-      json: String.raw`{"@timestamp": "2026-09-27T00:13:42+00:00", "destination": {"ip": "10.50.20.41", "mac": "00-50-56-1E-E4-CB", "port": 80}, "ecs": {"version": "8.17.0"}, "event": {"action": "ids:reset", "category": ["intrusion_detection"], "code": "1011143", "dataset": "trendmicro.deep_security", "kind": "event", "original": "Sep 27 00:13:42 dsm-01.corp.example CEF:0|Trend Micro|Deep Security Agent|20.0.877|1011143|WordPress \u0027ProfilePress\u0027 Plugin Privilege Escalation Vulnerability (CVE-2021-34621)|8|cn1=1035 cn1Label=Host ID dvchost=web-07.corp.example TrendMicroDsTenant=Primary TrendMicroDsTenantId=0 dmac=00:50:56:1E:E4:CB smac=00:1C:73:4A:0E:01 TrendMicroDsFrameType=IP src=10.40.8.228 dst=10.50.20.41 in=283 cs3=DF cs3Label=Fragmentation Bits proto=TCP spt=53439 dpt=80 cs2=0x18 ACK PSH cs2Label=TCP Flags cnt=1 act=IDS:Reset cn3=34 cn3Label=Intrusion Prevention Packet Position cs5=1046 cs5Label=Intrusion Prevention Stream Position cs6=8 cs6Label=Intrusion Prevention Flags TrendMicroDsPacketData=UE9TVCAvd3AtYWRtaW4vYWRtaW4tYWpheC5waHA/YWN0aW9uPXBwX2FqYXhfc2lnbnVwIEhUVFAvMS4xDQpIb3N0OiB3ZWItMDcuY29ycC5leGFtcGxlDQo\\=", "severity": 8, "type": ["info"]}, "host": {"id": "1035", "ip": ["10.50.20.41"], "name": "web-07.corp.example"}, "network": {"transport": "tcp", "type": "ipv4"}, "observer": {"hostname": "web-07.corp.example", "product": "Deep Security Agent", "vendor": "Trend Micro", "version": "20.0.877"}, "related": {"hosts": ["1035", "web-07.corp.example"], "ip": ["10.40.8.228", "10.50.20.41"]}, "rule": {"id": "1011143", "name": "WordPress \u0027ProfilePress\u0027 Plugin Privilege Escalation Vulnerability (CVE-2021-34621)"}, "source": {"ip": "10.40.8.228", "mac": "00-1C-73-4A-0E-01", "port": 53439}, "trendmicro": {"deep_security": {"action": "IDS:Reset", "bytes_in": 283, "event_category": "intrusion-prevention-event", "name": "WordPress \u0027ProfilePress\u0027 Plugin Privilege Escalation Vulnerability (CVE-2021-34621)", "severity": "8", "signature_id": 1011143, "tenant_id": "0", "tenant_name": "Primary"}}}`,
+      title: 'Intrusion prevention event of an episode, HTTP with packet data',
+      json: String.raw`{"@timestamp": "2026-09-04T12:00:36+00:00", "destination": {"ip": "10.50.20.161", "mac": "00-50-56-1E-3F-F5", "port": 80}, "ecs": {"version": "8.17.0"}, "event": {"action": "ids:reset", "category": ["intrusion_detection"], "code": "1011163", "dataset": "trendmicro.deep_security", "kind": "event", "original": "Sep  4 12:00:36 dsm-01.corp.example CEF:0|Trend Micro|Deep Security Agent|20.0.877|1011163|Spring Boot Actuator Directory Traversal Vulnerability (CVE-2021-21234)|8|cn1=122 cn1Label=Host ID dvchost=web-05.corp.example TrendMicroDsTenant=Primary TrendMicroDsTenantId=0 dmac=00:50:56:1E:3F:F5 smac=00:1C:73:4A:0E:01 TrendMicroDsFrameType=IP src=10.20.236.146 dst=10.50.20.161 in=575 cs3=DF cs3Label=Fragmentation Bits proto=TCP spt=59425 dpt=80 cs2=0x18 ACK PSH cs2Label=TCP Flags cnt=1 act=IDS:Reset cn3=178 cn3Label=Intrusion Prevention Packet Position cs5=2274 cs5Label=Intrusion Prevention Stream Position cs6=8 cs6Label=Intrusion Prevention Flags TrendMicroDsPacketData=R0VUIC9tYW5hZ2UvbG9nL3ZpZXc/ZmlsZW5hbWU9L2V0Yy9wYXNzd2QmYmFzZT0uLi8uLi8uLi8uLi8gSFRUUC8xLjENCkhvc3Q6IHdlYi0wNS5jb3JwLmV4YW1wbGUNCg\\=\\=", "severity": 8, "type": ["info"]}, "host": {"id": "122", "ip": ["10.50.20.161"], "name": "web-05.corp.example"}, "network": {"transport": "tcp", "type": "ipv4"}, "observer": {"hostname": "web-05.corp.example", "product": "Deep Security Agent", "vendor": "Trend Micro", "version": "20.0.877"}, "related": {"hosts": ["122", "web-05.corp.example"], "ip": ["10.20.236.146", "10.50.20.161"]}, "rule": {"id": "1011163", "name": "Spring Boot Actuator Directory Traversal Vulnerability (CVE-2021-21234)"}, "source": {"ip": "10.20.236.146", "mac": "00-1C-73-4A-0E-01", "port": 59425}, "trendmicro": {"deep_security": {"action": "IDS:Reset", "bytes_in": 575, "event_category": "intrusion-prevention-event", "name": "Spring Boot Actuator Directory Traversal Vulnerability (CVE-2021-21234)", "severity": "8", "signature_id": 1011163, "tenant_id": "0", "tenant_name": "Primary"}}}`,
     },
   ],
 };
