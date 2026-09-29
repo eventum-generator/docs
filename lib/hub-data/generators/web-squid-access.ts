@@ -19,7 +19,7 @@ export const webSquidAccess: GeneratorMeta = {
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'The same user, IP and HTTP URL receive three TCP_DENIED/403 results followed by two 1.8-2.8 MB TCP_MISS/200 responses over about 20 seconds, in causal order. Episodes recur every 6 hours by default: the first starts at a uniform time within the first min(interval, 24 h), each next one at a uniform time in a window of min(interval / 4, 6 h) centred one interval after the previous actual start (6 h plus or minus 45 minutes by default), with no drift and no catch-up. The actor, URL, large responses and individual denials also occur in background, including reload bursts of repeated denials; an ordinary GET that would return 200 and complete three denials and one success within 300 seconds of the first denial is sent to another URL at the same time. Episode requests count too, so each episode completes the chain once; in about 0.2% of episodes a background prefix of the same user and URL started in the preceding 300 seconds is completed by the episode download, giving a second chain. access.log proves no ACL change or exfiltration.',
+    'The same user, IP and HTTP URL receive three TCP_DENIED/403 results followed by two 1.8-2.8 MB TCP_MISS/200 responses over about 20 seconds, in causal order. Episodes recur every 6 hours by default: the first starts at a uniform time within the first min(interval, 24 h), each next one at a uniform time in a window of min(interval / 4, 6 h) centred one interval after the previous actual start (6 h plus or minus 45 minutes by default), with no drift and no catch-up. The actor, URL, large responses and individual denials also occur in background, including reload bursts of repeated denials; an ordinary GET that would return 200 and complete three denials and one success within 300 seconds of the first denial goes to another URL instead, at the same time. Episode requests count too, so each episode completes the chain once; in about 0.2% of episodes a background prefix of the same user and URL started in the preceding 300 seconds is completed by the episode download, giving a second chain. access.log proves no ACL change or exfiltration.',
   eventTypes: [
     {
       id: 'TCP_MISS/200 or TCP_HIT/200 GET',
@@ -39,7 +39,7 @@ export const webSquidAccess: GeneratorMeta = {
       description:
         'Restricted path; anonymous clients receive 407, and 10% of named 403 denials start a reload burst of one to four more denials',
       frequency:
-        '7% routine selection weight; 7.0% 403 and 1.0% 407 of background records measured',
+        '7% routine selection weight; 7.0% 403 and 1.0% 407 of background records',
       category: 'web',
     },
     {
@@ -52,10 +52,10 @@ export const webSquidAccess: GeneratorMeta = {
   realismFeatures: [
     'Native epoch time is transaction completion, elapsed milliseconds map to ECS nanoseconds, and bytes include response headers delivered to the client. destination.bytes follows Elastic mapping, not origin traffic or upload volume.',
     'Only cacheable public resources can hit. Cache-Control public, max-age=3600, fixed headers, no Vary and no auth-dependent representation are explicit synthetic assumptions; hits reuse stored bytes until expiry.',
-    'Cache state is bounded to 24 URLs, twelve shipped cacheable entries. Users reload blocked pages: runs of two to six denials of one user and URL within 31 seconds occur in background, and per user and URL the generator keeps only the denial times of the last 300 seconds.',
+    'The cache holds at most 24 URLs, twelve shipped cacheable entries. Users reload blocked pages: runs of two to six denials of one user and URL within 31 seconds occur in background.',
     'Target client has an explicit 10% bias plus its share of the 24-client pool in both modes. The seven restricted URLs include the exact target; ordinary denials and successes overlap all sequence values.',
-    'Full reference coverage remains 43/54 below the 90% target; selected 43/43 excludes eight GeoIP and three actual filesystem-identity fields. Collector IDs, offset and zero-delay ingestion are synthetic context.',
-    'Exact Squid 6.9 TCP_IMS_HIT/304 raw record remains unavailable; historical native examples and tagged result definitions do not establish full same-version raw/parser compatibility. Usernames are ASCII tokens and URLs are HTTP without userinfo/query/fragment; arbitrary native quoting is outside the tested profile.',
+    'Full reference coverage is 43/54; selected 43/43 excludes eight GeoIP and three actual filesystem-identity fields. Collector IDs, offset and zero-delay ingestion are synthetic context.',
+    'Exact Squid 6.9 TCP_IMS_HIT/304 raw record remains unavailable; historical native examples and tagged result definitions do not establish full same-version raw/parser compatibility. Usernames are ASCII tokens and URLs are HTTP without userinfo/query/fragment; arbitrary native quoting is outside this profile.',
   ],
   parameters: [
     {
