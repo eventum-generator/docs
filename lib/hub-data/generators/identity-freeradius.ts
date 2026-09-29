@@ -5,7 +5,7 @@ export const identityFreeradius: GeneratorMeta = {
   displayName: 'FreeRADIUS Linelog Authentication and Accounting',
   category: 'identity',
   description:
-    "FreeRADIUS 3.2.10 file linelog output of one server authenticating 802.1X wireless clients of one controller: Accepted and Rejected user lines from an explicitly configured linelog instance and tagged accounting Connect and Disconnect lines, as ECS JSON with the verbatim line in event.original. Recurring episodes show password guessing from a device's usual station that succeeds and opens a network session.",
+    "FreeRADIUS 3.2.10 file linelog output of one server authenticating 802.1X wireless clients of one controller: Accepted user and Rejected user lines from an explicitly configured linelog instance and tagged accounting Connect and Disconnect lines, as ECS JSON with the verbatim line in event.original. About 27,800 lines a day from 1,000 devices of 726 users on 30 access points. Recurring episodes show password guessing from a device's usual station that succeeds and opens a network session.",
   dataSource:
     'FreeRADIUS 3.2.10 file linelog: custom auth_siemaudit instance and tagged log_accounting Start/Stop',
   format: ['JSON', 'ECS', 'Text'],
@@ -13,47 +13,48 @@ export const identityFreeradius: GeneratorMeta = {
   templateCount: 1,
   highlights: [
     'Verbatim linelog file lines in event.original',
-    'Independent processes of 50 devices of 36 users on six access points',
+    '1,000 devices of 726 users on 30 access points, about 27,800 lines a day',
     'Recurring reject burst, accept and accounting session chain',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    "About every 24 hours by default (the first within min(interval, 24 h) of the first event at an hour drawn from the office-hours curve; each next one due one interval after the previous actual start and started inside a window of width min(interval / 4, 6 h) centred on that due time, so consecutive starts are 24 ± 3 h apart, start hours do not drift and missed intervals are never caught up), one idle device's user is rejected five to eight times seconds apart from its usual station, then accepted, and an accounting Start follows 0-3 seconds later on the same NAS port; the Stop comes after an ordinary session length with the real elapsed time. Devices follow the background activity weights and the previous user is never repeated. Every part of the chain also occurs in ordinary traffic; only the complete ordered chain is absent from background.",
+    "Five to eight Rejected user lines for one user and calling station, seconds apart and all within about six minutes, then Accepted user and, a few seconds later, an accounting Start on the same NAS port with the device's framed IP and one of its access points; the Stop follows after an ordinary session length with the real elapsed time. About every 24 hours by default: the first episode starts within min(anomaly_interval_hours, 24 h) of the first line, at an hour drawn from the volume curve; each next one is due one interval after the actual start of the previous one and starts inside a window of w = min(interval / 4, 6 h) centred on that due time, weighted towards busy hours, so consecutive starts are interval ± w/2 apart (24 ± 3 h by default), start hours do not drift far and missed intervals are never caught up. An episode that first falls at night keeps the next ones near that hour and moves towards office hours by about an hour a day; with an 8 h interval some episodes fall at night as well. The device is chosen with the ordinary activity levels among devices with no attempt or session open, never the previous episode's user. Everything the chain uses also occurs in ordinary traffic; only the complete chain is absent from it.",
   generatorId: 'freeradius',
   eventTypes: [
     {
       id: 'accept',
       description: 'Accepted user: line of the auth_siemaudit instance',
-      frequency: '29.4% measured share',
+      frequency: '31.8% of lines',
       category: 'authentication',
     },
     {
       id: 'connect',
-      description: 'Connect: accounting Start line, 0-3 s after an accept',
-      frequency: '29.4% measured share',
+      description:
+        'Connect: accounting Start line, a few seconds after an accept',
+      frequency: '31.2% of lines',
       category: 'session',
     },
     {
       id: 'disconnect',
       description:
         'Disconnect: accounting Stop line with the actual session seconds',
-      frequency: '29.3% measured share',
+      frequency: '31.2% of lines',
       category: 'session',
     },
     {
       id: 'reject',
       description: 'Rejected user: line of the auth_siemaudit instance',
-      frequency: '11.8% measured share',
+      frequency: '5.7% of lines',
       category: 'authentication',
     },
   ],
   realismFeatures: [
-    'The authentication lines require the explicit auth_siemaudit linelog instance and post-auth calls shown in the README, because built-in log.auth is off and the default linelog messages carry only the user name; the accounting lines follow the tagged log_accounting Start and Stop formats verbatim. Authentication and accounting go to two files, and the station IDs use the RFC 3580 form with :SSID after the access-point MAC.',
-    'The site has 36 users with 50 client devices (14 users carry a laptop and a phone) and six access points of one SSID. Each device is an independent process with its own activity weight and preferred access points: a lognormal idle gap thinned by a UTC office-hours curve, one attempt, a Start 0-3 seconds after the accept and a Stop after a lognormal session (median about 35 minutes) whose Acct-Session-Time equals the real elapsed time. The final 120-hour default capture held 6,007 lines.',
-    'About 12% of attempts start with one to eight mistyped passwords a few seconds apart, each extra reject half as likely as the previous count, and 15% of them give up; about 2% come from a device with a stale saved password rejected 2 to 14 times until it is updated. All rates are synthetic, not measured FreeRADIUS statistics.',
-    'An ordinary attempt whose Start would complete five rejects of its user and station within ten minutes ends silently, like a user who gives up. In five background-only 120-hour captures, reject bursts of lengths 4/5/6/7/8 numbered 86/40/21/7/1, 86-88% of two- to four-reject bursts ended in an accept and none of five or more did; the shortest background five-reject-to-Start spans were 638, 662 and 709 seconds, and a detector with a lower threshold or a longer window also matches background near misses.',
-    'event.original and message hold the bare file line without a syslog header; @timestamp, host.name and radius.client_shortname are collector enrichment. The selected formats carry no Acct-Session-Id, so a session is the Start/Stop pair of one station. The ECS layout is inferred.',
-    'No raw output from a running FreeRADIUS 3.2.10 server was available, and the custom authentication instance was not exercised on a daemon; compatibility with syslog-oriented FreeRADIUS parsers is not claimed. One server, controller and SSID, with no roaming, Interim-Update or NAS reboots, and office hours in UTC with no weekday cycle. With a short interval the start window narrows (2 h at 8 h), so some episodes start outside office hours.',
+    'The authentication lines require the explicit auth_siemaudit linelog instance and post-auth calls shown in the README, because built-in log.auth is off and the default linelog authentication messages carry only the user name; the accounting lines follow the tagged log_accounting Start and Stop formats verbatim. Authentication and accounting go to two files, and the station IDs use the RFC 3580 form with :SSID after the access-point MAC. Interim-Update, Accounting-On/Off and Access-Challenge lines are not generated.',
+    'The site has 726 users with 1,000 client devices (274 users carry a laptop and a phone) and 30 access points of one SSID. Each device has its own activity level, within a factor of four of the others, and one to three preferred neighbouring access points; it has at most one attempt or session at a time, a fixed framed IP lease and a new NAS-Port association ID for each attempt.',
+    'Volume is about 27,800 lines a day on a fixed UTC hour curve: 0.06 lines/s from 00:00 to 05:00, rising through 06:00-08:00 to 0.6 lines/s from 08:00 to 16:00, then tapering hour by hour to 0.08 lines/s at 23:00. The daily total varies by about 2%, and up to about 690 sessions are open at the same time in office hours.',
+    '93.5% of attempts succeed at once, with the accounting Start a median 3 s after the accept; 5% start with one to eight mistyped passwords a few seconds apart, each extra reject half as likely as the previous count, and 15% of these users give up; 1.5% come from a device with a stale saved password rejected 2 to 14 times about every 20 minutes until it is updated; 1.5% of accepts have no accounting Start. Sessions last about 12 minutes, 36 minutes and 1.8 hours at the 10th, 50th and 90th percentile, at most about 12 hours. All rates are synthetic, not measured FreeRADIUS statistics.',
+    'An accept that follows five or more rejects of its user and station within ten minutes (about 25 a day) is never followed by an accounting Start in ordinary traffic, while other accepts miss their Start only 1.5% of the time; a detector with a lower threshold or a longer window also matches ordinary near misses. With anomaly_mode true, runs of five or more rejects and such runs followed by an accept are about one per episode more frequent: about seven more a week at the default interval, on top of roughly 175 such runs a week.',
+    'event.original and message hold the bare file line without a syslog header; @timestamp, host.name and radius.client_shortname are collector enrichment. The selected formats carry no Acct-Session-Id, so a session is the Start/Stop pair of one station. The ECS layout is inferred. No raw output from a running FreeRADIUS 3.2.10 server was available, the custom authentication instance was not exercised on a daemon, and compatibility with syslog-oriented FreeRADIUS parsers is not claimed. One server, controller and SSID, with no roaming, Interim-Update or NAS reboots; the hour curve repeats every day with no weekday cycle, and at night an accounting Start can follow its accept by up to about three minutes.',
   ],
   parameters: [
     {
@@ -86,8 +87,8 @@ export const identityFreeradius: GeneratorMeta = {
   ],
   sampleOutputs: [
     {
-      title: 'Chain Start of the first episode',
-      json: String.raw`{"@timestamp": "2026-09-21T19:56:53.334+00:00", "ecs": {"version": "8.17.0"}, "event": {"action": "connect", "category": ["session"], "dataset": "freeradius.linelog", "kind": "event", "module": "freeradius", "original": "Connect: [ekaterina.romanova] (did 06-1B-2C-41-10-A2:corp-wifi cli 02-4C-1A-EE-32-EA port 117 ip 10.50.1.223)", "outcome": "success", "type": ["start"]}, "host": {"name": "radius-01"}, "message": "Connect: [ekaterina.romanova] (did 06-1B-2C-41-10-A2:corp-wifi cli 02-4C-1A-EE-32-EA port 117 ip 10.50.1.223)", "radius": {"acct_status_type": "Start", "called_station_id": "06-1B-2C-41-10-A2:corp-wifi", "calling_station_id": "02-4C-1A-EE-32-EA", "client_shortname": "wlc-01", "framed_ip_address": "10.50.1.223", "nas_port": 117}, "service": {"name": "radiusd"}, "source": {"ip": "10.50.1.223", "mac": "02-4C-1A-EE-32-EA"}, "user": {"name": "ekaterina.romanova"}}`,
+      title: 'Accounting Start that completes an episode',
+      json: String.raw`{"@timestamp": "2026-09-04T08:18:12.849+00:00", "ecs": {"version": "8.17.0"}, "event": {"action": "connect", "category": ["session"], "dataset": "freeradius.linelog", "kind": "event", "module": "freeradius", "original": "Connect: [matvey.titov] (did 06-1B-2C-41-2F-95:corp-wifi cli 02-4C-1A-7E-8C-C3 port 224 ip 10.50.7.129)", "outcome": "success", "type": ["start"]}, "host": {"name": "radius-01"}, "message": "Connect: [matvey.titov] (did 06-1B-2C-41-2F-95:corp-wifi cli 02-4C-1A-7E-8C-C3 port 224 ip 10.50.7.129)", "radius": {"acct_status_type": "Start", "called_station_id": "06-1B-2C-41-2F-95:corp-wifi", "calling_station_id": "02-4C-1A-7E-8C-C3", "client_shortname": "wlc-01", "framed_ip_address": "10.50.7.129", "nas_port": 224}, "service": {"name": "radiusd"}, "source": {"ip": "10.50.7.129", "mac": "02-4C-1A-7E-8C-C3"}, "user": {"name": "matvey.titov"}}`,
     },
   ],
 };
