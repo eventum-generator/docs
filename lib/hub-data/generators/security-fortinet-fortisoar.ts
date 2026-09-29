@@ -5,7 +5,7 @@ export const securityFortinetFortisoar: GeneratorMeta = {
   displayName: 'Fortinet FortiSOAR Alert Deletion Audit',
   category: 'security',
   description:
-    'Fortinet FortiSOAR 7.x audit records for deleted alerts, as FortiSOAR forwards them to a syslog server in CEF, from eight analysts working in daytime-weighted sessions, as ECS JSON with the forwarded line in event.original. For SOC teams and SIEM engineers who monitor who removes alerts from their SOAR platform. Recurring episodes show one analyst deleting nine or more alerts from one address within two minutes.',
+    'Fortinet FortiSOAR 7.x audit records for deleted alerts, as FortiSOAR forwards them to a syslog server in CEF, as ECS JSON with the forwarded line in event.original. For SOC teams and SIEM engineers who monitor who removes alerts from their SOAR platform. About 2,940 deletions a day from 64 analysts of a round-the-clock SOC, more during the working day. Recurring episodes show one analyst deleting nine alerts from one address within two minutes.',
   dataSource:
     'Fortinet FortiSOAR 7.x audit log, Basic detail, forwarded over syslog in CEF',
   format: ['JSON', 'ECS', 'CEF', 'Syslog'],
@@ -13,28 +13,29 @@ export const securityFortinetFortisoar: GeneratorMeta = {
   templateCount: 1,
   highlights: [
     'Fortinet-published CEF header and all twelve extension keys',
-    'Eight analysts with daytime sessions and multi-alert deletes',
-    'Recurring mass deletion of nine or more alerts in two minutes',
+    'About 2,940 deletions a day from 64 analysts',
+    'Recurring mass deletion of nine alerts in two minutes',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'One chain is due every 24 hours of source time by default (minimum 6): the first at a random point within the first interval, each next one interval after the actual start of the previous chain. After it is due, a random delay of up to min(interval / 4, 6 h) passes, weighted by the daytime session shape with a small night floor, so at a fixed interval the start drifts around the clock; missed chains are not caught up. Measured gaps 24.1-31.4 h at 24 h and 12.5-15.6 h at 12 h. The chain starts on the next session of an analyst other than the analyst of the previous chain: in addition to the ordinary deletions of that session, the analyst deletes 10-15 more alerts from the session address in quick successive deletes 2-40 s apart, all within about 100 seconds. Background has up to eight deletions by one analyst from one address within two minutes, never nine.',
+    "One analyst, from one address, deletes nine alerts within two minutes. The chain starts on an ordinary work session of the analyst: on top of that session's own deletions, the analyst deletes more alerts in quick successive deletes of one to a few alerts each, 2-40 s apart, until nine alerts have been deleted from that address within 120 seconds (the session's own deletions in those two minutes count toward the nine), and then continues the session at the ordinary pace. The records share user.name, user.id and source.ip, every record deletes a different alert, and deleted alerts are not restored. One chain is due per anomaly_interval_hours (default 24, minimum 6) of event time. The first starts within the first min(interval, 24 h), at an hour drawn from the daily curve of deletions; each next one is due one interval after the actual start of the previous one and starts within min(interval / 8, 3 h) before or after that due time, at an hour weighted by the square of the daily curve with a small floor, so every hour stays possible. Missed chains are not caught up. Gaps between chains are about 21-27 hours at the default interval and about 10.5-13.5 hours at 12 hours. The analyst is drawn with the same weights as ordinary sessions but never gets two chains in a row; the address is the office address or, for the ten most active analysts, the remote-access address, with the same odds as their ordinary sessions. Background has up to eight deletions by one analyst from one address within two minutes, never nine.",
   generatorId: 'fortisoar',
   eventTypes: [
     {
       id: 'Alert Deleted',
       description: 'Delete an alert record',
-      frequency: '100% measured share',
+      frequency: '100% of records',
       category: 'configuration',
     },
   ],
   realismFeatures: [
-    'Eight analysts delete alerts independently, starting work sessions at random times, more often during the day (peak around 12:30 UTC), with a busier or quieter activity level per day. A session is a few deletions of one to a few alerts at a time, seconds to many minutes apart, from the office address or, for some sessions, a remote-access address.',
-    'One delete of several selected alerts writes one record per alert, milliseconds apart, and every record deletes a different alert. The record keeps the CEF header and all twelve extension keys in the order of the Fortinet sample.',
-    'Background contains every analyst and address pair, multi-alert and quick successive deletes, and up to eight deletions by one analyst from one address within two minutes; an analyst reaching eight pauses by an ordinary gap instead of changing actor. In seven 10-day background captures, nine deletions within 132 seconds occur 0-4 times per capture and within 180 seconds 1-8 times.',
-    'Only the Alert Deleted class is generated, since Fortinet publishes a complete forwarded line only for it; create, update, link, login and recycle-bin restores are not. The number in msg is treated as the alert ID although the guide calls this part the record title, and playbookName and playbookId stay empty because playbook deletions are not modeled.',
-    'The syslog header time is the forwarding time, a fraction of a second after the audit time; the larger difference in the Fortinet sample is unexplained. Times are UTC, only the Basic audit detail level is modeled, and the 2-second input tick writes a multi-alert delete a few seconds after its timestamps in live mode.',
-    'Chain hours follow the daytime curve only loosely, so night chains are more common than night deletions in the background. Rates, weights, delays and analyst names are synthetic lab settings, and compatibility with the KUMA Syslog-CEF normalizer for FortiSOAR is untested.',
+    'Sixty-four analysts of a large, round-the-clock SOC delete alerts independently of each other, in work sessions that are more frequent during the day. A session is a few deletions of one to a few alerts at a time, and deletes of one session follow each other after 4 seconds to 25 minutes (about two minutes typically). Each analyst makes between 0.6% and 3.7% of the deletions and is busier on some days and quieter on others.',
+    'About 2,940 deletions a day (2,720-3,130 on individual days), UTC: about 60 an hour from 19:00 to 06:00, rising through 88, 126 and 167 an hour to about 215-220 an hour from 09:00 to 16:00, then falling through 165, 124 and 85. Weekends look like weekdays: the volume follows the same daily curve every day.',
+    'Deletes select one alert in 71% of cases, two in 22%, three in 5% and four or more in the rest. One delete writes one record per alert, about 0.2 seconds apart (0.46 s at the 90th percentile); the selected alerts sit close together in the grid, recent ones below the current alert ID, and no alert is deleted twice.',
+    "85% of sessions come from the analyst's office address and 15% from the analyst's remote-access address; a session keeps its address. Both modes contain every analyst and address pair a chain can use, multi-alert and quick successive deletes, and bursts of up to eight deletions by one analyst from one address within two minutes: about five sessions a day reach eight, eight reach seven and eighteen reach six, and none reaches nine. After eight such deletions, the analyst's next deletion comes after an ordinary gap between deletes.",
+    'Only the Alert Deleted class is generated, since Fortinet publishes a complete forwarded line only for it (identical in the 7.2.0 and 7.6.5 administration guides); create, update, link, login and recycle-bin restores are not. The record keeps the CEF header and all twelve extension keys in the order of the Fortinet sample. The number in msg is treated as the alert ID although the guide calls this part the record title, and playbookName and playbookId stay empty because deletions by playbooks are not modeled.',
+    'The syslog header time is the forwarding time, a fraction of a second after the audit time in end and eventTimeStr; the larger difference in the Fortinet sample is unexplained. Times are UTC, and only the Basic audit detail level is modeled.',
+    "Chains start nearly all between 06:00 and 18:00 UTC, against about 74% of ordinary deletions, and a chain is exactly nine deletions within two minutes, while a real mass deletion may go on longer. The daily volume is the same in both modes, so a chain's few extra deletions replace ordinary ones in the hour after it; later hours are unchanged. Rates, weights, delays and analyst names are synthetic lab settings, and compatibility with the KUMA Syslog-CEF normalizer for FortiSOAR is untested.",
   ],
   parameters: [
     {
@@ -45,17 +46,11 @@ export const securityFortinetFortisoar: GeneratorMeta = {
     {
       name: 'anomaly_interval_hours',
       defaultValue: '24',
-      description: 'Source-time interval between chain due times, 6 to 8,760',
-    },
-    {
-      name: 'sessions_per_day',
-      defaultValue: '60',
-      description:
-        'Average number of analyst work sessions per day, all analysts together, 2 to 2,000',
+      description: 'Event-time interval between chain due times, 6 to 8,760',
     },
     {
       name: 'alerts_per_day',
-      defaultValue: '900',
+      defaultValue: '10800',
       description:
         'Rate at which alert IDs grow; deletions pick recent alerts below the current ID, 50 to 1,000,000',
     },
@@ -82,8 +77,8 @@ export const securityFortinetFortisoar: GeneratorMeta = {
   ],
   sampleOutputs: [
     {
-      title: 'First record of an anomaly chain, office address',
-      json: String.raw`{"@timestamp": "2026-03-06T09:23:32.085+00:00", "ecs": {"version": "8.17.0"}, "event": {"action": "alert_deleted", "category": ["configuration"], "code": "Alert Deleted", "created": "2026-03-06T09:23:32.106044+00:00", "dataset": "fortinet.fortisoar.audit", "kind": "event", "original": "2026-03-06T09:23:32.106044+00:00 fsrprimary fortisoar-audit-log: CEF:0|Fortinet Inc|FortiSOAR|7.0.0|Alert Deleted|Alert Deleted|1|devid=\"FSRVMPTM20000061\" vd=\"enterprise\" level=\"warning\" type=\"Audit Log\" msg=\"Alert [150926] Deleted \" src=\"10.30.4.37\" suid=\"9446b38d-318b-4647-a109-e15432fa9365\" suser=\"Marco Bellini\" end=1772789012085 playbookName=\"\" playbookId=\"\" eventTimeStr=\"06 Mar 2026 09:23:32.085\"", "severity": 1, "type": ["deletion"]}, "fortinet": {"fortisoar": {"alert_id": 150926, "device_id": "FSRVMPTM20000061", "log_type": "Audit Log", "operation": "Delete", "record_type": "Alert", "virtual_domain": "enterprise"}}, "log": {"level": "warning", "logger": "fortisoar-audit-log"}, "observer": {"hostname": "fsrprimary", "product": "FortiSOAR", "serial_number": "FSRVMPTM20000061", "vendor": "Fortinet", "version": "7.0.0"}, "related": {"ip": ["10.30.4.37"], "user": ["Marco Bellini"]}, "source": {"ip": "10.30.4.37"}, "user": {"id": "9446b38d-318b-4647-a109-e15432fa9365", "name": "Marco Bellini"}}`,
+      title: 'Ninth deletion of an anomaly chain, office address',
+      json: String.raw`{"@timestamp": "2026-03-02T06:17:57.292+00:00", "ecs": {"version": "8.17.0"}, "event": {"action": "alert_deleted", "category": ["configuration"], "code": "Alert Deleted", "created": "2026-03-02T06:17:57.488412+00:00", "dataset": "fortinet.fortisoar.audit", "kind": "event", "original": "2026-03-02T06:17:57.488412+00:00 fsrprimary fortisoar-audit-log: CEF:0|Fortinet Inc|FortiSOAR|7.0.0|Alert Deleted|Alert Deleted|1|devid=\"FSRVMPTM20000061\" vd=\"enterprise\" level=\"warning\" type=\"Audit Log\" msg=\"Alert [223758] Deleted \" src=\"10.30.2.190\" suid=\"5494f6a2-d621-4d4d-8e2d-786696290a61\" suser=\"Nadia Benali\" end=1772432277292 playbookName=\"\" playbookId=\"\" eventTimeStr=\"02 Mar 2026 06:17:57.292\"", "severity": 1, "type": ["deletion"]}, "fortinet": {"fortisoar": {"alert_id": 223758, "device_id": "FSRVMPTM20000061", "log_type": "Audit Log", "operation": "Delete", "record_type": "Alert", "virtual_domain": "enterprise"}}, "log": {"level": "warning", "logger": "fortisoar-audit-log"}, "observer": {"hostname": "fsrprimary", "product": "FortiSOAR", "serial_number": "FSRVMPTM20000061", "vendor": "Fortinet", "version": "7.0.0"}, "related": {"ip": ["10.30.2.190"], "user": ["Nadia Benali"]}, "source": {"ip": "10.30.2.190"}, "user": {"id": "5494f6a2-d621-4d4d-8e2d-786696290a61", "name": "Nadia Benali"}}`,
     },
   ],
 };
