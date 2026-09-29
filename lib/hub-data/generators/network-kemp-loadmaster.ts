@@ -6,7 +6,7 @@ export const networkKempLoadmaster: GeneratorMeta = {
   displayName: 'Progress Kemp LoadMaster ESP CEF',
   category: 'network',
   description:
-    'Edge Security Pack (ESP) user logs of a Progress Kemp LoadMaster in Common Event Format, for one virtual service that pre-authenticates a webmail portal, as ECS JSON with the CEF body in event.original and the parsed header and extension under kemp.loadmaster. Forty users run full portal sessions; recurring episodes show repeated ESP logon failures followed by a logon and Exchange control panel requests. The rates are a synthetic workload, not measured LoadMaster traffic.',
+    'Edge Security Pack (ESP) user logs of a Progress Kemp LoadMaster in Common Event Format, for one virtual service that pre-authenticates a webmail portal, as ECS JSON with the CEF body in event.original and the parsed header and extension under kemp.loadmaster. About 40,000 records a day from 400 portal users follow a working-day curve in UTC. Recurring episodes show repeated ESP logon failures followed by a logon and an Exchange control panel request. The rates are a synthetic workload, not measured LoadMaster traffic.',
   dataSource:
     'Progress Kemp LoadMaster ESP user logs, CEF body without a syslog envelope (firmware 7.2.50 or later)',
   format: ['JSON', 'ECS', 'CEF'],
@@ -14,95 +14,96 @@ export const networkKempLoadmaster: GeneratorMeta = {
   templateCount: 1,
   highlights: [
     'CEF body in event.original, parsed under kemp.loadmaster',
-    '12 ESP class IDs in full portal sessions of 40 users',
+    '12 ESP class IDs in full portal sessions of 400 users',
     'Recurring repeated-denial logon then /ecp/ chain',
   ],
   generationModes: ['background', 'anomaly'],
   anomalyChain:
-    "About every 24 hours by default: the first episode starts within the first anomaly_interval_hours (at most 24 h) at a time drawn from the background activity curve; each next one is due one interval after the actual start of the previous one and starts in a window of a quarter of the interval (at most 6 h) centred on the due time, weighted by the square of the activity curve plus a small floor, so most fall in office hours; missed episodes are not caught up. One user gets three to five Access Denied records from one address seconds apart, then User AAA success and Logged on from that address, then one to three /ecp/ requests among the first of the session, which ends like any other. The user is drawn among users without an open session, never the previous episode's, and the address follows that user's normal choice. Every user, address type, class ID and /ecp/ path also occurs in background; only the full sequence within 30 minutes is kept out of it.",
+    "One user gets three to five Access Denied records from one address seconds apart, then User AAA success and Logged on from that address, then one Request for an /ecp/ path among the first three requests of the session, 20 seconds to about 4 minutes after the first denial; the session continues and ends like any other. The user is one of the more active half of the users, logs on from their office address and is never the previous episode's user. The first episode starts within the first anomaly_interval_hours (at most 24 h) at a time drawn from the day curve, not at a fixed offset from the start; each next one is due anomaly_interval_hours after the actual start of the previous one and starts in a window of a quarter of the interval (at most 6 h) centred on the due time, weighted by the square of the day curve plus a small floor, so episodes favour office hours; missed episodes are not caught up. At the default 24 h interval episodes start 21-27 h apart, at 8 h about 7-9 h apart. Every user, office address, class ID and /ecp/ path also occurs in ordinary traffic; only the full sequence is absent from it.",
   generatorId: 'kemp-loadmaster',
   eventTypes: [
     {
       id: 'Request (14)',
       description: 'Authenticated portal request',
-      frequency: '48.8% measured share',
+      frequency: '51.7% of records',
       category: 'web',
     },
     {
       id: 'SSL accept (2)',
       description: 'TLS connection accepted by the virtual service',
-      frequency: '12.9% measured share',
+      frequency: '12.0% of records',
       category: 'network',
     },
     {
       id: 'Connected (4)',
       description: 'Connection to a real server',
-      frequency: '10.7% measured share',
+      frequency: '11.4% of records',
       category: 'network',
     },
     {
       id: 'Attempt (15)',
       description: 'Unauthenticated request',
-      frequency: '6.5% measured share',
+      frequency: '5.6% of records',
       category: 'web',
     },
     {
       id: 'User AAA (100)',
       description: 'Successful authentication against the AAA server',
-      frequency: '5.0% measured share',
+      frequency: '5.2% of records',
       category: 'authentication',
     },
     {
       id: 'Logged on (8)',
       description: 'ESP logon',
-      frequency: '5.0% measured share',
+      frequency: '5.2% of records',
       category: 'authentication, session',
     },
     {
       id: 'Logged off (6)',
       description: 'ESP logoff',
-      frequency: '2.8% measured share',
+      frequency: '2.9% of records',
       category: 'authentication, session',
     },
     {
       id: 'User session kill (102)',
       description: 'Session removed after logoff',
-      frequency: '2.8% measured share',
+      frequency: '2.9% of records',
       category: 'session',
     },
     {
       id: 'User session timeout (101)',
       description: 'Session ended after the idle time',
-      frequency: '2.2% measured share',
+      frequency: '2.3% of records',
       category: 'session',
     },
     {
       id: 'Access Denied (9)',
       description: 'Failed ESP logon',
-      frequency: '2.2% measured share',
+      frequency: '0.4% of records',
       category: 'authentication',
     },
     {
       id: 'Connection timed out (3)',
       description: 'Client connection timed out',
-      frequency: '0.7% measured share',
+      frequency: '0.2% of records',
       category: 'network',
     },
     {
       id: 'Connection failed (5)',
       description: 'Real server connection failed',
-      frequency: '0.2% measured share',
+      frequency: '0.2% of records',
       category: 'network',
     },
   ],
   realismFeatures: [
-    'Forty users start portal sessions as independent random processes, about five per user per day, with the highest activity from 07:00 to 17:00 UTC, a middle level from 17:00 to 21:00 and a low night level (hours fixed to UTC). Users connect from their office address or, in 30% of sessions, from a random external address; anonymous clients add TLS accepts that time out or send one Attempt.',
-    'A session is a TLS accept and an unauthenticated Attempt for /owa/, zero to five Access Denied records (about 6% of sessions have three or more, and 15% of sessions with a failure end without a logon), then User AAA, Logged on and Connected to a real server. Requests follow with log-normal gaps, about 5% under /ecp/, and the session ends with Logged off plus User session kill, or with User session timeout after the idle time.',
-    'Names, severities, extension keys and key order follow the vendor examples for each class ID, including Device Version 1.0 (the CEF header table states 0). No raw syslog line is documented for the L7 ESP classes, so event.original holds the CEF body only; session records 101 and 102 follow the 7.2.53 behavior.',
+    'The virtual service logs about 40,000 records a day (+/- 3% from day to day) on a working-day curve in UTC: about 0.2 records per second from 21:00 to 03:00, rising from about 03:00 to a peak of about 0.87 per second between 10:00 and 12:00, and declining through the afternoon and evening. Office hours are fixed to UTC and there is no weekly cycle: weekends look like weekdays.',
+    'The portal has 400 users, each with a fixed activity level: the most active open about four times as many sessions as the least active, and a user averages about five sessions a day. About 40 distinct users are active in a night hour and about 170 in the 11:00 hour. A user connects from their office address or, in 30% of sessions, from a random external address; anonymous clients add about 240 TLS accepts a day around the clock that time out or send one Attempt.',
+    'A session is a TLS accept and an unauthenticated Attempt for /owa/, then User AAA, Logged on and Connected to a real server. About 4% of logons follow one or more Access Denied records (under 1% of sessions have three or more), and 15% of sessions with a denial end without a logon, so about 6% of logon attempts fail. Requests follow with log-normal gaps, about 5% under /ecp/; new client connections add SSL accept and Connected, rarely after a Connection failed. A session ends with Logged off plus User session kill, or with User session timeout after the idle time.',
+    'Names, severities, extension keys and key order follow the vendor examples for each class ID, including Device Version 1.0 (the CEF header table states 0). No raw syslog line is documented for the L7 ESP classes, so event.original holds the CEF body only. CEF logging requires firmware 7.2.50 or later; session records 101 and 102 follow the 7.2.53 behavior.',
     'User AAA failure strings are not documented, so User AAA appears only for successful logons and a failed logon produces Access Denied alone. Access Blocked, Access Locked, Access Disabled, Password Expired, User interaction, WAF, SMTP, Kill all sessions and Flush SSO cache are not modelled. The User Logs page also says a session is deleted on invalid credentials; the pack emits no 101/102 session records after denials.',
-    'Background contains every chain fragment: 61 to 81 logons after three or more denials from the same address and /ecp/ requests by 40 of 40 users per 156-hour background capture. An ordinary /ecp/ request that would complete the chain (three denials, then a logon, from its address, the first denial at most 30 minutes earlier) becomes a request for an /owa/ path at the same time, with the method that path always uses; a later one is left as is. The chain shows portal behavior; it does not show whether the account was compromised.',
-    'The start window is narrower than the night: after a first episode at night, later ones can stay at night for several days.',
-    'Timestamps have one-second resolution and at most one record is emitted per second, so a few records are delayed by a second or two.',
+    'Ordinary traffic contains every chain fragment: logons that follow three or more denials from the same address within 30 minutes (about 40 to 70 per four days) and /ecp/ requests by almost every user. When three denials and then a logon from one address precede a request of that user from that address, and the first of those denials is at most 30 minutes old, the request is for an /owa/ path, with the method that path always uses (POST for /owa/service.svc and /owa/ev.owa2, GET otherwise). With anomaly_mode true the count of logons after three or more denials is about one per episode higher; the total volume is the same in both modes. The chain shows portal behavior; it does not show whether the account was compromised.',
+    'Records that a LoadMaster writes in the same instant (User AAA and Logged on, Logged off and User session kill, SSL accept and Attempt) are seconds apart: 2 s at the median, 7 s at the 90th percentile, up to about a minute at night. Timestamps have one-second resolution.',
+    'The episode start window is narrower than the night: after a first episode in the evening, later ones can stay in the evening for several days.',
   ],
   parameters: [
     {
@@ -156,25 +157,20 @@ export const networkKempLoadmaster: GeneratorMeta = {
       description: 'Authentication protocol in User AAA',
     },
     {
-      name: 'sessions_per_user_day',
-      defaultValue: '6',
-      description:
-        'Mean session starts per user per day before office-hours thinning (about 5 are realized)',
-    },
-    {
       name: 'session_idle_seconds',
       defaultValue: '900',
       description: 'Idle time before User session timeout',
     },
     {
       name: 'probes_per_day',
-      defaultValue: '80',
+      defaultValue: '240',
       description: 'Anonymous client connections per day',
     },
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description: 'Include anomaly episodes; false emits background only',
+      description:
+        'Include anomaly episodes; false emits ordinary traffic only',
     },
     {
       name: 'anomaly_interval_hours',
@@ -185,8 +181,8 @@ export const networkKempLoadmaster: GeneratorMeta = {
   ],
   sampleOutputs: [
     {
-      title: 'First /ecp/ request of the first episode',
-      json: String.raw`{"@timestamp": "2026-09-26T10:51:23+00:00", "destination": {"ip": "10.42.20.15", "port": 443}, "ecs": {"version": "8.17.0"}, "event": {"action": "request", "category": ["web"], "code": "14", "dataset": "kemp_loadmaster.esp", "kind": "event", "module": "kemp_loadmaster", "original": "CEF:0|Kemp|LM|1.0|14|Request|1|vs=10.42.20.15:443 event=Request srcip=10.60.13.64 srcport=61373 method=GET url=https://mail.example.test/ecp/UsersGroups/Mailboxes.slab user=v.tanaka@example.test useragent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:130.0) Gecko/20100101 Firefox/130.0", "severity": 1, "type": ["access"]}, "http": {"request": {"method": "GET"}}, "kemp": {"loadmaster": {"cef": {"device_event_class_id": "14", "device_product": "LM", "device_vendor": "Kemp", "device_version": "1.0", "name": "Request", "severity": 1, "version": 0}, "extension": {"event": "Request", "method": "GET", "srcip": "10.60.13.64", "srcport": "61373", "url": "https://mail.example.test/ecp/UsersGroups/Mailboxes.slab", "user": "v.tanaka@example.test", "useragent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:130.0) Gecko/20100101 Firefox/130.0", "vs": "10.42.20.15:443"}}}, "observer": {"hostname": "lm-edge-01", "product": "LoadMaster", "type": "load-balancer", "vendor": "Progress Kemp"}, "related": {"ip": ["10.60.13.64", "10.42.20.15"], "user": ["v.tanaka@example.test"]}, "source": {"ip": "10.60.13.64", "port": 61373}, "url": {"domain": "mail.example.test", "full": "https://mail.example.test/ecp/UsersGroups/Mailboxes.slab", "path": "/ecp/UsersGroups/Mailboxes.slab", "scheme": "https"}, "user": {"name": "v.tanaka@example.test"}, "user_agent": {"original": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:130.0) Gecko/20100101 Firefox/130.0"}}`,
+      title: 'The /ecp/ request of an episode',
+      json: String.raw`{"@timestamp": "2026-09-01T18:34:30+00:00", "destination": {"ip": "10.42.20.15", "port": 443}, "ecs": {"version": "8.17.0"}, "event": {"action": "request", "category": ["web"], "code": "14", "dataset": "kemp_loadmaster.esp", "kind": "event", "module": "kemp_loadmaster", "original": "CEF:0|Kemp|LM|1.0|14|Request|1|vs=10.42.20.15:443 event=Request srcip=10.60.26.201 srcport=53479 method=GET url=https://mail.example.test/ecp/ user=d.kaur@example.test useragent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 Edg/128.0.0.0", "severity": 1, "type": ["access"]}, "http": {"request": {"method": "GET"}}, "kemp": {"loadmaster": {"cef": {"device_event_class_id": "14", "device_product": "LM", "device_vendor": "Kemp", "device_version": "1.0", "name": "Request", "severity": 1, "version": 0}, "extension": {"event": "Request", "method": "GET", "srcip": "10.60.26.201", "srcport": "53479", "url": "https://mail.example.test/ecp/", "user": "d.kaur@example.test", "useragent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 Edg/128.0.0.0", "vs": "10.42.20.15:443"}}}, "observer": {"hostname": "lm-edge-01", "product": "LoadMaster", "type": "load-balancer", "vendor": "Progress Kemp"}, "related": {"ip": ["10.60.26.201", "10.42.20.15"], "user": ["d.kaur@example.test"]}, "source": {"ip": "10.60.26.201", "port": 53479}, "url": {"domain": "mail.example.test", "full": "https://mail.example.test/ecp/", "path": "/ecp/", "scheme": "https"}, "user": {"name": "d.kaur@example.test"}, "user_agent": {"original": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 Edg/128.0.0.0"}}`,
     },
   ],
 };
