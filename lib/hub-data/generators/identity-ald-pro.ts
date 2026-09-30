@@ -1,126 +1,85 @@
-/* eslint-disable sonarjs/no-hardcoded-ip -- Synthetic IPs document generator defaults. */
+/* eslint-disable sonarjs/no-hardcoded-ip -- Synthetic generator addresses. */
 import type { GeneratorMeta } from '@/lib/hub-types';
 
 export const identityAldPro: GeneratorMeta = {
-  slug: 'identity-ald-pro',
-  displayName: 'ALD Pro Domain Controller',
+  displayName: 'ALD Pro domain controller',
   category: 'identity',
   description:
-    'ALD Pro KDC and 389 Directory Server native records with complete GSSAPI sessions, visible permission restoration and recurring daily spray sequences.',
+    'About 61,200 selected records/day from one domain controller, including native KDC, LDAP access and audit records.',
+  dataSource: 'ALD Pro MIT KDC and 389 Directory Server',
   format: ['JSON', 'ECS'],
-  dataSource: 'Selected dated ALD Pro MIT KDC and 389 DS native-file profile',
-  eventCount: 15,
-  templateCount: 1,
   highlights: [
-    'Native KDC, access and LDIF audit records',
-    'TGT-to-service-ticket-to-LDAP correlation',
-    'Daily sequences with visible rights restoration',
+    'Human working hours follow UTC+03:00; service accounts continue overnight',
+    'LDAP negotiation, changes and restorations retain their request and actor relationships',
   ],
-  generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'Every 24 hours, four principals fail authentication one minute apart; an administrator then receives a TGT and its LDAP service ticket. A fresh TLS/GSSAPI connection adds an existing account to a privileged group and activates an existing dormant SUDO rule with cmdCategory all. Visible removal/category deletion follows after at least an hour. Eligibility waits for restoration, with no catch-up burst. All classes and administrators also occur in background.',
+    'Four-principal password spray, administrator TGT and LDAP ticket, followed by group membership and SUDO permission changes within 15 minutes. Administrators and policy resources rotate. Permissions are removed after about one hour. Default interval is 24 hours. First start is within min(interval,24h), weighted by daily activity; later starts fall within +/-min(interval/4,6h)/2 of the preceding actual start plus interval.',
   generatorId: 'ald-pro',
   eventTypes: [
     {
-      id: 'AS_REQ ISSUE',
-      description: 'Issue a TGT to the selected principal',
-      frequency:
-        'Frequent ordinary issuance and one episode administrator ticket',
+      id: 'AS_REQ NEEDED_PREAUTH / ISSUE',
+      description: 'Preauthentication challenge and successful TGT issuance',
+      frequency: 'Selected workload',
       category: 'authentication',
     },
     {
       id: 'TGS_REQ ISSUE',
-      description: 'Issue a service ticket from an observed TGT',
-      frequency: 'Frequent ordinary tickets and LDAP ticket before bind',
+      description: 'Service tickets using an already observed TGT',
+      frequency: 'Selected workload',
       category: 'authentication',
     },
     {
       id: 'AS_REQ PREAUTH_FAILED',
-      description: 'Failed principal preauthentication',
-      frequency: 'Isolated ordinary failures; four-principal episode spray',
+      description: 'Isolated failures and periodic password spray',
+      frequency: 'Selected workload',
       category: 'authentication',
     },
     {
-      id: 'SSL connection',
-      description: 'Open a fresh direct LDAP connection',
-      frequency: 'Every selected LDAP session',
-      category: 'network',
-    },
-    {
-      id: 'TLS',
-      description: 'Negotiate the selected protected LDAP connection',
-      frequency: 'Every selected LDAP session',
-      category: 'network',
-    },
-    {
-      id: 'BIND',
-      description: 'Request the next GSSAPI negotiation round',
-      frequency: 'Three rounds per selected LDAP session',
-      category: 'authentication',
-    },
-    {
-      id: 'BIND RESULT',
-      description: 'Return err 14 twice then err 0',
-      frequency: 'Three matching results per selected LDAP session',
-      category: 'authentication',
-    },
-    {
-      id: 'MOD',
-      description: 'Modify an existing group or SUDO rule',
-      frequency: 'Ordinary activation/restoration and episode changes',
+      id: 'SSL connection, TLS, UNBIND, clean disconnect',
+      description: 'Administrative LDAP sessions',
+      frequency: 'Selected workload',
       category: 'iam',
     },
     {
-      id: 'MOD RESULT',
-      description: 'Successful matching directory modification result',
-      frequency: 'One per modeled modification',
+      id: 'GSSAPI BIND / RESULT',
+      description: 'Three rounds: op 0/1 return err 14, op 2 succeeds',
+      frequency: 'Selected workload',
       category: 'iam',
     },
     {
-      id: 'UNBIND',
-      description: 'End the selected authenticated LDAP session',
-      frequency: 'Every selected LDAP session',
-      category: 'authentication',
-    },
-    {
-      id: 'Disconnect',
-      description: 'Close the existing connection cleanly',
-      frequency: 'Every selected LDAP session',
-      category: 'network',
-    },
-    {
-      id: 'audit add: member',
-      description: 'Add a currently absent group member',
-      frequency: 'Ordinary activation and one per episode',
+      id: 'MOD / RESULT',
+      description: 'Successful changes to existing groups or SUDO rules',
+      frequency: 'Selected workload',
       category: 'iam',
     },
     {
-      id: 'audit delete: member',
-      description: 'Remove the existing group member',
-      frequency: 'Visible ordinary restoration',
+      id: 'Add / delete member LDIF',
+      description: 'Membership changes and restoration',
+      frequency: 'Selected workload',
       category: 'iam',
     },
     {
-      id: 'audit replace: cmdCategory',
-      description: 'Set all on the existing dormant SUDO rule',
-      frequency: 'Ordinary activation and one per episode',
+      id: 'Replace / delete cmdCategory LDIF',
+      description: 'SUDO activation and restoration',
+      frequency: 'Selected workload',
       category: 'iam',
     },
     {
-      id: 'audit delete: cmdCategory',
-      description: 'Delete the existing all category',
-      frequency: 'Visible ordinary restoration',
+      id: 'Replace description LDIF',
+      description: 'Ordinary policy maintenance',
+      frequency: 'Selected workload',
       category: 'iam',
     },
   ],
   realismFeatures: [
-    'The vendor SIEM guide is dated 06/10/2025 and contains 2023/2024 captures without installed build identifiers. Tagged upstream sources support selected semantics without asserting ALD package versions.',
-    'Service ticket authtime comes from an observed TGT. Fresh LDAP connections include TLS, all three GSSAPI rounds, MOD/result/audit, UNBIND and disconnect with matching actor, target and operation.',
-    'One existing group/member and enabled dormant SUDO rule use actual modeled before-state. Native rule RDN is ipauniqueid UUID; explicit allowed commands are absent before cmdCategory all.',
-    'Rights change only on successful native RESULT. Visible member/category deletion occurs after a one-hour hold; new activations stop when needed so restoration and due episodes cannot starve.',
-    'Thirty records per minute use a bounded eighteen-record LDAP trace. Access retains fractional UTC time; KDC/LDIF retain seconds, so interleaved audit timestamps may precede an access result by less than a second.',
-    'The selected map covers 38 native fields. Exact ALD build, SUDO native capture and live parser fidelity remain unconfirmed. Connection/display-name enrichment, rates and timing distributions are explicit scenario choices.',
+    'Human working hours follow UTC+03:00; service accounts continue overnight',
+    'LDAP negotiation, changes and restorations retain their request and actor relationships',
+    'Selected vendor guide profile; exact bundled versions and raw SUDO parity are unconfirmed',
   ],
+  slug: 'identity-ald-pro',
+  templateCount: 1,
+  generationModes: ['background', 'anomaly'],
+  eventCount: 9,
   parameters: [
     {
       name: 'dc_host',
@@ -206,9 +165,9 @@ export const identityAldPro: GeneratorMeta = {
   ],
   sampleOutputs: [
     {
-      title: 'Existing SUDO rule activated after successful MOD',
+      title: 'Sample output',
       json: String.raw`{
-  "@timestamp": "2026-09-27T01:05:00+00:00",
+  "@timestamp": "2026-09-20T01:03:03.401103+00:00",
   "aldpro": {
     "dirsrv": {
       "audit": {
@@ -216,13 +175,13 @@ export const identityAldPro: GeneratorMeta = {
         "attribute_operation": "replace",
         "attribute_value": "all",
         "changetype": "modify",
-        "dn": "ipauniqueid=a4a19e36-4c0c-4d2f-97aa-e7fe42aa6ae1,cn=sudorules,cn=sudo,dc=lab,dc=example",
-        "entryusn": 100084,
-        "modifiersname": "uid=helpdesk.admin,cn=users,cn=accounts,dc=lab,dc=example",
-        "modifytimestamp": "20260927010500Z",
-        "object_name": "maintenance",
+        "dn": "ipauniqueid=a4a19e36-4c0c-4d2f-97aa-e7fe42aa6ae4,cn=sudorules,cn=sudo,dc=lab,dc=example",
+        "entryusn": 100002,
+        "modifiersname": "uid=directory.admin,cn=users,cn=accounts,dc=lab,dc=example",
+        "modifytimestamp": "20260920010303Z",
+        "object_name": "operations-3",
         "result": 0,
-        "time": "20260927010500"
+        "time": "20260920040303"
       }
     }
   },
@@ -237,7 +196,7 @@ export const identityAldPro: GeneratorMeta = {
     "dataset": "aldpro.dirsrv_audit",
     "kind": "event",
     "module": "aldpro",
-    "original": "time: 20260927010500\ndn: ipauniqueid=a4a19e36-4c0c-4d2f-97aa-e7fe42aa6ae1,cn=sudorules,cn=sudo,dc=lab,dc=example\nresult: 0\nchangetype: modify\nreplace: cmdCategory\ncmdCategory: all\n-\nreplace: modifiersname\nmodifiersname: uid=helpdesk.admin,cn=users,cn=accounts,dc=lab,dc=example\n-\nreplace: modifytimestamp\nmodifytimestamp: 20260927010500Z\n-\nreplace: entryusn\nentryusn: 100084\n-\n\n",
+    "original": "time: 20260920040303\ndn: ipauniqueid=a4a19e36-4c0c-4d2f-97aa-e7fe42aa6ae4,cn=sudorules,cn=sudo,dc=lab,dc=example\nresult: 0\nchangetype: modify\nreplace: cmdCategory\ncmdCategory: all\n-\nreplace: modifiersname\nmodifiersname: uid=directory.admin,cn=users,cn=accounts,dc=lab,dc=example\n-\nreplace: modifytimestamp\nmodifytimestamp: 20260920010303Z\n-\nreplace: entryusn\nentryusn: 100002\n-\n\n",
     "outcome": "success",
     "type": [
       "change"
@@ -251,15 +210,18 @@ export const identityAldPro: GeneratorMeta = {
       "path": "/var/log/dirsrv/slapd-LAB-EXAMPLE/audit"
     }
   },
-  "message": "time: 20260927010500\ndn: ipauniqueid=a4a19e36-4c0c-4d2f-97aa-e7fe42aa6ae1,cn=sudorules,cn=sudo,dc=lab,dc=example\nresult: 0\nchangetype: modify\nreplace: cmdCategory\ncmdCategory: all\n-\nreplace: modifiersname\nmodifiersname: uid=helpdesk.admin,cn=users,cn=accounts,dc=lab,dc=example\n-\nreplace: modifytimestamp\nmodifytimestamp: 20260927010500Z\n-\nreplace: entryusn\nentryusn: 100084\n-\n\n",
+  "message": "time: 20260920040303\ndn: ipauniqueid=a4a19e36-4c0c-4d2f-97aa-e7fe42aa6ae4,cn=sudorules,cn=sudo,dc=lab,dc=example\nresult: 0\nchangetype: modify\nreplace: cmdCategory\ncmdCategory: all\n-\nreplace: modifiersname\nmodifiersname: uid=directory.admin,cn=users,cn=accounts,dc=lab,dc=example\n-\nreplace: modifytimestamp\nmodifytimestamp: 20260920010303Z\n-\nreplace: entryusn\nentryusn: 100002\n-\n\n",
   "related": {
     "user": [
-      "helpdesk.admin"
+      "directory.admin"
     ]
+  },
+  "source": {
+    "ip": "10.20.4.22"
   },
   "user": {
     "domain": "LAB.EXAMPLE",
-    "name": "helpdesk.admin"
+    "name": "directory.admin"
   }
 }`,
     },

@@ -144,6 +144,7 @@ import { windowsGroupPolicyOperational } from './generators/windows-group-policy
 import { windowsPowershell } from './generators/windows-powershell';
 import { windowsRdpSessionOperational } from './generators/windows-rdp-session-operational';
 import { windowsSecurity } from './generators/windows-security';
+import { windowsServiceControlManager } from './generators/windows-service-control-manager';
 import { windowsSysmon } from './generators/windows-sysmon';
 import { windowsTaskSchedulerOperational } from './generators/windows-task-scheduler-operational';
 import type { GeneratorMeta } from '@/lib/hub-types';
@@ -254,6 +255,7 @@ export const generators: GeneratorMeta[] = [
   securitySophosCentral,
   windowsAppLocker,
   windowsGroupPolicyOperational,
+  windowsServiceControlManager,
   windowsTaskSchedulerOperational,
   windowsRdpSessionOperational,
   virtualizationVmwareEsxiHostd,

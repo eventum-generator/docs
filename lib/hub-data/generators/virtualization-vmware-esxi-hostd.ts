@@ -1,143 +1,95 @@
 import type { GeneratorMeta } from '@/lib/hub-types';
 
 export const virtualizationVmwareEsxiHostd: GeneratorMeta = {
-  slug: 'virtualization-vmware-esxi-hostd',
   displayName: 'VMware ESXi hostd logs',
   category: 'virtualization',
   description:
-    'ESXi hostd local logs with API logins and a completed maintenance task.',
+    'ESXi 8 hostd authentication and VM tasks from one host, four administrators and two automated API clients. Native messages sit inside a custom ECS wrapper.',
   dataSource: 'VMware ESXi hostd.log',
-  format: ['JSON', 'ECS', 'hostd log'],
-  eventCount: 7,
-  templateCount: 1,
+  format: ['JSON', 'ECS'],
   highlights: [
-    'Native hostd Originator@6876 envelope',
-    'Unique task and operation IDs per maintenance cycle',
-    'Sequential host-mode messages and successful task completion',
+    'Native hostd messages with numeric VM task identifiers',
+    'About 3,300 records/day with administrator working hours',
+    'VM power cycles return to the running state after about 5-15 minutes',
   ],
-  generationModes: ['background', 'anomaly'],
   anomalyChain:
-    'Backup service account creates a host maintenance task that reaches successful completion.',
-  generatorId: 'esxi',
+    'For one user/address, three rejected passwords, a login and a VM power-off request within 30 minutes. First start within min(interval,24h), favouring work hours; later starts within +/-min(interval/4,6h)/2 around the previous actual start plus interval, with a short record-time delay. Administrator and VM rotate.',
+  generatorId: 'esxi-hostd',
   eventTypes: [
     {
       id: 'login',
-      description: 'Host API login',
-      frequency: '55% baseline',
+      description: 'API login',
+      frequency: '48.44%',
       category: 'authentication',
     },
     {
       id: 'logout',
-      description: 'Host API logout',
-      frequency: '45% baseline',
+      description: 'API logout',
+      frequency: '48.44%',
       category: 'authentication',
     },
     {
-      id: 'task-created',
-      description: 'Enter-maintenance task created',
-      frequency: 'Chain only',
-      category: 'configuration',
+      id: 'auth-failed',
+      description: 'Rejected password',
+      frequency: '1.18%',
+      category: 'authentication',
     },
     {
-      id: 'maintenance-begin',
-      description: 'Host begins entering maintenance',
-      frequency: 'Chain only',
-      category: 'configuration',
-    },
-    {
-      id: 'maintenance-started',
-      description: 'User-attributed maintenance starts',
-      frequency: 'Chain only',
-      category: 'configuration',
-    },
-    {
-      id: 'maintenance-entered',
-      description: 'Host enters maintenance',
-      frequency: 'Chain only',
+      id: 'vm-snapshot-request',
+      description: 'VM snapshot task',
+      frequency: '0.71%',
       category: 'configuration',
     },
     {
       id: 'task-completed',
-      description: 'Enter-maintenance task succeeds',
-      frequency: 'Chain only',
+      description: 'Task completed successfully',
+      frequency: '0.97%',
+      category: 'configuration',
+    },
+    {
+      id: 'vm-poweroff-request',
+      description: 'VM power-off task',
+      frequency: '0.13%',
+      category: 'configuration',
+    },
+    {
+      id: 'vm-poweron-request',
+      description: 'VM power-on task',
+      frequency: '0.13%',
       category: 'configuration',
     },
   ],
   realismFeatures: [
-    'Native hostd Originator@6876 envelope',
-    'Unique task and operation IDs per maintenance cycle',
-    'Sequential host-mode messages and successful task completion',
+    'Independent API sessions with shared account attempt limits',
+    'Ordinary and episode VMs use the same restoration timing',
+    'Selected native lines only; PAM diagnostics, snapshot cleanup and most subsystems are omitted',
+    'ECS and vmware.esxi are a custom mapping; live parser compatibility is unverified',
   ],
+  slug: 'virtualization-vmware-esxi-hostd',
+  templateCount: 1,
+  generationModes: ['background', 'anomaly'],
+  eventCount: 7,
   parameters: [
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description: 'Include the maintenance-task sequence',
+      description: 'Include recurring complete chains.',
+    },
+    {
+      name: 'anomaly_interval_hours',
+      defaultValue: '24',
+      description: 'Recurrence interval, 2-8760 hours.',
     },
     {
       name: 'host_name',
       defaultValue: 'esx-04.example.test',
-      description: 'ESXi host',
-    },
-    {
-      name: 'datacenter_name',
-      defaultValue: 'dc-east',
-      description: 'Datacenter in maintenance event',
-    },
-    {
-      name: 'maintenance_actor',
-      defaultValue: String.raw`vpxuser:CORP\svc-backup`,
-      description: 'Actor in the maintenance task',
+      description: 'ESXi host name.',
     },
   ],
   sampleOutputs: [
     {
-      title: 'Example task-created',
-      json: String.raw`{
-  "@timestamp": "2026-09-25T12:58:44+00:00",
-  "ecs": {
-    "version": "8.17.0"
-  },
-  "event": {
-    "action": "task-created",
-    "category": [
-      "configuration"
-    ],
-    "kind": "event",
-    "original": "2026-09-25T12:58:44.000Z In(166) Hostd[2101270]: [Originator@6876 sub=Vimsvc.TaskManager opID=a51bb486-3b41-42eb-a394-22ac9e452c6f-6a-a-615a sid=8c327895 user=vpxuser:CORP\\svc-backup] Task Created : haTask-ha-host-vim.HostSystem.enterMaintenanceMode-17044002",
-    "type": [
-      "change"
-    ]
-  },
-  "host": {
-    "name": "esx-04.example.test"
-  },
-  "log": {
-    "file": {
-      "path": "/var/run/log/hostd.log"
-    },
-    "level": "info"
-  },
-  "process": {
-    "name": "Hostd",
-    "pid": 2101270
-  },
-  "related": {
-    "user": [
-      "vpxuser:CORP\\svc-backup"
-    ]
-  },
-  "vmware": {
-    "esxi": {
-      "actor": "vpxuser:CORP\\svc-backup",
-      "message": "Task Created : haTask-ha-host-vim.HostSystem.enterMaintenanceMode-17044002",
-      "operation_id": "a51bb486-3b41-42eb-a394-22ac9e452c6f-6a-a-615a",
-      "session_id": "8c327895",
-      "subsystem": "Vimsvc.TaskManager",
-      "task_id": "haTask-ha-host-vim.HostSystem.enterMaintenanceMode-17044002"
-    }
-  }
-}`,
+      title: 'Sample output',
+      json: String.raw`{"@timestamp": "2026-09-21T00:02:39.760Z", "ecs": {"version": "8.17.0"}, "event": {"action": "login", "category": ["authentication"], "kind": "event", "original": "2026-09-21T00:02:39.760Z In(166) Hostd[2103838]: [Originator@6876 sub=Vimsvc.ha-eventmgr opID=esxui-e3e6-d1bf sid=7926f1f1] Event 6549 : User svc-backup@10.20.2.32 logged in as pyvmomi Python/3.8.18 (VMkernel; 8.0.2; x86_64)", "outcome": "success", "type": ["start"]}, "host": {"name": "esx-04.example.test"}, "log": {"file": {"path": "/var/run/log/hostd.log"}, "level": "info"}, "process": {"name": "Hostd", "pid": 2103838}, "related": {"ip": ["10.20.2.32"], "user": ["svc-backup"]}, "source": {"ip": "10.20.2.32"}, "user": {"name": "svc-backup"}, "vmware": {"esxi": {"client_agent": "pyvmomi Python/3.8.18 (VMkernel; 8.0.2; x86_64)", "message": "Event 6549 : User svc-backup@10.20.2.32 logged in as pyvmomi Python/3.8.18 (VMkernel; 8.0.2; x86_64)", "subsystem": "Vimsvc.ha-eventmgr"}}}`,
     },
   ],
 };

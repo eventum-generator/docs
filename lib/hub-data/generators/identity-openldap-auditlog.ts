@@ -1,147 +1,101 @@
 import type { GeneratorMeta } from '@/lib/hub-types';
 
 export const identityOpenldapAuditlog: GeneratorMeta = {
-  slug: 'identity-openldap-auditlog',
-  displayName: 'OpenLDAP 2.6.15 auditlog LDIF',
+  displayName: 'OpenLDAP auditlog',
   category: 'identity',
-  dataSource: 'OpenLDAP 2.6.15 slapo-auditlog file records',
   description:
-    'Successful add and modify operations as multiline LDIF with routine directory changes and recurring privileged-account episodes.',
-  generatorId: 'openldap-auditlog',
-  eventCount: 4,
-  templateCount: 1,
+    'About 1,980 successful directory changes per day, with native multiline LDIF and a custom ECS wrapper.',
+  dataSource: 'OpenLDAP 2.6.15 slapo-auditlog',
+  format: ['JSON', 'ECS'],
   highlights: [
-    'Native multiline LDIF preserved in event.original',
-    'One-minute routine directory changes from three administrators',
-    'Recurring service-account, group-membership and password sequence',
+    'Three administrators and ordinary provisioning throughout the day',
+    'Temporary accounts and their memberships expire after two to four hours',
   ],
   anomalyChain:
-    'Every two hours by default, one actor creates a fresh service account, adds it to the privileged group and replaces its password in adjacent records.',
+    'One administrator/address creates an account, adds it to directory-admins and replaces its password within 15 minutes. Default recurrence is two hours; actors rotate. First start is within min(interval,24h), weighted by daily activity. Later starts fall within +/-min(interval/4,6h)/2 of the preceding actual start plus interval.',
+  generatorId: 'openldap',
   eventTypes: [
     {
-      id: 'modify person attribute',
-      description: 'Description, phone, title or address update',
-      frequency: '88% background selection weight',
+      id: 'modify:attributes',
+      description: 'Person description, telephone, title or mail',
+      frequency: 'About 86%',
       category: 'iam',
     },
     {
-      id: 'modify userPassword',
-      description: 'Routine password rotation',
-      frequency: '5% background selection weight',
+      id: 'modify:userPassword',
+      description: 'Password replacement',
+      frequency: 'About 5%',
       category: 'iam',
     },
     {
-      id: 'modify group member',
-      description: 'Group membership add or delete',
-      frequency: '5% background selection weight',
+      id: 'modify:member',
+      description: 'Group membership addition or removal',
+      frequency: 'About 6%',
       category: 'iam',
     },
     {
-      id: 'add person',
-      description: 'New service account',
-      frequency: '2% background selection weight',
+      id: 'add',
+      description: 'Temporary service account creation',
+      frequency: 'About 2%',
+      category: 'iam',
+    },
+    {
+      id: 'delete',
+      description: 'Expired service account deletion',
+      frequency: 'About 2%',
       category: 'iam',
     },
   ],
   realismFeatures: [
-    'Native add/modify LDIF includes source header, changed attributes, operational fields, matching end comment and blank separator.',
-    'Routine account creation, privileged-group edits and password changes overlap with the linked episodes; each episode target DN differs.',
-    'The auditlog overlay records successful writes, not binds or searches; native multiline collection and exact daemon output still need live verification.',
+    'Three administrators and ordinary provisioning throughout the day',
+    'Temporary accounts and their memberships expire after two to four hours',
+    'Bind, search and failed-operation logs are outside this feed',
   ],
-  format: ['JSON', 'ECS', 'LDIF'],
+  slug: 'identity-openldap-auditlog',
+  templateCount: 1,
   generationModes: ['background', 'anomaly'],
+  eventCount: 5,
   parameters: [
     {
       name: 'anomaly_mode',
       defaultValue: 'true',
-      description: 'Include recurring three-record episodes',
+      description: 'Include recurring linked sequences',
     },
     {
       name: 'anomaly_interval_hours',
       defaultValue: '2',
-      description: 'Hours between episode starts',
+      description: 'Recurrence in hours, minimum 1',
     },
     {
       name: 'host_name',
       defaultValue: 'ldap01.corp.example',
-      description: 'Directory server host',
+      description: 'Directory server hostname',
     },
     {
       name: 'base_dn',
       defaultValue: 'dc=corp,dc=example',
-      description: 'Backend suffix for native header and DNs',
+      description: 'Directory suffix',
     },
     {
       name: 'operator_dn',
       defaultValue: 'uid=svc-maint,ou=People,dc=corp,dc=example',
-      description: 'Bound administrator in routine and episode activity',
+      description: 'Maintenance administrator DN',
     },
     {
       name: 'backdoor_uid',
       defaultValue: 'svc-backup',
-      description: 'Service-account prefix in both modes',
+      description: 'One account prefix shared by ordinary work and episodes',
     },
     {
       name: 'privileged_group',
       defaultValue: 'directory-admins',
-      description: 'Existing group modified in both modes',
+      description: 'Existing privileged group',
     },
   ],
   sampleOutputs: [
     {
-      title: 'OpenLDAP 2.6.15 auditlog LDIF change',
-      json: String.raw`{
-  "@timestamp": "2026-09-25T02:02:00+00:00",
-  "ecs": {
-    "version": "8.17.0"
-  },
-  "event": {
-    "action": "ldap-modify",
-    "category": [
-      "iam"
-    ],
-    "kind": "event",
-    "original": "# modify 1790301720 dc=corp,dc=example uid=svc-maint,ou=People,dc=corp,dc=example IP=10.24.1.11:52111 conn=1002\ndn: cn=directory-admins,ou=Groups,dc=corp,dc=example\nchangetype: modify\nadd: member\nmember: uid=svc-backup-000003,ou=People,dc=corp,dc=example\n-\nreplace: entryCSN\nentryCSN: 20260925020200.000000Z#000123#000#000000\n-\nreplace: modifiersName\nmodifiersName: uid=svc-maint,ou=People,dc=corp,dc=example\n-\nreplace: modifyTimestamp\nmodifyTimestamp: 20260925020200Z\n-\n# end modify 1790301720\n\n",
-    "outcome": "success",
-    "type": [
-      "change"
-    ]
-  },
-  "host": {
-    "name": "ldap01.corp.example"
-  },
-  "ldap": {
-    "auditlog": {
-      "actor_dn": "uid=svc-maint,ou=People,dc=corp,dc=example",
-      "attribute": "member",
-      "base_dn": "dc=corp,dc=example",
-      "change_type": "modify",
-      "connection_id": 1002,
-      "entry_csn": "20260925020200.000000Z#000123#000#000000",
-      "operation": "add",
-      "peer_ip": "10.24.1.11",
-      "peer_port": 52111,
-      "target_dn": "cn=directory-admins,ou=Groups,dc=corp,dc=example",
-      "value": "uid=svc-backup-000003,ou=People,dc=corp,dc=example"
-    }
-  },
-  "related": {
-    "ip": [
-      "10.24.1.11"
-    ],
-    "user": [
-      "uid=svc-maint,ou=People,dc=corp,dc=example",
-      "uid=svc-backup-000003,ou=People,dc=corp,dc=example"
-    ]
-  },
-  "source": {
-    "ip": "10.24.1.11",
-    "port": 52111
-  },
-  "user": {
-    "name": "uid=svc-maint,ou=People,dc=corp,dc=example"
-  }
-}`,
+      title: 'Sample output',
+      json: String.raw`{"@timestamp": "2026-09-20T01:26:42.938437+00:00", "ecs": {"version": "8.17.0"}, "event": {"action": "ldap-add", "category": ["iam"], "kind": "event", "original": "# add 1789867602 dc=corp,dc=example uid=svc-maint,ou=People,dc=corp,dc=example IP=10.24.1.11:46066 conn=1012\ndn: uid=svc-worker-000001,ou=People,dc=corp,dc=example\nchangetype: add\nobjectClass: top\nobjectClass: person\nobjectClass: organizationalPerson\nobjectClass: inetOrgPerson\nuid: svc-worker-000001\ncn: Service Account svc-worker-000001\nsn: Service\nuserPassword: {SSHA}6W3S5Qd7mfKOi9XaQIvaLxOeyv0wMDAwMDA4Nw==\nstructuralObjectClass: inetOrgPerson\nentryUUID: 94eb35b2-ea54-4956-bd14-4f22ba691e8f\ncreatorsName: uid=svc-maint,ou=People,dc=corp,dc=example\ncreateTimestamp: 20260920012642Z\nentryCSN: 20260920012642.938437Z#000000#000#000000\nmodifiersName: uid=svc-maint,ou=People,dc=corp,dc=example\nmodifyTimestamp: 20260920012642Z\n# end add 1789867602\n\n", "outcome": "success", "type": ["creation"]}, "host": {"name": "ldap01.corp.example"}, "ldap": {"auditlog": {"actor_dn": "uid=svc-maint,ou=People,dc=corp,dc=example", "attribute": "uid", "base_dn": "dc=corp,dc=example", "change_type": "add", "connection_id": 1012, "entry_csn": "20260920012642.938437Z#000000#000#000000", "operation": null, "peer_ip": "10.24.1.11", "peer_port": 46066, "target_dn": "uid=svc-worker-000001,ou=People,dc=corp,dc=example", "value": "svc-worker-000001"}}, "related": {"ip": ["10.24.1.11"], "user": ["uid=svc-maint,ou=People,dc=corp,dc=example", "uid=svc-worker-000001,ou=People,dc=corp,dc=example"]}, "source": {"ip": "10.24.1.11", "port": 46066}, "user": {"name": "uid=svc-maint,ou=People,dc=corp,dc=example"}}`,
     },
   ],
 };

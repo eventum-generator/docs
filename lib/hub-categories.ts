@@ -174,6 +174,7 @@ export function getCategoryForSlug(slug: string): CategoryId {
     'windows-applocker': 'endpoint',
     'windows-group-policy-operational': 'endpoint',
     'windows-task-scheduler-operational': 'endpoint',
+    'windows-service-control-manager': 'endpoint',
     'windows-rdp-session-operational': 'identity',
     'virtualization-vmware-esxi-hostd': 'virtualization',
     'virtualization-microsoft-hyperv-vmms': 'virtualization',
