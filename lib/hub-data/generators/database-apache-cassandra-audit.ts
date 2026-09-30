@@ -9,7 +9,8 @@ export const databaseApacheCassandraAudit: GeneratorMeta = {
     'Apache Cassandra 4.1 FileAuditLogger records from one node for SIEM engineers who build database access and role-management detections, as ECS JSON with the raw log line in event.original and the pipe-delimited audit entry in message. About 38,000 records a day from applications, analysts, DBAs and DBA-created roles on UTC working hours. Recurring episodes show a DBA account creating a short-lived role that reads finance.payroll and is then dropped.',
   dataSource:
     'Apache Cassandra 4.1 FileAuditLogger, audit/audit.log in the shipped logback audit appender pattern',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   eventCount: 17,
   templateCount: 1,
   highlights: [

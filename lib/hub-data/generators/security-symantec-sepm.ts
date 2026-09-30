@@ -8,7 +8,8 @@ export const securitySymantecSepm: GeneratorMeta = {
     'Symantec Endpoint Protection Manager (SEPM) 14.3 external-log records of one SEPM server: the comma-delimited Administrative, Policy and Agent Activity payloads SEPM sends to a syslog server, kept verbatim in event.original in the labelled layout of the Elastic symantec_endpoint fixtures, with the rest of the document following that integration. For teams that test SIEM parsing and detection. About 9,500 records a day from 60 clients and 12 administrators follow the working day in UTC. Recurring episodes show one administrator failing to log on several times, then succeeding and editing the same shared policy twice, reverting the change.',
   dataSource:
     'Symantec Endpoint Protection Manager 14.3 external logging: Administrative, Policy and Agent Activity payloads, without the syslog envelope',
-  format: ['JSON', 'ECS', 'KV'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'KV',
   eventCount: 7,
   templateCount: 1,
   highlights: [

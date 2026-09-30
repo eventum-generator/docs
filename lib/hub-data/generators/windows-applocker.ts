@@ -8,7 +8,8 @@ export const windowsAppLocker: GeneratorMeta = {
     'Microsoft-Windows-AppLocker records from the EXE and DLL and MSI and Script channels as Winlogbeat-style ECS JSON with the raw event XML in event.original. About 9,250 records a day from 18 workstations and two administrators follow a working day in UTC. Signed binaries from Program Files, System32 and the corporate app folder are allowed, executables and scripts from user-writable folders are blocked, and three hosts audit scripts only. Recurring episodes show a blocked executable, a blocked script and an allowed proxy-binary launch in one logon session.',
   dataSource:
     'Microsoft-Windows-AppLocker, EXE and DLL and MSI and Script channels (8002-8007)',
-  format: ['JSON', 'ECS', 'XML'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'XML',
   eventCount: 5,
   templateCount: 1,
   generatorId: 'windows-applocker',

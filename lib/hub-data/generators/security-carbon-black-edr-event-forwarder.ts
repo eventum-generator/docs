@@ -6,7 +6,8 @@ export const securityCarbonBlackEdrEventForwarder: GeneratorMeta = {
   description:
     'About 9,840 records/day from ten workstations and two automation servers, with legacy ingress JSON and selected Elastic normalization.',
   dataSource: 'Legacy Carbon Black EDR Event Forwarder ingress',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'JSON',
   highlights: [
     'Stable process identity and GUIDs encoding sensor, PID and creation time',
     'Temporary registry values and files are removed before process exit',

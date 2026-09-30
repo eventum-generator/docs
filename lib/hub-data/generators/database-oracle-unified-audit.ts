@@ -8,7 +8,7 @@ export const databaseOracleUnifiedAudit: GeneratorMeta = {
     'JSON rows from a defined 22-column projection of the Oracle Database 19c UNIFIED_AUDIT_TRAIL view, as a connector polling that view would deliver them, for SIEM content that correlates database logons, sensitive reads and privilege changes. Not Oracle syslog output or a native Oracle JSON export. About 8,600 rows a day: application connection pools write around the clock, five analysts and four administrators follow a UTC working day. Recurring episodes show a guessed administrator password followed by a payroll read and a payroll role grant to an analyst.',
   dataSource:
     'Oracle Database 19c UNIFIED_AUDIT_TRAIL view, 22-column projection read by a polling connector',
-  format: ['JSON'],
+  eventFormat: 'JSON',
   eventCount: 7,
   templateCount: 1,
   highlights: [

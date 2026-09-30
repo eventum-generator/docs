@@ -9,7 +9,7 @@ export const windowsDnsServerAudit: GeneratorMeta = {
     'Windows Server 2022 DNS Server Audit policy operations (577/580) and ETW Analytical query records (256/257/259) for one authoritative zone with recursion disabled, as ECS JSON in the shape the Elastic microsoft_dnsserver ingest pipeline produces. Not a Windows XML, EVTX or ETL export. Recurring episodes show an administrator creating an Ignore policy on a name they own, the policy dropping client queries, and the same administrator deleting it again within an hour.',
   dataSource:
     'Windows Server 2022 DNS Server Audit and Analytical channels, parsed by the Elastic microsoft_dnsserver pipeline',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
   eventCount: 5,
   templateCount: 1,
   highlights: [

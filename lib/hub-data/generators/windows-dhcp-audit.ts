@@ -9,7 +9,8 @@ export const windowsDhcpAudit: GeneratorMeta = {
     'Microsoft DHCP Server IPv4 audit log (DhcpSrvLog-<Day>.log, 19-column CSV) as parsed ECS JSON with the native row in event.original: lease and DNS-update traffic of 970 Windows clients in two scopes, about 12,900 rows a day with a working-day peak. Not Windows Event Log or IPv6. Recurring episodes show one laptop churning through three more addresses of its own within minutes before its last DNS registration fails.',
   dataSource:
     'Microsoft DHCP Server IPv4 audit log (DhcpSrvLog 19-column CSV), server in UTC',
-  format: ['JSON', 'ECS', 'CSV'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'CSV',
   eventCount: 6,
   templateCount: 1,
   generatorId: 'windows-dhcp-audit',

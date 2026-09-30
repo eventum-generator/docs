@@ -9,7 +9,8 @@ export const webHaproxyHttp: GeneratorMeta = {
     'HAProxy 3.2 option httplog transactions from one proxy, with the native syslog line in event.original and its values mapped to ECS. One completed request per second from 50 office workstations and a remote-access address: catalog pages, orders, cache revalidation, login sessions with occasional denied retries, no-server 503s and a large admin export. Recurring episodes show one client with four denied logins, a login redirect and the admin export within 300 seconds.',
   dataSource:
     'HAProxy 3.2 option httplog HTTP access log with a BSD-style syslog prefix',
-  format: ['JSON', 'ECS', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 7,
   templateCount: 1,
   generatorId: 'web-haproxy-http',

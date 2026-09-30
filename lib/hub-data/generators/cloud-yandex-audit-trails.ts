@@ -7,7 +7,8 @@ export const cloudYandexAuditTrails: GeneratorMeta = {
   description:
     'Yandex Cloud Audit Trails management events for one organization, cloud and folder, as ECS records with the native audit record in event.original and parsed under yandex_cloud.audit, for SIEM content that watches cloud IAM and Compute changes. Successful control-plane operations of six federated operators and a CI runner autoscaler. Recurring episodes show an operator provisioning a service account with persistent write access.',
   dataSource: 'Yandex Cloud Audit Trails management-log format (control plane)',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'JSON',
   eventCount: 8,
   templateCount: 1,
   generatorId: 'yandex-audit',

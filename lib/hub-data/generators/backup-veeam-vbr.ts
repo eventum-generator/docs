@@ -8,7 +8,8 @@ export const backupVeeamVbr: GeneratorMeta = {
   description:
     'Veeam Backup & Replication 13.1 syslog records for one backup server: nightly and ad-hoc backup job sessions over 400 VMs, restore point creation and retention, web UI logons of a sixteen-person backup team, manual point removals and one planned repository retirement, as ECS JSON with the native syslog record in event.original. Recurring episodes show a Backup Administrator granted access after repeated denials and then removing a restore point.',
   dataSource: 'Veeam Backup & Replication 13.1 (build 13.1.1.18) event syslog',
-  format: ['JSON', 'ECS', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 7,
   templateCount: 1,
   highlights: [

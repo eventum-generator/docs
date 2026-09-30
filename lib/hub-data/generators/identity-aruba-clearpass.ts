@@ -8,7 +8,8 @@ export const identityArubaClearpass: GeneratorMeta = {
   description:
     'ClearPass 6.11 administrative audit records in ECS JSON, with a ClearPass-like RFC 5424 syslog message in event.original, for testing detections on administrator logins and configuration changes. About 300 records a day from twelve administrators on a UTC working-day curve. Recurring episodes show a guessed administrator password followed by weakened logging and a new SSH key.',
   dataSource: 'ClearPass 6.11 Audit Records with RFC 5424 explicitly selected',
-  format: ['JSON', 'ECS', 'RFC 5424'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 6,
   templateCount: 1,
   highlights: [

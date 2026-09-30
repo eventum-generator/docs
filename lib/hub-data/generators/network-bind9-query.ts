@@ -9,7 +9,8 @@ export const networkBind9Query: GeneratorMeta = {
     'ISC BIND 9.18 queries category records from one recursive resolver serving 24 internal clients (4 servers and 20 workstations), as native named query-log lines in event.original with ECS fields parsed from them, for DNS monitoring and DNS-exfiltration detection testing. About 12,900 queries a day: servers query around the clock, workstations follow nine-hour working shifts in UTC. Recurring episodes show one workstation sending eight TXT queries with distinct high-entropy labels to one tunnel zone within a few minutes.',
   dataSource:
     'ISC BIND 9.18 named queries category, file channel with print-time iso8601-utc, print-category and print-severity',
-  format: ['JSON', 'ECS', 'Text'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   eventCount: 8,
   templateCount: 1,
   highlights: [

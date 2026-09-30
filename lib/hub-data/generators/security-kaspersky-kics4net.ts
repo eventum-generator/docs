@@ -9,7 +9,8 @@ export const securityKasperskyKics4net: GeneratorMeta = {
     "Kaspersky Industrial CyberSecurity for Networks 4.2 Asset Management events for new devices and address changes, and Intrusion Detection events for ARP spoofing signs, in an industrial (OT) plant network. Each record follows the EventMessage structure KICS sends to a SIEM in CEF; Eventum writes ECS JSON with the CEF line in event.original. About 690 records a day from 60 known devices and 54 transient laptops follow the plant's working day in UTC. For SIEM detection engineering and parser testing. Recurring episodes show a commissioning laptop taking over the address of an existing device.",
   dataSource:
     'Kaspersky Industrial CyberSecurity for Networks 4.2 EventMessage forwarded to a SIEM in CEF',
-  format: ['JSON', 'ECS', 'CEF'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'CEF',
   eventCount: 8,
   templateCount: 1,
   highlights: [

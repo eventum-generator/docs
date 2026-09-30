@@ -8,7 +8,8 @@ export const cloudNetskopeCasb: GeneratorMeta = {
     'Netskope tenant application events and admin audit events as delivered to a SIEM by the Cloud Exchange Log Shipper Syslog plugin v4.1.x in CEF with its default mapping, as native syslog lines in event.original with ECS and netskope.* fields. Sixty staff, six of them tenant admins, use a few cloud-storage, collaboration and CRM apps from an office or home egress address; about 4,700 events a day follow the working day in UTC. Recurring episodes show a tenant admin deleting an inline policy and then downloading a batch of files from a cloud-storage app.',
   dataSource:
     'Netskope Cloud Exchange Log Shipper Syslog plugin v4.1.x, CEF with the default mapping',
-  format: ['JSON', 'ECS', 'CEF', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'CEF',
   eventCount: 14,
   templateCount: 1,
   highlights: [

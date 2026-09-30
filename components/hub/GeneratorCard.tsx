@@ -39,14 +39,21 @@ export function GeneratorCard({ generator, index }: GeneratorCardProps) {
         >
           {category?.name}
         </span>
-        {generator.format.map((tag) => (
+        <span
+          className="inline-flex items-center rounded-full border border-fd-border/40 px-2 py-0.5 text-xs text-fd-muted-foreground/60 cursor-help"
+          title="Structure of the generated event"
+        >
+          {generator.eventFormat}
+        </span>
+        {generator.originalFormat && (
           <span
-            key={tag}
-            className="inline-flex items-center rounded-full border border-fd-border/40 px-2 py-0.5 text-xs text-fd-muted-foreground/60"
+            className="inline-flex items-center gap-1 rounded-full border border-dashed border-fd-border/40 px-2 py-0.5 text-xs text-fd-muted-foreground/60 cursor-help"
+            title={`The event keeps the native ${generator.originalFormat} record in event.original`}
           >
-            {tag}
+            <span className="opacity-60">original</span>
+            {generator.originalFormat}
           </span>
-        ))}
+        )}
         <span className="ml-auto inline-flex items-center gap-1">
           {modes.includes('background') && (
             <span

@@ -6,7 +6,8 @@ export const virtualizationProxmoxVe: GeneratorMeta = {
   description:
     'About 12,240 records/day from one node, twelve VMs, administrators, automation accounts and an API-token monitor.',
   dataSource: 'Proxmox VE 7.x pveproxy and pveam logs',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   highlights: [
     'Human office hours and independent continuous monitoring',
     'VMs return to the running state on the ordinary restoration schedule',

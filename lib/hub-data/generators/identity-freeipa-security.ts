@@ -9,7 +9,8 @@ export const identityFreeipaSecurity: GeneratorMeta = {
     "Security log of the 389 Directory Server of one FreeIPA server as ECS JSON, for SIEM content on LDAP password guessing, account misuse and authorization errors. event.original holds the native record byte for byte as 389-ds-base serialises it: simple and anonymous binds and their failures, authorization errors and TCP errors from 200 users through six LDAP-authenticating applications, their lookup accounts, Directory Manager, disabled accounts and stray clients, with FreeIPA's default lockout on user accounts; SASL/GSSAPI binds are not written to this log. Recurring episodes show five wrong passwords for one user through one application, then a success.",
   dataSource:
     '389 Directory Server security log (/var/log/dirsrv/slapd-<REALM>/security) of one FreeIPA server, layout from the 389-ds-base main-branch source',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'JSON',
   eventCount: 13,
   templateCount: 1,
   highlights: [

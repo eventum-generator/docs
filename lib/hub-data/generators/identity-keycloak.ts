@@ -9,7 +9,8 @@ export const identityKeycloak: GeneratorMeta = {
     'Keycloak 26.7.4 jboss-logging user and admin event lines for one realm with 1,500 users and 5 administrators, as native text in event.original with keycloak.*, user.*, source.* and url.* fields following the Elastic keycloak.log pipeline. Recurring episodes show one administrator failing five to eight logins from a VPN egress address, then logging in to the admin console and granting a privileged realm role.',
   dataSource:
     'Keycloak 26.7.4 jboss-logging event listener (user and admin events, success level INFO, representations included), as collected by Elastic Agent',
-  format: ['JSON', 'ECS', 'Text'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   eventCount: 6,
   templateCount: 1,
   highlights: [

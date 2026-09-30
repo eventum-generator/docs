@@ -8,7 +8,8 @@ export const networkStormshieldSns: GeneratorMeta = {
     'Stormshield Network Security (SNS v4) audit records of one firewall separating office workstations from a server segment: IPS alarm 85 (interactive connection detected) from l_alarm and closed-connection records from l_connection, as ECS JSON with the native WELF key-value body in event.original. About 6,000 records a day follow an office day in UTC. Recurring episodes show one admin workstation opening interactive SSH sessions to three different servers, then pulling a bulk SSH transfer of 100 MiB or more.',
   dataSource:
     'Stormshield SNS v4 l_alarm and l_connection audit logs, WELF body as forwarded over syslog',
-  format: ['JSON', 'ECS', 'KV'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'KV',
   eventCount: 5,
   templateCount: 1,
   highlights: [

@@ -6,7 +6,8 @@ export const windowsServiceControlManager: GeneratorMeta = {
   description:
     'About 7,500 selected System-channel records/day from 18 workstations and six servers, with rendered native XML and ECS fields.',
   dataSource: 'Windows System Service Control Manager',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'XML',
   highlights: [
     'Service runs, installation, start-type changes and unexpected termination',
     'One deployment per package across the fleet, with a 30-minute cooldown before that package is redeployed',

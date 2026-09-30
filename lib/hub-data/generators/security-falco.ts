@@ -9,7 +9,8 @@ export const securityFalco: GeneratorMeta = {
     'Synthetic Falco 0.45.0 syscall alerts under stable rules 5.2.0, as JSON file output with explicitly configured extra fields, from 50 Kubernetes node sensors and 500 persistent application containers. Covers three standard rules, not Kubernetes audit-plugin events or Sysdig Secure incidents. Recurring episodes show an interactive shell whose children read /etc/shadow and query Kubernetes API discovery.',
   dataSource:
     'Falco 0.45.0 syscall JSON file output, stable rules 5.2.0, selected append_output',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'JSON',
   eventCount: 4,
   templateCount: 2,
   highlights: [

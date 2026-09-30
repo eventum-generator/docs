@@ -8,7 +8,8 @@ export const securityCiscoFmcAudit: GeneratorMeta = {
     'Cisco Secure Firewall Management Center (FMC) 7.4 audit Syslog records as ECS JSON for 24 administrator accounts: web-interface page views, network object creation, NAT policy saves and the system pre-deploy task records that follow a save. The FMC-originating line is kept verbatim in event.original, in the forms of Cisco TechNote 221019. About 1,250 records a day follow a working day in UTC. Recurring episodes show one account creating a network object, saving a NAT policy and saving the same policy again soon after.',
   dataSource:
     'Cisco Secure Firewall Management Center 7.4 audit Syslog, FMC-originating line',
-  format: ['JSON', 'ECS', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 7,
   templateCount: 1,
   highlights: [

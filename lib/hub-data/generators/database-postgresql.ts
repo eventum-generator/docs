@@ -6,7 +6,7 @@ export const databasePostgresql: GeneratorMeta = {
   category: 'database',
   description:
     'PostgreSQL with pgAudit — SELECT/INSERT/UPDATE/DELETE queries with parameterized statements, connection lifecycle, authentication failures, DDL operations, role management (GRANT/REVOKE), and database errors (deadlocks, constraint violations).',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
   dataSource: 'PostgreSQL CSV logs + pgAudit',
   eventCount: 10,
   templateCount: 10,

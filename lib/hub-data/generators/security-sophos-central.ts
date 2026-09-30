@@ -8,7 +8,8 @@ export const securitySophosCentral: GeneratorMeta = {
     'Sophos Central endpoint events in the CEF that the Sophos Central SIEM Integration script (siem.py 2.1.0) writes from the SIEM API events endpoint, as ECS JSON with the CEF line in event.original. About 640 events a day from 74 endpoints, mostly update checks, web control blocks, peripheral alerts and scheduled scans, with a normal malware and PUA baseline concentrated on three busy endpoints. Recurring episodes show malware on one endpoint that survives a failed cleanup, is detected again and is then cleaned up.',
   dataSource:
     'Sophos Central SIEM Integration siem.py 2.1.0, format cef, events endpoint (/siem/v1/events)',
-  format: ['JSON', 'ECS', 'CEF'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'CEF',
   eventCount: 11,
   templateCount: 1,
   highlights: [

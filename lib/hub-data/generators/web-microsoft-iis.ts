@@ -9,7 +9,8 @@ export const webMicrosoftIis: GeneratorMeta = {
     'Microsoft IIS 10 W3C Extended access logs of a small intranet HTTPS site, as ECS JSON with one 15-field W3C data row in event.original. 353 clients act on their own random schedules: an uptime monitor, 340 browsing workstations and iPhones, records users and script hosts downloading exports, IT staff and a scanner. Recurring episodes from one client probe /backup/, /admin/ and /exports/ and end with an authenticated export download.',
   dataSource:
     'Microsoft IIS 10.0 W3C Extended access log, explicit 15-field profile',
-  format: ['JSON', 'ECS', 'Access log'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   eventCount: 14,
   templateCount: 1,
   highlights: [

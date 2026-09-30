@@ -9,7 +9,8 @@ export const securityHashicorpVault: GeneratorMeta = {
     'Selected HashiCorp Vault v1.18.0 file-audit profile: linked request and response entries for KV v2 reads and lists, token self-lookup and renewal, and denied audit-device deletion, with the native audit JSON in event.original inside ECS-compatible JSON. Recurring episodes have one existing identity read ten distinct payroll secrets, then attempt to delete the audit device.',
   dataSource:
     'HashiCorp Vault v1.18.0 file audit device (JSON), KV secrets plugin v0.20.0',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'JSON',
   eventCount: 6,
   templateCount: 3,
   highlights: [

@@ -1,9 +1,80 @@
 'use client';
 
-import { useState } from 'react';
 import { Check, ChevronDown, ChevronRight, Copy } from 'lucide-react';
+import { useState } from 'react';
 
 import type { SampleOutput as SampleOutputType } from '@/lib/hub-types';
+
+/** End index (exclusive) of the JSON string starting at `start`. */
+function stringEnd(json: string, start: number): number {
+  let pos = start + 1;
+  while (pos < json.length && json[pos] !== '"') {
+    pos += json[pos] === '\\' ? 2 : 1;
+  }
+  return pos + 1;
+}
+
+/** Index of the next character after `start` that is not whitespace. */
+function nextToken(json: string, start: number): number {
+  let pos = start;
+  while (pos < json.length && /\s/.test(json[pos])) pos++;
+  return pos;
+}
+
+/**
+ * Indent a JSON document by its structure without re-parsing values, so
+ * long numbers and escape sequences stay exactly as written.
+ */
+function prettyJson(json: string, indent = '  '): string {
+  let out = '';
+  let depth = 0;
+  let pos = 0;
+  const newline = () => '\n' + indent.repeat(depth);
+
+  while (pos < json.length) {
+    const ch = json[pos];
+    let next = pos + 1;
+    switch (ch) {
+      case '"': {
+        next = stringEnd(json, pos);
+        out += json.slice(pos, next);
+        break;
+      }
+      case '{':
+      case '[': {
+        const close = ch === '{' ? '}' : ']';
+        const after = nextToken(json, pos + 1);
+        if (json[after] === close) {
+          out += ch + close;
+          next = after + 1;
+        } else {
+          depth++;
+          out += ch + newline();
+        }
+        break;
+      }
+      case '}':
+      case ']': {
+        depth--;
+        out += newline() + ch;
+        break;
+      }
+      case ',': {
+        out += ',' + newline();
+        break;
+      }
+      case ':': {
+        out += ': ';
+        break;
+      }
+      default: {
+        if (!/\s/.test(ch)) out += ch;
+      }
+    }
+    pos = next;
+  }
+  return out;
+}
 
 function highlightJson(json: string): React.ReactNode[] {
   const tokenRegex =
@@ -24,7 +95,7 @@ function highlightJson(json: string): React.ReactNode[] {
       nodes.push(
         <span key={key++} className="text-violet-400">
           {match[1]}
-        </span>,
+        </span>
       );
       nodes.push(':');
     } else if (match[2]) {
@@ -32,28 +103,28 @@ function highlightJson(json: string): React.ReactNode[] {
       nodes.push(
         <span key={key++} className="text-emerald-400">
           {match[2]}
-        </span>,
+        </span>
       );
     } else if (match[3]) {
       // number
       nodes.push(
         <span key={key++} className="text-amber-400">
           {match[3]}
-        </span>,
+        </span>
       );
     } else if (match[4]) {
       // boolean
       nodes.push(
         <span key={key++} className="text-sky-400">
           {match[4]}
-        </span>,
+        </span>
       );
     } else if (match[5]) {
       // null
       nodes.push(
         <span key={key++} className="text-red-400">
           {match[5]}
-        </span>,
+        </span>
       );
     }
 
@@ -99,6 +170,7 @@ export function SampleOutput({ samples }: SampleOutputProps) {
     <div className="flex flex-col gap-2">
       {samples.map((sample, i) => {
         const isOpen = openIndex === i;
+        const json = prettyJson(sample.json);
         return (
           <div
             key={sample.title}
@@ -117,12 +189,12 @@ export function SampleOutput({ samples }: SampleOutputProps) {
                 )}
                 {sample.title}
               </button>
-              {isOpen && <CopyButton text={sample.json} />}
+              {isOpen && <CopyButton text={json} />}
             </div>
             {isOpen && (
               <div className="border-t border-fd-border/30 bg-fd-muted/10 p-4">
                 <pre className="overflow-x-auto text-sm leading-relaxed text-fd-muted-foreground">
-                  <code>{highlightJson(sample.json)}</code>
+                  <code>{highlightJson(json)}</code>
                 </pre>
               </div>
             )}

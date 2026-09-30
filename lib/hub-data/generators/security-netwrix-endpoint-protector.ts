@@ -8,7 +8,8 @@ export const securityNetwrixEndpointProtector: GeneratorMeta = {
     'Netwrix Endpoint Protector 5.9.4 Device Control events as sent to a SIEM in the documented Standard format with Exclude Headers on, the native body in event.original and all 26 columns in ECS JSON. For DLP and USB-control detection work: an organisation of 1,000 staff plugging approved company storage, reading and writing files, and trying personal phones or flash drives that the policy blocks, about 15,000 records a day along the head-office working day. Recurring episodes show a user whose personal phone was blocked switching to an approved company stick and copying five files to it.',
   dataSource:
     'Netwrix Endpoint Protector 5.9.4 SIEM export, Device Control log type, Standard format with Exclude Headers on',
-  format: ['JSON', 'ECS', 'KV'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'KV',
   eventCount: 6,
   templateCount: 1,
   highlights: [

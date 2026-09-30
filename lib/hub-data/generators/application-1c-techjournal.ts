@@ -8,7 +8,8 @@ export const applicationOneCTechjournal: GeneratorMeta = {
     '1C:Enterprise 8.3.27 technological-log JSON records (SCALL, CALL, TLOCK, EXCP) of one rphost process serving fourteen client and service sessions of one infobase, in an ECS envelope. About 44,000 records a day: interactive users follow a working day in UTC, background jobs keep the same pace day and night. Managed locks on document keys are granted at once, queued, or time out after 20 seconds. Recurring episodes are lock convoys: one very long posting blocks a busy document key until six distinct sessions have timed out on it within 50 minutes.',
   dataSource:
     '1C:Enterprise 8.3.27 technological log in JSON format (log.format=json), one rphost process',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'JSON',
   eventCount: 4,
   templateCount: 1,
   highlights: [

@@ -46,7 +46,8 @@ export const identityMicrosoftNps: GeneratorMeta = {
     'Background never completes the chain: a week of background holds about 157 sequences of four denials of one account and station within 300 seconds; a grant of that pair never follows inside the window, and in each of the five minutes after it 8-10% of these sequences get one, while the grant share of other accounts stays level. The slots of withheld grants stay empty, 104-143 a week in background (about 0.6% of slots), and are the only gaps in the 30-second grid.',
     'Fields follow the selected published variants, not a live NPS capture; the 6274 record comes from a PEAP deployment rather than a Wi-Fi access point. Event IDs 6275-6280, NPS operational logs and accounting files are out of scope, and actual rates and optional field values depend on Windows version, access point, authentication method and policy.',
   ],
-  format: ['JSON', 'ECS', 'XML'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'XML',
   generationModes: ['background', 'anomaly'],
   parameters: [
     {

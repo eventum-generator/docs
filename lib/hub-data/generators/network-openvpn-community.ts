@@ -8,7 +8,8 @@ export const networkOpenvpnCommunity: GeneratorMeta = {
     'Server file log of one OpenVPN 2.6.14 Community remote-access server (verb 3, UDP, certificate authentication, no --duplicate-cn) as ECS JSON with each native line verbatim in event.original: connections from the TLS initial packet to the pushed data-channel options, duplicate-CN session replacements, clean exits and ping timeouts of 800 users. About 50,000 lines a day follow an office-hours curve in UTC. Recurring episodes show one certificate used from two places at once.',
   dataSource:
     'OpenVPN 2.6.14 Community server file log (--log-append, --verb 3)',
-  format: ['JSON', 'ECS', 'Text'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   eventCount: 16,
   templateCount: 1,
   highlights: [

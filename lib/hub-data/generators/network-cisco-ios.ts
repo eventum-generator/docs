@@ -9,7 +9,8 @@ export const networkCiscoIos: GeneratorMeta = {
     'Remote TCP syslog from one Cisco IOS router as the Elastic Cisco IOS integration stores it: ACL decisions, SSH logins, configuration commands and changes, and interface line-protocol changes, with the native message in event.original. For SIEM content that correlates access-list changes with administrator logins; recurring episodes show an administrator opening a management server to their own workstation after failed logins.',
   dataSource:
     'Cisco IOS remote TCP syslog (local7, sequence numbers, UTC msec timestamps), Elastic Cisco IOS integration fields',
-  format: ['JSON', 'ECS', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 8,
   templateCount: 1,
   generatorId: 'network-cisco-ios',

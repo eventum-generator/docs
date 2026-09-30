@@ -7,7 +7,8 @@ export const networkPfsense: GeneratorMeta = {
   description:
     'Remote syslog stream of one pfSense CE 2.9.0 firewall with eight site-to-site IPsec tunnels: filterlog records for LAN passes, WAN default-deny blocks and enc0 traffic through the tunnels, and charon records for Phase 1 lookups, failed and successful negotiations, CHILD_SA closures and IKE_SA deletions, as ECS JSON with the RFC 5424 line in event.original. Recurring episodes show a peer offering wrong identities until its tunnel comes up, followed by administrative access through it.',
   dataSource: 'pfSense CE 2.9.0 RFC 5424 filterlog and charon syslog',
-  format: ['JSON', 'ECS', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 9,
   templateCount: 1,
   highlights: [

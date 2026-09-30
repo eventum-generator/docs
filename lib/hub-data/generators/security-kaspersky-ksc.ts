@@ -1,128 +1,128 @@
 import type { GeneratorMeta } from '@/lib/hub-types';
 
 export const securityKasperskyKsc: GeneratorMeta = {
-    slug: 'security-kaspersky-ksc',
-    displayName: 'Kaspersky Security Center',
-    category: 'security',
-    description:
-      'Kaspersky Security Center (KSC) events — centralized endpoint security management console logs covering threat detections, network attacks, task completion, database updates, device health status, policy enforcement, license management, protection component status, and administration audit trails in JSON format.',
-    format: ['JSON'],
-    dataSource: 'Kaspersky Security Center Syslog/CEF',
-    eventCount: 9,
-    templateCount: 10,
-    highlights: [
-      'Monotonic event ID counter',
-      'CSV-sampled host and user pools',
-      'Threat scenario library',
-      'ECS-compatible field mapping',
-    ],
-    generatorId: 'security-kaspersky-ksc',
-    eventTypes: [
-      {
-        id: 'task-completed',
-        description: 'Task Completed (GNRL_EV_TASK_STATE_CHANGED)',
-        frequency: '20%',
-        category: 'package',
-      },
-      {
-        id: 'device-status',
-        description: 'Device Status (KLSRV_HOST_STATUS_*)',
-        frequency: '15%',
-        category: 'host',
-      },
-      {
-        id: 'update-status',
-        description: 'Update Status (GNRL_EV_BASES_UPDATED/OUTDATED)',
-        frequency: '15%',
-        category: 'package',
-      },
-      {
-        id: 'threat-detected',
-        description: 'Threat Detected (GNRL_EV_VIRUS_FOUND)',
-        frequency: '12%',
-        category: 'malware',
-      },
-      {
-        id: 'policy-event',
-        description: 'Policy Events',
-        frequency: '10%',
-        category: 'configuration',
-      },
-      {
-        id: 'network-attack',
-        description: 'Network Attack (GNRL_EV_ATTACK_DETECTED)',
-        frequency: '8%',
-        category: 'intrusion_detection',
-      },
-      {
-        id: 'protection-status',
-        description: 'Protection Status',
-        frequency: '8%',
-        category: 'host',
-      },
-      {
-        id: 'audit-event',
-        description: 'Audit Events (KLAUD_EV_SERVERACTION)',
-        frequency: '7%',
-        category: 'authentication',
-      },
-      {
-        id: 'license-event',
-        description: 'License Events',
-        frequency: '5%',
-        category: 'configuration',
-      },
-    ],
-    realismFeatures: [
-      'Shared monotonic event ID counter across all event types for consistent ordering',
-      'CSV-sampled host pool with hostname, IP, OS, group, and domain fields for correlated device identity',
-      'CSV-sampled user pool with username, domain, department, and role for realistic user attribution',
-      'Threat scenario library with KSC event class IDs, threat names, severity levels, and detection components',
-      'Network attack scenarios with attacker IPs, protocols, CVE references, and IDS rule IDs',
-      'Task metadata covering scan, update, patch, and inventory task types with duration and object counts',
-      'Malware path templates with per-user directory substitution for realistic file system paths',
-    ],
-    parameters: [
-      {
-        name: 'ksc_version',
-        defaultValue: '14.2.0.26967',
-        description: 'KSC Administration Server version',
-      },
-      {
-        name: 'ksc_server',
-        defaultValue: 'KSC-SRV01',
-        description: 'KSC server hostname',
-      },
-      {
-        name: 'ksc_server_ip',
-        defaultValue: '10.1.0.10',
-        description: 'KSC server IP address',
-      },
-      {
-        name: 'kes_version',
-        defaultValue: '12.0.0.1131',
-        description: 'Kaspersky Endpoint Security agent version',
-      },
-      {
-        name: 'update_source',
-        defaultValue: 'https://dnl-01.geo.kaspersky.com/',
-        description: 'Signature database update source URL',
-      },
-      {
-        name: 'license_type',
-        defaultValue: 'KES for Business Advanced',
-        description: 'Kaspersky license edition',
-      },
-      {
-        name: 'license_count',
-        defaultValue: '500',
-        description: 'Total licensed seat count',
-      },
-    ],
-    sampleOutputs: [
-      {
-        title: 'Threat Detected (GNRL_EV_VIRUS_FOUND)',
-        json: `{
+  slug: 'security-kaspersky-ksc',
+  displayName: 'Kaspersky Security Center',
+  category: 'security',
+  description:
+    'Kaspersky Security Center (KSC) events — centralized endpoint security management console logs covering threat detections, network attacks, task completion, database updates, device health status, policy enforcement, license management, protection component status, and administration audit trails in JSON format.',
+  eventFormat: 'JSON',
+  dataSource: 'Kaspersky Security Center Syslog/CEF',
+  eventCount: 9,
+  templateCount: 10,
+  highlights: [
+    'Monotonic event ID counter',
+    'CSV-sampled host and user pools',
+    'Threat scenario library',
+    'ECS-compatible field mapping',
+  ],
+  generatorId: 'security-kaspersky-ksc',
+  eventTypes: [
+    {
+      id: 'task-completed',
+      description: 'Task Completed (GNRL_EV_TASK_STATE_CHANGED)',
+      frequency: '20%',
+      category: 'package',
+    },
+    {
+      id: 'device-status',
+      description: 'Device Status (KLSRV_HOST_STATUS_*)',
+      frequency: '15%',
+      category: 'host',
+    },
+    {
+      id: 'update-status',
+      description: 'Update Status (GNRL_EV_BASES_UPDATED/OUTDATED)',
+      frequency: '15%',
+      category: 'package',
+    },
+    {
+      id: 'threat-detected',
+      description: 'Threat Detected (GNRL_EV_VIRUS_FOUND)',
+      frequency: '12%',
+      category: 'malware',
+    },
+    {
+      id: 'policy-event',
+      description: 'Policy Events',
+      frequency: '10%',
+      category: 'configuration',
+    },
+    {
+      id: 'network-attack',
+      description: 'Network Attack (GNRL_EV_ATTACK_DETECTED)',
+      frequency: '8%',
+      category: 'intrusion_detection',
+    },
+    {
+      id: 'protection-status',
+      description: 'Protection Status',
+      frequency: '8%',
+      category: 'host',
+    },
+    {
+      id: 'audit-event',
+      description: 'Audit Events (KLAUD_EV_SERVERACTION)',
+      frequency: '7%',
+      category: 'authentication',
+    },
+    {
+      id: 'license-event',
+      description: 'License Events',
+      frequency: '5%',
+      category: 'configuration',
+    },
+  ],
+  realismFeatures: [
+    'Shared monotonic event ID counter across all event types for consistent ordering',
+    'CSV-sampled host pool with hostname, IP, OS, group, and domain fields for correlated device identity',
+    'CSV-sampled user pool with username, domain, department, and role for realistic user attribution',
+    'Threat scenario library with KSC event class IDs, threat names, severity levels, and detection components',
+    'Network attack scenarios with attacker IPs, protocols, CVE references, and IDS rule IDs',
+    'Task metadata covering scan, update, patch, and inventory task types with duration and object counts',
+    'Malware path templates with per-user directory substitution for realistic file system paths',
+  ],
+  parameters: [
+    {
+      name: 'ksc_version',
+      defaultValue: '14.2.0.26967',
+      description: 'KSC Administration Server version',
+    },
+    {
+      name: 'ksc_server',
+      defaultValue: 'KSC-SRV01',
+      description: 'KSC server hostname',
+    },
+    {
+      name: 'ksc_server_ip',
+      defaultValue: '10.1.0.10',
+      description: 'KSC server IP address',
+    },
+    {
+      name: 'kes_version',
+      defaultValue: '12.0.0.1131',
+      description: 'Kaspersky Endpoint Security agent version',
+    },
+    {
+      name: 'update_source',
+      defaultValue: 'https://dnl-01.geo.kaspersky.com/',
+      description: 'Signature database update source URL',
+    },
+    {
+      name: 'license_type',
+      defaultValue: 'KES for Business Advanced',
+      description: 'Kaspersky license edition',
+    },
+    {
+      name: 'license_count',
+      defaultValue: '500',
+      description: 'Total licensed seat count',
+    },
+  ],
+  sampleOutputs: [
+    {
+      title: 'Threat Detected (GNRL_EV_VIRUS_FOUND)',
+      json: `{
     "@timestamp": "2026-03-07T10:15:32.000Z",
     "event": {
         "category": ["malware"],
@@ -183,10 +183,10 @@ export const securityKasperskyKsc: GeneratorMeta = {
         "user": ["jdoe"]
     }
 }`,
-      },
-      {
-        title: 'Task Completed (GNRL_EV_TASK_STATE_CHANGED)',
-        json: `{
+    },
+    {
+      title: 'Task Completed (GNRL_EV_TASK_STATE_CHANGED)',
+      json: `{
     "@timestamp": "2026-03-07T11:30:45.000Z",
     "event": {
         "category": ["package"],
@@ -236,10 +236,10 @@ export const securityKasperskyKsc: GeneratorMeta = {
         "user": ["SYSTEM"]
     }
 }`,
-      },
-      {
-        title: 'Audit Event (KLAUD_EV_SERVERACTION)',
-        json: `{
+    },
+    {
+      title: 'Audit Event (KLAUD_EV_SERVERACTION)',
+      json: `{
     "@timestamp": "2026-03-07T09:05:12.000Z",
     "event": {
         "category": ["authentication"],
@@ -285,6 +285,6 @@ export const securityKasperskyKsc: GeneratorMeta = {
         "user": ["ksc_admin"]
     }
 }`,
-      },
-    ],
-  };
+    },
+  ],
+};

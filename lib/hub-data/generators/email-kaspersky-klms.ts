@@ -8,7 +8,8 @@ export const emailKasperskyKlms: GeneratorMeta = {
     'Kaspersky Security for Linux Mail Server ScanLogic records as CEF in event.original of an ECS JSON event: a mail-authentication (SPF, DKIM, DMARC) record and an antivirus record for every processed message from 43 senders of five kinds, about 13,400 messages a day. Recurring episodes send one high-value mailbox three rejected spoofed messages within 180 seconds: two clean lures, then an infected payload.',
   dataSource:
     'Kaspersky Security for Linux Mail Server ScanLogic MA/AV status, CEF over syslog (legacy version 8 documentation)',
-  format: ['JSON', 'ECS', 'CEF'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'CEF',
   eventCount: 4,
   templateCount: 1,
   highlights: [

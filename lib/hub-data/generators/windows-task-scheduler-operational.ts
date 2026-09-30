@@ -6,7 +6,8 @@ export const windowsTaskSchedulerOperational: GeneratorMeta = {
   description:
     'About 2,600 selected events/day from ten Windows servers, with native XML and Winlogbeat-style ECS fields.',
   dataSource: 'Microsoft-Windows-TaskScheduler/Operational',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'XML',
   highlights: [
     'Run records retain their instance GUID and process identity',
     'Temporary tasks have independent SYSTEM cleanup after two to three hours',

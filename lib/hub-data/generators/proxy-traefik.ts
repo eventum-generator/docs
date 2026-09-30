@@ -6,7 +6,7 @@ export const proxyTraefik: GeneratorMeta = {
   category: 'web-access',
   description:
     'Traefik reverse proxy and Kubernetes ingress — access logs with the dual-latency breakdown (origin duration versus proxy overhead), upstream status, retry attempts, and router/service routing across a dynamic backend catalogue. Operational telemetry for latency SLOs and error budgets, not audit.',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
   dataSource: 'Traefik access logs',
   eventCount: 3,
   templateCount: 4,

@@ -9,7 +9,8 @@ export const applicationNextcloudAudit: GeneratorMeta = {
     'Nextcloud 35.0.0 admin_audit HTTP records from the dedicated audit.log file backend, with each native JSON line in event.original and parsed under nextcloud.audit, for testing detections on logins, file access and public links. 180 users work in sessions over 1,154 files, about 10,800 records a day. Recurring episodes show a guessed password followed by publishing a file for outside access through a public link.',
   dataSource:
     'Nextcloud 35.0.0 admin_audit file backend (data/audit.log), JSON lines',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'JSON',
   eventCount: 8,
   templateCount: 1,
   highlights: [

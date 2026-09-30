@@ -9,7 +9,8 @@ export const networkF5BigipAfm: GeneratorMeta = {
     'F5 BIG-IP AFM layer 3/4 firewall and Network DoS messages in the ArcSight CEF format as ECS JSON, for training SIEM content on perimeter firewall telemetry. One BIG-IP publishes five virtual servers on four internet-facing addresses; event.original holds the CEF body without a syslog envelope. About 28,400 records a day from 360 internet users and 40 scanners follow a UTC daily curve. This is the AFM stream, not ASM / Advanced WAF request logging. Recurring episodes show one scanner dropped on three or more closed ports of one address and then reaching a service on it.',
   dataSource:
     'F5 BIG-IP AFM 11.3.0 Network Event and Network DoS Event messages, ArcSight CEF formatter of a remote logging profile (External Monitoring Implementations 13.0.0 guide)',
-  format: ['JSON', 'ECS', 'CEF'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'CEF',
   eventCount: 7,
   templateCount: 1,
   highlights: [

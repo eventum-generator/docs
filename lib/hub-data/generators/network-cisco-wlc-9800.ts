@@ -8,7 +8,8 @@ export const networkCiscoWlc9800: GeneratorMeta = {
     'Cisco Catalyst 9800 IOS XE 17.11 detailed client-state messages (RUN, IP update, DELETE) for 600 named wireless stations on one controller, as native text in event.original with a declared ECS mapping. About 24,300 records a day follow an office working day, from about 50 associated stations at night to about 410 in working hours. Models associations and address learning, not authentication results. Recurring episodes move one station through three rapid associations on the three APs of its floor.',
   dataSource:
     'Cisco Catalyst 9800 IOS XE 17.11 %CLIENT_ORCH_LOG-7 detailed client-state messages, console/buffer form',
-  format: ['JSON', 'ECS', 'Syslog body'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 3,
   templateCount: 1,
   highlights: [

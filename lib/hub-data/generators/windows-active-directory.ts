@@ -6,7 +6,7 @@ export const windowsActiveDirectory: GeneratorMeta = {
   description:
     'About 21,800 normalized Security records per day from a small domain, with Kerberos, NTLM and temporary group membership.',
   dataSource: 'Windows Security domain-controller audit',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
   highlights: [
     'Human office hours and twelve continuous monitoring accounts',
     'Every modeled grant ends after 20–40 minutes in both modes',

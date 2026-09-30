@@ -8,7 +8,8 @@ export const securityFortinetFortianalyzerAudit: GeneratorMeta = {
     "FortiAnalyzer 7.2.4 local application event records (type=appevent subtype=incident) as ECS JSON with the FortiAnalyzer key-value line in event.original, for SOC teams and SIEM engineers who need incident-management audit trails. This is FortiAnalyzer's own incident audit log, not FortiGate traffic forwarded through it. A SOC of twelve analysts raises about 340 incidents a day, about 225 of them by playbooks, in about 2,050 records a day, with analysts on a 07:00-19:00 UTC day shift and playbooks round the clock. Recurring episodes show an analyst's incident whose evidence a second analyst removes before deleting the incident.",
   dataSource:
     'FortiAnalyzer 7.2.4 local APPEVENT / INCIDENT messages 100001-100003, 100005 and 100006 of the Fortinet 7.2.4 log reference',
-  format: ['JSON', 'ECS', 'KV'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'KV',
   eventCount: 5,
   templateCount: 1,
   highlights: [

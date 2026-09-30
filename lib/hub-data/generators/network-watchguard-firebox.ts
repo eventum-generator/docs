@@ -9,7 +9,8 @@ export const networkWatchguardFirebox: GeneratorMeta = {
     'WatchGuard Firebox traffic log messages (3000-0148, 3000-0176) of one Firebox between a trusted LAN and the internet, with the Mobile VPN with SSL portal on its external address, as ECS JSON with the native Traffic Monitor message in event.original. About 7,100 records a day, from 140 an hour at night to 660-680 an hour around 12:00-13:00 UTC. For SIEM content on perimeter firewall telemetry. Recurring episodes show one external address denied on three or more Firebox ports and then reaching the SSL VPN portal.',
   dataSource:
     'WatchGuard Firebox traffic log messages in Traffic Monitor form, the same body a Syslog server receives',
-  format: ['JSON', 'ECS', 'Syslog body'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 5,
   templateCount: 1,
   highlights: [

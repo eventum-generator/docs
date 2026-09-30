@@ -7,7 +7,8 @@ export const webTomcatJsonAccess: GeneratorMeta = {
   description:
     'Apache Tomcat 10.1 JsonAccessLogValve records for one application server, preserved in event.original and enriched with ECS fields.',
   dataSource: 'Apache Tomcat JsonAccessLogValve',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'JSON',
   highlights: [
     'About 46,800 requests/day',
     'Browser activity peaks at 08:00-18:00 UTC',

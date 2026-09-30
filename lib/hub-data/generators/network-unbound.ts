@@ -8,7 +8,8 @@ export const networkUnbound: GeneratorMeta = {
     "Query and reply log of one Unbound 1.26.1 recursive resolver serving an office network: native query: and reply: lines from Unbound's own logfile in event.original, with ECS fields derived from each line. For DNS analytics and for testing detections of DNS tunnelling through TXT lookups. Recurring episodes show one client looking up a telemetry zone and then sending eight TXT lookups of new hex labels under it.",
   dataSource:
     'Unbound 1.26.1 own logfile with log-queries, log-replies and log-tag-queryreply enabled, ISO timestamps, UTC host',
-  format: ['JSON', 'ECS', 'Text'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   eventCount: 5,
   templateCount: 1,
   generatorId: 'network-unbound',

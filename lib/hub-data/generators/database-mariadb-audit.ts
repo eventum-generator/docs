@@ -9,7 +9,8 @@ export const databaseMariadbAudit: GeneratorMeta = {
     "MariaDB Community Server 11.4.4 server_audit FILE records (connections, queries and table locks) of an application connection pool, DBAs and delegated accounts, as the native 10-field CSV in event.original with parsed mariadb.audit.* and ECS fields. About 16,700 records a day follow a UTC working day. Recurring episodes put three or four failed DBA logins in front of a temporary GRANT, the delegate's read, the REVOKE and a denial.",
   dataSource:
     'MariaDB Community Server 11.4.4, server_audit plugin 1.4.14, FILE output',
-  format: ['JSON', 'ECS', 'CSV'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'CSV',
   eventCount: 6,
   templateCount: 1,
   highlights: [

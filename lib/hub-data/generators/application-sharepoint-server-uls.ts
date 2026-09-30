@@ -8,7 +8,8 @@ export const applicationSharepointServerUls: GeneratorMeta = {
     'SharePoint Server 2019 Unified Logging Service (ULS) trace rows from two web front ends and the legacy workflow timer job on an application server, with the raw tab-separated ULS line in event.original of ECS JSON. About 151,000 rows per weekday and 39,000 per weekend day from 348 office accounts, 8 of them site owners, on 12 sites, plus the search crawl account. Models ULS diagnostic traces, not SharePoint audit records or Microsoft 365 activity. Recurring episodes show a site owner granting permissions, downloading documents and removing the grant within one hour.',
   dataSource:
     'Microsoft SharePoint Server 2019 ULS trace log (build 16.0.10390.20000), nine tab-separated columns',
-  format: ['JSON', 'ECS', 'Text'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   eventCount: 11,
   templateCount: 1,
   highlights: [

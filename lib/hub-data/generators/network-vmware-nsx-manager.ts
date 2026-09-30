@@ -8,7 +8,8 @@ export const networkVmwareNsxManager: GeneratorMeta = {
     'VMware NSX-T Data Center 3.2 Manager audit records from /var/log/syslog as native lines in event.original with ECS fields, for testing detections of NSX login abuse and log-forwarding tampering. Seven administrator workstations with local and LDAP accounts log in, read and occasionally delete and re-create node syslog exporters on a working-day curve, while a monitoring script polls the node API and a Skyline collector logs in around the clock, at about 4,700 records a day. Recurring episodes show failed logins, a success and a syslog exporter deletion by one account.',
   dataSource:
     'VMware NSX-T Data Center 3.2 Manager audit records in /var/log/syslog (nsx@6876)',
-  format: ['JSON', 'ECS', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 8,
   templateCount: 1,
   highlights: [

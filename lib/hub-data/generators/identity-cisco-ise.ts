@@ -9,7 +9,8 @@ export const identityCiscoIse: GeneratorMeta = {
     'Cisco ISE CISE_Administrative_and_Operational_Audit remote syslog and matching ECS-style JSON for one Policy Administration Node, with the complete syslog record in event.original, for detections on ISE administrator activity. Logins, logoffs and failed logins of five administrators and 120 read-only operators, and logging-configuration changes; not RADIUS or TACACS traffic. Weekly episodes show an administrator account taken over by password guessing and used to switch off log forwarding.',
   dataSource:
     'Cisco ISE 3.4 CISE_Administrative_and_Operational_Audit remote syslog',
-  format: ['JSON', 'ECS', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 5,
   templateCount: 1,
   highlights: [

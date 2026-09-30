@@ -9,7 +9,8 @@ export const networkEltexMes: GeneratorMeta = {
     'Syslog messages of one Eltex MES5324 access switch as ECS JSON: HTTPS logins of administrators and automation accounts, interface speed and link changes, MAC table notifications and logging configuration changes, with the native message body verbatim in event.original and message. About 900 messages an hour around the clock, almost all of them MAC table notifications. Recurring episodes join a run of failed logins of a shared account to a port disruption and logging changes on the same switch.',
   dataSource:
     'Eltex MES5324 syslog message bodies, unversioned MES23xx/MES33xx/MES35xx/MES5324 message catalog',
-  format: ['JSON', 'ECS', 'Syslog body'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 11,
   templateCount: 1,
   highlights: [

@@ -9,7 +9,8 @@ export const emailPostfix: GeneratorMeta = {
     'Postfix 3.8.3+ submission-relay messages from smtpd, cleanup, qmgr and smtp as parsed ECS JSON with the native syslog line in event.original, for testing mail-server authentication and outbound-mail detections. About 54,700 records and 10,100 messages a day from 150 staff users on a UTC working-day curve and eight application accounts around the clock; every accepted submission is followed from queue creation to removal. Recurring episodes show one staff user failing SASL LOGIN three times, then submitting a message for five external recipients.',
   dataSource:
     'Postfix 3.8.3+ submission-relay mail log (smtpd, cleanup, qmgr, smtp)',
-  format: ['JSON', 'ECS', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 7,
   templateCount: 1,
   generatorId: 'email-postfix',

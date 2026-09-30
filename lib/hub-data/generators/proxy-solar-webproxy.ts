@@ -8,7 +8,8 @@ export const proxySolarWebproxy: GeneratorMeta = {
     "Solar webProxy 4.3.1 request messages in the vendor siem-log syslog format from one filtering node in forward mode with TLS inspection serving 30 office users, as native text in event.original mapped to ECS. About 20,300 messages a day follow an office day in the node's local time (UTC+3). For testing web-proxy detections; models filtering decisions and traffic volumes, not administrator audit, access-log JSON, cef-log or ip-translation-log output. Recurring episodes show one user denied repeated uploads to a blocked file-sharing site, then uploading to sanctioned cloud storage.",
   dataSource:
     'Solar webProxy 4.3.1 siem-log syslog messages, forward mode with TLS inspection',
-  format: ['JSON', 'ECS', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 7,
   templateCount: 1,
   highlights: [

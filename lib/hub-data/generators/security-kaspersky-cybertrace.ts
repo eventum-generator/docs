@@ -8,7 +8,8 @@ export const securityKasperskyCybertrace: GeneratorMeta = {
     'Kaspersky CyberTrace 4.0 detection events, each recording that an event from an endpoint matched a URL or file hash from Kaspersky Threat Data Feeds, in the CEF pattern Kaspersky documents for ArcSight, placed in event.original of ECS JSON. 84 endpoints produce about 510 detections a day, about 12 an hour at night and 30 an hour from 06:00 to 17:00 UTC. Recurring episodes show one endpoint and user matching a malicious URL, then a file MD5, then the same URL again.',
   dataSource:
     'Kaspersky CyberTrace 4.0 CyberTrace Detection Event, ArcSight CEF pattern',
-  format: ['JSON', 'ECS', 'CEF'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'CEF',
   eventCount: 3,
   templateCount: 1,
   highlights: [

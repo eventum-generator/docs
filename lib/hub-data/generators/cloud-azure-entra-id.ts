@@ -6,7 +6,7 @@ export const cloudAzureEntraId: GeneratorMeta = {
   category: 'cloud',
   description:
     'Microsoft Entra ID sign-in and audit logs — interactive and non-interactive authentication, service principal sign-ins, and directory changes. Covers MFA, Conditional Access, AADSTS errors, and role/group management.',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
   dataSource: 'Microsoft Entra ID (Azure AD) Sign-In and Audit Logs',
   eventCount: 6,
   templateCount: 6,

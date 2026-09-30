@@ -6,7 +6,8 @@ export const identityOpenldapAuditlog: GeneratorMeta = {
   description:
     'About 1,980 successful directory changes per day, with native multiline LDIF and a custom ECS wrapper.',
   dataSource: 'OpenLDAP 2.6.15 slapo-auditlog',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   highlights: [
     'Three administrators and ordinary provisioning throughout the day',
     'Temporary accounts and their memberships expire after two to four hours',

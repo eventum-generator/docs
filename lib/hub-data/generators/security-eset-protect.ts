@@ -8,7 +8,8 @@ export const securityEsetProtect: GeneratorMeta = {
   description:
     'ESET PROTECT On-Prem 11.1 Threat, Firewall and HIPS detection events as exported to Syslog in CEF, from 48 fictional Windows workstations, written as ECS JSON with the bare CEF payload in event.original. About 340 records a day on a UTC daily curve. Recurring episodes show one endpoint repeatedly blocked from launching a file that a scanner then cleans.',
   dataSource: 'ESET PROTECT On-Prem 11.1 Syslog export in CEF',
-  format: ['JSON', 'ECS', 'CEF'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'CEF',
   eventCount: 3,
   templateCount: 1,
   highlights: [

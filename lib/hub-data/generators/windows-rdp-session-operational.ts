@@ -7,7 +7,8 @@ export const windowsRdpSessionOperational: GeneratorMeta = {
   description:
     'About 3,000 native XML and ECS records/day from one RDS host serving 200 accounts, including shift operators and shared jump hosts.',
   dataSource: 'TerminalServices-LocalSessionManager/Operational',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'XML',
   highlights: [
     'Session logon, shell startup, disconnect, reconnect and logoff',
     'Sessions retain their user, address and ID until logoff',

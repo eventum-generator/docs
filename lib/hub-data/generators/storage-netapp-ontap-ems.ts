@@ -8,7 +8,8 @@ export const storageNetappOntapEms: GeneratorMeta = {
     'NetApp ONTAP 9.12.1 Event Management System (EMS) notifications from a two-node cluster in the default legacy-netapp syslog format, as event.original with parsed ECS and netapp.ems fields: ZAPI Snapshot copies made by backup applications, failed management logins, account lockouts and anti-ransomware state changes. About 1,100 records a day: Snapshot copies around the clock, administrator activity on a working-day curve. Recurring episodes lock out one administrator, have a second one fail to log in and disable anti-ransomware protection on a volume.',
   dataSource:
     'NetApp ONTAP 9.12.1 EMS notifications, syslog destination in legacy-netapp format',
-  format: ['JSON', 'ECS', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 4,
   templateCount: 1,
   highlights: [

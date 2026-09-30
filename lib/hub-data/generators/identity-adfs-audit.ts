@@ -8,7 +8,8 @@ export const identityAdfsAudit: GeneratorMeta = {
     "Security-log audit events 1200-1203 of one Active Directory Federation Services farm node (Windows Server 2016 or later, basic audit level), as NXLog im_msvistalog records wrapped in ECS, with the Windows event fields and the Message text with its AuditBase XML kept verbatim in event.original. About 500 users sign in from their workstations or through a Web Application Proxy from home, with mistyped passwords, give-ups, stale saved passwords and SSO token requests, at about 14,800 events a day. Recurring episodes show password guessing that succeeds from one of a user's usual addresses.",
   dataSource:
     'Microsoft AD FS Security-log audit events 1200-1203 (Windows Server 2016 or later, basic audit level), collected by NXLog im_msvistalog',
-  format: ['JSON', 'ECS', 'XML'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'JSON',
   eventCount: 4,
   templateCount: 1,
   highlights: [

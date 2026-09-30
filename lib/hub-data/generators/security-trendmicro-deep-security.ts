@@ -8,7 +8,8 @@ export const securityTrendmicroDeepSecurity: GeneratorMeta = {
     'Trend Micro Deep Security 20 Agent firewall and intrusion prevention events from 40 protected servers and 180 internal source addresses, relayed by Deep Security Manager over syslog in CEF, as native syslog lines in event.original with ECS fields named after the Elastic Trend Micro integration. About 8,500 records a day follow a working-day curve, from about 140 an hour at night to about 640 an hour at 10:00-12:00 UTC. Recurring episodes show one source denied on three or more ports of a web server and then triggering an intrusion prevention rule on it.',
   dataSource:
     'Trend Micro Deep Security 20 Agent firewall and intrusion prevention events, relayed by Deep Security Manager over syslog in CEF',
-  format: ['JSON', 'ECS', 'CEF', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'CEF',
   eventCount: 3,
   templateCount: 1,
   highlights: [

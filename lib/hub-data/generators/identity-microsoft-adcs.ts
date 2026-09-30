@@ -6,7 +6,8 @@ export const identityMicrosoftAdcs: GeneratorMeta = {
   description:
     'About 2,040 selected Security records per day from one synthetic certification authority, with reconstructed version 0 XML.',
   dataSource: 'Windows Server 2012 Certification Services audit',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'XML',
   highlights: [
     'Request and disposition share request ID, requester, process and thread',
     'Ordinary and episode audit reductions end after 15–32 minutes',

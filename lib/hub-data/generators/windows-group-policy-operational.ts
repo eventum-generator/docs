@@ -8,7 +8,8 @@ export const windowsGroupPolicyOperational: GeneratorMeta = {
     'Microsoft-Windows-GroupPolicy/Operational computer policy refreshes (periodic and manual gpupdate) and client-side extension processing from a fleet of 1,000 domain members (800 workstations, 200 servers), as Winlogbeat-style ECS JSON with the native Event XML in event.original, for SIEM content that watches whether Group Policy, and security policy in particular, is actually applied. About 40,000 events a day follow a working-day curve. Recurring episodes break the Security extension on three hosts that apply the same changed GPO; each host recovers at its next Security run.',
   dataSource:
     'Microsoft-Windows-GroupPolicy/Operational channel, Windows Server 2022 manifest (gpsvc.dll 10.0.20348)',
-  format: ['JSON', 'ECS', 'XML'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'XML',
   eventCount: 9,
   templateCount: 1,
   highlights: [

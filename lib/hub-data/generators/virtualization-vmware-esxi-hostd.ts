@@ -6,7 +6,8 @@ export const virtualizationVmwareEsxiHostd: GeneratorMeta = {
   description:
     'ESXi 8 hostd authentication and VM tasks from one host, four administrators and two automated API clients. Native messages sit inside a custom ECS wrapper.',
   dataSource: 'VMware ESXi hostd.log',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   highlights: [
     'Native hostd messages with numeric VM task identifiers',
     'About 3,300 records/day with administrator working hours',

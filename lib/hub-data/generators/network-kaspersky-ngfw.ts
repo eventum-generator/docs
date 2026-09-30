@@ -9,7 +9,8 @@ export const networkKasperskyNgfw: GeneratorMeta = {
     'Kaspersky NGFW 1.0 Firewall session log (CEF) of one device as ECS JSON, with paired Session start and Firewall records for clients of a user segment reaching the internet, two internal file servers and an internal DNS server. About 14,000 records a day on a UTC office-hours curve. Recurring episodes show one client reading two large files from one server over SMB, then uploading more than 50 MB to a cloud destination.',
   dataSource:
     'Kaspersky NGFW 1.0 Firewall session log, CEF message without a syslog envelope',
-  format: ['JSON', 'ECS', 'CEF'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'CEF',
   eventCount: 8,
   templateCount: 1,
   highlights: [

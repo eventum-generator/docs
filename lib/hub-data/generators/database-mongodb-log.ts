@@ -8,7 +8,8 @@ export const databaseMongodbLog: GeneratorMeta = {
     'Structured logv2 JSON server log of one MongoDB Community 7.0 mongod (default verbosity, slowms 100, SCRAM-SHA-256) as shipped by the Elastic mongodb.log integration: the native line byte for byte in event.original and its parsed fields under mongodb.log. About 39,000 lines a day on a UTC hour curve, from service pools, batch jobs and four people that connect, authenticate and run slow reads and exports. Recurring episodes show repeated wrong passwords followed by a single-batch customer export.',
   dataSource:
     'MongoDB Community 7.0 mongod logv2 JSON log file, Elastic mongodb 1.24 mapping',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'JSON',
   eventCount: 7,
   templateCount: 1,
   highlights: [

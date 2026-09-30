@@ -8,7 +8,8 @@ export const networkCiscoFtd: GeneratorMeta = {
     'Cisco Secure Firewall Threat Defense (FTD) 6.6+ connection start, connection end and intrusion syslog messages from one FTD device in front of three DMZ web servers, for inbound traffic from 600 internet clients, as native syslog lines in event.original with ECS fields. About 29,800 records a day, from about 740 an hour around midnight UTC to about 1,680 at midday. For SIEM content on perimeter IPS and connection telemetry. Recurring episodes show the IPS dropping three or more distinct exploit signatures from one client against one server over HTTP, after which the client opens an HTTPS connection to that server.',
   dataSource:
     'Cisco Secure Firewall Threat Defense 6.6+ security event syslog messages 430001, 430002 and 430003, logged directly from the device',
-  format: ['JSON', 'ECS', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 7,
   templateCount: 1,
   highlights: [

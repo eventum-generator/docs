@@ -9,7 +9,8 @@ export const networkIdecoNgfw: GeneratorMeta = {
     "Syslog of one Ideco NGFW Novum v22 that publishes a PPTP VPN to remote users and faces ordinary internet noise: traffic-journal flows, ideco-vpn-authd authorizations and fail2ban Found, Ban and Unban, each native line kept in event.original inside an ECS JSON envelope. About 27,000 records a day on UTC hour-of-day curves from 300 VPN users, brute-force campaigns, administrators and LAN and internet traffic. CEF is not modeled. Recurring episodes show a guessed VPN password: one user's home address fails four or five VPN authorizations, then authorizes as that user.",
   dataSource:
     'Ideco NGFW Novum v22 Syslog: traffic-journal, ideco-vpn-authd and fail2ban',
-  format: ['JSON', 'ECS', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 6,
   templateCount: 1,
   highlights: [

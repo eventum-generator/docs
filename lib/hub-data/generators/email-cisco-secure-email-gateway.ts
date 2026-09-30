@@ -9,7 +9,8 @@ export const emailCiscoSecureEmailGateway: GeneratorMeta = {
     'Cisco Secure Email Gateway (formerly ESA, AsyncOS 16.x) text mail_logs pushed over syslog from a virtual gateway with one Management interface and one public listener: internet mail for contoso.example users and outbound mail relayed from two internal Exchange hosts, with the raw syslog line in event.original and the fields the Elastic cisco_secure_email_gateway integration extracts from it. About 95,000 lines a day follow the working day of 100 internal users in UTC. Recurring episodes show one internal user sending three large messages to their own freemail mailbox within 40 minutes, a likely exfiltration.',
   dataSource:
     'Cisco Secure Email Gateway AsyncOS 16.x text mail_logs subscription over syslog, virtual appliance with one Management interface',
-  format: ['JSON', 'ECS', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 33,
   templateCount: 1,
   highlights: [

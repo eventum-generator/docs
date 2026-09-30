@@ -7,7 +7,8 @@ export const vpnSTerraGate: GeneratorMeta = {
   description:
     "The vpnsvc log of one S-Terra Gate 4.1 remote-access VPN gateway as ECS JSON, for training SIEM content on Russian certified IPsec VPN telemetry, with the native syslog line in event.original. About 2,000 S-Terra Client users in 40 branch offices connect from their office NAT address or from mobile-carrier NAT pools, about 39,800 lines a day following Moscow office hours. Recurring episodes show failed IKE authentication for two identities from one branch address, followed by an administrator's management-network tunnel from it.",
   dataSource: 'S-Terra Gate 4.1 vpnsvc log, /var/log/cspvpngate.log or syslog',
-  format: ['JSON', 'ECS', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 7,
   templateCount: 1,
   highlights: [

@@ -8,7 +8,8 @@ export const applicationGrafanaServerJson: GeneratorMeta = {
     'Grafana OSS 9.5.1 server log lines in the JSON log format, wrapped in ECS JSON, for testing detections of login abuse and service account token creation in Grafana. One instance with router logging on serves 80 browser users, four of them organization admins, and four service accounts that call the HTTP API around the clock; about 32,000 lines a day follow a working-day curve in UTC. Recurring episodes show failed form logins from one admin workstation address, a successful login and a service account token creation.',
   dataSource:
     'Grafana OSS 9.5.1 server log, [log] format = json, level = info, [server] router_logging = true',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'JSON',
   eventCount: 18,
   templateCount: 1,
   highlights: [

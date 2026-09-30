@@ -1,118 +1,118 @@
 import type { GeneratorMeta } from '@/lib/hub-types';
 
 export const endpointSecretNet: GeneratorMeta = {
-    slug: 'endpoint-secret-net',
-    displayName: 'Secret Net Studio',
-    category: 'endpoint',
-    description:
-      'Secret Net Studio endpoint protection events by Security Code — authentication, mandatory and discretionary access control, integrity monitoring, device control, closed software environment, network protection, data protection with secure erasure, and audit events in ECS-compatible JSON format with Russian-locale descriptions matching real Secret Net Studio output.',
-    format: ['JSON'],
-    dataSource: 'Secret Net Studio (Security Code)',
-    eventCount: 9,
-    templateCount: 10,
-    highlights: [
-      'Nine distinct security subsystems',
-      'Russian-locale event descriptions',
-      'Three-tier mandatory access control levels',
-      'CSV-sampled host and user pools',
-    ],
-    generatorId: 'endpoint-secret-net',
-    eventTypes: [
-      {
-        id: 'authentication',
-        description: 'Authentication (SN_AUTH_*)',
-        frequency: '25%',
-        category: 'authentication',
-      },
-      {
-        id: 'discretionary-access',
-        description: 'Discretionary Access Control (SN_DAC_*)',
-        frequency: '18%',
-        category: 'file',
-      },
-      {
-        id: 'integrity-control',
-        description: 'Integrity Control (SN_INTEGRITY_*)',
-        frequency: '15%',
-        category: 'host',
-      },
-      {
-        id: 'device-control',
-        description: 'Device Control (SN_DEVICE_*)',
-        frequency: '12%',
-        category: 'host',
-      },
-      {
-        id: 'mandatory-access',
-        description: 'Mandatory Access Control (SN_MAC_*)',
-        frequency: '8%',
-        category: 'file',
-      },
-      {
-        id: 'closed-environment',
-        description: 'Closed Software Environment (SN_CSE_*)',
-        frequency: '7%',
-        category: 'process',
-      },
-      {
-        id: 'network-protection',
-        description: 'Network Protection (SN_NET_*)',
-        frequency: '7%',
-        category: 'network',
-      },
-      {
-        id: 'data-protection',
-        description: 'Data Protection (SN_DATA_*)',
-        frequency: '4%',
-        category: 'file',
-      },
-      {
-        id: 'audit',
-        description: 'Audit (SN_AUDIT_*)',
-        frequency: '4%',
-        category: 'configuration',
-      },
-    ],
-    realismFeatures: [
-      'Shared monotonic event ID counter across all event types for consistent ordering',
-      'CSV-sampled host pool with hostname, IP, MAC, OS, and domain fields for correlated device identity',
-      'CSV-sampled user pool with Russian full names, departments, and clearance levels',
-      'Three-tier confidentiality levels (Несекретно, Конфиденциально, Строго конфиденциально) matching Russian classification scheme',
-      'Russian-language event descriptions and subsystem names matching real Secret Net Studio output',
-      'Device inventory with vendor, model, serial, and VID/PID for USB device control events',
-      'Integrity object database with file paths, registry keys, and expected checksums',
-    ],
-    parameters: [
-      {
-        name: 'sn_version',
-        defaultValue: '8.10.0.1573',
-        description: 'Secret Net Studio version',
-      },
-      {
-        name: 'sn_server',
-        defaultValue: 'SN-SRV01',
-        description: 'Secret Net management server hostname',
-      },
-      {
-        name: 'sn_server_ip',
-        defaultValue: '10.1.0.15',
-        description: 'Secret Net management server IP',
-      },
-      {
-        name: 'domain',
-        defaultValue: 'CORP.ACME.COM',
-        description: 'Active Directory domain',
-      },
-      {
-        name: 'organization',
-        defaultValue: 'ACME Corp',
-        description: 'Organization name',
-      },
-    ],
-    sampleOutputs: [
-      {
-        title: 'Authentication (SN_AUTH_LOGIN_OK)',
-        json: `{
+  slug: 'endpoint-secret-net',
+  displayName: 'Secret Net Studio',
+  category: 'endpoint',
+  description:
+    'Secret Net Studio endpoint protection events by Security Code — authentication, mandatory and discretionary access control, integrity monitoring, device control, closed software environment, network protection, data protection with secure erasure, and audit events in ECS-compatible JSON format with Russian-locale descriptions matching real Secret Net Studio output.',
+  eventFormat: 'JSON',
+  dataSource: 'Secret Net Studio (Security Code)',
+  eventCount: 9,
+  templateCount: 10,
+  highlights: [
+    'Nine distinct security subsystems',
+    'Russian-locale event descriptions',
+    'Three-tier mandatory access control levels',
+    'CSV-sampled host and user pools',
+  ],
+  generatorId: 'endpoint-secret-net',
+  eventTypes: [
+    {
+      id: 'authentication',
+      description: 'Authentication (SN_AUTH_*)',
+      frequency: '25%',
+      category: 'authentication',
+    },
+    {
+      id: 'discretionary-access',
+      description: 'Discretionary Access Control (SN_DAC_*)',
+      frequency: '18%',
+      category: 'file',
+    },
+    {
+      id: 'integrity-control',
+      description: 'Integrity Control (SN_INTEGRITY_*)',
+      frequency: '15%',
+      category: 'host',
+    },
+    {
+      id: 'device-control',
+      description: 'Device Control (SN_DEVICE_*)',
+      frequency: '12%',
+      category: 'host',
+    },
+    {
+      id: 'mandatory-access',
+      description: 'Mandatory Access Control (SN_MAC_*)',
+      frequency: '8%',
+      category: 'file',
+    },
+    {
+      id: 'closed-environment',
+      description: 'Closed Software Environment (SN_CSE_*)',
+      frequency: '7%',
+      category: 'process',
+    },
+    {
+      id: 'network-protection',
+      description: 'Network Protection (SN_NET_*)',
+      frequency: '7%',
+      category: 'network',
+    },
+    {
+      id: 'data-protection',
+      description: 'Data Protection (SN_DATA_*)',
+      frequency: '4%',
+      category: 'file',
+    },
+    {
+      id: 'audit',
+      description: 'Audit (SN_AUDIT_*)',
+      frequency: '4%',
+      category: 'configuration',
+    },
+  ],
+  realismFeatures: [
+    'Shared monotonic event ID counter across all event types for consistent ordering',
+    'CSV-sampled host pool with hostname, IP, MAC, OS, and domain fields for correlated device identity',
+    'CSV-sampled user pool with Russian full names, departments, and clearance levels',
+    'Three-tier confidentiality levels (Несекретно, Конфиденциально, Строго конфиденциально) matching Russian classification scheme',
+    'Russian-language event descriptions and subsystem names matching real Secret Net Studio output',
+    'Device inventory with vendor, model, serial, and VID/PID for USB device control events',
+    'Integrity object database with file paths, registry keys, and expected checksums',
+  ],
+  parameters: [
+    {
+      name: 'sn_version',
+      defaultValue: '8.10.0.1573',
+      description: 'Secret Net Studio version',
+    },
+    {
+      name: 'sn_server',
+      defaultValue: 'SN-SRV01',
+      description: 'Secret Net management server hostname',
+    },
+    {
+      name: 'sn_server_ip',
+      defaultValue: '10.1.0.15',
+      description: 'Secret Net management server IP',
+    },
+    {
+      name: 'domain',
+      defaultValue: 'CORP.ACME.COM',
+      description: 'Active Directory domain',
+    },
+    {
+      name: 'organization',
+      defaultValue: 'ACME Corp',
+      description: 'Organization name',
+    },
+  ],
+  sampleOutputs: [
+    {
+      title: 'Authentication (SN_AUTH_LOGIN_OK)',
+      json: `{
     "@timestamp": "2026-03-07T10:15:23.456Z",
     "event": {
         "kind": "event",
@@ -158,10 +158,10 @@ export const endpointSecretNet: GeneratorMeta = {
         "user": ["sidorova.en"]
     }
 }`,
-      },
-      {
-        title: 'Mandatory Access Denied (SN_MAC_ACCESS_DENIED)',
-        json: `{
+    },
+    {
+      title: 'Mandatory Access Denied (SN_MAC_ACCESS_DENIED)',
+      json: `{
     "@timestamp": "2026-03-07T10:16:45.789Z",
     "event": {
         "kind": "event",
@@ -209,10 +209,10 @@ export const endpointSecretNet: GeneratorMeta = {
         "user": ["fedorov.mk"]
     }
 }`,
-      },
-      {
-        title: 'Device Blocked (SN_DEVICE_BLOCKED)',
-        json: `{
+    },
+    {
+      title: 'Device Blocked (SN_DEVICE_BLOCKED)',
+      json: `{
     "@timestamp": "2026-03-07T10:18:12.234Z",
     "event": {
         "kind": "event",
@@ -262,6 +262,6 @@ export const endpointSecretNet: GeneratorMeta = {
         "user": ["smirnova.ov"]
     }
 }`,
-      },
-    ],
-  };
+    },
+  ],
+};

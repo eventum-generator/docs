@@ -9,7 +9,8 @@ export const networkEltexEsr: GeneratorMeta = {
     'Eltex ESR-series (software 1.40) remote syslog records of one router as ECS JSON: SSH administration, local account and configuration changes, firewall, NAT and IPS logs. event.original holds the RFC 5424 frame and message the documented %GROUP-SEVERITY-MNEMONIC body. Weekly episodes by default join three failed passwords to a new privileged account and its first login.',
   dataSource:
     'Eltex ESR-series 1.40 remote syslog, RFC 5424 frame with sequence numbers',
-  format: ['JSON', 'ECS', 'RFC 5424'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 15,
   templateCount: 1,
   highlights: [

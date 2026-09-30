@@ -8,7 +8,8 @@ export const networkPowerdnsAuthoritative: GeneratorMeta = {
     'PowerDNS Authoritative Server 5.0.1 per-query lines (log-dns-queries, classic unstructured stderr output, packet cache on) as native text in event.original with parsed ECS fields. One server answers for a few zones; four recursive resolvers and a group of directly connected hosts query it over UDP. Recurring episodes show one direct client checking a zone with SOA and NS and then enumerating ten distinct names in it.',
   dataSource:
     'PowerDNS Authoritative Server 5.0.1 classic stderr query log (log-dns-queries)',
-  format: ['JSON', 'ECS', 'Text'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   eventCount: 6,
   templateCount: 1,
   highlights: [

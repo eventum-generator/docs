@@ -9,7 +9,8 @@ export const virtualizationVmware: GeneratorMeta = {
     "VMware vCenter Server 8.0 vpxd events forwarded over RFC 5424 syslog and indexed by the Elastic VMware vSphere integration (vsphere.log): API logins and logouts, failed SSO logins, VM power and reconfiguration, and permission changes, with the native syslog line in event.original. About 8,100 records a day from one vCenter: four service accounts around the clock and eight staff accounts on a UTC working day. Recurring episodes show three to five failed SSO logins for one administrator, then that administrator's login and an Admin permission grant.",
   dataSource:
     'VMware vCenter Server 8.0 vpxd events over remote syslog (RFC 5424, UDP), Elastic VMware vSphere integration (vsphere.log)',
-  format: ['JSON', 'ECS', 'RFC 5424'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 8,
   templateCount: 1,
   highlights: [

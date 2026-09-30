@@ -9,7 +9,8 @@ export const networkKempLoadmaster: GeneratorMeta = {
     'Edge Security Pack (ESP) user logs of a Progress Kemp LoadMaster in Common Event Format, for one virtual service that pre-authenticates a webmail portal, as ECS JSON with the CEF body in event.original and the parsed header and extension under kemp.loadmaster. About 40,000 records a day from 400 portal users follow a working-day curve in UTC. Recurring episodes show repeated ESP logon failures followed by a logon and an Exchange control panel request. The rates are a synthetic workload, not measured LoadMaster traffic.',
   dataSource:
     'Progress Kemp LoadMaster ESP user logs, CEF body without a syslog envelope (firmware 7.2.50 or later)',
-  format: ['JSON', 'ECS', 'CEF'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'CEF',
   eventCount: 12,
   templateCount: 1,
   highlights: [

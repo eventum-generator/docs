@@ -8,7 +8,8 @@ export const securityFortinetFortisoar: GeneratorMeta = {
     'Fortinet FortiSOAR 7.x audit records for deleted alerts, as FortiSOAR forwards them to a syslog server in CEF, as ECS JSON with the forwarded line in event.original. For SOC teams and SIEM engineers who monitor who removes alerts from their SOAR platform. About 2,940 deletions a day from 64 analysts of a round-the-clock SOC, more during the working day. Recurring episodes show one analyst deleting nine alerts from one address within two minutes.',
   dataSource:
     'Fortinet FortiSOAR 7.x audit log, Basic detail, forwarded over syslog in CEF',
-  format: ['JSON', 'ECS', 'CEF', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'CEF',
   eventCount: 1,
   templateCount: 1,
   highlights: [

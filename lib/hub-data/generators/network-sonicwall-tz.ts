@@ -8,7 +8,8 @@ export const networkSonicwallTz: GeneratorMeta = {
     'SonicWall TZ (SonicOS 6.5.4) LAN-to-WAN web traffic records (m=97, m=537) and Content Filtering Service denials (m=14) of one firewall between a 40-client LAN and the internet, as ECS JSON following the Elastic sonicwall_firewall integration with the native default key-value Syslog line in event.original. For SIEM content on perimeter firewall and web filtering telemetry. About 12,500 records a day follow an office working day. Recurring episodes show one client denied three or more times for a gambling site and then fetching the same path from an uncategorized host.',
   dataSource:
     'SonicWall SonicOS 6.5.4 default key-value Syslog, traffic report and Content Filtering messages',
-  format: ['JSON', 'ECS', 'Syslog', 'KV'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'KV',
   eventCount: 7,
   templateCount: 1,
   highlights: [

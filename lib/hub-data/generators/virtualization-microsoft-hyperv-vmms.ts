@@ -8,7 +8,8 @@ export const virtualizationMicrosoftHypervVmms: GeneratorMeta = {
     'Microsoft-Windows-Hyper-V-VMMS-Admin error records for failed VM checkpoints and background disk merges on four Hyper-V hosts with 60 VMs, as Winlogbeat-style ECS JSON with the raw Windows event XML in event.original. About 120 records a day, most of them in the nightly 22:00-05:00 backup window; ten VMs with recurring checkpoint trouble carry most failures. Recurring episodes show one of those VMs with a cancelled checkpoint followed by three failed checkpoint attempts, each followed by a disk merge failure.',
   dataSource:
     'Microsoft-Windows-Hyper-V-VMMS-Admin events 18014, 18012 and 19100, Event Viewer XML from Windows Server 2022/2025',
-  format: ['JSON', 'ECS', 'XML'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'XML',
   eventCount: 3,
   templateCount: 1,
   highlights: [

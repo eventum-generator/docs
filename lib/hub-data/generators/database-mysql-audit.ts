@@ -6,7 +6,7 @@ export const databaseMysqlAudit: GeneratorMeta = {
   category: 'database',
   description:
     'MySQL Enterprise Audit Plugin events (ECS-compatible JSON) covering all four audit classes — connection, general, table_access, and audit. Generates connect/disconnect lifecycle, DML queries (SELECT/INSERT/UPDATE/DELETE), table access tracking, DDL schema changes, GRANT/REVOKE privileges, admin commands, query errors, and failed authentication attempts with realistic query statistics.',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
   dataSource: 'MySQL Enterprise Audit Plugin (JSON format)',
   eventCount: 13,
   templateCount: 13,

@@ -6,7 +6,7 @@ export const monitoringZabbix: GeneratorMeta = {
   category: 'monitoring',
   description:
     'Zabbix Server events covering all five event sources: trigger problems and recoveries, operator acknowledgments, network discovery, active agent autoregistration, and internal state changes. Includes correlated problem-recovery chains with monotonically increasing event IDs, weighted severity distribution across six Zabbix severity levels, and ECS-compatible JSON output.',
-  format: ['JSON'],
+  eventFormat: 'JSON',
   dataSource: 'Zabbix Server Event API',
   eventCount: 6,
   templateCount: 7,
@@ -38,19 +38,22 @@ export const monitoringZabbix: GeneratorMeta = {
     },
     {
       id: 'internal',
-      description: 'Internal event — unsupported items, unknown triggers, failed LLD',
+      description:
+        'Internal event — unsupported items, unknown triggers, failed LLD',
       frequency: '10%',
       category: 'host',
     },
     {
       id: 'discovery',
-      description: 'Network discovery — host/service up/down from scheduled scans',
+      description:
+        'Network discovery — host/service up/down from scheduled scans',
       frequency: '7%',
       category: 'network',
     },
     {
       id: 'autoregistration',
-      description: 'Autoregistration — new agents joining monitored infrastructure',
+      description:
+        'Autoregistration — new agents joining monitored infrastructure',
       frequency: '3%',
       category: 'host',
     },

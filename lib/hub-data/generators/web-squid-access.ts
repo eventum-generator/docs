@@ -8,7 +8,8 @@ export const webSquidAccess: GeneratorMeta = {
   description:
     'Squid 6.x native access.log with stateful public-object caching, completion-time response bytes and recurring denied-to-allowed sequences.',
   dataSource: 'Squid 6.x built-in squid access.log format',
-  format: ['JSON', 'ECS', 'Access log'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   eventCount: 4,
   templateCount: 1,
   generatorId: 'squid',

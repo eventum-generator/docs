@@ -8,7 +8,8 @@ export const messagingApacheKafkaAuthorizer: GeneratorMeta = {
     'Kafka 3.9.0 KRaft StandardAuthorizer denials of topic operations by misconfigured clients retrying requests they are not allowed to make, as native kafka-authorizer.log lines with parsed ECS and kafka.* fields. About 5,100-5,200 denials a day from twelve SASL principals, around the clock with a daytime rise. Recurring episodes deny one principal four different operations on one topic within minutes.',
   dataSource:
     'Apache Kafka 3.9.0 KRaft StandardAuthorizer, kafka-authorizer.log (Log4j)',
-  format: ['JSON', 'ECS', 'Log4j'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   eventCount: 4,
   templateCount: 1,
   highlights: [

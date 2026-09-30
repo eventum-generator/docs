@@ -8,7 +8,8 @@ export const identityFortinetFortipam: GeneratorMeta = {
     'Secret-request and clear-text-view logs of one Fortinet FortiPAM appliance, for testing privileged-access analytics. Records are ECS JSON with the native FortiPAM key-value message kept byte-for-byte in event.original and parsed under fortinet.fortipam.* with its native key names. Sixty users in seven roles work with 43 secrets in seven folders, about 2,200 records a day on a UTC working-day curve. Recurring episodes show clear-text password harvesting after an access request.',
   dataSource:
     'Fortinet FortiPAM secret logs 2304064604 (secret request created) and 2303064603 (clear text view allowed)',
-  format: ['JSON', 'ECS', 'KV'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'KV',
   eventCount: 2,
   templateCount: 1,
   highlights: [

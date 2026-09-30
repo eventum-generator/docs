@@ -9,7 +9,8 @@ export const emailDovecotImap: GeneratorMeta = {
     'Dovecot 2.3.20 IMAP and POP3 login-process messages from the mail clients of 275 mailboxes, webmail users and internet noise, as native-style syslog lines in event.original inside ECS JSON. About 23,600 logins a day on a UTC hour-of-day curve. Models login outcomes, not IMAP commands or mail reads. Recurring episodes show four IMAP failures of one mailbox from one public address, then an IMAP login and a POP3 login for the same mailbox and address.',
   dataSource:
     'Dovecot 2.3.20 imap-login and pop3-login messages, UTC RFC 3164-style syslog envelope',
-  format: ['JSON', 'ECS', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 3,
   templateCount: 1,
   highlights: [

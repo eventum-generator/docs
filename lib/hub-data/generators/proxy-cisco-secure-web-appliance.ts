@@ -8,7 +8,8 @@ export const proxyCiscoSecureWebAppliance: GeneratorMeta = {
     'Cisco Secure Web Appliance (AsyncOS 15.2) standard Squid-style access log entries from one appliance serving 40 office clients: page browsing, cache hits, software downloads from mirrors, and URL-category and web-reputation blocks, as the native line in event.original with an inferred ECS mapping. About 29,200 entries a day follow a working-day curve in UTC. Recurring episodes show a client denied a package on a blocked file-sharing site that then downloads the same path from an allowed mirror.',
   dataSource:
     'Cisco Secure Web Appliance AsyncOS 15.2 standard (Squid-style) access log',
-  format: ['JSON', 'ECS', 'Text'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   eventCount: 10,
   templateCount: 1,
   highlights: [

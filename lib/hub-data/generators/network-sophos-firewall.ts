@@ -8,7 +8,8 @@ export const networkSophosFirewall: GeneratorMeta = {
     'Firewall Rule log of one Sophos Firewall (SFOS 20) in the Central Reporting Format as ECS JSON, with the native key=value message in event.original, for a firewall between a user LAN, a server DMZ and the internet. About 18,500 records a day from 80 LAN clients follow an office-hours curve in UTC: allowed connections produce Start and Stop records and denied packets produce Denied records. Recurring episodes show one client denied on three or more ports of a DMZ server, then reaching it through an open port.',
   dataSource:
     'Sophos Firewall SFOS 20 Firewall Rule log, Central Reporting Format key=value message without a syslog envelope',
-  format: ['JSON', 'ECS', 'KV'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'KV',
   eventCount: 16,
   templateCount: 1,
   highlights: [

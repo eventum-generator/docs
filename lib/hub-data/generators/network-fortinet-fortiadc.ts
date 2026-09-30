@@ -9,7 +9,8 @@ export const networkFortinetFortiadc: GeneratorMeta = {
     'Traffic logs of one FortiADC 7.1 HTTP virtual server (traffic/slb_http, log ID 0101008001) balancing an internal web portal over three real servers, as ECS JSON with the complete native key=value record in event.original and its fields under fortinet.fortiadc. Sixty clients send about 5,100 requests a day on a UTC working day. For SOC analysts and detection engineers who need load-balancer access traffic with a recurring suspicious /admin access pattern.',
   dataSource:
     'Fortinet FortiADC 7.1 traffic/slb_http log, one HTTP virtual server',
-  format: ['JSON', 'ECS', 'KV'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'KV',
   eventCount: 1,
   templateCount: 1,
   generatorId: 'fortiadc',

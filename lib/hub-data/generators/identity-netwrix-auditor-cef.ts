@@ -8,7 +8,8 @@ export const identityNetwrixAuditorCef: GeneratorMeta = {
     'Netwrix Auditor audit trail for Active Directory changes and domain logons, as exported by the SIEM Generic Integration for CEF Export add-on: each event is one Activity Record rendered as a CEF line in event.original and parsed into ECS the way the Filebeat decode_cef processor does it. A domain of about 3,000 staff and twelve operators produces about 22,000 records a day following a working day in UTC. Recurring episodes show an account created by an accounts desk operator, used to log on and deleted again by the same operator.',
   dataSource:
     'Netwrix Auditor 10.8 SIEM Generic Integration for CEF Export add-on: Active Directory and Logon Activity data sources',
-  format: ['JSON', 'ECS', 'CEF'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'CEF',
   eventCount: 11,
   templateCount: 1,
   generatorId: 'netwrix',

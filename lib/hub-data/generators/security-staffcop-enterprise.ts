@@ -7,7 +7,8 @@ export const securityStaffcopEnterprise: GeneratorMeta = {
   description:
     'Staffcop Enterprise 5.8 Syslog connector records in the native key-value format: Screenshot and Stat events from 40 employee workstations with the names of every policy each event matched, as native text in event.original with an inferred ECS mapping. For SIEM and UEBA rule authors; the optional CEF format is not emitted. About 8,600 records per weekday and 1,300 per weekend day follow an office working week. Recurring episodes show one finance employee capturing finance data with PrintScreen and then using cloud storage.',
   dataSource: 'Staffcop Enterprise 5.8 Syslog connector, native key-value',
-  format: ['JSON', 'ECS', 'Syslog', 'KV'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'KV',
   eventCount: 2,
   templateCount: 1,
   highlights: [

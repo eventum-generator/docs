@@ -6,7 +6,7 @@ export const networkPaloaltoTraffic: GeneratorMeta = {
   category: 'network',
   description:
     'Palo Alto PAN-OS Traffic logs — network session lifecycle with start/end/drop/deny subtypes, zone-aware flow profiles (trust, untrust, DMZ), source NAT translation, 30 App-ID applications, and byte/packet counters with lognormal distributions.',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
   dataSource: 'PAN-OS Traffic Log',
   eventCount: 30,
   templateCount: 4,

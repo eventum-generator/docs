@@ -9,7 +9,8 @@ export const networkMikrotikRouteros: GeneratorMeta = {
     'Remote syslog stream of one MikroTik RouterOS edge router: Winbox logins and logouts of six administrators, generic mangle-rule and item edits, DHCP lease assignments for 40 LAN clients and internet UDP packets logged by an input-chain rule, as ECS JSON with the RouterOS message and a constructed BSD-syslog line in event.original. Recurring episodes show an administrator adding, moving, changing and removing a mangle rule within one external Winbox session, leaving no rule behind.',
   dataSource:
     'MikroTik RouterOS 7 remote syslog (remote-log-format=syslog, BSD, UDP), local0.info with topics',
-  format: ['JSON', 'ECS', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Syslog',
   eventCount: 10,
   templateCount: 1,
   highlights: [

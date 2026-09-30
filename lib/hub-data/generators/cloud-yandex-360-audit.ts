@@ -6,7 +6,7 @@ export const cloudYandex360Audit: GeneratorMeta = {
   category: 'cloud',
   description:
     'Native Yandex 360 organization audit items for browser sign-ins and personal Disk file activity, for detection testing. Recurring episodes chain a sign-in, file view, public link and download of the same file.',
-  format: ['JSON'],
+  eventFormat: 'JSON',
   dataSource:
     'Current Yandex 360 organization audit API (v1), enrichedEvent items',
   eventCount: 6,

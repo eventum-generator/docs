@@ -8,7 +8,8 @@ export const identityFreeradius: GeneratorMeta = {
     "FreeRADIUS 3.2.10 file linelog output of one server authenticating 802.1X wireless clients of one controller: Accepted user and Rejected user lines from an explicitly configured linelog instance and tagged accounting Connect and Disconnect lines, as ECS JSON with the verbatim line in event.original. About 27,800 lines a day from 1,000 devices of 726 users on 30 access points. Recurring episodes show password guessing from a device's usual station that succeeds and opens a network session.",
   dataSource:
     'FreeRADIUS 3.2.10 file linelog: custom auth_siemaudit instance and tagged log_accounting Start/Stop',
-  format: ['JSON', 'ECS', 'Text'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   eventCount: 4,
   templateCount: 1,
   highlights: [

@@ -9,7 +9,7 @@ export const securityDrwebEss: GeneratorMeta = {
     'Dr.Web Enterprise Security Suite 13.0.1 administrator notifications from one Server and 960 connected Windows stations, as collector-normalized ECS JSON of the published notification variables, not native CEF, syslog or a captured delivery payload. All seven notification classes occur in both modes. Recurring episodes join an Application Control block, an allowed HOSTS edit, quarantine of the blocked copy and a station-identity collision on one station.',
   dataSource:
     'Dr.Web ESS 13.0.1 selected administrator-notification variables, collector-normalized',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
   eventCount: 7,
   templateCount: 9,
   highlights: [

@@ -6,7 +6,8 @@ export const webAtlassianJiraSecurity: GeneratorMeta = {
   description:
     'About 6,600 records/day from one Jira node and 512 accounts, with native security messages and ECS enrichment.',
   dataSource: 'Jira Data Center 9.5+ atlassian-jira-security.log',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   highlights: [
     'Office-hour activity, account-wide failure counts and overlapping authenticated sessions',
     'Login and logout preserve request IDs and session replacement records',

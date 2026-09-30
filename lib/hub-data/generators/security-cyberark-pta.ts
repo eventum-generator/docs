@@ -8,7 +8,8 @@ export const securityCyberarkPta: GeneratorMeta = {
     'CyberArk Privileged Threat Analytics (PTA) security alerts as PTA sends them to a SIEM over syslog in CEF, each line the ECS JSON document the Elastic cyberark_pta integration builds, with the CEF record in event.original. For SIEM parsing and correlation testing: one PTA server watches one Vault with 120 Vault users, 163 privileged accounts and 97 administrator workstations and jump hosts, about 490 alerts on a weekday and 405 on a weekend day. Every record is a PTA detection, not benign activity. Recurring episodes chain dormant-user, irregular-hours and credential-theft alerts on one privileged account.',
   dataSource:
     'CyberArk PTA 12.0 CEF security events over syslog, in the ECS JSON of the Elastic cyberark_pta integration',
-  format: ['JSON', 'ECS', 'CEF'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'CEF',
   eventCount: 3,
   templateCount: 1,
   generatorId: 'pta',

@@ -8,7 +8,8 @@ export const networkZeek: GeneratorMeta = {
   description:
     'Linked Zeek 8.0.0 conn.log, dns.log, http.log and ssl.log records as ECS-compatible JSON, as collected by Filebeat from one Zeek sensor watching a fleet of IPv4 clients, with the compact native JSON line in event.original. Recurring episodes show one client beaconing over TLS to a watched host, re-resolving it and uploading a large body.',
   dataSource: 'Selected Zeek 8.0.0 JSON conn/dns/http/ssl logs',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'JSON',
   eventCount: 4,
   templateCount: 1,
   highlights: [

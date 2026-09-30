@@ -7,7 +7,8 @@ export const identityAldPro: GeneratorMeta = {
   description:
     'About 61,200 selected records/day from one domain controller, including native KDC, LDAP access and audit records.',
   dataSource: 'ALD Pro MIT KDC and 389 Directory Server',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   highlights: [
     'Human working hours follow UTC+03:00; service accounts continue overnight',
     'LDAP negotiation, changes and restorations retain their request and actor relationships',

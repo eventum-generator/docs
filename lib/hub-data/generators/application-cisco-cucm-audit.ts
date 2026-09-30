@@ -8,7 +8,8 @@ export const applicationCiscoCucmAudit: GeneratorMeta = {
     'Cisco Unified Communications Manager 14 application audit log rows: Cisco Unified CM Administration logins and logouts and processnode configuration changes by 30 administrator accounts, with the native |LogMessage row in event.original of ECS JSON. About 730 rows a day follow a working day in UTC, peaking at about 70 rows an hour around 10:00-12:00. Recurring episodes show one account adding, updating and deleting the same cluster server record within one session.',
   dataSource:
     'Cisco Unified Communications Manager 14.0.1.10000-20 application audit file (Audit00000001.log, |LogMessage rows)',
-  format: ['JSON', 'ECS', 'Text'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   eventCount: 5,
   templateCount: 1,
   highlights: [

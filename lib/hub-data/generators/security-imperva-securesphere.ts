@@ -8,7 +8,8 @@ export const securityImpervaSecuresphere: GeneratorMeta = {
     'Imperva SecureSphere 14.x web application firewall security alerts and management console logins, sent by the Management Server syslog action sets in CEF, as ECS JSON with the native syslog message in event.original and Elastic imperva.securesphere field names. 600 client addresses raise alerts against five web applications in four server groups, about 9,750 records a day, busiest at 09:00-18:00 UTC. Recurring episodes show one client triggering two distinct signature rules on one application, then a signature on another application within 30 minutes.',
   dataSource:
     'Imperva SecureSphere 14.x Management Server action sets, security and system events in CEF over syslog',
-  format: ['JSON', 'ECS', 'CEF', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'CEF',
   eventCount: 5,
   templateCount: 1,
   highlights: [

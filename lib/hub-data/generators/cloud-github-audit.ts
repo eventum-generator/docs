@@ -8,7 +8,8 @@ export const cloudGithubAudit: GeneratorMeta = {
     'GitHub Enterprise Cloud organization audit log records as returned by the REST audit endpoint, projected to ECS the way the Elastic GitHub integration maps them, with the complete native object in event.original. Covers GitHub Actions workflow runs, archive downloads and a selected set of successful repository-administration actions by owners, members, build accounts and outside collaborators. Recurring episodes grant one collaborator write access to a repository, raise it to admin, remove main protection, download a ZIP and delete the repository within 30 minutes.',
   dataSource:
     'GitHub Enterprise Cloud organization audit log, REST audit endpoint (GitHub Actions workflow runs and selected successful repository-administration actions)',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'JSON',
   eventCount: 16,
   templateCount: 1,
   highlights: [

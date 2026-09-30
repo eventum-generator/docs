@@ -8,7 +8,7 @@ export const applicationOneC: GeneratorMeta = {
     "1C:Enterprise 8.3.27 event-log collector projection for a client/server, single-data-area infobase: ECS-style JSON with snake_case source fields under one_c.event_log, not a native XML or .lgf export and without event.original. Six staff accounts, four reusable temporary account names and five configured objects with explicit permissions. Recurring episodes, weekly by default, join an administrator's failed logins, a temporary FullAccess account, its payroll reads, its deletion and an event-log reduction.",
   dataSource:
     '1C:Enterprise 8.3.27 event log (client/server, sequential .lgf storage), selected collector JSON projection',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
   eventCount: 8,
   templateCount: 1,
   generatorId: 'one-c',

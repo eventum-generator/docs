@@ -8,7 +8,8 @@ export const identityDelineaSecretServer: GeneratorMeta = {
     'SECRET - VIEW audit records that one Delinea Secret Server 11.3 instance (formerly Thycotic) sends to a syslog/CEF collector, as ECS JSON with the syslog line in event.original, for training SIEM content on privileged credential access. About 12,700 views a day by 240 people on UTC office hours and 4 automation accounts on fixed schedules. Recurring episodes show one administrator viewing five distinct Tier 0 credentials within half an hour.',
   dataSource:
     'Delinea (Thycotic) Secret Server 11.3.000001 syslog/CEF, SECRET - VIEW (class 10004)',
-  format: ['JSON', 'ECS', 'CEF', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'CEF',
   eventCount: 6,
   templateCount: 1,
   generatorId: 'delinea-ss',

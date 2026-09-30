@@ -6,7 +6,7 @@ export const networkPaloaltoThreat: GeneratorMeta = {
   category: 'security',
   description:
     'Palo Alto PAN-OS Threat logs — IPS vulnerability exploits, antivirus detections, anti-spyware (DNS sinkhole and C2 callback), WildFire cloud verdicts, file type matching, and network scan detection with correlated severity, action, and threat category fields.',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
   dataSource: 'PAN-OS Threat Log',
   eventCount: 7,
   templateCount: 6,
@@ -20,7 +20,8 @@ export const networkPaloaltoThreat: GeneratorMeta = {
   eventTypes: [
     {
       id: 'spyware-dns',
-      description: 'DNS-based spyware — malware domains, C2 callbacks, DNS tunneling',
+      description:
+        'DNS-based spyware — malware domains, C2 callbacks, DNS tunneling',
       frequency: '~35%',
       category: 'threat',
     },

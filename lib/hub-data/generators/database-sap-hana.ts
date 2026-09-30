@@ -6,7 +6,7 @@ export const databaseSapHana: GeneratorMeta = {
   category: 'database',
   description:
     'SAP HANA audit trail of a production S/4HANA tenant — logon and credential checks, data access on the application schema, authorization and user administration, configuration and license changes, certificate, authentication-provider and encryption-key management, backups, and the audit policy changes HANA always records itself. Every event keeps the trail line HANA writes verbatim in `message` beside the same values parsed into ECS.',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
   dataSource: 'SAP HANA audit trail (SYSLOGPROTOCOL target)',
   eventCount: 12,
   templateCount: 13,

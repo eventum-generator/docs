@@ -6,7 +6,7 @@ export const vpnVipnet: GeneratorMeta = {
   category: 'web-access',
   description:
     'ViPNet Coordinator VPN gateway events from InfoTeCS — a Russian cryptographic platform for secure network communication using GOST encryption. Covers IPsec tunnel lifecycle, authentication, firewall decisions, packet encryption/decryption, configuration changes, keepalives, and time synchronization errors.',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
   dataSource: 'ViPNet Coordinator Syslog',
   eventCount: 11,
   templateCount: 11,

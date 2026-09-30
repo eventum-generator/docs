@@ -8,7 +8,8 @@ export const networkKerioControl: GeneratorMeta = {
     'URL content-rule records that one Kerio Control firewall writes to its Filter log, as ECS JSON with the Filter log line in the GFI-documented layout in event.original, for one office user segment. About 5,000 records a day: 32 users browse on a working-day curve and hit deny rules for social networks, anonymizers and file sharing and an allow rule on executable downloads, while their computers fetch updates round the clock. Recurring episodes show one user blocked on two different anonymizers, then downloading a tunneling or remote-access client within an hour.',
   dataSource:
     'GFI Kerio Control Filter log, URL content-rule lines of rules with Log the traffic enabled, without syslog framing',
-  format: ['JSON', 'ECS', 'Text'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'Plain text',
   eventCount: 6,
   templateCount: 1,
   highlights: [

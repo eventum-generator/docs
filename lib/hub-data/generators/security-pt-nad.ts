@@ -6,7 +6,7 @@ export const securityPtNad: GeneratorMeta = {
   category: 'security',
   description:
     'Positive Technologies Network Attack Discovery (PT NAD) events — network traffic analysis system logs covering rule-based attack detections, behavioral suspicious activity analysis, reputation/IOC alerts, lateral movement detection, C2 communication channels, protocol anomalies, credential leak detection, and parsed network session metadata in ECS-compatible JSON format.',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
   dataSource: 'PT NAD Syslog to SIEM (MaxPatrol SIEM, Elastic, Splunk)',
   eventCount: 8,
   templateCount: 8,

@@ -9,7 +9,8 @@ export const webF5AdvancedWaf: GeneratorMeta = {
     'F5 BIG-IP ASM (Advanced WAF) request log in the ArcSight CEF format over syslog, from one BIG-IP unit protecting four virtual servers for 360 clients, as ECS JSON with the native line in event.original. About 15,000 requests a day: browsing on a daily curve by UTC hour, from about 160 requests an hour at 03:00 to about 1,030 at 13:00, and automated attack bursts around the clock. Recurring episodes show one client cycling blocked payloads against one URI until a plain request passes.',
   dataSource:
     'F5 BIG-IP ASM 11.3.0 request log, remote logging profile in ArcSight CEF over syslog',
-  format: ['JSON', 'ECS', 'CEF', 'Syslog'],
+  eventFormat: 'ECS JSON',
+  originalFormat: 'CEF',
   eventCount: 8,
   templateCount: 1,
   highlights: [
