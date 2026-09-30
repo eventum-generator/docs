@@ -1,100 +1,100 @@
 import type { GeneratorMeta } from '@/lib/hub-types';
 
 export const dlpInfowatch: GeneratorMeta = {
-    slug: 'dlp-infowatch',
-    displayName: 'InfoWatch Traffic Monitor',
-    category: 'security',
-    description:
-      'InfoWatch Traffic Monitor DLP events — enterprise data leak prevention system monitoring email, web, messengers, USB devices, and printers for policy violations and sensitive data exfiltration. Generates policy violation alerts, content capture records, device control actions, print control events, system health notifications, and incident workflow updates in CEF/syslog-compatible JSON format with ECS field mapping.',
-    format: ['JSON'],
-    dataSource: 'InfoWatch Traffic Monitor CEF/Syslog',
-    eventCount: 6,
-    templateCount: 7,
-    highlights: [
-      'Six DLP event types with realistic distributions',
-      'Multi-channel monitoring (email, web, IM, USB, print)',
-      'CSV-sampled employee and department pools',
-      'ECS-compatible field mapping',
-    ],
-    generatorId: 'dlp-infowatch',
-    eventTypes: [
-      {
-        id: 'content-capture',
-        description: 'Content Capture (data channel interception)',
-        frequency: '35%',
-        category: 'network',
-      },
-      {
-        id: 'policy-violation',
-        description: 'Policy Violation (DLP rule triggered)',
-        frequency: '25%',
-        category: 'intrusion_detection',
-      },
-      {
-        id: 'device-control',
-        description: 'Device Control (removable media events)',
-        frequency: '12%',
-        category: 'host',
-      },
-      {
-        id: 'system-event',
-        description: 'System Event (service health and status)',
-        frequency: '10%',
-        category: 'host',
-      },
-      {
-        id: 'incident-update',
-        description: 'Incident Update (workflow state changes)',
-        frequency: '10%',
-        category: 'configuration',
-      },
-      {
-        id: 'print-control',
-        description: 'Print Control (print job monitoring)',
-        frequency: '8%',
-        category: 'file',
-      },
-    ],
-    realismFeatures: [
-      'Shared monotonic event ID counter across all event types for consistent ordering',
-      'CSV-sampled employee pool with username, full name, department, and position for realistic user attribution',
-      'Multi-channel content capture covering email, web uploads, messenger, USB copy, and print channels',
-      'DLP policy library with category names, sensitivity levels, and pattern match descriptions',
-      'Device inventory with vendor, model, serial number for USB and removable media events',
-      'Incident lifecycle with assignee, status transitions, and resolution timestamps',
-      'File metadata with MIME types, sizes, and content fingerprint hashes',
-    ],
-    parameters: [
-      {
-        name: 'iw_version',
-        defaultValue: '6.11.0.2345',
-        description: 'InfoWatch Traffic Monitor version',
-      },
-      {
-        name: 'iw_server',
-        defaultValue: 'IW-TM01',
-        description: 'InfoWatch server hostname',
-      },
-      {
-        name: 'iw_server_ip',
-        defaultValue: '10.1.0.20',
-        description: 'InfoWatch server IP address',
-      },
-      {
-        name: 'domain',
-        defaultValue: 'CORP.ACME.COM',
-        description: 'Active Directory domain',
-      },
-      {
-        name: 'organization',
-        defaultValue: 'ACME Corp',
-        description: 'Organization name',
-      },
-    ],
-    sampleOutputs: [
-      {
-        title: 'Policy Violation (DLP rule triggered)',
-        json: `{
+  slug: 'dlp-infowatch',
+  displayName: 'InfoWatch Traffic Monitor',
+  category: 'security',
+  description:
+    'InfoWatch Traffic Monitor DLP events — enterprise data leak prevention system monitoring email, web, messengers, USB devices, and printers for policy violations and sensitive data exfiltration. Generates policy violation alerts, content capture records, device control actions, print control events, system health notifications, and incident workflow updates in CEF/syslog-compatible JSON format with ECS field mapping.',
+  eventFormat: 'JSON',
+  dataSource: 'InfoWatch Traffic Monitor CEF/Syslog',
+  eventCount: 6,
+  templateCount: 7,
+  highlights: [
+    'Six DLP event types with realistic distributions',
+    'Multi-channel monitoring (email, web, IM, USB, print)',
+    'CSV-sampled employee and department pools',
+    'ECS-compatible field mapping',
+  ],
+  generatorId: 'dlp-infowatch',
+  eventTypes: [
+    {
+      id: 'content-capture',
+      description: 'Content Capture (data channel interception)',
+      frequency: '35%',
+      category: 'network',
+    },
+    {
+      id: 'policy-violation',
+      description: 'Policy Violation (DLP rule triggered)',
+      frequency: '25%',
+      category: 'intrusion_detection',
+    },
+    {
+      id: 'device-control',
+      description: 'Device Control (removable media events)',
+      frequency: '12%',
+      category: 'host',
+    },
+    {
+      id: 'system-event',
+      description: 'System Event (service health and status)',
+      frequency: '10%',
+      category: 'host',
+    },
+    {
+      id: 'incident-update',
+      description: 'Incident Update (workflow state changes)',
+      frequency: '10%',
+      category: 'configuration',
+    },
+    {
+      id: 'print-control',
+      description: 'Print Control (print job monitoring)',
+      frequency: '8%',
+      category: 'file',
+    },
+  ],
+  realismFeatures: [
+    'Shared monotonic event ID counter across all event types for consistent ordering',
+    'CSV-sampled employee pool with username, full name, department, and position for realistic user attribution',
+    'Multi-channel content capture covering email, web uploads, messenger, USB copy, and print channels',
+    'DLP policy library with category names, sensitivity levels, and pattern match descriptions',
+    'Device inventory with vendor, model, serial number for USB and removable media events',
+    'Incident lifecycle with assignee, status transitions, and resolution timestamps',
+    'File metadata with MIME types, sizes, and content fingerprint hashes',
+  ],
+  parameters: [
+    {
+      name: 'iw_version',
+      defaultValue: '6.11.0.2345',
+      description: 'InfoWatch Traffic Monitor version',
+    },
+    {
+      name: 'iw_server',
+      defaultValue: 'IW-TM01',
+      description: 'InfoWatch server hostname',
+    },
+    {
+      name: 'iw_server_ip',
+      defaultValue: '10.1.0.20',
+      description: 'InfoWatch server IP address',
+    },
+    {
+      name: 'domain',
+      defaultValue: 'CORP.ACME.COM',
+      description: 'Active Directory domain',
+    },
+    {
+      name: 'organization',
+      defaultValue: 'ACME Corp',
+      description: 'Organization name',
+    },
+  ],
+  sampleOutputs: [
+    {
+      title: 'Policy Violation (DLP rule triggered)',
+      json: `{
     "@timestamp": "2026-03-07T10:22:15.000Z",
     "event": {
         "kind": "alert",
@@ -153,10 +153,10 @@ export const dlpInfowatch: GeneratorMeta = {
         "user": ["petrov.av"]
     }
 }`,
-      },
-      {
-        title: 'Content Capture (email interception)',
-        json: `{
+    },
+    {
+      title: 'Content Capture (email interception)',
+      json: `{
     "@timestamp": "2026-03-07T10:25:42.000Z",
     "event": {
         "kind": "event",
@@ -205,10 +205,10 @@ export const dlpInfowatch: GeneratorMeta = {
         "user": ["ivanova.mn"]
     }
 }`,
-      },
-      {
-        title: 'Device Control (USB blocked)',
-        json: `{
+    },
+    {
+      title: 'Device Control (USB blocked)',
+      json: `{
     "@timestamp": "2026-03-07T10:30:08.000Z",
     "event": {
         "kind": "event",
@@ -257,6 +257,6 @@ export const dlpInfowatch: GeneratorMeta = {
         "user": ["kozlov.ds"]
     }
 }`,
-      },
-    ],
-  };
+    },
+  ],
+};

@@ -6,7 +6,7 @@ export const kubernetesAudit: GeneratorMeta = {
   category: 'cloud',
   description:
     'Kubernetes API server audit log events — CRUD operations on cluster resources, health probes, RBAC access checks, watch streams, pod exec/attach, and API discovery across a multi-namespace production cluster.',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
   dataSource: 'Kubernetes Audit Logs',
   eventCount: 10,
   templateCount: 10,

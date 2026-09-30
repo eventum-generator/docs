@@ -1,3 +1,4 @@
+import { Logs, ScanEye } from 'lucide-react';
 import Link from 'next/link';
 
 import { CATEGORY_MAP } from '@/lib/hub-categories';
@@ -11,6 +12,7 @@ interface GeneratorCardProps {
 export function GeneratorCard({ generator, index }: GeneratorCardProps) {
   const category = CATEGORY_MAP.get(generator.category);
   const Icon = category?.icon;
+  const modes = generator.generationModes ?? ['background'];
 
   return (
     <Link
@@ -31,20 +33,49 @@ export function GeneratorCard({ generator, index }: GeneratorCardProps) {
         {generator.description}
       </p>
 
-      <div className="mt-auto flex flex-wrap gap-1.5 pt-1">
+      <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
         <span
           className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${category?.color ?? ''}`}
         >
           {category?.name}
         </span>
-        {generator.format.map((tag) => (
+        <span
+          className="inline-flex items-center rounded-full border border-fd-border/40 px-2 py-0.5 text-xs text-fd-muted-foreground/60 cursor-help"
+          title="Structure of the generated event"
+        >
+          {generator.eventFormat}
+        </span>
+        {generator.originalFormat && (
           <span
-            key={tag}
-            className="inline-flex items-center rounded-full border border-fd-border/40 px-2 py-0.5 text-xs text-fd-muted-foreground/60"
+            className="inline-flex items-center gap-1 rounded-full border border-dashed border-fd-border/40 px-2 py-0.5 text-xs text-fd-muted-foreground/60 cursor-help"
+            title={`The event keeps the native ${generator.originalFormat} record in event.original`}
           >
-            {tag}
+            <span className="opacity-60">original</span>
+            {generator.originalFormat}
           </span>
-        ))}
+        )}
+        <span className="ml-auto inline-flex items-center gap-1">
+          {modes.includes('background') && (
+            <span
+              className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-fd-border/60 text-fd-muted-foreground cursor-help"
+              role="img"
+              aria-label="Background logs"
+              title="Background logs"
+            >
+              <Logs size={17} aria-hidden="true" />
+            </span>
+          )}
+          {modes.includes('anomaly') && (
+            <span
+              className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-fd-border/60 text-fd-foreground/75 cursor-help"
+              role="img"
+              aria-label="Contains anomaly"
+              title="Contains anomaly"
+            >
+              <ScanEye size={17} aria-hidden="true" />
+            </span>
+          )}
+        </span>
       </div>
     </Link>
   );

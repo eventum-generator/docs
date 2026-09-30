@@ -6,7 +6,7 @@ export const proxyKasperskyKwts: GeneratorMeta = {
   category: 'web-access',
   description:
     'Kaspersky Web Traffic Security gateway logs — enterprise web proxy events covering allowed browsing, antivirus-scanned downloads, URL policy blocks, malware and phishing detections, and warning page redirects with custom kaspersky.kwts.* namespace fields in ECS-compatible JSON format.',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
   dataSource: 'Kaspersky KWTS Syslog',
   eventCount: 6,
   templateCount: 6,

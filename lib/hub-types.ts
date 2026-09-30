@@ -18,16 +18,32 @@ export interface SampleOutput {
   json: string;
 }
 
+/** Structure of the generated event. */
+export type EventFormat = 'ECS JSON' | 'JSON';
+
+/** Format of the native source record the event keeps in `event.original`. */
+export type OriginalFormat =
+  | 'Syslog'
+  | 'CEF'
+  | 'KV'
+  | 'XML'
+  | 'CSV'
+  | 'JSON'
+  | 'Plain text';
+
 export interface GeneratorMeta {
   slug: string;
   displayName: string;
   category: CategoryId;
   description: string;
   dataSource: string;
-  format: string[];
+  eventFormat: EventFormat;
+  originalFormat?: OriginalFormat;
   eventCount: number;
   templateCount: number;
   highlights: string[];
+  generationModes?: Array<'background' | 'anomaly'>;
+  anomalyChain?: string;
   generatorId: string;
   eventTypes: EventType[];
   realismFeatures: string[];

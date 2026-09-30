@@ -6,7 +6,7 @@ export const linuxSyslog: GeneratorMeta = {
   category: 'endpoint',
   description:
     'Linux syslog (RFC 3164) — SSH authentication, sudo/su privilege escalation, cron jobs, systemd service lifecycle, kernel messages, UFW firewall, PAM, DHCP, Postfix mail, and package management from rsyslog/syslog-ng.',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
   dataSource: 'Linux Syslog (system integration)',
   eventCount: 13,
   templateCount: 13,
@@ -20,7 +20,8 @@ export const linuxSyslog: GeneratorMeta = {
   eventTypes: [
     {
       id: 'sshd-auth',
-      description: 'SSH authentication (publickey, password, failed, invalid user)',
+      description:
+        'SSH authentication (publickey, password, failed, invalid user)',
       frequency: '~17%',
       category: 'authentication',
     },

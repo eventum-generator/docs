@@ -6,7 +6,7 @@ export const securityKasperskyKata: GeneratorMeta = {
   category: 'security',
   description:
     'Kaspersky Anti Targeted Attack Platform (KATA) events — network-level threat detection appliance logs covering file analysis from web and mail traffic, endpoint file submissions, IDS alerts, URL reputation verdicts, DNS query inspection, IOC scanning results, TAA (Targeted Attack Analyzer) detections, and sensor heartbeat status in ECS-compatible JSON format.',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
   dataSource: 'Kaspersky KATA Central Node Syslog/CEF',
   eventCount: 10,
   templateCount: 10,

@@ -1,89 +1,89 @@
 import type { GeneratorMeta } from '@/lib/hub-types';
 
 export const securityCrowdstrikeFalcon: GeneratorMeta = {
-    slug: 'security-crowdstrike-falcon',
-    displayName: 'CrowdStrike Falcon',
-    category: 'security',
-    description:
-      'CrowdStrike Falcon Event Stream events — endpoint detections with MITRE ATT&CK mapping, authentication and user activity audits, firewall rule matches, incident summaries, and Real Time Response sessions in the native Event Streams envelope format.',
-    format: ['JSON'],
-    dataSource: 'CrowdStrike Falcon Event Streams API',
-    eventCount: 7,
-    templateCount: 8,
-    highlights: [
-      'MITRE ATT&CK mapping',
-      'Pattern disposition flags',
-      'Remote session correlation',
-      'Shared monotonic offset counter',
-    ],
-    generatorId: 'security-crowdstrike-falcon',
-    eventTypes: [
-      {
-        id: 'epp-detection',
-        description: 'Endpoint Detection (EPP)',
-        frequency: '29.1%',
-        category: 'intrusion_detection',
-      },
-      {
-        id: 'auth-audit',
-        description: 'Authentication Audit',
-        frequency: '23.3%',
-        category: 'authentication',
-      },
-      {
-        id: 'user-audit',
-        description: 'User Activity Audit',
-        frequency: '17.4%',
-        category: 'iam',
-      },
-      {
-        id: 'firewall-match',
-        description: 'Firewall Rule Match',
-        frequency: '17.4%',
-        category: 'network',
-      },
-      {
-        id: 'incident-summary',
-        description: 'Incident Summary',
-        frequency: '5.8%',
-        category: 'intrusion_detection',
-      },
-      {
-        id: 'remote-session-start',
-        description: 'Remote Response Session Start',
-        frequency: '3.5%',
-        category: 'session',
-      },
-      {
-        id: 'remote-session-end',
-        description: 'Remote Response Session End',
-        frequency: '3.5%',
-        category: 'session',
-      },
-    ],
-    realismFeatures: [
-      '20 detection scenarios covering all MITRE ATT&CK tactics from Initial Access through Impact, plus CrowdStrike-specific objectives',
-      '25 process chains mixing benign and suspicious execution paths (e.g., winword->powershell->certutil)',
-      'Pattern disposition flags with 20 boolean fields per detection reflecting realistic prevention/detection configurations',
-      'Shared monotonic offset counter ensuring consistent event stream ordering across all event types',
-      'Remote session correlation — session start events store state; session end events pop from a bounded pool of 20',
-    ],
-    parameters: [
-      {
-        name: 'customer_id',
-        defaultValue: 'a1b2c3d4...',
-        description: 'CrowdStrike Customer ID (CID)',
-      },
-      {
-        name: 'falcon_base_url',
-        defaultValue: 'https://falcon.crowdstrike.com',
-        description: 'Falcon console base URL',
-      },
-    ],
-    sampleOutputs: [
-      {
-        title: 'Endpoint Detection (EPP)',
-        json: `{
+  slug: 'security-crowdstrike-falcon',
+  displayName: 'CrowdStrike Falcon',
+  category: 'security',
+  description:
+    'CrowdStrike Falcon Event Stream events — endpoint detections with MITRE ATT&CK mapping, authentication and user activity audits, firewall rule matches, incident summaries, and Real Time Response sessions in the native Event Streams envelope format.',
+  eventFormat: 'JSON',
+  dataSource: 'CrowdStrike Falcon Event Streams API',
+  eventCount: 7,
+  templateCount: 8,
+  highlights: [
+    'MITRE ATT&CK mapping',
+    'Pattern disposition flags',
+    'Remote session correlation',
+    'Shared monotonic offset counter',
+  ],
+  generatorId: 'security-crowdstrike-falcon',
+  eventTypes: [
+    {
+      id: 'epp-detection',
+      description: 'Endpoint Detection (EPP)',
+      frequency: '29.1%',
+      category: 'intrusion_detection',
+    },
+    {
+      id: 'auth-audit',
+      description: 'Authentication Audit',
+      frequency: '23.3%',
+      category: 'authentication',
+    },
+    {
+      id: 'user-audit',
+      description: 'User Activity Audit',
+      frequency: '17.4%',
+      category: 'iam',
+    },
+    {
+      id: 'firewall-match',
+      description: 'Firewall Rule Match',
+      frequency: '17.4%',
+      category: 'network',
+    },
+    {
+      id: 'incident-summary',
+      description: 'Incident Summary',
+      frequency: '5.8%',
+      category: 'intrusion_detection',
+    },
+    {
+      id: 'remote-session-start',
+      description: 'Remote Response Session Start',
+      frequency: '3.5%',
+      category: 'session',
+    },
+    {
+      id: 'remote-session-end',
+      description: 'Remote Response Session End',
+      frequency: '3.5%',
+      category: 'session',
+    },
+  ],
+  realismFeatures: [
+    '20 detection scenarios covering all MITRE ATT&CK tactics from Initial Access through Impact, plus CrowdStrike-specific objectives',
+    '25 process chains mixing benign and suspicious execution paths (e.g., winword->powershell->certutil)',
+    'Pattern disposition flags with 20 boolean fields per detection reflecting realistic prevention/detection configurations',
+    'Shared monotonic offset counter ensuring consistent event stream ordering across all event types',
+    'Remote session correlation — session start events store state; session end events pop from a bounded pool of 20',
+  ],
+  parameters: [
+    {
+      name: 'customer_id',
+      defaultValue: 'a1b2c3d4...',
+      description: 'CrowdStrike Customer ID (CID)',
+    },
+    {
+      name: 'falcon_base_url',
+      defaultValue: 'https://falcon.crowdstrike.com',
+      description: 'Falcon console base URL',
+    },
+  ],
+  sampleOutputs: [
+    {
+      title: 'Endpoint Detection (EPP)',
+      json: `{
     "metadata": {
         "customerIDString": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
         "offset": 42,
@@ -114,10 +114,10 @@ export const securityCrowdstrikeFalcon: GeneratorMeta = {
         }
     }
 }`,
-      },
-      {
-        title: 'Authentication Audit',
-        json: `{
+    },
+    {
+      title: 'Authentication Audit',
+      json: `{
     "metadata": {
         "customerIDString": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
         "offset": 87,
@@ -138,10 +138,10 @@ export const securityCrowdstrikeFalcon: GeneratorMeta = {
         ]
     }
 }`,
-      },
-      {
-        title: 'Firewall Rule Match',
-        json: `{
+    },
+    {
+      title: 'Firewall Rule Match',
+      json: `{
     "metadata": {
         "customerIDString": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
         "offset": 104,
@@ -166,6 +166,6 @@ export const securityCrowdstrikeFalcon: GeneratorMeta = {
         "Platform": "Windows"
     }
 }`,
-      },
-    ],
-  };
+    },
+  ],
+};

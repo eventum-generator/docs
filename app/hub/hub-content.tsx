@@ -1,13 +1,17 @@
 'use client';
 
-import { useEffect, useDeferredValue, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 
 import { CategoryFilter } from '@/components/hub/CategoryFilter';
 import { FormatFilter } from '@/components/hub/FormatFilter';
 import { GeneratorCard } from '@/components/hub/GeneratorCard';
 import { HubSearch } from '@/components/hub/HubSearch';
 import type { CategoryId } from '@/lib/hub-categories';
-import type { GeneratorMeta } from '@/lib/hub-types';
+import type {
+  EventFormat,
+  GeneratorMeta,
+  OriginalFormat,
+} from '@/lib/hub-types';
 
 const PAGE_SIZE = 30;
 
@@ -17,10 +21,13 @@ interface HubContentProps {
 
 export default function HubContent({ generators }: HubContentProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState<CategoryId | null>(
-    null,
-  );
-  const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
+  const [activeCategory, setActiveCategory] = useState<CategoryId | null>(null);
+  const [activeEventFormats, setActiveEventFormats] = useState<
+    Set<EventFormat>
+  >(new Set());
+  const [activeOriginalFormats, setActiveOriginalFormats] = useState<
+    Set<OriginalFormat>
+  >(new Set());
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const deferredQuery = useDeferredValue(searchQuery);
@@ -32,9 +39,15 @@ export default function HubContent({ generators }: HubContentProps) {
       result = result.filter((g) => g.category === activeCategory);
     }
 
-    if (activeFormats.size > 0) {
-      result = result.filter((g) =>
-        [...activeFormats].every((f) => g.format.includes(f)),
+    if (activeEventFormats.size > 0) {
+      result = result.filter((g) => activeEventFormats.has(g.eventFormat));
+    }
+
+    if (activeOriginalFormats.size > 0) {
+      result = result.filter(
+        (g) =>
+          g.originalFormat !== undefined &&
+          activeOriginalFormats.has(g.originalFormat)
       );
     }
 
@@ -49,29 +62,40 @@ export default function HubContent({ generators }: HubContentProps) {
           g.eventTypes.some(
             (e) =>
               e.id.toLowerCase().includes(q) ||
-              e.description.toLowerCase().includes(q),
-          ),
+              e.description.toLowerCase().includes(q)
+          )
       );
     }
 
     return result;
-  }, [generators, activeCategory, activeFormats, deferredQuery]);
+  }, [
+    generators,
+    activeCategory,
+    activeEventFormats,
+    activeOriginalFormats,
+    deferredQuery,
+  ]);
 
-  const handleFormatToggle = (format: string) => {
-    setActiveFormats((prev) => {
+  const toggle =
+    <T,>(value: T) =>
+    (prev: Set<T>) => {
       const next = new Set(prev);
-      if (next.has(format)) {
-        next.delete(format);
+      if (next.has(value)) {
+        next.delete(value);
       } else {
-        next.add(format);
+        next.add(value);
       }
       return next;
-    });
-  };
+    };
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [activeCategory, activeFormats, deferredQuery]);
+  }, [
+    activeCategory,
+    activeEventFormats,
+    activeOriginalFormats,
+    deferredQuery,
+  ]);
 
   const visible = filtered.slice(0, visibleCount);
   const hasMore = visibleCount < filtered.length;
@@ -92,8 +116,10 @@ export default function HubContent({ generators }: HubContentProps) {
           />
         </div>
         <FormatFilter
-          activeFormats={activeFormats}
-          onFormatToggle={handleFormatToggle}
+          activeEventFormats={activeEventFormats}
+          activeOriginalFormats={activeOriginalFormats}
+          onEventFormatToggle={(f) => setActiveEventFormats(toggle(f))}
+          onOriginalFormatToggle={(f) => setActiveOriginalFormats(toggle(f))}
           generators={generators}
         />
       </div>
@@ -119,9 +145,7 @@ export default function HubContent({ generators }: HubContentProps) {
             <div className="flex justify-center pt-2">
               <button
                 type="button"
-                onClick={() =>
-                  setVisibleCount((c) => c + PAGE_SIZE)
-                }
+                onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
                 className="rounded-full border border-fd-border/50 px-6 py-2 text-sm text-fd-muted-foreground hover:text-fd-foreground hover:border-fd-border transition-colors"
               >
                 Show more ({filtered.length - visibleCount} remaining)

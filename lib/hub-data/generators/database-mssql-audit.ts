@@ -6,7 +6,7 @@ export const databaseMssqlAudit: GeneratorMeta = {
   category: 'database',
   description:
     'SQL Server Audit via Windows Event ID 33205 — login/logout lifecycle, DML queries (SELECT/INSERT/UPDATE/DELETE), stored procedure execution, schema changes (CREATE/ALTER/DROP), permission management (GRANT/DENY/REVOKE), role membership, backups, DBCC commands, and password changes.',
-  format: ['JSON', 'ECS'],
+  eventFormat: 'ECS JSON',
   dataSource: 'SQL Server Audit (Windows Event Log)',
   eventCount: 14,
   templateCount: 14,

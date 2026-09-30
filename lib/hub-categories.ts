@@ -1,24 +1,36 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Activity,
+  AppWindow,
+  Archive,
+  Boxes,
   Cloud,
   Database,
   Globe,
+  HardDrive,
+  KeyRound,
   Mail,
   Monitor,
   Network,
   Shield,
+  Workflow,
 } from 'lucide-react';
 
 export type CategoryId =
+  | 'application'
+  | 'backup'
+  | 'storage'
   | 'cloud'
   | 'database'
   | 'email'
+  | 'identity'
+  | 'messaging'
   | 'endpoint'
   | 'monitoring'
   | 'network'
   | 'security'
-  | 'web-access';
+  | 'web-access'
+  | 'virtualization';
 
 export interface CategoryMeta {
   id: CategoryId;
@@ -29,6 +41,27 @@ export interface CategoryMeta {
 }
 
 export const CATEGORIES: CategoryMeta[] = [
+  {
+    id: 'application',
+    name: 'Application',
+    icon: AppWindow,
+    description: 'Business application audit logs',
+    color: 'bg-lime-500/10 text-lime-600 dark:text-lime-400',
+  },
+  {
+    id: 'backup',
+    name: 'Backup',
+    icon: Archive,
+    description: 'Backup and recovery audit logs',
+    color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400',
+  },
+  {
+    id: 'storage',
+    name: 'Storage',
+    icon: HardDrive,
+    description: 'Storage system and array events',
+    color: 'bg-stone-500/10 text-stone-600 dark:text-stone-400',
+  },
   {
     id: 'cloud',
     name: 'Cloud',
@@ -58,6 +91,20 @@ export const CATEGORIES: CategoryMeta[] = [
     color: 'bg-teal-500/10 text-teal-600 dark:text-teal-400',
   },
   {
+    id: 'messaging',
+    name: 'Messaging',
+    icon: Workflow,
+    description: 'Message broker and queue audit logs',
+    color: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400',
+  },
+  {
+    id: 'identity',
+    name: 'Identity',
+    icon: KeyRound,
+    description: 'Authentication and directory services',
+    color: 'bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400',
+  },
+  {
     id: 'network',
     name: 'Network',
     icon: Network,
@@ -70,6 +117,13 @@ export const CATEGORIES: CategoryMeta[] = [
     icon: Shield,
     description: 'IDS/IPS and threat detection',
     color: 'bg-red-500/10 text-red-600 dark:text-red-400',
+  },
+  {
+    id: 'virtualization',
+    name: 'Virtualization',
+    icon: Boxes,
+    description: 'Hypervisor and virtual infrastructure audit logs',
+    color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400',
   },
   {
     id: 'web-access',
@@ -91,6 +145,97 @@ export const CATEGORY_MAP = new Map(CATEGORIES.map((c) => [c.id, c]));
 
 export function getCategoryForSlug(slug: string): CategoryId {
   const SLUG_CATEGORY_MAP: Record<string, CategoryId> = {
+    'application-1c': 'application',
+    'application-1c-techjournal': 'application',
+    'identity-freeradius': 'identity',
+    'network-ideco-ngfw': 'network',
+    'web-haproxy-http': 'web-access',
+    'web-squid-access': 'web-access',
+    'email-postfix': 'email',
+    'application-nextcloud-audit': 'application',
+    'database-oracle-unified-audit': 'database',
+    'identity-openldap-auditlog': 'identity',
+    'network-unbound': 'network',
+    'network-powerdns-authoritative': 'network',
+    'identity-freeipa-security': 'identity',
+    'network-openvpn-community': 'network',
+    'security-eset-protect': 'security',
+    'database-mariadb-audit': 'database',
+    'database-mongodb-log': 'database',
+    'web-tomcat-json-access': 'web-access',
+    'identity-adfs-audit': 'identity',
+    'identity-aruba-clearpass': 'identity',
+    'email-dovecot-imap': 'email',
+    'network-cisco-wlc-9800': 'network',
+    'messaging-apache-kafka-authorizer': 'messaging',
+    'email-kaspersky-klms': 'email',
+    'network-kaspersky-ngfw': 'network',
+    'security-sophos-central': 'security',
+    'windows-applocker': 'endpoint',
+    'windows-group-policy-operational': 'endpoint',
+    'windows-task-scheduler-operational': 'endpoint',
+    'windows-service-control-manager': 'endpoint',
+    'windows-rdp-session-operational': 'identity',
+    'virtualization-vmware-esxi-hostd': 'virtualization',
+    'virtualization-microsoft-hyperv-vmms': 'virtualization',
+    'virtualization-proxmox-ve': 'virtualization',
+    'network-vmware-nsx-manager': 'network',
+    'web-atlassian-jira-security': 'application',
+    'database-apache-cassandra-audit': 'database',
+    'security-kaspersky-cybertrace': 'security',
+    'security-kaspersky-kics4net': 'security',
+    'security-symantec-sepm': 'security',
+    'network-cisco-ftd': 'network',
+    'security-trendmicro-deep-security': 'security',
+    'web-f5-advanced-waf': 'web-access',
+    'identity-fortinet-fortipam': 'identity',
+    'network-kerio-control': 'network',
+    'network-bind9-query': 'network',
+    'proxy-cisco-secure-web-appliance': 'web-access',
+    'email-cisco-secure-email-gateway': 'email',
+    'security-fortinet-fortisoar': 'security',
+    'network-sophos-firewall': 'network',
+    'network-fortinet-fortiadc': 'network',
+    'storage-netapp-ontap-ems': 'storage',
+    'cloud-netskope-casb': 'cloud',
+    'network-sonicwall-tz': 'network',
+    'network-watchguard-firebox': 'network',
+    'network-kemp-loadmaster': 'network',
+    'security-imperva-securesphere': 'security',
+    'proxy-solar-webproxy': 'web-access',
+    'identity-netwrix-auditor-cef': 'identity',
+    'identity-delinea-secret-server': 'identity',
+    'security-cisco-fmc-audit': 'security',
+    'security-cyberark-pta': 'security',
+    'application-sharepoint-server-uls': 'application',
+    'application-cisco-cucm-audit': 'application',
+    'security-carbon-black-edr-event-forwarder': 'security',
+    'security-staffcop-enterprise': 'security',
+    'network-stormshield-sns': 'network',
+    'vpn-s-terra-gate': 'network',
+    'backup-veeam-vbr': 'backup',
+    'windows-active-directory': 'identity',
+    'identity-ald-pro': 'identity',
+    'identity-keycloak': 'identity',
+    'virtualization-vmware': 'virtualization',
+    'network-zeek': 'network',
+    'network-eltex-mes': 'network',
+    'network-eltex-esr': 'network',
+    'security-hashicorp-vault': 'security',
+    'security-falco': 'security',
+    'security-drweb-ess': 'security',
+    'cloud-github-audit': 'cloud',
+    'windows-dns-server-audit': 'network',
+    'windows-dhcp-audit': 'network',
+    'network-cisco-ios': 'network',
+    'identity-cisco-ise': 'identity',
+    'web-microsoft-iis': 'web-access',
+    'network-mikrotik-routeros': 'network',
+    'cloud-yandex-audit-trails': 'cloud',
+    'cloud-yandex-360-audit': 'cloud',
+    'identity-microsoft-nps': 'identity',
+    'identity-microsoft-adcs': 'identity',
+    'network-pfsense': 'network',
     'windows-security': 'endpoint',
     'windows-powershell': 'endpoint',
     'windows-sysmon': 'endpoint',
