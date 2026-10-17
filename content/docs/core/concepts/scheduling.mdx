@@ -86,6 +86,8 @@ Both plugins run independently. The merger interleaves their timestamps in time 
 
 When multiple inputs run simultaneously, the merger collects timestamps from each plugin and combines them in chronological order. If two plugins produce timestamps at the same instant, their relative order within that instant is stable but not guaranteed between plugins.
 
+[On-demand](#on-demand-scheduling) inputs take no part in this ordering: each of them publishes its timestamps the moment a request arrives, independently of the other inputs.
+
 Each timestamp carries the **ID** of the input plugin that produced it. This ID is used internally to look up the plugin's [tags](/docs/core/concepts/plugins#tags-input-plugins), which are then passed to the event plugin as the `tags` variable.
 
 ### Finite and infinite inputs
