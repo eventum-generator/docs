@@ -217,6 +217,11 @@ The memory each queue currently holds is reported on the instance page next to t
 | `generation.keep_order` | boolean | `false` | — | When `true`, output plugins process batches sequentially to preserve chronological order. |
 | `generation.max_concurrency` | integer | `100` | >= 1 | Maximum number of concurrent write operations across all output plugins. |
 | `generation.write_timeout` | integer | `10` | >= 1 | Timeout in seconds for a single write operation. |
+| `generation.stop_timeout` | integer | `30` | >= 1 | Time in seconds a stopping generator is given to deliver the events it has already produced. |
+
+A generator that is stopped first delivers the events it has already produced. Once `stop_timeout` runs out, the events still waiting are discarded and writes in progress are cancelled, so an unreachable destination cannot hold back stopping a generator, restarting the instance or shutting it down. A plugin that never returns is left running until the process exits: the stop reports an error, the generator log names the generator, and starting it again is refused while the plugin keeps running. Restarting the Eventum process releases it.
+
+A container runtime ends the process once its own grace period runs out — 10 seconds by default for Docker — so give it a grace period longer than `stop_timeout` when the events in flight must be delivered, for example `stop_grace_period: 1m` in Docker Compose.
 
 ```yaml
 generation:
@@ -231,6 +236,7 @@ generation:
   keep_order: false
   max_concurrency: 200
   write_timeout: 30
+  stop_timeout: 60
 ```
 
 ---
@@ -282,6 +288,7 @@ generation:
   keep_order: false
   max_concurrency: 100
   write_timeout: 10
+  stop_timeout: 30
 ```
 
 ## What's next

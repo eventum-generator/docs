@@ -102,6 +102,7 @@ Controls the internal queues between pipeline stages:
 | `keep_order` | boolean | `false` | — | When `true`, output plugins process batches sequentially to preserve chronological order. When `false`, batches may be written concurrently and arrive out of order. |
 | `max_concurrency` | integer | `100` | >= 1 | Maximum number of concurrent write operations across all output plugins. Acts as a semaphore to prevent overloading destinations. |
 | `write_timeout` | integer | `10` | >= 1 | Timeout in seconds for a single write operation. If an output plugin takes longer than this, the write is cancelled. |
+| `stop_timeout` | integer | `30` | >= 1 | Time in seconds a stopping generator is given to deliver the events it has already produced. Events still waiting after that are discarded and writes in progress are cancelled. |
 
 ## Format variants
 
