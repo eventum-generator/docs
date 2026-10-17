@@ -30,7 +30,7 @@ All other settings — server, logging, generation defaults, file paths — are 
 | `SIGTERM`, `SIGINT` (Ctrl+C) | Stops all generators and the server, then exits. |
 | `SIGHUP` | **Hot reload** — stops the whole application and starts it again from the config file and the startup list. The process stays alive. |
 
-Each generator is given [`generation.stop_timeout`](/docs/core/config/eventum-yml#concurrency-and-ordering) seconds to deliver the events it has already produced, so a destination that stops responding cannot hold back shutdown or hot reload. A generator whose plugin never returns is left running, and its log reports that it did not stop.
+Each generator is given [`generation.stop_timeout`](/docs/core/config/eventum-yml#concurrency-and-ordering) seconds to deliver the events it has already produced, so a destination that stops responding cannot hold back shutdown or hot reload, and [`generation.init_timeout`](/docs/core/config/eventum-yml#concurrency-and-ordering) seconds to load when the application starts. A generator whose plugin never returns is left running and shown as stuck, and its log reports that it did not stop or did not start.
 
 `SIGHUP` applies a config change without replacing the process. The server stops with everything else, so the API and Studio are unreachable for a moment:
 

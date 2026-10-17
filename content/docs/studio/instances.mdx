@@ -38,6 +38,7 @@ The **Flow** and **CPU** columns are averages over the whole run, so a generator
 | **Idle** | Registered, and not run yet |
 | **Finished** | Ran to completion — the input stage exhausted its timestamps and the generator stopped on its own |
 | **Failed** | Stopped because of an error; the reason is in the instance log |
+| **Stuck** | Did not stop when asked or did not finish starting in time — one of its plugins keeps running and does not return. Until the Eventum process is restarted, the instance can be neither stopped nor started again |
 
 The **Starting** and **Stopping** statuses appear while a lifecycle action is in flight.
 

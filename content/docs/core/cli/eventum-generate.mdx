@@ -36,6 +36,7 @@ These correspond to the `generation` section of [eventum.yml](/docs/core/config/
 | `--max-concurrency` | integer | `100` | Maximum concurrent write operations across all output plugins. |
 | `--write-timeout` | integer | `10` | Timeout in seconds for a single write operation. |
 | `--stop-timeout` | integer | `30` | Time in seconds the generator is given on stop to deliver the events it has already produced before the rest are discarded. |
+| `--init-timeout` | integer | `60` | Time in seconds the generator is given to load its configuration and initialize its plugins. |
 
 ### Logging and security
 
