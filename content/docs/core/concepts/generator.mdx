@@ -179,6 +179,8 @@ Timestamps travel through the pipeline in batches, and a batch is the unit of wo
 | `queue.max_event_bytes` | `268435456` | Memory the events queue may hold, 256 MiB by default — `null` leaves it unlimited |
 | `max_concurrency` | `100` | Max parallel output write operations |
 | `write_timeout` | `10` | Seconds before canceling a slow output write |
+| `stop_timeout` | `30` | Seconds a stopping generator is given to deliver the events it has already produced before the rest are discarded |
+| `init_timeout` | `60` | Seconds a starting generator is given to load its configuration and initialize its plugins |
 | `keep_order` | `false` | When `true`, output writes are serialized to maintain strict chronological order (slower but ordered) |
 
 These parameters are set either via CLI flags (`eventum generate --batch.size 5000`) or in the application config under `generation.*`. See [eventum.yml](/docs/core/config/files/eventum-yml) for details.

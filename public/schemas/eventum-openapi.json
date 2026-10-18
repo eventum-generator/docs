@@ -2747,7 +2747,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successful Response",
+                        "description": "Generator is removed",
                         "content": {
                             "application/json": {
                                 "schema": {}
@@ -2756,6 +2756,9 @@
                     },
                     "404": {
                         "description": "Generator with provided id is not found"
+                    },
+                    "500": {
+                        "description": "Generator did not stop even after its execution was aborted, so it is not removed and its execution is abandoned"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -2939,7 +2942,7 @@
                     "Generators"
                 ],
                 "summary": "Stop Generator",
-                "description": "Stop generator by its id",
+                "description": "Stop generator by its id. The generator is given its stop timeout to deliver the events it has already produced, after which its execution is aborted",
                 "operationId": "stop_generator_generators__id__stop_post",
                 "parameters": [
                     {
@@ -2957,7 +2960,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successful Response",
+                        "description": "Generator is stopped or was not running",
                         "content": {
                             "application/json": {
                                 "schema": {}
@@ -2966,6 +2969,9 @@
                     },
                     "404": {
                         "description": "Generator with provided id is not found"
+                    },
+                    "500": {
+                        "description": "Generator did not stop even after its execution was aborted, so the execution is abandoned"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -3132,12 +3138,15 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Successful Response",
+                        "description": "Generators are stopped or were not running",
                         "content": {
                             "application/json": {
                                 "schema": {}
                             }
                         }
+                    },
+                    "500": {
+                        "description": "Some generators did not stop even after their execution was aborted, so their execution is abandoned"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -3178,10 +3187,12 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Successful Response",
+                        "description": "IDs of generators that did not stop even after their execution was aborted, so they are not deleted and their execution is abandoned. The others are deleted, and IDs of not existing generators are just ignored.",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "$ref": "#/components/schemas/BulkDeleteResponse"
+                                }
                             }
                         }
                     },
@@ -5573,6 +5584,25 @@
                 ],
                 "title": "Body_upload_generator_file_generator_configs__name__file__filepath__post"
             },
+            "BulkDeleteResponse": {
+                "properties": {
+                    "non_deleted_generator_ids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Non Deleted Generator Ids",
+                        "description": "IDs of generators that did not stop, so they are not deleted and their execution is abandoned"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                    "non_deleted_generator_ids"
+                ],
+                "title": "BulkDeleteResponse",
+                "description": "Response model that contains ids of generators left after bulk\ndelete operation.\n\nAttributes\n----------\nnon_deleted_generator_ids : list[str]\n    List of ids of generators that did not stop, so they are not\n    deleted and their execution is abandoned."
+            },
             "BulkStartResponse": {
                 "properties": {
                     "running_generator_ids": {
@@ -7956,12 +7986,24 @@
                         "minimum": 1.0,
                         "title": "Write Timeout",
                         "default": 10
+                    },
+                    "stop_timeout": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Stop Timeout",
+                        "default": 30
+                    },
+                    "init_timeout": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Init Timeout",
+                        "default": 60
                     }
                 },
                 "additionalProperties": false,
                 "type": "object",
                 "title": "GenerationParameters",
-                "description": "Generation parameters that are common for all generators and can\nbe overridden from generator parameters level.\n\nAttributes\n----------\ntimezone : str, default='UTC'\n    Time zone for generating timestamps.\n\nbatch : BatchParameters, default=BatchParameters(...)\n    Batch parameters.\n\nqueue : QueueParameters, default=QueueParameters(...)\n    Queue parameters.\n\nkeep_order : bool, default=False\n    Whether to keep chronological order of events using their\n    timestamps by disabling output plugins concurrency.\n\nmax_concurrency : int, default=100\n    Maximum number of write operations performed by output plugins\n    concurrently.\n\nwrite_timeout : int, default=10\n    Timeout (in seconds) before canceling single write task."
+                "description": "Generation parameters that are common for all generators and can\nbe overridden from generator parameters level.\n\nAttributes\n----------\ntimezone : str, default='UTC'\n    Time zone for generating timestamps.\n\nbatch : BatchParameters, default=BatchParameters(...)\n    Batch parameters.\n\nqueue : QueueParameters, default=QueueParameters(...)\n    Queue parameters.\n\nkeep_order : bool, default=False\n    Whether to keep chronological order of events using their\n    timestamps by disabling output plugins concurrency.\n\nmax_concurrency : int, default=100\n    Maximum number of write operations performed by output plugins\n    concurrently.\n\nwrite_timeout : int, default=10\n    Timeout (in seconds) before canceling single write task.\n\nstop_timeout : int, default=30\n    Time (in seconds) a stopping generator is given to deliver the\n    events it has already produced before they are discarded.\n\ninit_timeout : int, default=60\n    Time (in seconds) a starting generator is given to load its\n    configuration and initialize its plugins."
             },
             "GeneratorDirExtendedInfo": {
                 "properties": {
@@ -8090,6 +8132,18 @@
                         "minimum": 1.0,
                         "title": "Write Timeout",
                         "default": 10
+                    },
+                    "stop_timeout": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Stop Timeout",
+                        "default": 30
+                    },
+                    "init_timeout": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Init Timeout",
+                        "default": 60
                     },
                     "id": {
                         "type": "string",
@@ -8239,6 +8293,11 @@
                         "type": "boolean",
                         "title": "Is Stopping",
                         "description": "Whether the generator is stopping"
+                    },
+                    "is_abandoned": {
+                        "type": "boolean",
+                        "title": "Is Abandoned",
+                        "description": "Whether the generator did not stop or did not initialize in time; plugin code that does not return keeps running until it returns or the process exits, and the generator cannot be started again until then"
                     }
                 },
                 "additionalProperties": false,
@@ -8248,7 +8307,8 @@
                     "is_running",
                     "is_ended_up",
                     "is_ended_up_successfully",
-                    "is_stopping"
+                    "is_stopping",
+                    "is_abandoned"
                 ],
                 "title": "GeneratorStatus",
                 "description": "Status of generator."
@@ -13911,6 +13971,18 @@
                         "minimum": 1.0,
                         "title": "Write Timeout",
                         "default": 10
+                    },
+                    "stop_timeout": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Stop Timeout",
+                        "default": 30
+                    },
+                    "init_timeout": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Init Timeout",
+                        "default": 60
                     },
                     "id": {
                         "type": "string",
